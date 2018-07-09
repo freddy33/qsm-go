@@ -6,7 +6,7 @@ type Point struct {
 
 type Node struct {
 	Point
-	C [3]Node
+	C [3]*Node
 }
 
 type TickTime uint64
