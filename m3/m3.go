@@ -5,7 +5,7 @@ type Point struct {
 }
 
 type Node struct {
-	Point
+	P *Point
 	C [3]*Node
 }
 
@@ -17,17 +17,17 @@ type EventID uint64
 
 type Event struct {
 	ID EventID
-	N Node
+	N *Node
 	T TickTime
 }
 
 type EventOutgrowth struct {
 	Evt EventID
 	D Distance
-	Nodes []Node
+	Nodes []*Node
 }
 
 type Space struct {
-	events []Event
+	events map[EventID]*Event
 	current TickTime
 }
