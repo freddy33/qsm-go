@@ -1,5 +1,7 @@
 package space_nk
 
+// From https://gist.githubusercontent.com/sindbach/a21d93c5f11a24665d9d07c05340bad3/raw/0cbef62dd1fd33ffc194d9e844d60cc3fd78af0f/test_scatter.go
+
 import (
 	"time"
 	"github.com/go-gl/gl/v3.2-core/gl"

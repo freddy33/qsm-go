@@ -7,13 +7,11 @@ import (
 	"github.com/freddy33/qsm-go/space_glot"
 	"fmt"
 	"runtime"
+	"github.com/KyleBanks/conways-gol/cgol"
 )
 
-func init() {
-	runtime.LockOSThread()
-}
-
 func main() {
+	runtime.LockOSThread()
 	c := "gl_cube"
 	if len(os.Args) > 1 {
 		c = os.Args[1]
@@ -28,6 +26,8 @@ func main() {
 		space_glot.DisplayExample3D()
 	case "glot_cube":
 		space_glot.DisplayCube()
+	case "cgol":
+		cgol.RunConwayGOL()
 	default:
 		fmt.Println("The param",c,"unknown")
 	}
