@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"go/build"
 	"strings"
+	"math"
+	"github.com/freddy33/qsm-go/m3"
 )
 
 const windowWidth = 800
@@ -87,12 +89,24 @@ func DisplayCube2() {
 	}
 
 	gl.UseProgram(prog)
+	win.SetKeyCallback(onKey)
 
-	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 10.0)
+	nbPoints := 1*m3.THREE // cube center
+	nbPoints += 6*m3.THREE // face center
+	nbPoints += 12*m3.THREE // vertices middle
+	nbPoints += 8*m3.THREE // corners
+
+	multiplier := int64(20) // cube size is 1/20th
+
+	spaceSize := float32(multiplier * 2 * m3.THREE) // 1 cube
+
+	far := float32(math.Sqrt(float64(3.0*spaceSize*spaceSize)) * 2.0)
+
+	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 1.0, far)
 	projectionUniform := gl.GetUniformLocation(prog, gl.Str("projection\x00"))
 	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
 
-	camera := mgl32.LookAtV(mgl32.Vec3{3, 3, 3}, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
+	camera := mgl32.LookAtV(mgl32.Vec3{spaceSize, spaceSize, spaceSize}, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
 	cameraUniform := gl.GetUniformLocation(prog, gl.Str("camera\x00"))
 	gl.UniformMatrix4fv(cameraUniform, 1, false, &camera[0])
 
@@ -106,7 +120,7 @@ func DisplayCube2() {
 	gl.BindFragDataLocation(prog, 0, gl.Str("outputColor\x00"))
 
 	// Load the texture
-	texture, err := newTexture("square.png")
+	texture, err := newTexture("small-square.png")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -137,6 +151,11 @@ func DisplayCube2() {
 	angle := 0.0
 	previousTime := glfw.GetTime()
 
+	var pointsPos [4]m3.Point
+	for i, p := range m3.BasePoints {
+		pointsPos[i] = p.Mul(multiplier)
+	}
+
 	for !win.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -145,19 +164,24 @@ func DisplayCube2() {
 		elapsed := time - previousTime
 		previousTime = time
 
-		angle += elapsed
-		model = mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0})
-
-		// Render
+		angle += elapsed/2
+		worldRotate := mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0})
 		gl.UseProgram(prog)
-		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
-		gl.BindVertexArray(vao)
+		for _, p := range pointsPos {
+			worldTranslate := mgl32.Translate3D(float32(p.X),float32(p.Y),float32(p.Z))
+			model = worldRotate.Mul4(worldTranslate)
 
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, texture)
+			// Render
+			gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
-		gl.DrawArrays(gl.TRIANGLES, 0, 6*2*3)
+			gl.BindVertexArray(vao)
+
+			gl.ActiveTexture(gl.TEXTURE0)
+			gl.BindTexture(gl.TEXTURE_2D, texture)
+
+			gl.DrawArrays(gl.TRIANGLES, 0, 6*2*3)
+		}
 
 		// Maintenance
 		win.SwapBuffers()
