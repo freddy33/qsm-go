@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 	"log"
+	"runtime"
 )
 
 const (
@@ -39,13 +40,47 @@ var cubeColors = []float32{
 	0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0,
 	0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1}
 
+func init() {
+	// GLFW event handling must run on the main OS thread
+	runtime.LockOSThread()
+}
+
 func DisplayCube() {
-	win, err := InitWindow(winWidth, winHeight, "Cube")
+	if err := glfw.Init(); err != nil {
+		return
+	}
+	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.ContextVersionMajor, 4)
+	glfw.WindowHint(glfw.ContextVersionMinor, 1)
+	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
+	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+	glfw.WindowHint(glfw.Samples, 4)
+
+	win, err := glfw.CreateWindow(winWidth, winHeight, "Cube 1", nil, nil)
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 	defer glfw.Terminate()
-	prog, err := Init3DGl(win)
+
+	if err = gl.Init(); err != nil {
+		panic(err)
+	}
+
+	var prog uint32 = 0
+	//prog := gl.CreateProgram()
+	//gl.LinkProgram(prog)
+
+	win.SetKeyCallback(onKey)
+
+	fmt.Println("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
+	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
+	time.Sleep(time.Microsecond*100)
+
+	gl.Enable(gl.DEPTH_TEST)
+	gl.DepthFunc(gl.LEQUAL)
+	gl.Disable(gl.CULL_FACE)
+	gl.CullFace(gl.BACK)
+
 	if err != nil {
 		log.Fatalln("opengl: initialisation failed:", err)
 	}
@@ -70,18 +105,22 @@ func drawCube() {
 }
 
 func displayLoop(win *glfw.Window, prog uint32) {
-	i := 0
+	// Configure the vertex data
+	var vao uint32
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
+
+	var vbo uint32
+	gl.GenBuffers(1, &vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(cubeVertices)*4, gl.Ptr(cubeVertices), gl.STATIC_DRAW)
+
 	for !win.ShouldClose() {
 		// Scale to window size
-		//width, height := ScaleView(win)
-		width, height := winWidth, winHeight
+		width, height := ScaleView(win)
 
-		if i < 10 {
-			fmt.Println("Starting display", i, width, height)
-			time.Sleep(time.Microsecond * 1000)
-		}
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.UseProgram(prog)
+		//gl.UseProgram(prog)
 		// Draw stuff
 		gl.ClearColor(0.0, 0.8, 0.3, 1.0)
 
@@ -100,15 +139,23 @@ func displayLoop(win *glfw.Window, prog uint32) {
 
 		// Update Screen
 		win.SwapBuffers()
-		if i < 10 {
-			fmt.Println("Finished display", i)
-		}
-		i++
 	}
 }
 
 func gluPerspective(fovY, aspect, zNear, zFar float64) {
-	fH := math.Tan(fovY/(360*math.Pi)) * zNear
+	fH := math.Tan(fovY * math.Pi / 360) * zNear
 	fW := fH * aspect
 	gl.Frustum(-fW, fW, -fH, fH, zNear, zFar)
+}
+
+func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	if action == glfw.Press && key == glfw.KeyEscape {
+		win.SetShouldClose(true)
+	}
+}
+
+func ScaleView(win *glfw.Window) (width, height int){
+	width, height = win.GetSize()
+	gl.Viewport(0, 0, int32(width), int32(height))
+	return
 }
