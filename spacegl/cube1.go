@@ -1,4 +1,4 @@
-package space_gl
+package spacegl
 
 // Convert from https://stackoverflow.com/users/44729/genpfault of answer in https://stackoverflow.com/questions/24040982/c-opengl-glfw-drawing-a-simple-cube
 
@@ -40,12 +40,10 @@ var cubeColors = []float32{
 	0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0,
 	0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1}
 
-func init() {
+func DisplayCube1() {
 	// GLFW event handling must run on the main OS thread
 	runtime.LockOSThread()
-}
 
-func DisplayCube() {
 	if err := glfw.Init(); err != nil {
 		return
 	}

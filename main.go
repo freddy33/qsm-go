@@ -1,24 +1,25 @@
 package main
 
 import (
-	"github.com/freddy33/qsm-go/space_gl"
 	"os"
 	"fmt"
-	"runtime"
+	"github.com/freddy33/qsm-go/spacegl"
+	"github.com/freddy33/qsm-go/playgl"
 )
 
 func main() {
-	runtime.LockOSThread()
-	c := "gl_cube2"
+	c := "play1"
 	if len(os.Args) > 1 {
 		c = os.Args[1]
 	}
 	fmt.Println("Executing", c)
 	switch c {
-	case "gl_cube1":
-		space_gl.DisplayCube()
-	case "gl_cube2":
-		space_gl.DisplayCube2()
+	case "play1":
+		playgl.DisplayPlay1()
+	case "cube1":
+		spacegl.DisplayCube1()
+	case "cube2":
+		spacegl.DisplayCube2()
 	default:
 		fmt.Println("The param",c,"unknown")
 	}

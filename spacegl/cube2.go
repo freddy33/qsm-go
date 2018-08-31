@@ -1,4 +1,4 @@
-package space_gl
+package spacegl
 
 import (
 	"log"
@@ -10,11 +10,11 @@ import (
 	"image/draw"
 	"image"
 	"os"
-	"runtime"
 	"go/build"
 	"strings"
 	"math"
-	"github.com/freddy33/qsm-go/m3"
+	"runtime"
+	"github.com/freddy33/qsm-go/m3space"
 )
 
 const windowWidth = 800
@@ -52,12 +52,9 @@ void main() {
 }
 ` + "\x00"
 
-func init() {
+func DisplayCube2() {
 	// GLFW event handling must run on the main OS thread
 	runtime.LockOSThread()
-}
-
-func DisplayCube2() {
 	if err := glfw.Init(); err != nil {
 		log.Fatalln("failed to initialize glfw:", err)
 	}
@@ -91,14 +88,14 @@ func DisplayCube2() {
 	gl.UseProgram(prog)
 	win.SetKeyCallback(onKey)
 
-	nbPoints := 1*m3.THREE // cube center
-	nbPoints += 6*m3.THREE // face center
-	nbPoints += 12*m3.THREE // vertices middle
-	nbPoints += 8*m3.THREE // corners
+	nbPoints := 1* m3space.THREE  // cube center
+	nbPoints += 6* m3space.THREE  // face center
+	nbPoints += 12* m3space.THREE // vertices middle
+	nbPoints += 8* m3space.THREE  // corners
 
 	multiplier := int64(20) // cube size is 1/20th
 
-	spaceSize := float32(multiplier * 2 * m3.THREE) // 1 cube
+	spaceSize := float32(multiplier * 2 * m3space.THREE) // 1 cube
 
 	far := float32(math.Sqrt(float64(3.0*spaceSize*spaceSize)) * 2.0)
 
@@ -151,8 +148,8 @@ func DisplayCube2() {
 	angle := 0.0
 	previousTime := glfw.GetTime()
 
-	var pointsPos [4]m3.Point
-	for i, p := range m3.BasePoints {
+	var pointsPos [4]m3space.Point
+	for i, p := range m3space.BasePoints {
 		pointsPos[i] = p.Mul(multiplier)
 	}
 
@@ -169,7 +166,7 @@ func DisplayCube2() {
 		gl.UseProgram(prog)
 
 		for _, p := range pointsPos {
-			worldTranslate := mgl32.Translate3D(float32(p.X),float32(p.Y),float32(p.Z))
+			worldTranslate := mgl32.Translate3D(float32(p.X()),float32(p.Y()),float32(p.Z()))
 			model = worldRotate.Mul4(worldTranslate)
 
 			// Render

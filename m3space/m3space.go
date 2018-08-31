@@ -1,7 +1,17 @@
-package m3
+package m3space
 
-type Point struct {
-	X, Y, Z int64
+type Point [3]int64
+
+func (p Point) X() int64 {
+	return p[0]
+}
+
+func (p Point) Y() int64 {
+	return p[1]
+}
+
+func (p Point) Z() int64 {
+	return p[2]
 }
 
 type Node struct {
@@ -37,13 +47,13 @@ const THREE = 3
 var BasePoints = [3]Point{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}}
 
 func (p Point) Mul(m int64) Point {
-	return Point{p.X * m, p.Y * m, p.Z * m}
+	return Point{p[0] * m, p[1] * m, p[2] * m}
 }
 
 func (p1 Point) Add(p2 Point) Point {
-	return Point{p1.X + p2.X, p1.Y + p2.Y, p1.Z + p2.Z}
+	return Point{p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]}
 }
 
 func DS(p1, p2 Point) int64 {
-	return (p1.X-p2.X)^2 + (p1.Y-p2.Y)^2 + (p1.Z-p2.Z)^2
+	return (p1[0]-p2[0])^2 + (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2
 }

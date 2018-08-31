@@ -31,4 +31,8 @@ So, that's where I am. I need to thing Vertex, and how I want to draw nodes, eve
 Let's start...
 
 
+# Projects and infos to learn from
+https://github.com/fogleman/ln
+https://medium.com/@drgomesp/opengl-and-golang-getting-started-abcd3d96f3db
+https://blog.mapbox.com/drawing-antialiased-lines-with-opengl-8766f34192dc
 
