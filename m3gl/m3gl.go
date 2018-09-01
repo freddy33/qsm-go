@@ -3,6 +3,7 @@ package m3gl
 import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/freddy33/qsm-go/m3space"
+	"fmt"
 )
 
 type Segment struct {
@@ -20,38 +21,59 @@ type Triangle struct {
 	Points [3]mgl32.Vec3
 }
 
-var lineWidth = float32(0.02)
+var lineWidth = float32(0.2)
+var Xvec = mgl32.Vec3{1.0,0.0,0.0}
+var Yvec = mgl32.Vec3{0.0,1.0,0.0}
 
-func (s Segment) ExtractTriangles(eye mgl32.Vec3) ([2]Triangle) {
-	AEye := eye.Sub(s.A)
+func (s Segment) ExtractTriangles() ([4]Triangle, error) {
 	AB := s.B.Sub(s.A)
-	cross := AEye.Cross(AB)
-	var norm mgl32.Vec3
-	if cross.Len() > 0.01 {
-		norm = cross.Normalize().Mul(lineWidth/2.0)
-	} else {
-		AEye = s.B.Add(mgl32.Vec3{1.0,1.0,1.0}).Sub(s.A)
-		cross = AEye.Cross(AB)
-		norm = cross.Normalize().Mul(lineWidth/2.0)
+	cross1 := Xvec.Cross(AB)
+	if cross1.Len() < 0.001 {
+		cross1 = Yvec.Cross(AB)
 	}
-	A1 := s.A.Sub(norm)
-	A2 := s.A.Add(norm)
-	B1 := s.B.Sub(norm)
-	B2 := s.B.Add(norm)
-	return [2]Triangle {
+	if cross1.Len() < 0.001 {
+		return [4]Triangle {}, fmt.Errorf("did not find cross vector big enough for %v", AB)
+	}
+	cross1 = cross1.Normalize()
+	cross2 := cross1.Cross(AB).Normalize().Mul(lineWidth/2.0)
+	cross1 = cross1.Mul(lineWidth/2.0)
+
+	A11 := s.A.Sub(cross1)
+	A12 := s.A.Add(cross1)
+	B11 := s.B.Sub(cross1)
+	B12 := s.B.Add(cross1)
+	A21 := s.A.Sub(cross2)
+	A22 := s.A.Add(cross2)
+	B21 := s.B.Sub(cross2)
+	B22 := s.B.Add(cross2)
+	return [4]Triangle {
 		{
 			[3]mgl32.Vec3 {
-				A1,
-				B1,
-				B2,
+				A11,
+				B11,
+				B12,
 			},
 		},
 		{
 			[3]mgl32.Vec3 {
-				B2,
-				A2,
-				A1,
+				B12,
+				A12,
+				A11,
 			},
 		},
-	}
+		{
+			[3]mgl32.Vec3 {
+				A21,
+				B21,
+				B22,
+			},
+		},
+		{
+			[3]mgl32.Vec3 {
+				B22,
+				A22,
+				A21,
+			},
+		},
+	}, nil
 }

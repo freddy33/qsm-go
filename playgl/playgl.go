@@ -15,6 +15,8 @@ import (
 const windowWidth = 800
 const windowHeight = 600
 
+var w World
+
 func DisplayPlay1() {
 	runtime.LockOSThread()
 	if err := glfw.Init(); err != nil {
@@ -40,7 +42,7 @@ func DisplayPlay1() {
 	fmt.Println("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
 	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
 
-	w := makeWorld(1)
+	w = makeWorld(3)
 	w.createAxes()
 
 	// Configure the vertex and fragment shaders
@@ -48,6 +50,8 @@ func DisplayPlay1() {
 	if err != nil {
 		panic(err)
 	}
+
+	win.SetKeyCallback(onKey)
 
 	projectionUniform := gl.GetUniformLocation(prog, gl.Str("projection\x00"))
 	cameraUniform := gl.GetUniformLocation(prog, gl.Str("camera\x00"))
@@ -62,16 +66,21 @@ func DisplayPlay1() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(w.AxesVertices)*4, gl.Ptr(w.AxesVertices), gl.STATIC_DRAW)
+	nbVertices := len(w.AxesVertices)
+	fmt.Println("Nb vertices", nbVertices)
+	gl.BufferData(gl.ARRAY_BUFFER, nbVertices*4, nil, gl.STATIC_DRAW)
+	gl.BufferSubData(gl.ARRAY_BUFFER, 0, nbVertices*4, gl.Ptr(w.AxesVertices))
+	gl.BufferSubData(gl.ARRAY_BUFFER, nbVertices*4, nbVertices*4, gl.Ptr(w.AxesColors))
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
 	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	colorAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("color\x00")))
+	gl.EnableVertexAttribArray(colorAttrib)
+	gl.VertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
-	gl.Enable(gl.PROGRAM_POINT_SIZE)
-	gl.PointSize(10.0)
 	gl.DepthFunc(gl.LESS)
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -86,8 +95,7 @@ func DisplayPlay1() {
 		gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
 		gl.BindVertexArray(vao)
 
-		gl.DrawArrays(gl.TRIANGLES, 0, 18)
-		//gl.DrawArrays(gl.POINTS, 0, 12)
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(nbVertices/3))
 
 		win.SwapBuffers()
 		glfw.PollEvents()
@@ -97,7 +105,7 @@ func DisplayPlay1() {
 
 const (
 	axes              = 3
-	trianglePerLine   = 2
+	trianglePerLine   = 4
 	pointsPerTriangle = 3
 	coordinates       = 3
 )
@@ -105,25 +113,30 @@ const (
 type World struct {
 	Max                       int64
 	AxesVertices              []float32
+	AxesColors                []float32
 	Eye                       mgl32.Vec3
 	Projection, Camera, Model mgl32.Mat4
 	previousTime              float64
 	angle                     float32
+	rotate                    bool
 }
 
 func makeWorld(Max int64) World {
-	eyeFromOrig := float32(math.Sqrt(float64(3.0*Max*Max)) * 1.3)
-	far := eyeFromOrig * 2.0
+	eyeFromOrig := float32(math.Sqrt(float64(3.0 * Max * Max)))
+	far := eyeFromOrig * 4.0
 	eye := mgl32.Vec3{eyeFromOrig, eyeFromOrig, eyeFromOrig}
+	nbVertices := 2 * axes * trianglePerLine * pointsPerTriangle * coordinates
 	w := World{
 		Max,
-		make([]float32, axes*trianglePerLine*pointsPerTriangle*coordinates),
+		make([]float32, nbVertices),
+		make([]float32, nbVertices),
 		eye,
 		mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 1.0, far),
 		mgl32.LookAtV(eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0}),
 		mgl32.Ident4(),
 		glfw.GetTime(),
 		0.0,
+		false,
 	}
 	return w
 }
@@ -134,28 +147,41 @@ func (w *World) tick() {
 	elapsed := time - w.previousTime
 	w.previousTime = time
 
-	w.angle += float32(elapsed / 2.0)
-	w.Model = mgl32.HomogRotate3D(w.angle, mgl32.Vec3{0, 1, 0})
+	if w.rotate {
+		w.angle += float32(elapsed / 2.0)
+		w.Model = mgl32.HomogRotate3D(w.angle, mgl32.Vec3{0, 1, 0})
+	}
 }
 
 func (w *World) createAxes() {
 	offset := 0
+	o := m3space.Point{0, 0, 0}
 	for axe := 0; axe < axes; axe++ {
 		p1 := m3space.Point{0, 0, 0}
 		p2 := m3space.Point{0, 0, 0}
 		p1[axe] = -w.Max
 		p2[axe] = w.Max
-		axis := m3gl.MakeSegment(p1, p2)
-		triangles := axis.ExtractTriangles(w.Eye)
-		if len(triangles) != trianglePerLine {
-			panic(fmt.Sprint("Number of triangles per lines inconsistent", len(triangles), trianglePerLine))
-		}
-		for _, triangle := range triangles {
-			for _, point := range triangle.Points {
-				for coord := 0; coord < coordinates; coord++ {
-					w.AxesVertices[offset] = point[coord]
-					offset++
-				}
+		color := mgl32.Vec3{1.0, 1.0, 1.0}
+		color[axe] = 0.5
+		w.fillAxe(&offset, m3gl.MakeSegment(o, p1), color)
+		w.fillAxe(&offset, m3gl.MakeSegment(o, p2), color)
+	}
+}
+
+func (w *World) fillAxe(offset *int, axe m3gl.Segment, color mgl32.Vec3) {
+	triangles, err := axe.ExtractTriangles()
+	if err != nil {
+		panic(err)
+	}
+	if len(triangles) != trianglePerLine {
+		panic(fmt.Sprint("Number of triangles per lines inconsistent", len(triangles), trianglePerLine))
+	}
+	for _, triangle := range triangles {
+		for _, point := range triangle.Points {
+			for coord := 0; coord < coordinates; coord++ {
+				w.AxesVertices[*offset] = point[coord]
+				w.AxesColors[*offset] = color[coord]
+				*offset++
 			}
 		}
 	}
@@ -164,6 +190,19 @@ func (w *World) createAxes() {
 func (w *World) half() {
 	for i, c := range w.AxesVertices {
 		w.AxesVertices[i] = c / 2.0
+	}
+}
+
+func SPresed() {
+	w.rotate = !w.rotate
+}
+
+func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	if action == glfw.Press && key == glfw.KeyEscape {
+		win.SetShouldClose(true)
+	}
+	if action == glfw.Press && key == glfw.KeyS {
+		SPresed()
 	}
 }
 
@@ -187,19 +226,25 @@ uniform mat4 camera;
 uniform mat4 model;
 
 in vec3 vert;
+in vec3 color;
+
+out vec3 color_from_shader;
 
 void main() {
     gl_Position = projection * camera * model * vec4(vert, 1);
+	color_from_shader = color;
 }
 ` + "\x00"
 
 var fragmentShader = `
 #version 330
 
+in vec3 color_from_shader;
+
 out vec4 out_color;
 
 void main() {
-    out_color = vec4(1.0, 1.0, 1.0, 1.0);
+    out_color = vec4(color_from_shader, 1.0);
 }
 ` + "\x00"
 
