@@ -11,9 +11,9 @@ type Segment struct {
 }
 
 func MakeSegment(p1, p2 m3space.Point) (Segment) {
-	return Segment {
-		mgl32.Vec3 {float32(p1[0]), float32(p1[1]), float32(p1[2])},
-		mgl32.Vec3 {float32(p2[0]), float32(p2[1]), float32(p2[2])},
+	return Segment{
+		mgl32.Vec3{float32(p1[0]), float32(p1[1]), float32(p1[2])},
+		mgl32.Vec3{float32(p2[0]), float32(p2[1]), float32(p2[2])},
 	}
 }
 
@@ -22,58 +22,52 @@ type Triangle struct {
 }
 
 var lineWidth = float32(0.02)
-var Xvec = mgl32.Vec3{1.0,0.0,0.0}
-var Yvec = mgl32.Vec3{0.0,1.0,0.0}
 
-func (s Segment) ExtractTriangles() ([4]Triangle, error) {
+var XYZ = [3]mgl32.Vec3{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}}
+var Circle = []mgl32.Vec2{
+	{1.0, 0.0},
+	{1.0, 1.0},
+	{0.0, 1.0},
+	{-1.0, 1.0},
+	{-1.0, 0.0},
+	{-1.0, -1.0},
+	{0.0, -1.0},
+	{1.0, -1.0},
+}
+
+func (s Segment) ExtractTriangles() ([]Triangle, error) {
 	AB := s.B.Sub(s.A)
-	cross1 := Xvec.Cross(AB)
-	if cross1.Len() < 0.001 {
-		cross1 = Yvec.Cross(AB)
+	bestCross := mgl32.Vec3{0.0, 0.0, 0.0}
+	for _, axe := range XYZ {
+		cross := axe.Cross(AB)
+		if cross.Len() > bestCross.Len() {
+			bestCross = cross
+		}
 	}
-	if cross1.Len() < 0.001 {
-		return [4]Triangle {}, fmt.Errorf("did not find cross vector big enough for %v", AB)
+	if bestCross.Len() < 0.001 {
+		return []Triangle{}, fmt.Errorf("did not find cross vector big enough for %v", AB)
 	}
-	cross1 = cross1.Normalize()
-	cross2 := cross1.Cross(AB).Normalize().Mul(lineWidth/2.0)
-	cross1 = cross1.Mul(lineWidth/2.0)
-
-	A11 := s.A.Sub(cross1)
-	A12 := s.A.Add(cross1)
-	B11 := s.B.Sub(cross1)
-	B12 := s.B.Add(cross1)
-	A21 := s.A.Sub(cross2)
-	A22 := s.A.Add(cross2)
-	B21 := s.B.Sub(cross2)
-	B22 := s.B.Add(cross2)
-	return [4]Triangle {
-		{
-			[3]mgl32.Vec3 {
-				A11,
-				B11,
-				B12,
-			},
-		},
-		{
-			[3]mgl32.Vec3 {
-				B12,
-				A12,
-				A11,
-			},
-		},
-		{
-			[3]mgl32.Vec3 {
-				A21,
-				B21,
-				B22,
-			},
-		},
-		{
-			[3]mgl32.Vec3 {
-				B22,
-				A22,
-				A21,
-			},
-		},
-	}, nil
+	bestCross = bestCross.Normalize()
+	cross2 := bestCross.Cross(AB).Normalize()
+	// Let's draw a little cylinder around AB using bestCross and cross2 normal axes
+	aPoints := make([]mgl32.Vec3, 9)
+	bPoints := make([]mgl32.Vec3, 9)
+	for i, c := range Circle {
+		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(lineWidth / 2.0)
+		aPoints[i] = s.A.Add(norm)
+		bPoints[i] = s.B.Add(norm)
+	}
+	// close the circle
+	aPoints[8] = aPoints[0]
+	bPoints[8] = bPoints[0]
+	result := make([]Triangle, 16)
+	for i := 0; i < 8; i++ {
+		result[2*i] = Triangle{[3]mgl32.Vec3{
+			aPoints[i], bPoints[i], bPoints[i+1],
+		}}
+		result[2*i+1] = Triangle{[3]mgl32.Vec3{
+			bPoints[i+1], aPoints[i+1], aPoints[i],
+		}}
+	}
+	return result, nil
 }

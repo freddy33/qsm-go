@@ -106,7 +106,7 @@ func DisplayPlay1() {
 
 const (
 	axes              = 3
-	trianglePerLine   = 4
+	trianglePerLine   = 16
 	pointsPerTriangle = 3
 	coordinates       = 3
 )
