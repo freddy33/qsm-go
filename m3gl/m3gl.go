@@ -21,7 +21,7 @@ type Triangle struct {
 	Points [3]mgl32.Vec3
 }
 
-var lineWidth = float32(0.2)
+var lineWidth = float32(0.02)
 var Xvec = mgl32.Vec3{1.0,0.0,0.0}
 var Yvec = mgl32.Vec3{0.0,1.0,0.0}
 

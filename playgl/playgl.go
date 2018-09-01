@@ -66,18 +66,19 @@ func DisplayPlay1() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	nbVertices := len(w.AxesVertices)
+	nbVertices := len(w.AxesVertices)/3
 	fmt.Println("Nb vertices", nbVertices)
-	gl.BufferData(gl.ARRAY_BUFFER, nbVertices*4, nil, gl.STATIC_DRAW)
-	gl.BufferSubData(gl.ARRAY_BUFFER, 0, nbVertices*4, gl.Ptr(w.AxesVertices))
-	gl.BufferSubData(gl.ARRAY_BUFFER, nbVertices*4, nbVertices*4, gl.Ptr(w.AxesColors))
+	gl.BufferData(gl.ARRAY_BUFFER, nbVertices*3*4 + nbVertices*2, nil, gl.STATIC_DRAW)
+	gl.BufferSubData(gl.ARRAY_BUFFER, 0, nbVertices*3*4, gl.Ptr(w.AxesVertices))
+	gl.BufferSubData(gl.ARRAY_BUFFER, nbVertices*3*4, nbVertices*2, gl.Ptr(w.AxesType))
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
 	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
-	colorAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("color\x00")))
-	gl.EnableVertexAttribArray(colorAttrib)
-	gl.VertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+
+	objTypeAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("obj_type\x00")))
+	gl.EnableVertexAttribArray(objTypeAttrib)
+	gl.VertexAttribIPointer(objTypeAttrib, 1, gl.SHORT, 0, gl.PtrOffset(nbVertices*3*4))
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
@@ -95,7 +96,7 @@ func DisplayPlay1() {
 		gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
 		gl.BindVertexArray(vao)
 
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(nbVertices/3))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(nbVertices))
 
 		win.SwapBuffers()
 		glfw.PollEvents()
@@ -113,7 +114,7 @@ const (
 type World struct {
 	Max                       int64
 	AxesVertices              []float32
-	AxesColors                []float32
+	AxesType                  []int16
 	Eye                       mgl32.Vec3
 	Projection, Camera, Model mgl32.Mat4
 	previousTime              float64
@@ -125,11 +126,11 @@ func makeWorld(Max int64) World {
 	eyeFromOrig := float32(math.Sqrt(float64(3.0 * Max * Max)))
 	far := eyeFromOrig * 4.0
 	eye := mgl32.Vec3{eyeFromOrig, eyeFromOrig, eyeFromOrig}
-	nbVertices := 2 * axes * trianglePerLine * pointsPerTriangle * coordinates
+	nbVertices := 2 * axes * trianglePerLine * pointsPerTriangle
 	w := World{
 		Max,
-		make([]float32, nbVertices),
-		make([]float32, nbVertices),
+		make([]float32, nbVertices*coordinates),
+		make([]int16, nbVertices),
 		eye,
 		mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 1.0, far),
 		mgl32.LookAtV(eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0}),
@@ -154,22 +155,29 @@ func (w *World) tick() {
 }
 
 func (w *World) createAxes() {
-	offset := 0
+	s := SegmentsVertices{0, &(w.AxesVertices), 0, &(w.AxesType)}
 	o := m3space.Point{0, 0, 0}
-	for axe := 0; axe < axes; axe++ {
+	for axe := int16(0); axe < axes; axe++ {
 		p1 := m3space.Point{0, 0, 0}
 		p2 := m3space.Point{0, 0, 0}
 		p1[axe] = -w.Max
 		p2[axe] = w.Max
 		color := mgl32.Vec3{1.0, 1.0, 1.0}
 		color[axe] = 0.5
-		w.fillAxe(&offset, m3gl.MakeSegment(o, p1), color)
-		w.fillAxe(&offset, m3gl.MakeSegment(o, p2), color)
+		s.fillVertices(m3gl.MakeSegment(p1, o), axe)
+		s.fillVertices(m3gl.MakeSegment(o, p2), axe)
 	}
 }
 
-func (w *World) fillAxe(offset *int, axe m3gl.Segment, color mgl32.Vec3) {
-	triangles, err := axe.ExtractTriangles()
+type SegmentsVertices struct {
+	pointOffset int
+	pointArray  *[]float32
+	typeOffset  int
+	typeArray   *[]int16
+}
+
+func (s *SegmentsVertices) fillVertices(segment m3gl.Segment, segmentType int16) {
+	triangles, err := segment.ExtractTriangles()
 	if err != nil {
 		panic(err)
 	}
@@ -178,10 +186,11 @@ func (w *World) fillAxe(offset *int, axe m3gl.Segment, color mgl32.Vec3) {
 	}
 	for _, triangle := range triangles {
 		for _, point := range triangle.Points {
+			(*s.typeArray)[s.typeOffset] = segmentType
+			s.typeOffset++
 			for coord := 0; coord < coordinates; coord++ {
-				w.AxesVertices[*offset] = point[coord]
-				w.AxesColors[*offset] = color[coord]
-				*offset++
+				(*s.pointArray)[s.pointOffset] = point[coord]
+				s.pointOffset++
 			}
 		}
 	}
@@ -226,25 +235,31 @@ uniform mat4 camera;
 uniform mat4 model;
 
 in vec3 vert;
-in vec3 color;
+in int obj_type;
 
-out vec3 color_from_shader;
+out vec3 obj_type_from_shader;
 
 void main() {
     gl_Position = projection * camera * model * vec4(vert, 1);
-	color_from_shader = color;
+	if (obj_type == 0) {
+		obj_type_from_shader = vec3(1.0,0.0,0.0);
+	} else if (obj_type == 1) {
+		obj_type_from_shader = vec3(0.0,1.0,0.0);
+	} else {
+		obj_type_from_shader = vec3(0.0,0.0,1.0);
+	}
 }
 ` + "\x00"
 
 var fragmentShader = `
 #version 330
 
-in vec3 color_from_shader;
+in vec3 obj_type_from_shader;
 
 out vec4 out_color;
 
 void main() {
-    out_color = vec4(color_from_shader, 1.0);
+	out_color = vec4(obj_type_from_shader, 1.0);
 }
 ` + "\x00"
 
