@@ -41,7 +41,7 @@ func DisplayPlay1() {
 	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
 
 	w = m3gl.MakeWorld(9)
-	w.CreateAxes()
+	w.FillAllVertices()
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
@@ -66,8 +66,8 @@ func DisplayPlay1() {
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	fmt.Println("Nb vertices", w.NbVertices)
 	gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*3*4+w.NbVertices*2, nil, gl.STATIC_DRAW)
-	gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AxesVertices))
-	gl.BufferSubData(gl.ARRAY_BUFFER, w.NbVertices*3*4, w.NbVertices*2, gl.Ptr(w.AxesType))
+	gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
+	gl.BufferSubData(gl.ARRAY_BUFFER, w.NbVertices*3*4, w.NbVertices*2, gl.Ptr(w.AllTypes))
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
@@ -127,13 +127,23 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 		case glfw.KeyB:
 			m3gl.LineWidth += 0.02
 			fmt.Println("New Line Width", m3gl.LineWidth)
-			w.CreateAxes()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AxesVertices))
+			w.FillAllVertices()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
 		case glfw.KeyT:
 			m3gl.LineWidth -= 0.02
 			fmt.Println("New Line Width", m3gl.LineWidth)
-			w.CreateAxes()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AxesVertices))
+			w.FillAllVertices()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
+		case glfw.KeyP:
+			m3gl.SphereSize += 0.02
+			fmt.Println("New Sphere size", m3gl.SphereSize)
+			w.FillAllVertices()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
+		case glfw.KeyL:
+			m3gl.SphereSize -= 0.02
+			fmt.Println("New Sphere size", m3gl.SphereSize)
+			w.FillAllVertices()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
 		}
 	}
 }
@@ -165,11 +175,25 @@ out vec3 obj_type_from_shader;
 void main() {
     gl_Position = projection * camera * model * vec4(vert, 1);
 	if (obj_type == 0) {
-		obj_type_from_shader = vec3(1.0,0.0,0.0);
+		obj_type_from_shader = vec3(0.8,0.0,0.0);
 	} else if (obj_type == 1) {
-		obj_type_from_shader = vec3(0.0,1.0,0.0);
+		obj_type_from_shader = vec3(0.0,0.8,0.0);
+	} else if (obj_type == 2) {
+		obj_type_from_shader = vec3(0.0,0.0,0.8);
+	} else if (obj_type == 3) {
+		obj_type_from_shader = vec3(1.0,0.3,0.3);
+	} else if (obj_type == 4) {
+		obj_type_from_shader = vec3(0.3,1.0,0.3);
+	} else if (obj_type == 5) {
+		obj_type_from_shader = vec3(0.3,0.3,1.0);
+	} else if (obj_type == 6) {
+		obj_type_from_shader = vec3(0.3,1.0,1.0);
+	} else if (obj_type == 7) {
+		obj_type_from_shader = vec3(1.0,0.3,1.0);
+	} else if (obj_type == 8) {
+		obj_type_from_shader = vec3(1.0,1.0,0.3);
 	} else {
-		obj_type_from_shader = vec3(0.0,0.0,1.0);
+		obj_type_from_shader = vec3(1.0,1.0,1.0);
 	}
 }
 ` + "\x00"

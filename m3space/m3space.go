@@ -44,6 +44,7 @@ type Space struct {
 
 const THREE = 3
 
+var Origin = Point{0, 0, 0}
 var BasePoints = [3]Point{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}}
 
 func (p Point) Mul(m int64) Point {
@@ -55,5 +56,5 @@ func (p1 Point) Add(p2 Point) Point {
 }
 
 func DS(p1, p2 Point) int64 {
-	return (p1[0]-p2[0])^2 + (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2
+	return (p1[0] - p2[0]) ^ 2 + (p1[1] - p2[1]) ^ 2 + (p1[2] - p2[2]) ^ 2
 }
