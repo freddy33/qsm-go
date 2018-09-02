@@ -42,7 +42,7 @@ func DisplayPlay1() {
 	fmt.Println("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
 	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
 
-	w = makeWorld(3)
+	w = makeWorld(9)
 	w.createAxes()
 
 	// Configure the vertex and fragment shaders
@@ -66,11 +66,10 @@ func DisplayPlay1() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	nbVertices := len(w.AxesVertices)/3
-	fmt.Println("Nb vertices", nbVertices)
-	gl.BufferData(gl.ARRAY_BUFFER, nbVertices*3*4 + nbVertices*2, nil, gl.STATIC_DRAW)
-	gl.BufferSubData(gl.ARRAY_BUFFER, 0, nbVertices*3*4, gl.Ptr(w.AxesVertices))
-	gl.BufferSubData(gl.ARRAY_BUFFER, nbVertices*3*4, nbVertices*2, gl.Ptr(w.AxesType))
+	fmt.Println("Nb vertices", w.nbVertices)
+	gl.BufferData(gl.ARRAY_BUFFER, w.nbVertices*3*4+w.nbVertices*2, nil, gl.STATIC_DRAW)
+	gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.nbVertices*3*4, gl.Ptr(w.AxesVertices))
+	gl.BufferSubData(gl.ARRAY_BUFFER, w.nbVertices*3*4, w.nbVertices*2, gl.Ptr(w.AxesType))
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
@@ -78,7 +77,7 @@ func DisplayPlay1() {
 
 	objTypeAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("obj_type\x00")))
 	gl.EnableVertexAttribArray(objTypeAttrib)
-	gl.VertexAttribIPointer(objTypeAttrib, 1, gl.SHORT, 0, gl.PtrOffset(nbVertices*3*4))
+	gl.VertexAttribIPointer(objTypeAttrib, 1, gl.SHORT, 0, gl.PtrOffset(w.nbVertices*3*4))
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
@@ -87,7 +86,7 @@ func DisplayPlay1() {
 
 	for !win.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		w.tick()
+		w.Tick(win)
 
 		gl.UseProgram(prog)
 
@@ -96,7 +95,7 @@ func DisplayPlay1() {
 		gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
 		gl.BindVertexArray(vao)
 
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(nbVertices))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(w.nbVertices))
 
 		win.SwapBuffers()
 		glfw.PollEvents()
@@ -113,45 +112,73 @@ const (
 
 type World struct {
 	Max                       int64
+	nbVertices                int
 	AxesVertices              []float32
 	AxesType                  []int16
+	Width, Height             int
 	Eye                       mgl32.Vec3
+	FovAngle float32
+	Far                       float32
 	Projection, Camera, Model mgl32.Mat4
 	previousTime              float64
+	previousArea              int64
 	angle                     float32
 	rotate                    bool
 }
 
 func makeWorld(Max int64) World {
-	eyeFromOrig := float32(math.Sqrt(float64(3.0 * Max * Max)))
-	far := eyeFromOrig * 4.0
+	eyeFromOrig := float32(math.Sqrt(float64(3.0*Max*Max))) + 1.1
+	far := eyeFromOrig * 2.2
 	eye := mgl32.Vec3{eyeFromOrig, eyeFromOrig, eyeFromOrig}
 	nbVertices := 2 * axes * trianglePerLine * pointsPerTriangle
 	w := World{
 		Max,
+		nbVertices,
 		make([]float32, nbVertices*coordinates),
 		make([]int16, nbVertices),
+		windowWidth, windowHeight,
 		eye,
-		mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 1.0, far),
-		mgl32.LookAtV(eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0}),
+		45.0,
+		far,
+		mgl32.Ident4(),
+		mgl32.Ident4(),
 		mgl32.Ident4(),
 		glfw.GetTime(),
+		0,
 		0.0,
 		false,
 	}
+	w.SetMatrices()
 	return w
 }
 
-func (w *World) tick() {
+func (w *World) ScaleView(win *glfw.Window) int64 {
+	w.Width, w.Height = win.GetSize()
+	gl.Viewport(0, 0, int32(w.Width), int32(w.Height))
+	return int64(w.Width) * int64(w.Height)
+}
+
+func (w *World) Tick(win *glfw.Window) {
 	// Update
 	time := glfw.GetTime()
 	elapsed := time - w.previousTime
 	w.previousTime = time
 
+	area := w.ScaleView(win)
+	if area != w.previousArea {
+		w.SetMatrices()
+		w.previousArea = area
+	}
+
 	if w.rotate {
 		w.angle += float32(elapsed / 2.0)
 		w.Model = mgl32.HomogRotate3D(w.angle, mgl32.Vec3{0, 1, 0})
 	}
+}
+
+func (w *World) SetMatrices() {
+	w.Projection = mgl32.Perspective(mgl32.DegToRad(w.FovAngle), float32(w.Width)/float32(w.Height), 1.0, w.Far)
+	w.Camera = mgl32.LookAtV(w.Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
 }
 
 func (w *World) createAxes() {
@@ -202,16 +229,40 @@ func (w *World) half() {
 	}
 }
 
-func SPresed() {
-	w.rotate = !w.rotate
-}
-
 func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	if action == glfw.Press && key == glfw.KeyEscape {
-		win.SetShouldClose(true)
-	}
-	if action == glfw.Press && key == glfw.KeyS {
-		SPresed()
+	if action == glfw.Press {
+		switch key {
+		case glfw.KeyEscape:
+			win.SetShouldClose(true)
+		case glfw.KeyS:
+			w.rotate = !w.rotate
+		case glfw.KeyZ:
+			w.FovAngle -= 1.0
+			fmt.Println("New FOV Angle", w.FovAngle)
+			w.SetMatrices()
+		case glfw.KeyX:
+			w.FovAngle += 1.0
+			fmt.Println("New FOV Angle", w.FovAngle)
+			w.SetMatrices()
+		case glfw.KeyQ:
+			w.Eye = w.Eye.Sub( mgl32.Vec3{1.0,1.0,1.0})
+			fmt.Println("New Eye", w.Eye)
+			w.SetMatrices()
+		case glfw.KeyW:
+			w.Eye = w.Eye.Add( mgl32.Vec3{1.0,1.0,1.0})
+			fmt.Println("New Eye", w.Eye)
+			w.SetMatrices()
+		case glfw.KeyB:
+			m3gl.LineWidth += 0.02
+			fmt.Println("New Line Width", m3gl.LineWidth)
+			w.createAxes()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.nbVertices*3*4, gl.Ptr(w.AxesVertices))
+		case glfw.KeyT:
+			m3gl.LineWidth -= 0.02
+			fmt.Println("New Line Width", m3gl.LineWidth)
+			w.createAxes()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.nbVertices*3*4, gl.Ptr(w.AxesVertices))
+		}
 	}
 }
 

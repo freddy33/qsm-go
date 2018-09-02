@@ -21,7 +21,7 @@ type Triangle struct {
 	Points [3]mgl32.Vec3
 }
 
-var lineWidth = float32(0.02)
+var LineWidth = float32(0.06)
 
 var XYZ = [3]mgl32.Vec3{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}}
 var Circle = []mgl32.Vec2{
@@ -53,7 +53,7 @@ func (s Segment) ExtractTriangles() ([]Triangle, error) {
 	aPoints := make([]mgl32.Vec3, 9)
 	bPoints := make([]mgl32.Vec3, 9)
 	for i, c := range Circle {
-		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(lineWidth / 2.0)
+		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(LineWidth / 2.0)
 		aPoints[i] = s.A.Add(norm)
 		bPoints[i] = s.B.Add(norm)
 	}
