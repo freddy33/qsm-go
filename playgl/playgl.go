@@ -7,15 +7,13 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/freddy33/qsm-go/m3gl"
-	"github.com/freddy33/qsm-go/m3space"
-	"math"
 	"strings"
 )
 
 const windowWidth = 800
 const windowHeight = 600
 
-var w World
+var w m3gl.World
 
 func DisplayPlay1() {
 	runtime.LockOSThread()
@@ -42,8 +40,8 @@ func DisplayPlay1() {
 	fmt.Println("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
 	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
 
-	w = makeWorld(9)
-	w.createAxes()
+	w = m3gl.MakeWorld(9)
+	w.CreateAxes()
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
@@ -66,10 +64,10 @@ func DisplayPlay1() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	fmt.Println("Nb vertices", w.nbVertices)
-	gl.BufferData(gl.ARRAY_BUFFER, w.nbVertices*3*4+w.nbVertices*2, nil, gl.STATIC_DRAW)
-	gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.nbVertices*3*4, gl.Ptr(w.AxesVertices))
-	gl.BufferSubData(gl.ARRAY_BUFFER, w.nbVertices*3*4, w.nbVertices*2, gl.Ptr(w.AxesType))
+	fmt.Println("Nb vertices", w.NbVertices)
+	gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*3*4+w.NbVertices*2, nil, gl.STATIC_DRAW)
+	gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AxesVertices))
+	gl.BufferSubData(gl.ARRAY_BUFFER, w.NbVertices*3*4, w.NbVertices*2, gl.Ptr(w.AxesType))
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
@@ -77,7 +75,7 @@ func DisplayPlay1() {
 
 	objTypeAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("obj_type\x00")))
 	gl.EnableVertexAttribArray(objTypeAttrib)
-	gl.VertexAttribIPointer(objTypeAttrib, 1, gl.SHORT, 0, gl.PtrOffset(w.nbVertices*3*4))
+	gl.VertexAttribIPointer(objTypeAttrib, 1, gl.SHORT, 0, gl.PtrOffset(w.NbVertices*3*4))
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
@@ -95,138 +93,12 @@ func DisplayPlay1() {
 		gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
 		gl.BindVertexArray(vao)
 
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(w.nbVertices))
+		gl.DrawArrays(gl.TRIANGLES, 0, int32(w.NbVertices))
 
 		win.SwapBuffers()
 		glfw.PollEvents()
 	}
 
-}
-
-const (
-	axes              = 3
-	trianglePerLine   = 16
-	pointsPerTriangle = 3
-	coordinates       = 3
-)
-
-type World struct {
-	Max                       int64
-	nbVertices                int
-	AxesVertices              []float32
-	AxesType                  []int16
-	Width, Height             int
-	Eye                       mgl32.Vec3
-	FovAngle float32
-	Far                       float32
-	Projection, Camera, Model mgl32.Mat4
-	previousTime              float64
-	previousArea              int64
-	angle                     float32
-	rotate                    bool
-}
-
-func makeWorld(Max int64) World {
-	eyeFromOrig := float32(math.Sqrt(float64(3.0*Max*Max))) + 1.1
-	far := eyeFromOrig * 2.2
-	eye := mgl32.Vec3{eyeFromOrig, eyeFromOrig, eyeFromOrig}
-	nbVertices := 2 * axes * trianglePerLine * pointsPerTriangle
-	w := World{
-		Max,
-		nbVertices,
-		make([]float32, nbVertices*coordinates),
-		make([]int16, nbVertices),
-		windowWidth, windowHeight,
-		eye,
-		45.0,
-		far,
-		mgl32.Ident4(),
-		mgl32.Ident4(),
-		mgl32.Ident4(),
-		glfw.GetTime(),
-		0,
-		0.0,
-		false,
-	}
-	w.SetMatrices()
-	return w
-}
-
-func (w *World) ScaleView(win *glfw.Window) int64 {
-	w.Width, w.Height = win.GetSize()
-	gl.Viewport(0, 0, int32(w.Width), int32(w.Height))
-	return int64(w.Width) * int64(w.Height)
-}
-
-func (w *World) Tick(win *glfw.Window) {
-	// Update
-	time := glfw.GetTime()
-	elapsed := time - w.previousTime
-	w.previousTime = time
-
-	area := w.ScaleView(win)
-	if area != w.previousArea {
-		w.SetMatrices()
-		w.previousArea = area
-	}
-
-	if w.rotate {
-		w.angle += float32(elapsed / 2.0)
-		w.Model = mgl32.HomogRotate3D(w.angle, mgl32.Vec3{0, 1, 0})
-	}
-}
-
-func (w *World) SetMatrices() {
-	w.Projection = mgl32.Perspective(mgl32.DegToRad(w.FovAngle), float32(w.Width)/float32(w.Height), 1.0, w.Far)
-	w.Camera = mgl32.LookAtV(w.Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
-}
-
-func (w *World) createAxes() {
-	s := SegmentsVertices{0, &(w.AxesVertices), 0, &(w.AxesType)}
-	o := m3space.Point{0, 0, 0}
-	for axe := int16(0); axe < axes; axe++ {
-		p1 := m3space.Point{0, 0, 0}
-		p2 := m3space.Point{0, 0, 0}
-		p1[axe] = -w.Max
-		p2[axe] = w.Max
-		color := mgl32.Vec3{1.0, 1.0, 1.0}
-		color[axe] = 0.5
-		s.fillVertices(m3gl.MakeSegment(p1, o), axe)
-		s.fillVertices(m3gl.MakeSegment(o, p2), axe)
-	}
-}
-
-type SegmentsVertices struct {
-	pointOffset int
-	pointArray  *[]float32
-	typeOffset  int
-	typeArray   *[]int16
-}
-
-func (s *SegmentsVertices) fillVertices(segment m3gl.Segment, segmentType int16) {
-	triangles, err := segment.ExtractTriangles()
-	if err != nil {
-		panic(err)
-	}
-	if len(triangles) != trianglePerLine {
-		panic(fmt.Sprint("Number of triangles per lines inconsistent", len(triangles), trianglePerLine))
-	}
-	for _, triangle := range triangles {
-		for _, point := range triangle.Points {
-			(*s.typeArray)[s.typeOffset] = segmentType
-			s.typeOffset++
-			for coord := 0; coord < coordinates; coord++ {
-				(*s.pointArray)[s.pointOffset] = point[coord]
-				s.pointOffset++
-			}
-		}
-	}
-}
-
-func (w *World) half() {
-	for i, c := range w.AxesVertices {
-		w.AxesVertices[i] = c / 2.0
-	}
 }
 
 func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
@@ -235,7 +107,7 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 		case glfw.KeyEscape:
 			win.SetShouldClose(true)
 		case glfw.KeyS:
-			w.rotate = !w.rotate
+			w.Rotate = !w.Rotate
 		case glfw.KeyZ:
 			w.FovAngle -= 1.0
 			fmt.Println("New FOV Angle", w.FovAngle)
@@ -245,23 +117,23 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 			fmt.Println("New FOV Angle", w.FovAngle)
 			w.SetMatrices()
 		case glfw.KeyQ:
-			w.Eye = w.Eye.Sub( mgl32.Vec3{1.0,1.0,1.0})
+			w.Eye = w.Eye.Sub(mgl32.Vec3{1.0, 1.0, 1.0})
 			fmt.Println("New Eye", w.Eye)
 			w.SetMatrices()
 		case glfw.KeyW:
-			w.Eye = w.Eye.Add( mgl32.Vec3{1.0,1.0,1.0})
+			w.Eye = w.Eye.Add(mgl32.Vec3{1.0, 1.0, 1.0})
 			fmt.Println("New Eye", w.Eye)
 			w.SetMatrices()
 		case glfw.KeyB:
 			m3gl.LineWidth += 0.02
 			fmt.Println("New Line Width", m3gl.LineWidth)
-			w.createAxes()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.nbVertices*3*4, gl.Ptr(w.AxesVertices))
+			w.CreateAxes()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AxesVertices))
 		case glfw.KeyT:
 			m3gl.LineWidth -= 0.02
 			fmt.Println("New Line Width", m3gl.LineWidth)
-			w.createAxes()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.nbVertices*3*4, gl.Ptr(w.AxesVertices))
+			w.CreateAxes()
+			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AxesVertices))
 		}
 	}
 }
