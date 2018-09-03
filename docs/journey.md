@@ -32,7 +32,16 @@ Let's start...
 
 
 # Projects and infos to learn from
+
 https://github.com/fogleman/ln
+
 https://medium.com/@drgomesp/opengl-and-golang-getting-started-abcd3d96f3db
+
 https://blog.mapbox.com/drawing-antialiased-lines-with-opengl-8766f34192dc
+
+Nice first tutorial: https://solarianprogrammer.com/2013/05/13/opengl-101-drawing-primitives/
+
+Must read: https://learnopengl.com/ with Source code here https://github.com/JoeyDeVries/LearnOpenGL
+
+Using VBO and VAO size optimization: https://www.khronos.org/opengl/wiki/Vertex_Specification_Best_Practices
 

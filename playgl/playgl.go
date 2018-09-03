@@ -5,7 +5,6 @@ import (
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"runtime"
 	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/freddy33/qsm-go/m3gl"
 	"strings"
 )
@@ -54,6 +53,8 @@ func DisplayPlay1() {
 	projectionUniform := gl.GetUniformLocation(prog, gl.Str("projection\x00"))
 	cameraUniform := gl.GetUniformLocation(prog, gl.Str("camera\x00"))
 	modelUniform := gl.GetUniformLocation(prog, gl.Str("model\x00"))
+	lightDirectionUniform := gl.GetUniformLocation(prog, gl.Str("light_direction\x00"))
+	lightColorUniform := gl.GetUniformLocation(prog, gl.Str("light_color\x00"))
 	gl.BindFragDataLocation(prog, 0, gl.Str("out_color\x00"))
 
 	// Configure the vertex data
@@ -64,18 +65,20 @@ func DisplayPlay1() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	fmt.Println("Nb vertices", w.NbVertices)
-	gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*3*4+w.NbVertices*2, nil, gl.STATIC_DRAW)
-	gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
-	gl.BufferSubData(gl.ARRAY_BUFFER, w.NbVertices*3*4, w.NbVertices*2, gl.Ptr(w.AllTypes))
+	fmt.Println("Nb vertices", w.NbVertices, ", total size", len(w.OpenGLBuffer))
+	gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(w.OpenGLBuffer), gl.STATIC_DRAW)
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
-	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, m3gl.FloatPerVertices*4, gl.PtrOffset(0))
 
-	objTypeAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("obj_type\x00")))
-	gl.EnableVertexAttribArray(objTypeAttrib)
-	gl.VertexAttribIPointer(objTypeAttrib, 1, gl.SHORT, 0, gl.PtrOffset(w.NbVertices*3*4))
+	normAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("norm\x00")))
+	gl.EnableVertexAttribArray(normAttrib)
+	gl.VertexAttribPointer(normAttrib, 3, gl.FLOAT, true, m3gl.FloatPerVertices*4, gl.PtrOffset(3*4))
+
+	colorAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("obj_color\x00")))
+	gl.EnableVertexAttribArray(colorAttrib)
+	gl.VertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, m3gl.FloatPerVertices*4, gl.PtrOffset(6*4))
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
@@ -91,6 +94,8 @@ func DisplayPlay1() {
 		gl.UniformMatrix4fv(projectionUniform, 1, false, &(w.Projection[0]))
 		gl.UniformMatrix4fv(cameraUniform, 1, false, &(w.Camera[0]))
 		gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
+		gl.Uniform3f(lightDirectionUniform, w.LightDirection[0], w.LightDirection[1], w.LightDirection[2])
+		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
 		gl.BindVertexArray(vao)
 
 		gl.DrawArrays(gl.TRIANGLES, 0, int32(w.NbVertices))
@@ -102,6 +107,8 @@ func DisplayPlay1() {
 }
 
 func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	reCalc := false
+	reFill := false
 	if action == glfw.Press {
 		switch key {
 		case glfw.KeyEscape:
@@ -109,56 +116,48 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 		case glfw.KeyS:
 			w.Rotate = !w.Rotate
 		case glfw.KeyZ:
-			w.FovAngle -= 1.0
-			fmt.Println("New FOV Angle", w.FovAngle)
-			w.SetMatrices()
+			w.FovAngle.Decrease()
+			reCalc = true
 		case glfw.KeyX:
-			w.FovAngle += 1.0
-			fmt.Println("New FOV Angle", w.FovAngle)
-			w.SetMatrices()
+			w.FovAngle.Increase()
+			reCalc = true
 		case glfw.KeyQ:
-			w.Eye = w.Eye.Sub(mgl32.Vec3{1.0, 1.0, 1.0})
-			fmt.Println("New Eye", w.Eye)
-			w.SetMatrices()
+			w.EyeDist.Increase()
+			reCalc = true
 		case glfw.KeyW:
-			w.Eye = w.Eye.Add(mgl32.Vec3{1.0, 1.0, 1.0})
-			fmt.Println("New Eye", w.Eye)
-			w.SetMatrices()
+			w.EyeDist.Decrease()
+			reCalc = true
 		case glfw.KeyB:
-			m3gl.LineWidth += 0.02
-			fmt.Println("New Line Width", m3gl.LineWidth)
-			w.FillAllVertices()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
+			m3gl.LineWidth.Increase()
+			reCalc = true
+			reFill = true
 		case glfw.KeyT:
-			m3gl.LineWidth -= 0.02
-			fmt.Println("New Line Width", m3gl.LineWidth)
-			w.FillAllVertices()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
+			m3gl.LineWidth.Decrease()
+			reCalc = true
+			reFill = true
 		case glfw.KeyP:
-			m3gl.SphereSize += 0.02
-			fmt.Println("New Sphere size", m3gl.SphereSize)
-			w.FillAllVertices()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
+			m3gl.SphereRadius.Increase()
+			reCalc = true
+			reFill = true
 		case glfw.KeyL:
-			m3gl.SphereSize -= 0.02
-			fmt.Println("New Sphere size", m3gl.SphereSize)
-			w.FillAllVertices()
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, w.NbVertices*3*4, gl.Ptr(w.AllVertices))
+			m3gl.SphereRadius.Decrease()
+			reCalc = true
+			reFill = true
 		}
+	}
+	if reCalc {
+		recalc(reFill)
 	}
 }
 
-var vertexShaderDirect = `
-#version 330
-
-uniform mat4 model;
-
-in vec3 vert;
-
-void main() {
-    gl_Position = model * vec4(vert, 1);
+func recalc(fill bool) {
+	w.DisplaySettings()
+	w.SetMatrices()
+	if fill {
+		w.FillAllVertices()
+		gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(w.OpenGLBuffer), gl.STATIC_DRAW)
+	}
 }
-` + "\x00"
 
 var vertexShaderFull = `
 #version 330
@@ -168,45 +167,42 @@ uniform mat4 camera;
 uniform mat4 model;
 
 in vec3 vert;
-in int obj_type;
+in vec3 norm;
+in vec3 obj_color;
 
-out vec3 obj_type_from_shader;
+out vec3 s_normal;
+out vec3 s_obj_color;
 
 void main() {
+	s_normal = vec3(model * vec4(norm, 1));
+	s_obj_color = obj_color;
     gl_Position = projection * camera * model * vec4(vert, 1);
-	if (obj_type == 0) {
-		obj_type_from_shader = vec3(0.8,0.0,0.0);
-	} else if (obj_type == 1) {
-		obj_type_from_shader = vec3(0.0,0.8,0.0);
-	} else if (obj_type == 2) {
-		obj_type_from_shader = vec3(0.0,0.0,0.8);
-	} else if (obj_type == 3) {
-		obj_type_from_shader = vec3(1.0,0.3,0.3);
-	} else if (obj_type == 4) {
-		obj_type_from_shader = vec3(0.3,1.0,0.3);
-	} else if (obj_type == 5) {
-		obj_type_from_shader = vec3(0.3,0.3,1.0);
-	} else if (obj_type == 6) {
-		obj_type_from_shader = vec3(0.3,1.0,1.0);
-	} else if (obj_type == 7) {
-		obj_type_from_shader = vec3(1.0,0.3,1.0);
-	} else if (obj_type == 8) {
-		obj_type_from_shader = vec3(1.0,1.0,0.3);
-	} else {
-		obj_type_from_shader = vec3(1.0,1.0,1.0);
-	}
 }
 ` + "\x00"
 
 var fragmentShader = `
 #version 330
 
-in vec3 obj_type_from_shader;
+uniform vec3 light_direction;
+uniform vec3 light_color;
+
+in vec3 s_pos;
+in vec3 s_normal;
+in vec3 s_obj_color;
 
 out vec4 out_color;
 
 void main() {
-	out_color = vec4(obj_type_from_shader, 1.0);
+    // ambient
+    float ambientStrength = 0.2;
+    vec3 ambient = ambientStrength * light_color;
+  	
+    // diffuse 
+    float diff = max(dot(s_normal, light_direction), 0.0);
+    vec3 diffuse = diff * light_color;
+            
+    vec3 result = (ambient + diffuse) * s_obj_color;
+    out_color = vec4(result, 1.0);
 }
 ` + "\x00"
 
@@ -266,22 +262,4 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	}
 
 	return shader, nil
-}
-
-var demoVertices = []float32{
-	0.0, 0.0, 0.0,
-	0.5, 0.0, 0.0,
-	0.5, 0.5, 0.0,
-
-	0.0, 0.0, 0.0,
-	0.0, 0.5, 0.5,
-	-0.5, 0.5, 0.5,
-
-	0.0, 0.0, -0.5,
-	-0.5, 0.0, 0.5,
-	-0.5, -0.5, 0.5,
-
-	0.0, 0.0, 0.0,
-	0.0, -0.5, -0.5,
-	0.5, -0.5, -0.5,
 }

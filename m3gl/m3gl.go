@@ -4,39 +4,174 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/freddy33/qsm-go/m3space"
 	"fmt"
-	"math"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/go-gl/gl/v4.1-core/gl"
+	"math"
 )
 
-var LineWidth = float32(0.06)
-var SphereSize = float32(0.2)
+const (
+	FloatPerVertices = 9
+
+	nodes              = 4
+	connections        = 3
+	axes               = 3
+	circleParts        = 8
+	trianglesPerLine   = circleParts * 2
+	trianglesPerSphere = circleParts * (circleParts - 2)
+	pointsPerTriangle  = 3
+	coordinates        = 3
+)
+
+type ObjectType int16
+
+const (
+	axeX       ObjectType = iota
+	axeY
+	axeZ
+	nodeA
+	nodeB
+	nodeC
+	connection
+)
+
+type World struct {
+	Max                  int64
+	TopCornerDist        float32
+	NbTriangles          int
+	AxesTriangles        []Triangle
+	NodesTriangles       []Triangle
+	ConnectionsTriangles []Triangle
+	NbVertices           int
+	OpenGLBuffer         []float32
+	Width, Height        int
+	EyeDist              SizeVar
+	FovAngle             SizeVar
+	LightDirection       mgl32.Vec3
+	LightColor           mgl32.Vec3
+	Projection           mgl32.Mat4
+	Camera               mgl32.Mat4
+	Model                mgl32.Mat4
+	previousTime         float64
+	previousArea         int64
+	Angle                float32
+	Rotate               bool
+}
+
+func MakeWorld(Max int64) World {
+	TopCornerDist := float32(math.Sqrt(float64(3.0*Max*Max))) + 1.1
+	w := World{
+		Max,
+		TopCornerDist,
+		0,
+		make([]Triangle, 2*axes*trianglesPerLine),
+		make([]Triangle, nodes*trianglesPerSphere),
+		make([]Triangle, connections*trianglesPerLine),
+		0,
+		make([]float32, 0),
+		800, 600,
+		SizeVar{float32(Max), TopCornerDist * 4.0, TopCornerDist},
+		SizeVar{10.0, 75.0, 30.0},
+		mgl32.Vec3{1.0, 0.0, 1.0}.Normalize(),
+		mgl32.Vec3{1.0, 1.0, 1.0},
+		mgl32.Ident4(),
+		mgl32.Ident4(),
+		mgl32.Ident4(),
+		glfw.GetTime(),
+		0,
+		0.0,
+		false,
+	}
+	w.SetMatrices()
+	return w
+}
+
+var LineWidth = SizeVar{0.001, 0.5, 0.04}
+var SphereRadius = SizeVar{0.05, 0.5, 0.1}
+
+func (w World) DisplaySettings() {
+	fmt.Println("========= World Settings =========")
+	fmt.Println("Axe X", axeX)
+	fmt.Println("Connection", connection)
+	fmt.Println("Line Width", LineWidth.Val)
+	fmt.Println("Sphere Radius", SphereRadius.Val)
+	fmt.Println("FOV Angle", w.FovAngle.Val)
+	fmt.Println("Eye Dist", w.EyeDist.Val)
+}
 
 type Segment struct {
 	A, B mgl32.Vec3
+	T    ObjectType
 }
 
 type Sphere struct {
 	C mgl32.Vec3
 	R float32
+	T ObjectType
 }
 
-func MakeSegment(p1, p2 m3space.Point) (Segment) {
+func MakeSegment(p1, p2 m3space.Point, t ObjectType) (Segment) {
 	return Segment{
 		mgl32.Vec3{float32(p1[0]), float32(p1[1]), float32(p1[2])},
 		mgl32.Vec3{float32(p2[0]), float32(p2[1]), float32(p2[2])},
+		t,
 	}
 }
 
-func MakeSphere(c m3space.Point) (Sphere) {
+func MakeSphere(c m3space.Point, t ObjectType) (Sphere) {
 	return Sphere{
 		mgl32.Vec3{float32(c[0]), float32(c[1]), float32(c[2])},
-		SphereSize,
+		SphereRadius.Val,
+		t,
 	}
 }
 
 type Triangle struct {
-	Points [3]mgl32.Vec3
+	vertices [pointsPerTriangle]mgl32.Vec3
+	normal   mgl32.Vec3
+	color    mgl32.Vec3
+}
+
+var AxeXColor = mgl32.Vec3{0.5, 0.2, 0.2}
+var AxeYColor = mgl32.Vec3{0.2, 0.5, 0.2}
+var AxeZColor = mgl32.Vec3{0.2, 0.2, 0.5}
+var NodeAColor = mgl32.Vec3{1.0, 1.0, 0.0}
+var NodeBColor = mgl32.Vec3{0.0, 1.0, 1.0}
+var NodeCColor = mgl32.Vec3{1.0, 0.0, 1.0}
+var Conn1Color = mgl32.Vec3{1.0, 0.0, 0.0}
+var Conn9Color = mgl32.Vec3{0.0, 0.0, 1.0}
+
+func squareDist(v mgl32.Vec3) float32 {
+	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
+}
+
+func MakeTriangle(vert [3]mgl32.Vec3, t ObjectType) Triangle {
+	AB := vert[1].Sub(vert[0])
+	AC := vert[2].Sub(vert[0])
+	norm := AB.Cross(AC).Normalize()
+	color := mgl32.Vec3{}
+	switch t {
+	case axeX:
+		color = AxeXColor
+	case axeY:
+		color = AxeYColor
+	case axeZ:
+		color = AxeZColor
+	case nodeA:
+		color = NodeAColor
+	case nodeB:
+		color = NodeBColor
+	case nodeC:
+		color = NodeCColor
+	case connection:
+		squareConnLength := squareDist(AB)
+		acL := squareDist(AC)
+		if squareConnLength < acL {
+			squareConnLength = acL
+		}
+		// Between 1 and 9
+		color = Conn1Color.Mul(9 - squareConnLength).Add(Conn9Color.Mul(squareConnLength - 1)).Normalize()
+	}
+	return Triangle{vert, norm, color}
 }
 
 var XYZ = [3]mgl32.Vec3{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}}
@@ -52,12 +187,17 @@ var Circle = []mgl32.Vec2{
 	{1.0, -1.0},
 }
 
-func (s Sphere) ExtractTriangles() ([]Triangle, error) {
+type GLObject interface {
+	ExtractTriangles() []Triangle
+}
+
+func (s Sphere) ExtractTriangles() []Triangle {
 	up := XYZ[2].Mul(s.R)
 	south := s.C.Sub(up)
 	north := s.C.Add(up)
+
 	halfUp := XYZ[2].Mul(0.5)
-	bottomCircle := make([]mgl32.Vec3, 9)
+	bottomCircle := make([]mgl32.Vec3, circleParts+1)
 	equatorCircle := make([]mgl32.Vec3, 9)
 	topCircle := make([]mgl32.Vec3, 9)
 	for i, c := range Circle {
@@ -78,33 +218,33 @@ func (s Sphere) ExtractTriangles() ([]Triangle, error) {
 	result := make([]Triangle, trianglesPerSphere)
 	for i := 0; i < 8; i++ {
 		// South triangle
-		result[stride*i] = Triangle{[3]mgl32.Vec3{
+		result[stride*i] = MakeTriangle([3]mgl32.Vec3{
 			south, bottomCircle[i+1], bottomCircle[i],
-		}}
+		}, s.T)
 		// Bottom Triangles
-		result[stride*i+1] = Triangle{[3]mgl32.Vec3{
+		result[stride*i+1] = MakeTriangle([3]mgl32.Vec3{
 			bottomCircle[i], equatorCircle[i+1], equatorCircle[i],
-		}}
-		result[stride*i+2] = Triangle{[3]mgl32.Vec3{
+		}, s.T)
+		result[stride*i+2] = MakeTriangle([3]mgl32.Vec3{
 			equatorCircle[i+1], bottomCircle[i], bottomCircle[i+1],
-		}}
+		}, s.T)
 		// Top Triangles
-		result[stride*i+3] = Triangle{[3]mgl32.Vec3{
+		result[stride*i+3] = MakeTriangle([3]mgl32.Vec3{
 			equatorCircle[i], topCircle[i+1], topCircle[i],
-		}}
-		result[stride*i+4] = Triangle{[3]mgl32.Vec3{
+		}, s.T)
+		result[stride*i+4] = MakeTriangle([3]mgl32.Vec3{
 			topCircle[i+1], equatorCircle[i], equatorCircle[i+1],
-		}}
+		}, s.T)
 		// North triangle
-		result[stride*i+5] = Triangle{[3]mgl32.Vec3{
+		result[stride*i+5] = MakeTriangle([3]mgl32.Vec3{
 			north, topCircle[i], topCircle[i+1],
-		}}
+		}, s.T)
 	}
-	return result, nil
+	return result
 }
 
-func (s Segment) ExtractTriangles() ([]Triangle, error) {
-	AB := s.B.Sub(s.A)
+func (s Segment) ExtractTriangles() []Triangle {
+	AB := s.B.Sub(s.A).Normalize()
 	bestCross := mgl32.Vec3{0.0, 0.0, 0.0}
 	for _, axe := range XYZ {
 		cross := axe.Cross(AB)
@@ -112,83 +252,29 @@ func (s Segment) ExtractTriangles() ([]Triangle, error) {
 			bestCross = cross
 		}
 	}
-	if bestCross.Len() < 0.001 {
-		return []Triangle{}, fmt.Errorf("did not find cross vector big enough for %v", AB)
-	}
 	bestCross = bestCross.Normalize()
-	cross2 := bestCross.Cross(AB).Normalize()
+	cross2 := AB.Cross(bestCross).Normalize()
 	// Let's draw a little cylinder around AB using bestCross and cross2 normal axes
-	aPoints := make([]mgl32.Vec3, 9)
-	bPoints := make([]mgl32.Vec3, 9)
+	aPoints := make([]mgl32.Vec3, circleParts+1)
+	bPoints := make([]mgl32.Vec3, circleParts+1)
 	for i, c := range Circle {
-		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(LineWidth / 2.0)
+		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(LineWidth.Val / 2.0)
 		aPoints[i] = s.A.Add(norm)
 		bPoints[i] = s.B.Add(norm)
 	}
 	// close the circle
-	aPoints[8] = aPoints[0]
-	bPoints[8] = bPoints[0]
+	aPoints[circleParts] = aPoints[0]
+	bPoints[circleParts] = bPoints[0]
 	result := make([]Triangle, trianglesPerLine)
-	for i := 0; i < 8; i++ {
-		result[2*i] = Triangle{[3]mgl32.Vec3{
-			aPoints[i], bPoints[i], bPoints[i+1],
-		}}
-		result[2*i+1] = Triangle{[3]mgl32.Vec3{
-			bPoints[i+1], aPoints[i+1], aPoints[i],
-		}}
+	for i := 0; i < circleParts; i++ {
+		result[2*i] = MakeTriangle([3]mgl32.Vec3{
+			aPoints[i], bPoints[i+1], bPoints[i],
+		}, s.T)
+		result[2*i+1] = MakeTriangle([3]mgl32.Vec3{
+			bPoints[i+1], aPoints[i], aPoints[i+1],
+		}, s.T)
 	}
-	return result, nil
-}
-
-const (
-	nodes              = 4
-	axes               = 3
-	trianglesPerLine   = 8 * 2
-	trianglesPerSphere = 8 * 6
-	pointsPerTriangle  = 3
-	coordinates        = 3
-)
-
-type World struct {
-	Max                       int64
-	NbVertices                int
-	AllVertices               []float32
-	AllTypes                  []int16
-	Width, Height             int
-	Eye                       mgl32.Vec3
-	FovAngle                  float32
-	Far                       float32
-	Projection, Camera, Model mgl32.Mat4
-	previousTime              float64
-	previousArea              int64
-	Angle                     float32
-	Rotate                    bool
-}
-
-func MakeWorld(Max int64) World {
-	eyeFromOrig := float32(math.Sqrt(float64(3.0*Max*Max))) + 1.1
-	far := eyeFromOrig * 2.2
-	eye := mgl32.Vec3{eyeFromOrig, eyeFromOrig, eyeFromOrig}
-	nbVertices := ( (2 * axes + 3) * trianglesPerLine + nodes * trianglesPerSphere) * pointsPerTriangle
-	w := World{
-		Max,
-		nbVertices,
-		make([]float32, nbVertices*coordinates),
-		make([]int16, nbVertices),
-		800, 600,
-		eye,
-		30.0,
-		far,
-		mgl32.Ident4(),
-		mgl32.Ident4(),
-		mgl32.Ident4(),
-		glfw.GetTime(),
-		0,
-		0.0,
-		false,
-	}
-	w.SetMatrices()
-	return w
+	return result
 }
 
 func (w *World) ScaleView(win *glfw.Window) int64 {
@@ -216,72 +302,79 @@ func (w *World) Tick(win *glfw.Window) {
 }
 
 func (w *World) SetMatrices() {
-	w.Projection = mgl32.Perspective(mgl32.DegToRad(w.FovAngle), float32(w.Width)/float32(w.Height), 1.0, w.Far)
-	w.Camera = mgl32.LookAtV(w.Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
+	Eye := mgl32.Vec3{w.EyeDist.Val, w.EyeDist.Val, w.EyeDist.Val,}
+	Far := Eye.Len() + w.TopCornerDist
+	w.Projection = mgl32.Perspective(mgl32.DegToRad(w.FovAngle.Val), float32(w.Width)/float32(w.Height), 1.0, Far)
+	w.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
 }
 
-func (w *World) FillAllVertices() {
-	s := SegmentsVertices{0, &(w.AllVertices), 0, &(w.AllTypes)}
+func (w *World) createAxesTriangles() {
+	axeFiller := TriangleFiller{0, &w.AxesTriangles}
 	for axe := int16(0); axe < axes; axe++ {
 		p1 := m3space.Point{0, 0, 0}
 		p2 := m3space.Point{0, 0, 0}
 		p1[axe] = -w.Max
 		p2[axe] = w.Max
-		s.fillSegmentVertices(MakeSegment(p1, m3space.Origin), axe)
-		s.fillSegmentVertices(MakeSegment(m3space.Origin, p2), axe)
+		axeFiller.fill(MakeSegment(p1, m3space.Origin, ObjectType(axe)))
 	}
-	n := MakeSphere(m3space.Origin)
-	s.fillSphereVertices(n, int16(3))
+}
+
+func (w *World) createNodesAndConnectionsTriangles() {
+	nodeFiller := TriangleFiller{0, &w.NodesTriangles}
+	connectionFiller := TriangleFiller{0, &w.ConnectionsTriangles}
+	nodeFiller.fill(MakeSphere(m3space.Origin, nodeA))
 	for node := 1; node < nodes; node++ {
-		n = MakeSphere(m3space.BasePoints[node-1])
-		s.fillSphereVertices(n, int16(3+node))
-		s.fillSegmentVertices(MakeSegment(m3space.Origin, m3space.BasePoints[node-1]), int16(node-1))
+		nodeFiller.fill(MakeSphere(m3space.BasePoints[node-1], ObjectType(node+2)))
+		connectionFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[node-1], connection))
 	}
 }
 
-type SegmentsVertices struct {
-	pointOffset int
-	pointArray  *[]float32
-	typeOffset  int
-	typeArray   *[]int16
+func (w *World) FillAllVertices() {
+	w.createAxesTriangles()
+	w.createNodesAndConnectionsTriangles()
+	w.NbTriangles = len(w.AxesTriangles) + len(w.NodesTriangles) + len(w.ConnectionsTriangles)
+	if w.NbVertices != w.NbTriangles*3 {
+		w.NbVertices = w.NbTriangles * 3
+		fmt.Println("Creating OpenGL buffer for", w.NbTriangles, "triangles,", w.NbVertices, "vertices,", w.NbVertices*FloatPerVertices, "buffer size.")
+		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
+	}
+	offset := w.fillOpenGlBuffer(w.AxesTriangles, 0)
+	fmt.Println("After fill axes offset=", offset)
+	offset = w.fillOpenGlBuffer(w.NodesTriangles, offset)
+	fmt.Println("After fill nodes offset=", offset)
+	offset = w.fillOpenGlBuffer(w.ConnectionsTriangles, offset)
+	fmt.Println("After fill connections offset=", offset)
 }
 
-func (s *SegmentsVertices) fillSegmentVertices(segment Segment, segmentType int16) {
-	triangles, err := segment.ExtractTriangles()
-	if err != nil {
-		panic(err)
-	}
-	if len(triangles) != trianglesPerLine {
-		panic(fmt.Sprint("Number of triangles per lines inconsistent", len(triangles), trianglesPerLine))
-	}
-	for _, triangle := range triangles {
-		for _, point := range triangle.Points {
-			(*s.typeArray)[s.typeOffset] = segmentType
-			s.typeOffset++
+func (w *World) fillOpenGlBuffer(triangles []Triangle, offset int) int {
+	for _, t := range triangles {
+		for _, point := range t.vertices {
 			for coord := 0; coord < coordinates; coord++ {
-				(*s.pointArray)[s.pointOffset] = point[coord]
-				s.pointOffset++
+				w.OpenGLBuffer[offset] = point[coord]
+				offset++
+			}
+			for coord := 0; coord < coordinates; coord++ {
+				w.OpenGLBuffer[offset] = t.normal[coord]
+				offset++
+			}
+			for coord := 0; coord < coordinates; coord++ {
+				w.OpenGLBuffer[offset] = t.color[coord]
+				offset++
 			}
 		}
 	}
+	return offset
 }
 
-func (s *SegmentsVertices) fillSphereVertices(sphere Sphere, sphereType int16) {
-	triangles, err := sphere.ExtractTriangles()
-	if err != nil {
-		panic(err)
-	}
-	if len(triangles) != trianglesPerSphere {
-		panic(fmt.Sprint("Number of triangles per spheres inconsistent", len(triangles), trianglesPerSphere))
-	}
-	for _, triangle := range triangles {
-		for _, point := range triangle.Points {
-			(*s.typeArray)[s.typeOffset] = sphereType
-			s.typeOffset++
-			for coord := 0; coord < coordinates; coord++ {
-				(*s.pointArray)[s.pointOffset] = point[coord]
-				s.pointOffset++
-			}
-		}
+type TriangleFiller struct {
+	offset int
+	array  *[]Triangle
+}
+
+func (t *TriangleFiller) fill(o GLObject) {
+	triangles := o.ExtractTriangles()
+	for _, tr := range triangles {
+		(*t.array)[t.offset] = tr
+		t.offset++
 	}
 }
