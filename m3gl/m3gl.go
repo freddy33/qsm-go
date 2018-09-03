@@ -87,6 +87,21 @@ func MakeWorld(Max int64) World {
 
 var LineWidth = SizeVar{0.001, 0.5, 0.04}
 var SphereRadius = SizeVar{0.05, 0.5, 0.1}
+var XH = mgl32.Vec3{1.0, 0.0, 0.0}
+var YH = mgl32.Vec3{0.0, 1.0, 0.0}
+var ZH = mgl32.Vec3{0.0, 0.0, 1.0}
+var XYZ = [3]mgl32.Vec3{XH, YH, ZH}
+var Circle = [circleParts]mgl32.Vec2{
+	{1.0, 0.0},
+	{1.0, 1.0},
+	{0.0, 1.0},
+	{-1.0, 1.0},
+	{-1.0, 0.0},
+	{-1.0, -1.0},
+	{0.0, -1.0},
+	{1.0, -1.0},
+}
+
 
 func (w World) DisplaySettings() {
 	fmt.Println("========= World Settings =========")
@@ -96,6 +111,28 @@ func (w World) DisplaySettings() {
 	fmt.Println("Sphere Radius", SphereRadius.Val)
 	fmt.Println("FOV Angle", w.FovAngle.Val)
 	fmt.Println("Eye Dist", w.EyeDist.Val)
+}
+
+func (w *World) createAxesTriangles() {
+	axeFiller := TriangleFiller{0, &w.AxesTriangles}
+	for axe := int16(0); axe < axes; axe++ {
+		p1 := m3space.Point{0, 0, 0}
+		p2 := m3space.Point{0, 0, 0}
+		p1[axe] = -w.Max
+		p2[axe] = w.Max
+		axeFiller.fill(MakeSegment(p1, m3space.Origin, ObjectType(axe)))
+		axeFiller.fill(MakeSegment(m3space.Origin, p2, ObjectType(axe)))
+	}
+}
+
+func (w *World) createNodesAndConnectionsTriangles() {
+	nodeFiller := TriangleFiller{0, &w.NodesTriangles}
+	connectionFiller := TriangleFiller{0, &w.ConnectionsTriangles}
+	nodeFiller.fill(MakeSphere(m3space.Origin, nodeA))
+	for node := 1; node < nodes; node++ {
+		nodeFiller.fill(MakeSphere(m3space.BasePoints[node-1], ObjectType(node+2)))
+		connectionFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[node-1], connection))
+	}
 }
 
 type Segment struct {
@@ -174,34 +211,21 @@ func MakeTriangle(vert [3]mgl32.Vec3, t ObjectType) Triangle {
 	return Triangle{vert, norm, color}
 }
 
-var XYZ = [3]mgl32.Vec3{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}}
-
-var Circle = []mgl32.Vec2{
-	{1.0, 0.0},
-	{1.0, 1.0},
-	{0.0, 1.0},
-	{-1.0, 1.0},
-	{-1.0, 0.0},
-	{-1.0, -1.0},
-	{0.0, -1.0},
-	{1.0, -1.0},
-}
-
 type GLObject interface {
 	ExtractTriangles() []Triangle
 }
 
 func (s Sphere) ExtractTriangles() []Triangle {
-	up := XYZ[2].Mul(s.R)
+	up := ZH.Mul(s.R)
 	south := s.C.Sub(up)
 	north := s.C.Add(up)
 
-	halfUp := XYZ[2].Mul(0.5)
+	halfUp := ZH.Mul(0.5)
 	bottomCircle := make([]mgl32.Vec3, circleParts+1)
 	equatorCircle := make([]mgl32.Vec3, 9)
 	topCircle := make([]mgl32.Vec3, 9)
 	for i, c := range Circle {
-		equatorCircle[i] = XYZ[0].Mul(c[0]).Add(XYZ[1].Mul(c[1]))
+		equatorCircle[i] = XH.Mul(c[0]).Add(YH.Mul(c[1]))
 		bottomCircle[i] = halfUp.Mul(-1.0).Add(equatorCircle[i])
 		topCircle[i] = halfUp.Add(equatorCircle[i])
 		equatorCircle[i] = equatorCircle[i].Mul(s.R / equatorCircle[i].Len())
@@ -306,27 +330,6 @@ func (w *World) SetMatrices() {
 	Far := Eye.Len() + w.TopCornerDist
 	w.Projection = mgl32.Perspective(mgl32.DegToRad(w.FovAngle.Val), float32(w.Width)/float32(w.Height), 1.0, Far)
 	w.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
-}
-
-func (w *World) createAxesTriangles() {
-	axeFiller := TriangleFiller{0, &w.AxesTriangles}
-	for axe := int16(0); axe < axes; axe++ {
-		p1 := m3space.Point{0, 0, 0}
-		p2 := m3space.Point{0, 0, 0}
-		p1[axe] = -w.Max
-		p2[axe] = w.Max
-		axeFiller.fill(MakeSegment(p1, m3space.Origin, ObjectType(axe)))
-	}
-}
-
-func (w *World) createNodesAndConnectionsTriangles() {
-	nodeFiller := TriangleFiller{0, &w.NodesTriangles}
-	connectionFiller := TriangleFiller{0, &w.ConnectionsTriangles}
-	nodeFiller.fill(MakeSphere(m3space.Origin, nodeA))
-	for node := 1; node < nodes; node++ {
-		nodeFiller.fill(MakeSphere(m3space.BasePoints[node-1], ObjectType(node+2)))
-		connectionFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[node-1], connection))
-	}
 }
 
 func (w *World) FillAllVertices() {
