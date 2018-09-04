@@ -9,19 +9,29 @@ import (
 	"math"
 )
 
+// Environment const
 const (
-	FloatPerVertices = 9
+	RetinaDisplay = true
+)
 
-	nodes              = 4
-	connections        = 3
-	axes               = 3
+// OpenGL const
+const (
+	FloatSize = 4
+	coordinates        = 3
+	FloatPerVertices   = 9 // PPPNNNCCC
 	circlePartsLine    = 8
 	trianglesPerLine   = circlePartsLine * 2
 	circlePartsSphere  = 32
 	nbMiddleCircles    = (circlePartsSphere - 2) / 2
 	trianglesPerSphere = nbMiddleCircles * circlePartsSphere * 2
 	pointsPerTriangle  = 3
-	coordinates        = 3
+)
+
+// QSM Objects const
+const (
+	nodes       = 4
+	connections = 3
+	axes        = 3
 )
 
 type ObjectType int16
@@ -43,20 +53,30 @@ type World struct {
 	AxesTriangles        []Triangle
 	NodesTriangles       []Triangle
 	ConnectionsTriangles []Triangle
-	NbVertices           int
-	OpenGLBuffer         []float32
-	Width, Height        int
-	EyeDist              SizeVar
-	FovAngle             SizeVar
-	LightDirection       mgl32.Vec3
-	LightColor           mgl32.Vec3
-	Projection           mgl32.Mat4
-	Camera               mgl32.Mat4
-	Model                mgl32.Mat4
-	previousTime         float64
-	previousArea         int64
-	Angle                float32
-	Rotate               bool
+
+	NbVertices   int
+	OpenGLBuffer []float32
+	Axes         []WorldObject
+	Nodes        []WorldObject
+	Connections  []WorldObject
+
+	Width, Height  int
+	EyeDist        SizeVar
+	FovAngle       SizeVar
+	LightDirection mgl32.Vec3
+	LightColor     mgl32.Vec3
+	Projection     mgl32.Mat4
+	Camera         mgl32.Mat4
+	Model          mgl32.Mat4
+	previousTime   float64
+	previousArea   int64
+	Angle          float32
+	Rotate         bool
+}
+
+type WorldObject struct {
+	OpenGLOffset int32
+	NbVertices   int32
 }
 
 func MakeWorld(Max int64) World {
@@ -71,6 +91,9 @@ func MakeWorld(Max int64) World {
 		make([]Triangle, connections*trianglesPerLine),
 		0,
 		make([]float32, 0),
+		make([]WorldObject, 3),
+		make([]WorldObject, nodes),
+		make([]WorldObject, connections),
 		800, 600,
 		SizeVar{float32(Max), TopCornerDist * 4.0, TopCornerDist},
 		SizeVar{10.0, 75.0, 30.0},
@@ -119,6 +142,7 @@ func (w World) DisplaySettings() {
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
 	fmt.Println("FOV Angle [Z,X]", w.FovAngle.Val)
 	fmt.Println("Eye Dist [Q,W]", w.EyeDist.Val)
+	fmt.Println("Node offset", w.Nodes[0].OpenGLOffset,"nb vert",w.Nodes[0].NbVertices)
 }
 
 func (w *World) createAxesTriangles() {
@@ -128,6 +152,8 @@ func (w *World) createAxesTriangles() {
 		p2 := m3space.Point{0, 0, 0}
 		p1[axe] = -w.Max
 		p2[axe] = w.Max
+		w.Axes[axe].OpenGLOffset = axeFiller.openGLOffset()
+		w.Axes[axe].NbVertices = 2*trianglesPerLine * pointsPerTriangle
 		axeFiller.fill(MakeSegment(p1, m3space.Origin, ObjectType(axe)))
 		axeFiller.fill(MakeSegment(m3space.Origin, p2, ObjectType(axe)))
 	}
@@ -136,9 +162,15 @@ func (w *World) createAxesTriangles() {
 func (w *World) createNodesAndConnectionsTriangles() {
 	nodeFiller := TriangleFiller{0, &w.NodesTriangles}
 	connectionFiller := TriangleFiller{0, &w.ConnectionsTriangles}
+	w.Nodes[0].OpenGLOffset = 0
+	w.Nodes[0].NbVertices = trianglesPerSphere * pointsPerTriangle
 	nodeFiller.fill(MakeSphere(m3space.Origin, nodeA))
 	for node := 1; node < nodes; node++ {
+		w.Nodes[node].OpenGLOffset = nodeFiller.openGLOffset()
+		w.Nodes[node].NbVertices = trianglesPerSphere * pointsPerTriangle
 		nodeFiller.fill(MakeSphere(m3space.BasePoints[node-1], ObjectType(node+2)))
+		w.Connections[node-1].OpenGLOffset = connectionFiller.openGLOffset()
+		w.Connections[node-1].NbVertices = trianglesPerLine * pointsPerTriangle
 		connectionFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[node-1], connection))
 	}
 }
@@ -315,7 +347,11 @@ func (s Segment) ExtractTriangles() []Triangle {
 
 func (w *World) ScaleView(win *glfw.Window) int64 {
 	w.Width, w.Height = win.GetSize()
-	gl.Viewport(0, 0, int32(w.Width*2), int32(w.Height*2))
+	if RetinaDisplay {
+		w.Width *= 2
+		w.Height *= 2
+	}
+	gl.Viewport(0, 0, int32(w.Width), int32(w.Height))
 	return int64(w.Width) * int64(w.Height)
 }
 
@@ -354,7 +390,13 @@ func (w *World) FillAllVertices() {
 		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
 	}
 	offset := w.fillOpenGlBuffer(w.AxesTriangles, 0)
+	for i := range w.Nodes {
+		w.Nodes[i].OpenGLOffset += int32(offset/FloatPerVertices)
+	}
 	offset = w.fillOpenGlBuffer(w.NodesTriangles, offset)
+	for i := range w.Connections {
+		w.Connections[i].OpenGLOffset += int32(offset/FloatPerVertices)
+	}
 	offset = w.fillOpenGlBuffer(w.ConnectionsTriangles, offset)
 }
 
@@ -389,4 +431,8 @@ func (t *TriangleFiller) fill(o GLObject) {
 		(*t.array)[t.offset] = tr
 		t.offset++
 	}
+}
+
+func (t TriangleFiller) openGLOffset() int32 {
+	return int32(t.offset * pointsPerTriangle)
 }

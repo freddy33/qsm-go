@@ -66,19 +66,19 @@ func DisplayPlay1() {
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	fmt.Println("Nb vertices", w.NbVertices, ", total size", len(w.OpenGLBuffer))
-	gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(w.OpenGLBuffer), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*m3gl.FloatPerVertices*m3gl.FloatSize, gl.Ptr(w.OpenGLBuffer), gl.STATIC_DRAW)
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
-	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, m3gl.FloatPerVertices*4, gl.PtrOffset(0))
+	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, m3gl.FloatPerVertices*m3gl.FloatSize, gl.PtrOffset(0))
 
 	normAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("norm\x00")))
 	gl.EnableVertexAttribArray(normAttrib)
-	gl.VertexAttribPointer(normAttrib, 3, gl.FLOAT, true, m3gl.FloatPerVertices*4, gl.PtrOffset(3*4))
+	gl.VertexAttribPointer(normAttrib, 3, gl.FLOAT, true, m3gl.FloatPerVertices*m3gl.FloatSize, gl.PtrOffset(3*m3gl.FloatSize))
 
 	colorAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("obj_color\x00")))
 	gl.EnableVertexAttribArray(colorAttrib)
-	gl.VertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, m3gl.FloatPerVertices*4, gl.PtrOffset(6*4))
+	gl.VertexAttribPointer(colorAttrib, 3, gl.FLOAT, false, m3gl.FloatPerVertices*m3gl.FloatSize, gl.PtrOffset(6*m3gl.FloatSize))
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
@@ -98,7 +98,20 @@ func DisplayPlay1() {
 		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
 		gl.BindVertexArray(vao)
 
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(w.NbVertices))
+		gl.DrawArrays(gl.TRIANGLES, w.Axes[1].OpenGLOffset, w.Axes[1].NbVertices)
+		gl.DrawArrays(gl.TRIANGLES, w.Nodes[0].OpenGLOffset, w.Nodes[0].NbVertices)
+		gl.DrawArrays(gl.TRIANGLES, w.Connections[0].OpenGLOffset, w.Connections[0].NbVertices)
+/*
+		for _, toDraw := range w.Axes {
+			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
+		}
+		for _, toDraw := range w.Nodes {
+			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
+		}
+		for _, toDraw := range w.Connections {
+			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
+		}
+*/
 
 		win.SwapBuffers()
 		glfw.PollEvents()
@@ -147,6 +160,8 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 	}
 	if reCalc {
 		recalc(reFill)
+	} else {
+		w.DisplaySettings()
 	}
 }
 
