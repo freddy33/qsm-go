@@ -15,9 +15,11 @@ const (
 	nodes              = 4
 	connections        = 3
 	axes               = 3
-	circleParts        = 8
-	trianglesPerLine   = circleParts * 2
-	trianglesPerSphere = circleParts * (circleParts - 2)
+	circlePartsLine    = 8
+	trianglesPerLine   = circlePartsLine * 2
+	circlePartsSphere  = 32
+	nbMiddleCircles    = (circlePartsSphere - 2) / 2
+	trianglesPerSphere = nbMiddleCircles * circlePartsSphere * 2
 	pointsPerTriangle  = 3
 	coordinates        = 3
 )
@@ -58,6 +60,7 @@ type World struct {
 }
 
 func MakeWorld(Max int64) World {
+	verifyData()
 	TopCornerDist := float32(math.Sqrt(float64(3.0*Max*Max))) + 1.1
 	w := World{
 		Max,
@@ -71,7 +74,7 @@ func MakeWorld(Max int64) World {
 		800, 600,
 		SizeVar{float32(Max), TopCornerDist * 4.0, TopCornerDist},
 		SizeVar{10.0, 75.0, 30.0},
-		mgl32.Vec3{1.0, 0.0, 1.0}.Normalize(),
+		mgl32.Vec3{0.0, 1.0, 1.0}.Normalize(),
 		mgl32.Vec3{1.0, 1.0, 1.0},
 		mgl32.Ident4(),
 		mgl32.Ident4(),
@@ -91,26 +94,31 @@ var XH = mgl32.Vec3{1.0, 0.0, 0.0}
 var YH = mgl32.Vec3{0.0, 1.0, 0.0}
 var ZH = mgl32.Vec3{0.0, 0.0, 1.0}
 var XYZ = [3]mgl32.Vec3{XH, YH, ZH}
-var Circle = [circleParts]mgl32.Vec2{
-	{1.0, 0.0},
-	{1.0, 1.0},
-	{0.0, 1.0},
-	{-1.0, 1.0},
-	{-1.0, 0.0},
-	{-1.0, -1.0},
-	{0.0, -1.0},
-	{1.0, -1.0},
-}
+var CircleForLine = make([]mgl32.Vec2, circlePartsLine)
+var CircleForSphere = make([]mgl32.Vec2, circlePartsSphere)
 
+func verifyData() {
+	// Verify we capture the equator
+	if nbMiddleCircles%2 == 0 {
+		panic(fmt.Errorf("something fishy with circle parts %d since %d should be odd", circlePartsSphere, nbMiddleCircles))
+	}
+	deltaAngle := 2.0 * math.Pi / circlePartsLine
+	for i := 0; i < circlePartsLine; i++ {
+		CircleForLine[i] = mgl32.Vec2{float32(math.Cos(deltaAngle * float64(i))), float32(math.Sin(deltaAngle * float64(i)))}
+	}
+	deltaAngle = 2.0 * math.Pi / circlePartsSphere
+	for i := 0; i < circlePartsSphere; i++ {
+		CircleForSphere[i] = mgl32.Vec2{float32(math.Cos(deltaAngle * float64(i))), float32(math.Sin(deltaAngle * float64(i)))}
+	}
+}
 
 func (w World) DisplaySettings() {
 	fmt.Println("========= World Settings =========")
-	fmt.Println("Axe X", axeX)
-	fmt.Println("Connection", connection)
-	fmt.Println("Line Width", LineWidth.Val)
-	fmt.Println("Sphere Radius", SphereRadius.Val)
-	fmt.Println("FOV Angle", w.FovAngle.Val)
-	fmt.Println("Eye Dist", w.EyeDist.Val)
+	fmt.Println("Width", w.Width, "Height", w.Height)
+	fmt.Println("Line Width [B,T]", LineWidth.Val)
+	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
+	fmt.Println("FOV Angle [Z,X]", w.FovAngle.Val)
+	fmt.Println("Eye Dist [Q,W]", w.EyeDist.Val)
 }
 
 func (w *World) createAxesTriangles() {
@@ -181,10 +189,7 @@ func squareDist(v mgl32.Vec3) float32 {
 	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
 }
 
-func MakeTriangle(vert [3]mgl32.Vec3, t ObjectType) Triangle {
-	AB := vert[1].Sub(vert[0])
-	AC := vert[2].Sub(vert[0])
-	norm := AB.Cross(AC).Normalize()
+func MakeTriangleWithNorm(vert [3]mgl32.Vec3, norm mgl32.Vec3, t ObjectType) Triangle {
 	color := mgl32.Vec3{}
 	switch t {
 	case axeX:
@@ -200,6 +205,8 @@ func MakeTriangle(vert [3]mgl32.Vec3, t ObjectType) Triangle {
 	case nodeC:
 		color = NodeCColor
 	case connection:
+		AB := vert[1].Sub(vert[0])
+		AC := vert[2].Sub(vert[0])
 		squareConnLength := squareDist(AB)
 		acL := squareDist(AC)
 		if squareConnLength < acL {
@@ -211,6 +218,13 @@ func MakeTriangle(vert [3]mgl32.Vec3, t ObjectType) Triangle {
 	return Triangle{vert, norm, color}
 }
 
+func MakeTriangle(vert [3]mgl32.Vec3, t ObjectType) Triangle {
+	AB := vert[1].Sub(vert[0])
+	AC := vert[2].Sub(vert[0])
+	norm := AB.Cross(AC).Normalize()
+	return MakeTriangleWithNorm(vert, norm, t)
+}
+
 type GLObject interface {
 	ExtractTriangles() []Triangle
 }
@@ -220,49 +234,47 @@ func (s Sphere) ExtractTriangles() []Triangle {
 	south := s.C.Sub(up)
 	north := s.C.Add(up)
 
-	halfUp := ZH.Mul(0.5)
-	bottomCircle := make([]mgl32.Vec3, circleParts+1)
-	equatorCircle := make([]mgl32.Vec3, 9)
-	topCircle := make([]mgl32.Vec3, 9)
-	for i, c := range Circle {
-		equatorCircle[i] = XH.Mul(c[0]).Add(YH.Mul(c[1]))
-		bottomCircle[i] = halfUp.Mul(-1.0).Add(equatorCircle[i])
-		topCircle[i] = halfUp.Add(equatorCircle[i])
-		equatorCircle[i] = equatorCircle[i].Mul(s.R / equatorCircle[i].Len())
-		bottomCircle[i] = bottomCircle[i].Mul(s.R / bottomCircle[i].Len())
-		topCircle[i] = topCircle[i].Mul(s.R / topCircle[i].Len())
-		equatorCircle[i] = s.C.Add(equatorCircle[i])
-		bottomCircle[i] = s.C.Add(bottomCircle[i])
-		topCircle[i] = s.C.Add(topCircle[i])
+	middleCircles := make([][]mgl32.Vec3, nbMiddleCircles)
+	middleCirclesNorm := make([][]mgl32.Vec3, nbMiddleCircles)
+	middleCirclesZPart := make([]float32, nbMiddleCircles)
+	for z := 0; z < nbMiddleCircles; z++ {
+		middleCirclesZPart[z] = -CircleForSphere[z+1].Normalize().X()
+		middleCircles[z] = make([]mgl32.Vec3, circlePartsSphere+1)
+		middleCirclesNorm[z] = make([]mgl32.Vec3, circlePartsSphere)
 	}
-	equatorCircle[8] = equatorCircle[0]
-	bottomCircle[8] = bottomCircle[0]
-	topCircle[8] = topCircle[0]
-	stride := 6
+	for i, c := range CircleForSphere {
+		for zIdx, zH := range middleCirclesZPart {
+			middleCirclesNorm[zIdx][i] = mgl32.Vec3{c[0], c[1], zH}.Normalize()
+			middleCircles[zIdx][i] = s.C.Add(middleCirclesNorm[zIdx][i].Mul(s.R))
+		}
+	}
+	for zIdx := range middleCircles {
+		middleCircles[zIdx][circlePartsSphere] = middleCircles[zIdx][0]
+	}
+
+	offset := 0
 	result := make([]Triangle, trianglesPerSphere)
-	for i := 0; i < 8; i++ {
+	for i := 0; i < circlePartsSphere; i++ {
 		// South triangle
-		result[stride*i] = MakeTriangle([3]mgl32.Vec3{
-			south, bottomCircle[i+1], bottomCircle[i],
-		}, s.T)
-		// Bottom Triangles
-		result[stride*i+1] = MakeTriangle([3]mgl32.Vec3{
-			bottomCircle[i], equatorCircle[i+1], equatorCircle[i],
-		}, s.T)
-		result[stride*i+2] = MakeTriangle([3]mgl32.Vec3{
-			equatorCircle[i+1], bottomCircle[i], bottomCircle[i+1],
-		}, s.T)
-		// Top Triangles
-		result[stride*i+3] = MakeTriangle([3]mgl32.Vec3{
-			equatorCircle[i], topCircle[i+1], topCircle[i],
-		}, s.T)
-		result[stride*i+4] = MakeTriangle([3]mgl32.Vec3{
-			topCircle[i+1], equatorCircle[i], equatorCircle[i+1],
-		}, s.T)
+		result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
+			south, middleCircles[0][i+1], middleCircles[0][i],
+		}, middleCirclesNorm[0][i], s.T)
+		offset++
+		for zIdx := 0; zIdx < nbMiddleCircles-1; zIdx++ {
+			result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
+				middleCircles[zIdx][i], middleCircles[zIdx][i+1], middleCircles[zIdx+1][i+1],
+			}, middleCirclesNorm[zIdx][i], s.T)
+			offset++
+			result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
+				middleCircles[zIdx+1][i+1], middleCircles[zIdx+1][i], middleCircles[zIdx][i],
+			}, middleCirclesNorm[zIdx][i], s.T)
+			offset++
+		}
 		// North triangle
-		result[stride*i+5] = MakeTriangle([3]mgl32.Vec3{
-			north, topCircle[i], topCircle[i+1],
-		}, s.T)
+		result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
+			north, middleCircles[nbMiddleCircles-1][i], middleCircles[nbMiddleCircles-1][i+1],
+		}, middleCirclesNorm[nbMiddleCircles-1][i], s.T)
+		offset++
 	}
 	return result
 }
@@ -279,18 +291,18 @@ func (s Segment) ExtractTriangles() []Triangle {
 	bestCross = bestCross.Normalize()
 	cross2 := AB.Cross(bestCross).Normalize()
 	// Let's draw a little cylinder around AB using bestCross and cross2 normal axes
-	aPoints := make([]mgl32.Vec3, circleParts+1)
-	bPoints := make([]mgl32.Vec3, circleParts+1)
-	for i, c := range Circle {
+	aPoints := make([]mgl32.Vec3, circlePartsLine+1)
+	bPoints := make([]mgl32.Vec3, circlePartsLine+1)
+	for i, c := range CircleForLine {
 		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(LineWidth.Val / 2.0)
 		aPoints[i] = s.A.Add(norm)
 		bPoints[i] = s.B.Add(norm)
 	}
 	// close the circle
-	aPoints[circleParts] = aPoints[0]
-	bPoints[circleParts] = bPoints[0]
+	aPoints[circlePartsLine] = aPoints[0]
+	bPoints[circlePartsLine] = bPoints[0]
 	result := make([]Triangle, trianglesPerLine)
-	for i := 0; i < circleParts; i++ {
+	for i := 0; i < circlePartsLine; i++ {
 		result[2*i] = MakeTriangle([3]mgl32.Vec3{
 			aPoints[i], bPoints[i+1], bPoints[i],
 		}, s.T)
@@ -303,7 +315,7 @@ func (s Segment) ExtractTriangles() []Triangle {
 
 func (w *World) ScaleView(win *glfw.Window) int64 {
 	w.Width, w.Height = win.GetSize()
-	gl.Viewport(0, 0, int32(w.Width), int32(w.Height))
+	gl.Viewport(0, 0, int32(w.Width*2), int32(w.Height*2))
 	return int64(w.Width) * int64(w.Height)
 }
 
@@ -321,7 +333,7 @@ func (w *World) Tick(win *glfw.Window) {
 
 	if w.Rotate {
 		w.Angle += float32(elapsed / 2.0)
-		w.Model = mgl32.HomogRotate3D(w.Angle, mgl32.Vec3{0, 1, 0})
+		w.Model = mgl32.HomogRotate3D(w.Angle, mgl32.Vec3{0, 0, 1})
 	}
 }
 
@@ -329,7 +341,7 @@ func (w *World) SetMatrices() {
 	Eye := mgl32.Vec3{w.EyeDist.Val, w.EyeDist.Val, w.EyeDist.Val,}
 	Far := Eye.Len() + w.TopCornerDist
 	w.Projection = mgl32.Perspective(mgl32.DegToRad(w.FovAngle.Val), float32(w.Width)/float32(w.Height), 1.0, Far)
-	w.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
+	w.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 0, 1})
 }
 
 func (w *World) FillAllVertices() {
@@ -342,11 +354,8 @@ func (w *World) FillAllVertices() {
 		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
 	}
 	offset := w.fillOpenGlBuffer(w.AxesTriangles, 0)
-	fmt.Println("After fill axes offset=", offset)
 	offset = w.fillOpenGlBuffer(w.NodesTriangles, offset)
-	fmt.Println("After fill nodes offset=", offset)
 	offset = w.fillOpenGlBuffer(w.ConnectionsTriangles, offset)
-	fmt.Println("After fill connections offset=", offset)
 }
 
 func (w *World) fillOpenGlBuffer(triangles []Triangle, offset int) int {
