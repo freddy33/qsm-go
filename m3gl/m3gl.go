@@ -19,7 +19,7 @@ const (
 	FloatSize = 4
 	coordinates        = 3
 	FloatPerVertices   = 9 // PPPNNNCCC
-	circlePartsLine    = 8
+	circlePartsLine    = 16
 	trianglesPerLine   = circlePartsLine * 2
 	circlePartsSphere  = 32
 	nbMiddleCircles    = (circlePartsSphere - 2) / 2
@@ -97,7 +97,7 @@ func MakeWorld(Max int64) World {
 		800, 600,
 		SizeVar{float32(Max), TopCornerDist * 4.0, TopCornerDist},
 		SizeVar{10.0, 75.0, 30.0},
-		mgl32.Vec3{0.0, 1.0, 1.0}.Normalize(),
+		mgl32.Vec3{-1.0, 1.0, 1.0}.Normalize(),
 		mgl32.Vec3{1.0, 1.0, 1.0},
 		mgl32.Ident4(),
 		mgl32.Ident4(),
@@ -142,7 +142,6 @@ func (w World) DisplaySettings() {
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
 	fmt.Println("FOV Angle [Z,X]", w.FovAngle.Val)
 	fmt.Println("Eye Dist [Q,W]", w.EyeDist.Val)
-	fmt.Println("Node offset", w.Nodes[0].OpenGLOffset,"nb vert",w.Nodes[0].NbVertices)
 }
 
 func (w *World) createAxesTriangles() {
@@ -153,7 +152,7 @@ func (w *World) createAxesTriangles() {
 		p1[axe] = -w.Max
 		p2[axe] = w.Max
 		w.Axes[axe].OpenGLOffset = axeFiller.openGLOffset()
-		w.Axes[axe].NbVertices = 2*trianglesPerLine * pointsPerTriangle
+		w.Axes[axe].NbVertices = 2 * trianglesPerLine * pointsPerTriangle
 		axeFiller.fill(MakeSegment(p1, m3space.Origin, ObjectType(axe)))
 		axeFiller.fill(MakeSegment(m3space.Origin, p2, ObjectType(axe)))
 	}

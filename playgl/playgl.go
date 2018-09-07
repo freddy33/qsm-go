@@ -98,10 +98,6 @@ func DisplayPlay1() {
 		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
 		gl.BindVertexArray(vao)
 
-		gl.DrawArrays(gl.TRIANGLES, w.Axes[1].OpenGLOffset, w.Axes[1].NbVertices)
-		gl.DrawArrays(gl.TRIANGLES, w.Nodes[0].OpenGLOffset, w.Nodes[0].NbVertices)
-		gl.DrawArrays(gl.TRIANGLES, w.Connections[0].OpenGLOffset, w.Connections[0].NbVertices)
-/*
 		for _, toDraw := range w.Axes {
 			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
 		}
@@ -111,7 +107,6 @@ func DisplayPlay1() {
 		for _, toDraw := range w.Connections {
 			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
 		}
-*/
 
 		win.SwapBuffers()
 		glfw.PollEvents()
