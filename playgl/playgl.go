@@ -98,13 +98,7 @@ func DisplayPlay1() {
 		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
 		gl.BindVertexArray(vao)
 
-		for _, toDraw := range w.Axes {
-			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
-		}
-		for _, toDraw := range w.Nodes {
-			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
-		}
-		for _, toDraw := range w.Connections {
+		for _, toDraw := range w.Objects {
 			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
 		}
 
