@@ -7,6 +7,7 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/freddy33/qsm-go/m3gl"
 	"strings"
+	"github.com/freddy33/qsm-go/m3space"
 )
 
 const windowWidth = 800
@@ -97,8 +98,11 @@ func DisplayPlay1() {
 		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
 		gl.BindVertexArray(vao)
 
-		for _, toDraw := range w.Objects {
-			gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
+		for _, obj := range m3space.SpaceObj.Elements {
+			if obj != nil {
+				toDraw := w.DrawingElementsMap[obj.Key()]
+				gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
+			}
 		}
 
 		win.SwapBuffers()

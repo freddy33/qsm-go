@@ -9,11 +9,6 @@ import (
 	"math"
 )
 
-// Environment const
-const (
-	RetinaDisplay = true
-)
-
 // OpenGL const
 const (
 	FloatSize          = 4
@@ -27,33 +22,20 @@ const (
 	pointsPerTriangle  = 3
 )
 
-// QSM Objects const
+// QSM DrawingElementsMap const
 const (
 	nodes       = 3
 	connections = 2
 	axes        = 3
 )
 
-type ObjectType int16
-type ObjectKey int
-
-const (
-	axeX       ObjectType = iota
-	axeY
-	axeZ
-	nodeA
-	nodeB
-	nodeC
-	connection
-)
-
 type World struct {
 	Max           int64
 	TopCornerDist float32
 
-	NbVertices   int
-	OpenGLBuffer []float32
-	Objects      map[ObjectKey]WorldObject
+	NbVertices         int
+	OpenGLBuffer       []float32
+	DrawingElementsMap map[m3space.ObjectKey]OpenGLDrawingElement
 
 	Width, Height  int
 	EyeDist        SizeVar
@@ -69,8 +51,13 @@ type World struct {
 	Rotate         bool
 }
 
-type WorldObject struct {
-	k            ObjectKey
+type WorldDrawingElement struct {
+	DrawEl *OpenGLDrawingElement
+	Transform mgl32.Mat4
+}
+
+type OpenGLDrawingElement struct {
+	k            m3space.ObjectKey
 	OpenGLOffset int32
 	NbVertices   int32
 }
@@ -83,7 +70,7 @@ func MakeWorld(Max int64) World {
 		TopCornerDist,
 		0,
 		make([]float32, 0),
-		make(map[ObjectKey]WorldObject),
+		make(map[m3space.ObjectKey]OpenGLDrawingElement),
 		800, 600,
 		SizeVar{float32(Max), TopCornerDist * 4.0, TopCornerDist},
 		SizeVar{10.0, 75.0, 30.0},
@@ -99,6 +86,7 @@ func MakeWorld(Max int64) World {
 	}
 	w.SetMatrices()
 	w.CreateObjects()
+	m3space.SpaceObj.CreateStuff(Max)
 	return w
 }
 
@@ -129,7 +117,7 @@ func verifyData() {
 
 func (w World) DisplaySettings() {
 	fmt.Println("========= World Settings =========")
-	fmt.Println("Nb Objects", len(w.Objects))
+	fmt.Println("Nb DrawingElementsMap", len(w.DrawingElementsMap))
 	fmt.Println("Width", w.Width, "Height", w.Height)
 	fmt.Println("Line Width [B,T]", LineWidth.Val)
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
@@ -144,50 +132,20 @@ func (w *World) CreateObjects() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", w.NbVertices, "vertices,", w.NbVertices*FloatPerVertices, "buffer size.")
 		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
 	}
-	triangleFiller := TriangleFiller{make(map[ObjectKey]WorldObject), 0, 0,&(w.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{make(map[m3space.ObjectKey]OpenGLDrawingElement), 0, 0,&(w.OpenGLBuffer)}
 	p := m3space.Point{w.Max, 0, 0}
 	for axe := int16(0); axe < axes; axe++ {
-		triangleFiller.fill(MakeSegment(m3space.Origin, p, ObjectType(axe)))
+		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
 	}
 	for node := 0; node < nodes; node++ {
-		triangleFiller.fill(MakeSphere(ObjectType(int(nodeA) + node)))
+		triangleFiller.fill(MakeSphere(m3space.ObjectType(int(m3space.NodeA) + node)))
 	}
-	triangleFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[0], connection))
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), connection))
+	triangleFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[0], m3space.Connection))
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), m3space.Connection))
 
-	w.Objects = triangleFiller.objMap
+	w.DrawingElementsMap = triangleFiller.objMap
 
 	return nbTriangles
-}
-
-type Segment struct {
-	A, B mgl32.Vec3
-	T    ObjectType
-}
-
-type Sphere struct {
-	C mgl32.Vec3
-	R float32
-	T ObjectType
-}
-
-var Origin = mgl32.Vec3{0.0, 0.0, 0.0}
-
-func MakeSegment(p1, p2 m3space.Point, t ObjectType) (Segment) {
-	length := float32(math.Sqrt(float64(m3space.DS(p1, p2))))
-	return Segment{
-		Origin,
-		mgl32.Vec3{length, 0.0, 0.0},
-		t,
-	}
-}
-
-func MakeSphere(t ObjectType) (Sphere) {
-	return Sphere{
-		Origin,
-		SphereRadius.Val,
-		t,
-	}
 }
 
 type Triangle struct {
@@ -209,22 +167,29 @@ func squareDist(v mgl32.Vec3) float32 {
 	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
 }
 
-func MakeTriangleWithNorm(vert [3]mgl32.Vec3, norm mgl32.Vec3, t ObjectType) Triangle {
+func MakeTriangle(vert [3]mgl32.Vec3, t m3space.ObjectType) Triangle {
+	AB := vert[1].Sub(vert[0])
+	AC := vert[2].Sub(vert[0])
+	norm := AB.Cross(AC).Normalize()
+	return MakeTriangleWithNorm(vert, norm, t)
+}
+
+func MakeTriangleWithNorm(vert [3]mgl32.Vec3, norm mgl32.Vec3, t m3space.ObjectType) Triangle {
 	color := mgl32.Vec3{}
 	switch t {
-	case axeX:
+	case m3space.AxeX:
 		color = AxeXColor
-	case axeY:
+	case m3space.AxeY:
 		color = AxeYColor
-	case axeZ:
+	case m3space.AxeZ:
 		color = AxeZColor
-	case nodeA:
+	case m3space.NodeA:
 		color = NodeAColor
-	case nodeB:
+	case m3space.NodeB:
 		color = NodeBColor
-	case nodeC:
+	case m3space.NodeC:
 		color = NodeCColor
-	case connection:
+	case m3space.Connection:
 		AB := vert[1].Sub(vert[0])
 		AC := vert[2].Sub(vert[0])
 		squareConnLength := squareDist(AB)
@@ -238,136 +203,6 @@ func MakeTriangleWithNorm(vert [3]mgl32.Vec3, norm mgl32.Vec3, t ObjectType) Tri
 	return Triangle{vert, norm, color}
 }
 
-func MakeTriangle(vert [3]mgl32.Vec3, t ObjectType) Triangle {
-	AB := vert[1].Sub(vert[0])
-	AC := vert[2].Sub(vert[0])
-	norm := AB.Cross(AC).Normalize()
-	return MakeTriangleWithNorm(vert, norm, t)
-}
-
-type GLObject interface {
-	Size() int
-	Key() ObjectKey
-	NumberOfVertices() int
-	ExtractTriangles() []Triangle
-}
-
-func (s Sphere) Size() int {
-	return int(s.R * 1000)
-}
-
-func (s Sphere) Key() ObjectKey {
-	return ObjectKey(int(s.T) + s.Size()*100)
-}
-
-func (s Sphere) NumberOfVertices() int {
-	return trianglesPerSphere * pointsPerTriangle
-}
-
-func (s Sphere) ExtractTriangles() []Triangle {
-	up := ZH.Mul(s.R)
-	south := s.C.Sub(up)
-	north := s.C.Add(up)
-
-	middleCircles := make([][]mgl32.Vec3, nbMiddleCircles)
-	middleCirclesNorm := make([][]mgl32.Vec3, nbMiddleCircles)
-	middleCirclesZPart := make([]float32, nbMiddleCircles)
-	deltaAngle := 2.0 * math.Pi / circlePartsSphere
-	for z := 0; z < nbMiddleCircles; z++ {
-		angle := deltaAngle * float64(z+1)
-		if z == 0 {
-			angle = deltaAngle / 4
-			//angle -= 3*deltaAngle/2
-		}
-		if z == nbMiddleCircles-1 {
-			angle += 3 * deltaAngle / 4
-		}
-		middleCirclesZPart[z] = -float32(math.Cos(angle))
-		middleCircles[z] = make([]mgl32.Vec3, circlePartsSphere+1)
-		middleCirclesNorm[z] = make([]mgl32.Vec3, circlePartsSphere)
-	}
-	for i, c := range CircleForSphere {
-		for zIdx, zH := range middleCirclesZPart {
-			middleCirclesNorm[zIdx][i] = mgl32.Vec3{c[0], c[1], zH}.Normalize()
-			middleCircles[zIdx][i] = s.C.Add(middleCirclesNorm[zIdx][i].Mul(s.R))
-		}
-	}
-	for zIdx := range middleCircles {
-		middleCircles[zIdx][circlePartsSphere] = middleCircles[zIdx][0]
-	}
-
-	offset := 0
-	result := make([]Triangle, trianglesPerSphere)
-	for i := 0; i < circlePartsSphere; i++ {
-		// South triangle
-		result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
-			south, middleCircles[0][i+1], middleCircles[0][i],
-		}, middleCirclesNorm[0][i], s.T)
-		offset++
-		for zIdx := 0; zIdx < nbMiddleCircles-1; zIdx++ {
-			result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
-				middleCircles[zIdx][i], middleCircles[zIdx][i+1], middleCircles[zIdx+1][i+1],
-			}, middleCirclesNorm[zIdx][i], s.T)
-			offset++
-			result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
-				middleCircles[zIdx+1][i+1], middleCircles[zIdx+1][i], middleCircles[zIdx][i],
-			}, middleCirclesNorm[zIdx][i], s.T)
-			offset++
-		}
-		// North triangle
-		result[offset] = MakeTriangleWithNorm([3]mgl32.Vec3{
-			north, middleCircles[nbMiddleCircles-1][i], middleCircles[nbMiddleCircles-1][i+1],
-		}, middleCirclesNorm[nbMiddleCircles-1][i], s.T)
-		offset++
-	}
-	return result
-}
-
-func (s Segment) Size() int {
-	return int(s.A.Sub(s.B).Len() * 1000)
-}
-
-func (s Segment) Key() ObjectKey {
-	return ObjectKey(int(s.T) + s.Size()*100)
-}
-
-func (s Segment) NumberOfVertices() int {
-	return trianglesPerLine * pointsPerTriangle
-}
-
-func (s Segment) ExtractTriangles() []Triangle {
-	AB := s.B.Sub(s.A).Normalize()
-	bestCross := mgl32.Vec3{0.0, 0.0, 0.0}
-	for _, axe := range XYZ {
-		cross := axe.Cross(AB)
-		if cross.Len() > bestCross.Len() {
-			bestCross = cross
-		}
-	}
-	bestCross = bestCross.Normalize()
-	cross2 := AB.Cross(bestCross).Normalize()
-	// Let's draw a little cylinder around AB using bestCross and cross2 normal axes
-	aPoints := make([]mgl32.Vec3, circlePartsLine+1)
-	bPoints := make([]mgl32.Vec3, circlePartsLine+1)
-	for i, c := range CircleForLine {
-		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(LineWidth.Val / 2.0)
-		aPoints[i] = s.A.Add(norm)
-		bPoints[i] = s.B.Add(norm)
-	}
-	// close the circle
-	aPoints[circlePartsLine] = aPoints[0]
-	bPoints[circlePartsLine] = bPoints[0]
-	result := make([]Triangle, trianglesPerLine)
-	for i := 0; i < circlePartsLine; i++ {
-		result[2*i] = MakeTriangle([3]mgl32.Vec3{
-			aPoints[i], bPoints[i+1], bPoints[i],
-		}, s.T)
-		result[2*i+1] = MakeTriangle([3]mgl32.Vec3{
-			bPoints[i+1], aPoints[i], aPoints[i+1],
-		}, s.T)
-	}
-	return result
-}
 
 func (w *World) ScaleView(win *glfw.Window) int64 {
 	// In Retina display retrieving the window size give half of what is needed. Using framebuffer size fix the issue.
@@ -402,14 +237,14 @@ func (w *World) SetMatrices() {
 }
 
 type TriangleFiller struct {
-	objMap           map[ObjectKey]WorldObject
+	objMap           map[m3space.ObjectKey]OpenGLDrawingElement
 	verticesOffset int32
 	bufferOffset int
 	buffer       *[]float32
 }
 
 func (t *TriangleFiller) fill(o GLObject) {
-	wo := WorldObject{
+	wo := OpenGLDrawingElement{
 		o.Key(),
 		t.verticesOffset,
 		int32(o.NumberOfVertices()),
