@@ -123,7 +123,8 @@ func verifyData() {
 	}
 	deltaAngle = 2.0 * math.Pi / circlePartsSphere
 	for i := 0; i < circlePartsSphere; i++ {
-		CircleForSphere[i] = mgl32.Vec2{float32(math.Cos(deltaAngle * float64(i))), float32(math.Sin(deltaAngle * float64(i)))}
+		angle := deltaAngle * float64(i)
+		CircleForSphere[i] = mgl32.Vec2{float32(math.Cos(angle)), float32(math.Sin(angle))}
 	}
 }
 
@@ -266,8 +267,17 @@ func (s Sphere) ExtractTriangles() []Triangle {
 	middleCircles := make([][]mgl32.Vec3, nbMiddleCircles)
 	middleCirclesNorm := make([][]mgl32.Vec3, nbMiddleCircles)
 	middleCirclesZPart := make([]float32, nbMiddleCircles)
+	deltaAngle := 2.0 * math.Pi / circlePartsSphere
 	for z := 0; z < nbMiddleCircles; z++ {
-		middleCirclesZPart[z] = -CircleForSphere[z+1].Normalize().X()
+		angle := deltaAngle * float64(z+1)
+		if z == 0 {
+			angle = deltaAngle / 4
+			//angle -= 3*deltaAngle/2
+		}
+		if z == nbMiddleCircles - 1 {
+			angle += 3*deltaAngle/4
+		}
+		middleCirclesZPart[z] = -float32(math.Cos(angle))
 		middleCircles[z] = make([]mgl32.Vec3, circlePartsSphere+1)
 		middleCirclesNorm[z] = make([]mgl32.Vec3, circlePartsSphere)
 	}
