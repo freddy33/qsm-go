@@ -55,6 +55,10 @@ func (p1 Point) Add(p2 Point) Point {
 	return Point{p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]}
 }
 
+func (p1 Point) Sub(p2 Point) Point {
+	return Point{p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]}
+}
+
 func DS(p1, p2 Point) int64 {
-	return (p1[0] - p2[0]) ^ 2 + (p1[1] - p2[1]) ^ 2 + (p1[2] - p2[2]) ^ 2
+	return (p2[0] - p1[0]) ^ 2 + (p2[1] - p1[1]) ^ 2 + (p2[2] - p1[2]) ^ 2
 }

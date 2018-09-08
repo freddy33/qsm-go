@@ -51,7 +51,6 @@ type World struct {
 	Max           int64
 	TopCornerDist float32
 
-	AllTriangles []Triangle
 	NbVertices   int
 	OpenGLBuffer []float32
 	Objects      map[ObjectKey]WorldObject
@@ -82,7 +81,6 @@ func MakeWorld(Max int64) World {
 	w := World{
 		Max,
 		TopCornerDist,
-		make([]Triangle, (axes+connections)*trianglesPerLine+(nodes*trianglesPerSphere)),
 		0,
 		make([]float32, 0),
 		make(map[ObjectKey]WorldObject),
@@ -100,6 +98,7 @@ func MakeWorld(Max int64) World {
 		false,
 	}
 	w.SetMatrices()
+	w.CreateObjects()
 	return w
 }
 
@@ -138,24 +137,27 @@ func (w World) DisplaySettings() {
 	fmt.Println("Eye Dist [Q,W]", w.EyeDist.Val)
 }
 
-func (w *World) createObjects() {
-	w.Objects = make(map[ObjectKey]WorldObject)
-	triangleFiller := TriangleFiller{0, &w.AllTriangles}
+func (w *World) CreateObjects() int {
+	nbTriangles := (axes+connections)*trianglesPerLine + (nodes * trianglesPerSphere)
+	if w.NbVertices != nbTriangles*3 {
+		w.NbVertices = nbTriangles * 3
+		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", w.NbVertices, "vertices,", w.NbVertices*FloatPerVertices, "buffer size.")
+		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
+	}
+	triangleFiller := TriangleFiller{make(map[ObjectKey]WorldObject), 0, 0,&(w.OpenGLBuffer)}
+	p := m3space.Point{w.Max, 0, 0}
 	for axe := int16(0); axe < axes; axe++ {
-		p := m3space.Point{0, 0, 0}
-		p[axe] = w.Max
-		segment := MakeSegment(m3space.Origin, p, ObjectType(axe))
-		w.addObject(segment, &triangleFiller)
+		triangleFiller.fill(MakeSegment(m3space.Origin, p, ObjectType(axe)))
 	}
 	for node := 0; node < nodes; node++ {
-		sphere := MakeSphere(m3space.Origin.Add(m3space.Point{int64(node),int64(node),int64(node),}),
-			ObjectType(int(nodeA)+node))
-		w.addObject(sphere, &triangleFiller)
+		triangleFiller.fill(MakeSphere(ObjectType(int(nodeA) + node)))
 	}
-	conn := MakeSegment(m3space.Origin, m3space.BasePoints[0], connection)
-	w.addObject(conn, &triangleFiller)
-	conn = MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), connection)
-	w.addObject(conn, &triangleFiller)
+	triangleFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[0], connection))
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), connection))
+
+	w.Objects = triangleFiller.objMap
+
+	return nbTriangles
 }
 
 type Segment struct {
@@ -169,17 +171,20 @@ type Sphere struct {
 	T ObjectType
 }
 
+var Origin = mgl32.Vec3{0.0, 0.0, 0.0}
+
 func MakeSegment(p1, p2 m3space.Point, t ObjectType) (Segment) {
+	length := float32(math.Sqrt(float64(m3space.DS(p1, p2))))
 	return Segment{
-		mgl32.Vec3{float32(p1[0]), float32(p1[1]), float32(p1[2])},
-		mgl32.Vec3{float32(p2[0]), float32(p2[1]), float32(p2[2])},
+		Origin,
+		mgl32.Vec3{length, 0.0, 0.0},
 		t,
 	}
 }
 
-func MakeSphere(c m3space.Point, t ObjectType) (Sphere) {
+func MakeSphere(t ObjectType) (Sphere) {
 	return Sphere{
-		mgl32.Vec3{float32(c[0]), float32(c[1]), float32(c[2])},
+		Origin,
 		SphereRadius.Val,
 		t,
 	}
@@ -274,8 +279,8 @@ func (s Sphere) ExtractTriangles() []Triangle {
 			angle = deltaAngle / 4
 			//angle -= 3*deltaAngle/2
 		}
-		if z == nbMiddleCircles - 1 {
-			angle += 3*deltaAngle/4
+		if z == nbMiddleCircles-1 {
+			angle += 3 * deltaAngle / 4
 		}
 		middleCirclesZPart[z] = -float32(math.Cos(angle))
 		middleCircles[z] = make([]mgl32.Vec3, circlePartsSphere+1)
@@ -365,11 +370,8 @@ func (s Segment) ExtractTriangles() []Triangle {
 }
 
 func (w *World) ScaleView(win *glfw.Window) int64 {
-	w.Width, w.Height = win.GetSize()
-	if RetinaDisplay {
-		w.Width *= 2
-		w.Height *= 2
-	}
+	// In Retina display retrieving the window size give half of what is needed. Using framebuffer size fix the issue.
+	w.Width, w.Height = win.GetFramebufferSize()
 	gl.Viewport(0, 0, int32(w.Width), int32(w.Height))
 	return int64(w.Width) * int64(w.Height)
 }
@@ -399,60 +401,36 @@ func (w *World) SetMatrices() {
 	w.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 0, 1})
 }
 
-func (w *World) FillAllVertices() {
-	w.createObjects()
-	NbTriangles := len(w.AllTriangles)
-	if w.NbVertices != NbTriangles*3 {
-		w.NbVertices = NbTriangles * 3
-		fmt.Println("Creating OpenGL buffer for", NbTriangles, "triangles,", w.NbVertices, "vertices,", w.NbVertices*FloatPerVertices, "buffer size.")
-		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
-	}
-	w.fillOpenGlBuffer(w.AllTriangles, 0)
-}
-
-func (w *World) fillOpenGlBuffer(triangles []Triangle, offset int) int {
-	for _, t := range triangles {
-		for _, point := range t.vertices {
-			for coord := 0; coord < coordinates; coord++ {
-				w.OpenGLBuffer[offset] = point[coord]
-				offset++
-			}
-			for coord := 0; coord < coordinates; coord++ {
-				w.OpenGLBuffer[offset] = t.normal[coord]
-				offset++
-			}
-			for coord := 0; coord < coordinates; coord++ {
-				w.OpenGLBuffer[offset] = t.color[coord]
-				offset++
-			}
-		}
-	}
-	return offset
-}
-
-func (w *World) addObject(o GLObject, filler *TriangleFiller) {
-	wo := WorldObject{
-		o.Key(),
-		filler.openGLOffset(),
-		int32(o.NumberOfVertices()),
-	}
-	w.Objects[wo.k] = wo
-	filler.fill(o)
-}
-
 type TriangleFiller struct {
-	offset int
-	array  *[]Triangle
+	objMap           map[ObjectKey]WorldObject
+	verticesOffset int32
+	bufferOffset int
+	buffer       *[]float32
 }
 
 func (t *TriangleFiller) fill(o GLObject) {
+	wo := WorldObject{
+		o.Key(),
+		t.verticesOffset,
+		int32(o.NumberOfVertices()),
+	}
+	t.objMap[wo.k] = wo
 	triangles := o.ExtractTriangles()
 	for _, tr := range triangles {
-		(*t.array)[t.offset] = tr
-		t.offset++
+		for _, point := range tr.vertices {
+			t.verticesOffset++
+			for coord := 0; coord < coordinates; coord++ {
+				(*t.buffer)[t.bufferOffset] = point[coord]
+				t.bufferOffset++
+			}
+			for coord := 0; coord < coordinates; coord++ {
+				(*t.buffer)[t.bufferOffset] = tr.normal[coord]
+				t.bufferOffset++
+			}
+			for coord := 0; coord < coordinates; coord++ {
+				(*t.buffer)[t.bufferOffset] = tr.color[coord]
+				t.bufferOffset++
+			}
+		}
 	}
-}
-
-func (t TriangleFiller) openGLOffset() int32 {
-	return int32(t.offset * pointsPerTriangle)
 }

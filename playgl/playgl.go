@@ -40,7 +40,6 @@ func DisplayPlay1() {
 	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
 
 	w = m3gl.MakeWorld(9)
-	w.FillAllVertices()
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
@@ -158,7 +157,7 @@ func recalc(fill bool) {
 	w.DisplaySettings()
 	w.SetMatrices()
 	if fill {
-		w.FillAllVertices()
+		w.CreateObjects()
 		gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(w.OpenGLBuffer), gl.STATIC_DRAW)
 	}
 }
@@ -198,7 +197,7 @@ out vec4 out_color;
 
 void main() {
     // ambient
-    float ambientStrength = 0.1;
+    float ambientStrength = 0.15;
     vec3 ambient = ambientStrength * light_color;
   	
     // diffuse 
