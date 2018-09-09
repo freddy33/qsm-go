@@ -100,6 +100,13 @@ func (s *Space) CreateStuff(max int64) {
 	n := Node{&Origin, [3]*Node{}, }
 	e := Event{0, &n, 0, EventA, }
 	s.events[0] = &e
+	for i, b := range BasePoints {
+		nn := Node{&b, [3]*Node{}}
+		nn.C[0] = &n
+		n.C[i] = &nn
+		ee := Event{EventID(1+i), &nn, 0, EventA, }
+		s.events[EventID(1+i)] = &ee
+	}
 	s.createDrawingElements()
 }
 
