@@ -28,6 +28,13 @@ func MakeSegment(p1, p2 m3space.Point, t m3space.ObjectType) (Segment) {
 }
 
 func MakeSphere(t m3space.ObjectType) (Sphere) {
+	if t == m3space.Node0 {
+		return Sphere{
+			Origin,
+			SphereRadius.Val / 2.0,
+			t,
+		}
+	}
 	return Sphere{
 		Origin,
 		SphereRadius.Val,

@@ -84,6 +84,18 @@ const (
 	Connection6
 )
 
+func (ot ObjectType) IsAxe() bool {
+	return int16(ot) >= 0 && int16(ot) <= int16(AxeZ)
+}
+
+func (ot ObjectType) IsNode() bool {
+	return int16(ot) >= int16(Node0) && int16(ot) <= int16(NodeC)
+}
+
+func (ot ObjectType) IsConnection() bool {
+	return int16(ot) >= int16(Connection1) && int16(ot) <= int16(Connection6)
+}
+
 const THREE = 3
 
 var Origin = Point{0, 0, 0}
@@ -104,12 +116,15 @@ func (p1 Point) Sub(p2 Point) Point {
 	return Point{p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]}
 }
 
-func DS(p1, p2 Point) int64 {
-	return (p2[0] - p1[0]) ^ 2 + (p2[1] - p1[1]) ^ 2 + (p2[2] - p1[2]) ^ 2
+func DS(p1, p2 *Point) int64 {
+	x := p2.X() - p1.X()
+	y := p2.Y() - p1.Y()
+	z := p2.Z() - p1.Z()
+	return x*x + y*y + z*z
 }
 
 func (p *Point) GetNodeId() NodeID {
-	return NodeID(p.X() + p.Y()*10000 + p.Z()*100000000)
+	return NodeID(p.X()+1000 + (p.Y()+1000)*1000 + (p.Z()+1000)*1000000)
 }
 
 func (p *Point) IsMainPoint() bool {
@@ -120,6 +135,18 @@ func (p *Point) IsMainPoint() bool {
 		}
 	}
 	return allDivByThree
+}
+
+func (p *Point) IsBorder(max int64) bool {
+	for _, c := range p {
+		if c > 0 && c >= max-1 {
+			return true
+		}
+		if c < 0 && c <= -max+1 {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Space) GetNode(p Point) *Node {
@@ -158,14 +185,61 @@ func (s *Space) CreateNodes(max int64) {
 	s.GetNode(Origin)
 	maxByThree := int64(max / THREE)
 	fmt.Println("Max by three", maxByThree)
-	for x := -maxByThree; x < maxByThree; x++ {
-		for y := -maxByThree; y < maxByThree; y++ {
-			for z := -maxByThree; z < maxByThree; z++ {
+	for x := -maxByThree; x <= maxByThree; x++ {
+		for y := -maxByThree; y <= maxByThree; y++ {
+			for z := -maxByThree; z <= maxByThree; z++ {
 				p := Point{x * THREE, y * THREE, z * THREE}
 				s.GetNode(p)
 			}
 		}
 	}
+	// All nodes that are not main with nil connections find good one
+	for _, node := range s.nodes {
+		if !node.P.IsMainPoint() && node.HasFreeConnections() {
+			for i := 1; i < 3; i++ {
+				if node.C[i] == nil {
+					for _, other := range s.nodes {
+						if node != other && !other.P.IsMainPoint() && other.HasFreeConnections() && DS(other.P, node.P) == 3 {
+							node.C[i] = other
+							for j := 0; j < 3; j++ {
+								if other.C[j] == nil {
+									other.C[j] = node
+									break
+								}
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Verify all connections length squared is 2 or 3
+	for _, node := range s.nodes {
+		for i, c := range node.C {
+			if c != nil {
+				ds := DS(node.P, c.P)
+				if ds != 2 && ds != 3 {
+					fmt.Println("something wrong with node",node.P,ds,"connection",i,c.P)
+				}
+			} else {
+				// Should be on the border
+				if !node.P.IsBorder(max) {
+					fmt.Println("something wrong with node connection not done for",node.P,"connection",i)
+				}
+			}
+		}
+	}
+}
+
+func (n *Node) HasFreeConnections() bool {
+	for _, c := range n.C {
+		if c == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Space) CreateStuff(max int64) {
@@ -249,24 +323,36 @@ func (n *NodeDrawingElement) Pos() *Point {
 
 // ConnectionDrawingElement functions
 func MakeConnectionDrawingElement(p1, p2 *Point) *ConnectionDrawingElement {
+	bv := p2.Sub(*p1)
 	if p1.IsMainPoint() {
-		bv := p2.Sub(*p1)
 		for i, bp := range BasePoints {
 			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
 				return &ConnectionDrawingElement{ObjectType(int(Connection1)+i), p1, p2,}
 			}
 		}
+		fmt.Println("What 1",p1,p2,bv)
 		return &ConnectionDrawingElement{Connection1, p1, p2,}
 	} else if p2.IsMainPoint() {
-		bv := p1.Sub(*p2)
+		bv = bv.Mul(-1)
 		for i, bp := range BasePoints {
 			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
 				return &ConnectionDrawingElement{ObjectType(int(Connection1)+i), p2, p1,}
 			}
 		}
+		fmt.Println("What 2",p1,p2,bv)
 		return &ConnectionDrawingElement{Connection1, p2, p1,}
 	} else {
-		return &ConnectionDrawingElement{Connection4, p1, p2,}
+		if bv[0] == 1 {
+			if bv[1] != -1 || bv[2] != -1 {
+				fmt.Println("What 3",p1,p2,bv)
+			}
+			return &ConnectionDrawingElement{Connection4, p1, p2,}
+		} else {
+			if bv[0] != -1 || bv[1] != 1 || bv[2] != 1 {
+				fmt.Println("What 4",p1,p2,bv)
+			}
+			return &ConnectionDrawingElement{Connection5, p1, p2,}
+		}
 	}
 }
 

@@ -71,7 +71,7 @@ func MakeWorld(Max int64) World {
 		make([]float32, 0),
 		make(map[m3space.ObjectType]OpenGLDrawingElement),
 		800, 600,
-		SizeVar{float64(Max), TopCornerDist * 4.0, TopCornerDist},
+		SizeVar{float64(Max), TopCornerDist * 4.0, TopCornerDist*1.5},
 		SizeVar{10.0, 75.0, 30.0},
 		mgl32.Vec3{-1.0, 1.0, 1.0}.Normalize(),
 		mgl32.Vec3{1.0, 1.0, 1.0},
@@ -137,7 +137,7 @@ func (w *World) CreateObjects() int {
 	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0,&(w.OpenGLBuffer)}
 	for axe := int16(0); axe < axes; axe++ {
 		p := m3space.Point{}
-		p[axe] = w.Max
+		p[axe] = w.Max + 2
 		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
 	}
 	for node := 0; node < nodes; node++ {
@@ -165,16 +165,15 @@ type Triangle struct {
 var AxeXColor = mgl64.Vec3{0.5, 0.2, 0.2}
 var AxeYColor = mgl64.Vec3{0.2, 0.5, 0.2}
 var AxeZColor = mgl64.Vec3{0.2, 0.2, 0.5}
-var Node0Color = mgl64.Vec3{0.7, 0.7, 0.7}
-var NodeAColor = mgl64.Vec3{1.0, 1.0, 0.0}
-var NodeBColor = mgl64.Vec3{0.0, 1.0, 1.0}
-var NodeCColor = mgl64.Vec3{1.0, 0.0, 1.0}
-var Conn1Color = mgl64.Vec3{0.8, 0.0, 0.2}
-var Conn2Color = mgl64.Vec3{0.2, 0.0, 0.8}
-
-func squareDist(v mgl64.Vec3) float64 {
-	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
-}
+var Node0Color = mgl64.Vec3{0.3, 0.3, 0.3}
+var NodeAColor = mgl64.Vec3{1.0, 0.0, 0.0}
+var NodeBColor = mgl64.Vec3{0.0, 1.0, 0.0}
+var NodeCColor = mgl64.Vec3{0.0, 0.0, 1.0}
+var Conn1Color = mgl64.Vec3{0.8, 0.3, 0.0}
+var Conn2Color = mgl64.Vec3{0.3, 0.0, 0.8}
+var Conn3Color = mgl64.Vec3{0.0, 0.8, 0.3}
+var Conn4Color = mgl64.Vec3{0.8, 0.3, 0.2}
+var Conn5Color = mgl64.Vec3{0.3, 0.8, 0.3}
 
 func MakeTriangle(vert [3]mgl64.Vec3, t m3space.ObjectType) Triangle {
 	AB := vert[1].Sub(vert[0])
@@ -203,15 +202,16 @@ func MakeTriangleWithNorm(vert [3]mgl64.Vec3, norm mgl64.Vec3, t m3space.ObjectT
 	case m3space.Connection1:
 		color = Conn1Color
 	case m3space.Connection2:
-		color = Conn1Color
+		color = Conn2Color
 	case m3space.Connection3:
-		color = Conn1Color
+		color = Conn3Color
 	case m3space.Connection4:
-		color = Conn2Color
+		color = Conn4Color
 	case m3space.Connection5:
-		color = Conn2Color
+		color = Conn5Color
+		// No conn 6 <=> conn 5
 	case m3space.Connection6:
-		color = Conn2Color
+		color = Conn5Color
 	}
 	return Triangle{vert, norm, color}
 }
