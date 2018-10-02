@@ -63,16 +63,17 @@ var SpaceObj = Space{
 }
 
 type ObjectType int16
-type ObjectKey int
 
 const (
 	AxeX       ObjectType = iota
 	AxeY
 	AxeZ
+	Node0
 	NodeA
 	NodeB
 	NodeC
-	Connection
+	Connection1
+	Connection2
 )
 
 const THREE = 3
@@ -135,21 +136,26 @@ func (s *Space) createDrawingElements() {
 		offset++
 		for c := 0; c < THREE; c++ {
 			if evt.N.C[c] != nil {
-				elements[offset] = &ConnectionDrawingElement{
-					evt.N.P, evt.N.C[c].P,
-				}
+				elements[offset] = MakeConnectionDrawingElement(evt.N.P, evt.N.C[c].P)
 			} else {
 				elements[offset] = nil
 			}
 			offset++
 		}
 	}
+	fmt.Println("Created",len(elements),"elements. Keys are:")
+	for _, el := range elements {
+		if el != nil {
+			fmt.Println(el.Key())
+		} else {
+			fmt.Println("nil")
+		}
+	}
 	s.Elements = elements
 }
 
 type SpaceDrawingElement interface {
-	Size() int
-	Key() ObjectKey
+	Key() ObjectType
 	Pos() *Point
 	EndPoint() *Point
 }
@@ -160,6 +166,7 @@ type NodeDrawingElement struct {
 }
 
 type ConnectionDrawingElement struct {
+	t   ObjectType
 	p1, p2 *Point
 }
 
@@ -170,12 +177,8 @@ type AxeDrawingElement struct {
 }
 
 // NodeDrawingElement functions
-func (n *NodeDrawingElement) Size() int {
-	return 1
-}
-
-func (n *NodeDrawingElement) Key() ObjectKey {
-	return ObjectKey(int(n.t) + n.Size()*100)
+func (n *NodeDrawingElement) Key() ObjectType {
+	return n.t
 }
 
 func (n *NodeDrawingElement) Pos() *Point {
@@ -187,12 +190,27 @@ func (n *NodeDrawingElement) EndPoint() *Point {
 }
 
 // ConnectionDrawingElement functions
-func (c *ConnectionDrawingElement) Size() int {
-	return int(DS(*c.p1, *c.p2))
+func MakeConnectionDrawingElement(p1, p2 *Point) *ConnectionDrawingElement {
+	divByThree := false
+	for _, c := range p1 {
+		if c % THREE == 0 {
+			divByThree = true
+		}
+	}
+	for _, c := range p2 {
+		if c % THREE == 0 {
+			divByThree = true
+		}
+	}
+	if divByThree {
+		return &ConnectionDrawingElement{Connection1, p1, p2,}
+	} else {
+		return &ConnectionDrawingElement{Connection2, p1, p2,}
+	}
 }
 
-func (c *ConnectionDrawingElement) Key() ObjectKey {
-	return ObjectKey(int(Connection) + c.Size()*100)
+func (c *ConnectionDrawingElement) Key() ObjectType {
+	return c.t
 }
 
 func (c *ConnectionDrawingElement) Pos() *Point {
@@ -204,12 +222,8 @@ func (c *ConnectionDrawingElement) EndPoint() *Point {
 }
 
 // AxeDrawingElement functions
-func (a *AxeDrawingElement) Size() int {
-	return int(a.max)
-}
-
-func (a *AxeDrawingElement) Key() ObjectKey {
-	return ObjectKey(int(a.t) + a.Size()*100)
+func (a *AxeDrawingElement) Key() ObjectType {
+	return a.t
 }
 
 func (a *AxeDrawingElement) Pos() *Point {
