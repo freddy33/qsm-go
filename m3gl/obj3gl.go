@@ -9,7 +9,6 @@ import (
 type Segment struct {
 	A, B mgl64.Vec3
 	T    m3space.ObjectType
-	S    int
 }
 
 type Sphere struct {
@@ -21,13 +20,10 @@ type Sphere struct {
 var Origin = mgl64.Vec3{0.0, 0.0, 0.0}
 
 func MakeSegment(p1, p2 m3space.Point, t m3space.ObjectType) (Segment) {
-	ds := int(m3space.DS(p1, p2))
-	length := math.Sqrt(float64(ds))
 	return Segment{
 		Origin,
-		mgl64.Vec3{length, 0.0, 0.0},
+		mgl64.Vec3{float64(p2.X()-p1.X()), float64(p2.Y()-p1.Y()), float64(p2.Z()-p1.Z()),},
 		t,
-		ds,
 	}
 }
 
@@ -128,8 +124,14 @@ func (s Segment) ExtractTriangles() []Triangle {
 	// Let's draw a little cylinder around AB using bestCross and cross2 normal axes
 	aPoints := make([]mgl64.Vec3, circlePartsLine+1)
 	bPoints := make([]mgl64.Vec3, circlePartsLine+1)
-	for i, c := range CircleForLine {
-		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(LineWidth.Val / 2.0)
+	var lw float64
+	if int(s.T) <= int(m3space.AxeZ) {
+		lw = LineWidth.Val
+	} else {
+		lw = LineWidth.Val / 2.0
+	}
+ 	for i, c := range CircleForLine {
+		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(lw)
 		aPoints[i] = s.A.Add(norm)
 		bPoints[i] = s.B.Add(norm)
 	}

@@ -78,6 +78,10 @@ const (
 	NodeC
 	Connection1
 	Connection2
+	Connection3
+	Connection4
+	Connection5
+	Connection6
 )
 
 const THREE = 3
@@ -153,15 +157,12 @@ func (s *Space) connectToBasePoints(nId NodeID) {
 func (s *Space) CreateNodes(max int64) {
 	s.GetNode(Origin)
 	maxByThree := int64(max / THREE)
-	for x := int64(0); x <= maxByThree; x++ {
-		for y := int64(0); y <= maxByThree; y++ {
-			for z := int64(0); z <= maxByThree; z++ {
-					p := Point{}
-					p[0] = x*THREE
-					p[1] = y*THREE
-					p[2] = z*THREE
-					s.GetNode(p)
-					s.GetNode(p.Mul(-1))
+	fmt.Println("Max by three", maxByThree)
+	for x := -maxByThree; x < maxByThree; x++ {
+		for y := -maxByThree; y < maxByThree; y++ {
+			for z := -maxByThree; z < maxByThree; z++ {
+				p := Point{x * THREE, y * THREE, z * THREE}
+				s.GetNode(p)
 			}
 		}
 	}
@@ -219,11 +220,10 @@ func (s *Space) createDrawingElements() {
 type SpaceDrawingElement interface {
 	Key() ObjectType
 	Pos() *Point
-	EndPoint() *Point
 }
 
 type NodeDrawingElement struct {
-	t   ObjectType
+	t ObjectType
 	n *Node
 }
 
@@ -247,16 +247,26 @@ func (n *NodeDrawingElement) Pos() *Point {
 	return n.n.P
 }
 
-func (n *NodeDrawingElement) EndPoint() *Point {
-	return nil
-}
-
 // ConnectionDrawingElement functions
 func MakeConnectionDrawingElement(p1, p2 *Point) *ConnectionDrawingElement {
-	if p1.IsMainPoint() || p2.IsMainPoint() {
+	if p1.IsMainPoint() {
+		bv := p2.Sub(*p1)
+		for i, bp := range BasePoints {
+			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
+				return &ConnectionDrawingElement{ObjectType(int(Connection1)+i), p1, p2,}
+			}
+		}
 		return &ConnectionDrawingElement{Connection1, p1, p2,}
+	} else if p2.IsMainPoint() {
+		bv := p1.Sub(*p2)
+		for i, bp := range BasePoints {
+			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
+				return &ConnectionDrawingElement{ObjectType(int(Connection1)+i), p2, p1,}
+			}
+		}
+		return &ConnectionDrawingElement{Connection1, p2, p1,}
 	} else {
-		return &ConnectionDrawingElement{Connection2, p1, p2,}
+		return &ConnectionDrawingElement{Connection4, p1, p2,}
 	}
 }
 
@@ -268,32 +278,21 @@ func (c *ConnectionDrawingElement) Pos() *Point {
 	return c.p1
 }
 
-func (c *ConnectionDrawingElement) EndPoint() *Point {
-	return c.p2
-}
-
 // AxeDrawingElement functions
 func (a *AxeDrawingElement) Key() ObjectType {
 	return a.t
 }
 
 func (a *AxeDrawingElement) Pos() *Point {
-	return &Origin
-}
-
-func (a *AxeDrawingElement) EndPoint() *Point {
-	val := a.max
 	if a.neg {
-		val = -val
+		switch a.t {
+		case AxeX:
+			return &Point{-a.max, 0, 0}
+		case AxeY:
+			return &Point{0, -a.max, 0}
+		case AxeZ:
+			return &Point{0, 0, -a.max}
+		}
 	}
-	switch a.t {
-	case AxeX:
-		return &Point{val, 0, 0}
-	case AxeY:
-		return &Point{0, val, 0}
-	case AxeZ:
-		return &Point{0, 0, val}
-	}
-	fmt.Println("Type is not an Axe type but", a.t)
-	return nil
+	return &Origin
 }

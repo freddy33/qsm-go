@@ -26,7 +26,7 @@ const (
 // QSM DrawingElementsMap const
 const (
 	nodes       = 4
-	connections = 2
+	connections = 6
 	axes        = 3
 )
 
@@ -50,11 +50,6 @@ type World struct {
 	previousArea   int64
 	Angle          float64
 	Rotate         bool
-}
-
-type WorldDrawingElement struct {
-	DrawEl *OpenGLDrawingElement
-	Transform mgl32.Mat4
 }
 
 type OpenGLDrawingElement struct {
@@ -140,15 +135,20 @@ func (w *World) CreateObjects() int {
 		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
 	}
 	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0,&(w.OpenGLBuffer)}
-	p := m3space.Point{w.Max, 0, 0}
 	for axe := int16(0); axe < axes; axe++ {
+		p := m3space.Point{}
+		p[axe] = w.Max
 		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
 	}
 	for node := 0; node < nodes; node++ {
 		triangleFiller.fill(MakeSphere(m3space.ObjectType(int(m3space.Node0) + node)))
 	}
-	triangleFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[0], m3space.Connection1))
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), m3space.Connection2))
+	for i, bp := range m3space.BasePoints {
+		triangleFiller.fill(MakeSegment(m3space.Origin, bp, m3space.ObjectType(int(m3space.Connection1)+i)))
+	}
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[2].Add(m3space.Point{3, 0, 0}), m3space.Connection4))
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), m3space.Connection5))
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[1], m3space.BasePoints[2].Add(m3space.Point{0, 0, 3}), m3space.Connection6))
 
 	w.DrawingElementsMap = triangleFiller.objMap
 	fmt.Println("Saved",len(w.DrawingElementsMap),"objects in world map.")
@@ -203,6 +203,14 @@ func MakeTriangleWithNorm(vert [3]mgl64.Vec3, norm mgl64.Vec3, t m3space.ObjectT
 	case m3space.Connection1:
 		color = Conn1Color
 	case m3space.Connection2:
+		color = Conn1Color
+	case m3space.Connection3:
+		color = Conn1Color
+	case m3space.Connection4:
+		color = Conn2Color
+	case m3space.Connection5:
+		color = Conn2Color
+	case m3space.Connection6:
 		color = Conn2Color
 	}
 	return Triangle{vert, norm, color}

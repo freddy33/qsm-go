@@ -8,6 +8,7 @@ import (
 	"github.com/freddy33/qsm-go/m3gl"
 	"strings"
 	"github.com/freddy33/qsm-go/m3space"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 const windowWidth = 800
@@ -101,6 +102,9 @@ func DisplayPlay1() {
 		for _, obj := range m3space.SpaceObj.Elements {
 			if obj != nil {
 				toDraw := w.DrawingElementsMap[obj.Key()]
+				w.Model = mgl32.HomogRotate3D(float32(w.Angle), mgl32.Vec3{0, 0, 1})
+				w.Model = w.Model.Mul4(mgl32.Translate3D(float32(obj.Pos().X()), float32(obj.Pos().Y()), float32(obj.Pos().Z())))
+				gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
 				gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
 			}
 		}
