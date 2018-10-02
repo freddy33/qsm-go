@@ -64,6 +64,9 @@ type OpenGLDrawingElement struct {
 }
 
 func MakeWorld(Max int64) World {
+	if Max % m3space.THREE != 0 {
+		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
+	}
 	verifyData()
 	TopCornerDist := math.Sqrt(float64(3.0*Max*Max)) + 1.1
 	w := World{
@@ -142,17 +145,13 @@ func (w *World) CreateObjects() int {
 		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
 	}
 	for node := 0; node < nodes; node++ {
-		triangleFiller.fill(MakeSphere(m3space.ObjectType(int(m3space.NodeA) + node)))
+		triangleFiller.fill(MakeSphere(m3space.ObjectType(int(m3space.Node0) + node)))
 	}
 	triangleFiller.fill(MakeSegment(m3space.Origin, m3space.BasePoints[0], m3space.Connection1))
 	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), m3space.Connection2))
 
-	fmt.Println("Created",len(triangleFiller.objMap),"objects")
 	w.DrawingElementsMap = triangleFiller.objMap
-	fmt.Println("Saved",len(w.DrawingElementsMap),"objects in world map. Keys are:")
-	for _, el := range w.DrawingElementsMap {
-		fmt.Println(el.k)
-	}
+	fmt.Println("Saved",len(w.DrawingElementsMap),"objects in world map.")
 
 	return nbTriangles
 }
