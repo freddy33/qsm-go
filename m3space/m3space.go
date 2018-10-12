@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	DEBUG = false
 	AxeExtraLength = 3
 )
 
@@ -171,10 +172,14 @@ func (p Point) IsBorder(max int64) bool {
 func (s *Space) CreateStuff(max int64) {
 	s.max = max
 	s.createNodes()
-	s.CreateEvent(Point{3,0,3}.Mul(2), EventA)
-	s.CreateEvent(Point{-3,3,3}.Mul(2), EventB)
-	s.CreateEvent(Point{-3,-3,3}.Mul(2), EventC)
-	s.CreateEvent(Point{0,0,-3}.Mul(2), EventD)
+	pyramidSize := int64(s.max / THREE) - 1
+	if pyramidSize <= 0 {
+		pyramidSize = 1
+	}
+	s.CreateEvent(Point{3,0,3}.Mul(pyramidSize), EventA)
+	s.CreateEvent(Point{-3,3,3}.Mul(pyramidSize), EventB)
+	s.CreateEvent(Point{-3,-3,3}.Mul(pyramidSize), EventC)
+	s.CreateEvent(Point{0,0,-3}.Mul(pyramidSize), EventD)
 	s.createDrawingElements()
 }
 
@@ -188,7 +193,9 @@ func (s *Space) ForwardTime() {
 						otherNode = c.N2
 					}
 					if len(otherNode.E) == 0 || otherNode.E[0] == nil {
-						fmt.Println("Creating new event outgrowth for",evt.ID,"at",otherNode.P)
+						if DEBUG {
+							fmt.Println("Creating new event outgrowth for",evt.ID,"at",otherNode.P)
+						}
 						otherNode.E = make([]*EventOutgrowth, 1)
 						otherNode.E[0] = &EventOutgrowth{otherNode, evt, eg.D+1}
 						evt.O = append(evt.O, otherNode.E[0])
@@ -198,6 +205,7 @@ func (s *Space) ForwardTime() {
 		}
 	}
 	s.currentTime++
+	// Same drawing elements just changed color :(
 	s.createDrawingElements()
 }
 
@@ -298,7 +306,9 @@ func (s *Space) createAndConnectBasePoints(n *Node) {
 func (s *Space) createNodes() *Node {
 	org := s.getOrCreateNode(&Origin)
 	maxByThree := int64(s.max / THREE)
-	fmt.Println("Max by three", maxByThree)
+	if DEBUG {
+		fmt.Println("Max by three", maxByThree)
+	}
 	for x := -maxByThree; x <= maxByThree; x++ {
 		for y := -maxByThree; y <= maxByThree; y++ {
 			for z := -maxByThree; z <= maxByThree; z++ {
@@ -377,7 +387,9 @@ func (s *Space) createDrawingElements() {
 		elements[offset] = MakeConnectionDrawingElement(conn.N1.P, conn.N2.P)
 		offset++
 	}
-	fmt.Println("Created", len(elements), "elements.")
+	if DEBUG {
+		fmt.Println("Created", len(elements), "elements.")
+	}
 	s.Elements = elements
 }
 
