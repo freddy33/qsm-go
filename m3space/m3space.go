@@ -18,14 +18,17 @@ func (p Point) Z() int64 {
 
 type Node struct {
 	P *Point
-	C [3]*Node
+	E *EventOutgrowth
+	C [3]*Connection
+}
+
+type Connection struct {
+	N1, N2 *Node
 }
 
 type TickTime uint64
 
 type Distance uint64
-
-type NodeID int64
 
 type EventID uint64
 
@@ -45,25 +48,26 @@ type Event struct {
 }
 
 type EventOutgrowth struct {
-	Evt   *Event
-	D     Distance
-	Nodes []*Node
+	Evt *Event
+	D   Distance
 }
 
 type Space struct {
-	nodes    map[NodeID]*Node
-	events   map[EventID]*Event
-	current  TickTime
-	max      int64
-	Elements []SpaceDrawingElement
+	nodes       []*Node
+	connections []*Connection
+	events      map[EventID]*Event
+	current     TickTime
+	max         int64
+	Elements    []SpaceDrawingElement
 }
 
 var SpaceObj = Space{
-	make(map[NodeID]*Node),
+	make([]*Node, 0, 108),
+	make([]*Connection, 0, 500),
 	make(map[EventID]*Event),
 	0,
 	9,
-	[]SpaceDrawingElement{},
+	make([]SpaceDrawingElement, 0, 500),
 }
 
 type ObjectType int16
@@ -104,15 +108,15 @@ var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
 var BasePoints = [3]Point{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}}
 
-func (p Point) Mul(m int64) Point {
+func (p *Point) Mul(m int64) Point {
 	return Point{p[0] * m, p[1] * m, p[2] * m}
 }
 
-func (p1 Point) Add(p2 Point) Point {
+func (p1 *Point) Add(p2 Point) Point {
 	return Point{p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]}
 }
 
-func (p1 Point) Sub(p2 Point) Point {
+func (p1 *Point) Sub(p2 Point) Point {
 	return Point{p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]}
 }
 
@@ -123,13 +127,9 @@ func DS(p1, p2 *Point) int64 {
 	return x*x + y*y + z*z
 }
 
-func (p *Point) GetNodeId() NodeID {
-	return NodeID(p.X()+1000 + (p.Y()+1000)*1000 + (p.Z()+1000)*1000000)
-}
-
 func (p *Point) IsMainPoint() bool {
 	allDivByThree := true
-	for _, c := range p {
+	for _, c := range *p {
 		if c%THREE != 0 {
 			allDivByThree = false
 		}
@@ -138,7 +138,7 @@ func (p *Point) IsMainPoint() bool {
 }
 
 func (p *Point) IsBorder(max int64) bool {
-	for _, c := range p {
+	for _, c := range *p {
 		if c > 0 && c >= max-1 {
 			return true
 		}
@@ -149,67 +149,101 @@ func (p *Point) IsBorder(max int64) bool {
 	return false
 }
 
-func (s *Space) GetNode(p Point) *Node {
-	nId := p.GetNodeId()
-	n, ok := s.nodes[nId]
-	if ok {
+func (s *Space) GetNode(p *Point) *Node {
+	for _, n := range s.nodes {
+		if *(n.P) == *p {
+			return n
+		}
+	}
+	return nil
+}
+
+func (s *Space) getOrCreateNode(p *Point) *Node {
+	n := s.GetNode(p)
+	if n != nil {
 		return n
 	}
-	newNode := Node{}
-	newNode.P = &p
-	s.nodes[nId] = &newNode
+	n = &Node{}
+	n.P = p
+	s.nodes = append(s.nodes, n)
 	if p.IsMainPoint() {
-		s.connectToBasePoints(nId)
+		s.createAndConnectBasePoints(n)
 	}
-	return &newNode
+	return n
 }
 
-func (s *Space) connectToBasePoints(nId NodeID) {
-	bn, ok := s.nodes[nId]
-	if !ok {
-		fmt.Println("Passing Node Id", nId, "does exists in map")
+func (s *Space) makeConnection(n1, n2 *Node) *Connection {
+	if !n1.HasFreeConnections() {
+		fmt.Println("Node 1", n1, "does not have free connections")
+		return nil
+	}
+	if !n2.HasFreeConnections() {
+		fmt.Println("Node 2", n2, "does not have free connections")
+		return nil
+	}
+	if n2.P.IsMainPoint() {
+		fmt.Println("Passing second point of connection", *(n2.P), "is a main point. Only P1 can be main")
+		return nil
+	}
+	d := DS(n1.P, n2.P)
+	if !(d == 2 || d == 3) {
+		fmt.Println("Connection between 2 points", *(n1.P), *(n2.P), "that are not 2 or 3 DS away!")
+		return nil
+	}
+	c := &Connection{n1, n2}
+	s.connections = append(s.connections, c)
+	n1done := false
+	n2done := false
+	for i := 0; i < THREE; i++ {
+		if !n1done && n1.C[i] == nil {
+			n1.C[i] = c
+			n1done = true
+		}
+		if !n2done && n2.C[i] == nil {
+			n2.C[i] = c
+			n2done = true
+		}
+	}
+	if !n1done || !n2done {
+		fmt.Println("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
+		return nil
+	}
+	return c
+}
+
+func (s *Space) createAndConnectBasePoints(n *Node) {
+	if !n.P.IsMainPoint() {
+		fmt.Println("Passing point to add base points", *(n.P), "is not a main point!")
 		return
 	}
-	if !bn.P.IsMainPoint() {
-		fmt.Println("Passing Node Id", nId, "is not a main point")
-		return
-	}
-	for i, b := range BasePoints {
-		bpn := s.GetNode(bn.P.Add(b))
-		bn.C[i] = bpn
-		bpn.C[0] = bn
+	for _, b := range BasePoints {
+		p2 := n.P.Add(b)
+		bpn := s.getOrCreateNode(&p2)
+		s.makeConnection(n, bpn)
 	}
 }
 
-func (s *Space) CreateNodes(max int64) {
-	s.GetNode(Origin)
-	maxByThree := int64(max / THREE)
+func (s *Space) createNodes() {
+	s.getOrCreateNode(&Origin)
+	maxByThree := int64(s.max / THREE)
 	fmt.Println("Max by three", maxByThree)
 	for x := -maxByThree; x <= maxByThree; x++ {
 		for y := -maxByThree; y <= maxByThree; y++ {
 			for z := -maxByThree; z <= maxByThree; z++ {
 				p := Point{x * THREE, y * THREE, z * THREE}
-				s.GetNode(p)
+				s.getOrCreateNode(&p)
 			}
 		}
 	}
 	// All nodes that are not main with nil connections find good one
 	for _, node := range s.nodes {
 		if !node.P.IsMainPoint() && node.HasFreeConnections() {
-			for i := 1; i < 3; i++ {
-				if node.C[i] == nil {
-					for _, other := range s.nodes {
-						if node != other && !other.P.IsMainPoint() && other.HasFreeConnections() && DS(other.P, node.P) == 3 {
-							node.C[i] = other
-							for j := 0; j < 3; j++ {
-								if other.C[j] == nil {
-									other.C[j] = node
-									break
-								}
-							}
-							break
-						}
-					}
+			for _, other := range s.nodes {
+				if node != other && !other.P.IsMainPoint() && other.HasFreeConnections() && DS(other.P, node.P) == 3 {
+					s.makeConnection(node, other)
+				}
+				if !node.HasFreeConnections() {
+					break
 				}
 			}
 		}
@@ -218,15 +252,10 @@ func (s *Space) CreateNodes(max int64) {
 	// Verify all connections length squared is 2 or 3
 	for _, node := range s.nodes {
 		for i, c := range node.C {
-			if c != nil {
-				ds := DS(node.P, c.P)
-				if ds != 2 && ds != 3 {
-					fmt.Println("something wrong with node",node.P,ds,"connection",i,c.P)
-				}
-			} else {
+			if c == nil {
 				// Should be on the border
-				if !node.P.IsBorder(max) {
-					fmt.Println("something wrong with node connection not done for",node.P,"connection",i)
+				if !node.P.IsBorder(s.max) {
+					fmt.Println("something wrong with node connection not done for", node.P, "connection", i)
 				}
 			}
 		}
@@ -243,8 +272,9 @@ func (n *Node) HasFreeConnections() bool {
 }
 
 func (s *Space) CreateStuff(max int64) {
-	s.CreateNodes(max)
-	e := Event{0, s.GetNode(Origin), 0, EventA,}
+	s.max = max
+	s.createNodes()
+	e := Event{0, s.GetNode(&Origin), 0, EventA,}
 	s.events[0] = &e
 	s.createDrawingElements()
 }
@@ -272,14 +302,10 @@ func (s *Space) createDrawingElements() {
 			node,
 		}
 		offset++
-		for c := 0; c < THREE; c++ {
-			if node.C[c] != nil {
-				elements[offset] = MakeConnectionDrawingElement(node.P, node.C[c].P)
-			} else {
-				elements[offset] = nil
-			}
-			offset++
-		}
+	}
+	for _, conn := range s.connections {
+		elements[offset] = MakeConnectionDrawingElement(conn.N1.P, conn.N2.P)
+		offset++
 	}
 	for _, evt := range s.events {
 		elements[offset] = &NodeDrawingElement{
@@ -327,29 +353,29 @@ func MakeConnectionDrawingElement(p1, p2 *Point) *ConnectionDrawingElement {
 	if p1.IsMainPoint() {
 		for i, bp := range BasePoints {
 			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
-				return &ConnectionDrawingElement{ObjectType(int(Connection1)+i), p1, p2,}
+				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), p1, p2,}
 			}
 		}
-		fmt.Println("What 1",p1,p2,bv)
+		fmt.Println("What 1", p1, p2, bv)
 		return &ConnectionDrawingElement{Connection1, p1, p2,}
 	} else if p2.IsMainPoint() {
 		bv = bv.Mul(-1)
 		for i, bp := range BasePoints {
 			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
-				return &ConnectionDrawingElement{ObjectType(int(Connection1)+i), p2, p1,}
+				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), p2, p1,}
 			}
 		}
-		fmt.Println("What 2",p1,p2,bv)
+		fmt.Println("What 2", p1, p2, bv)
 		return &ConnectionDrawingElement{Connection1, p2, p1,}
 	} else {
 		if bv[0] == 1 {
 			if bv[1] != -1 || bv[2] != -1 {
-				fmt.Println("What 3",p1,p2,bv)
+				fmt.Println("What 3", p1, p2, bv)
 			}
 			return &ConnectionDrawingElement{Connection4, p1, p2,}
 		} else {
 			if bv[0] != -1 || bv[1] != 1 || bv[2] != 1 {
-				fmt.Println("What 4",p1,p2,bv)
+				fmt.Println("What 4", p1, p2, bv)
 			}
 			return &ConnectionDrawingElement{Connection5, p1, p2,}
 		}
