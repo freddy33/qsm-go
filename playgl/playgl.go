@@ -98,7 +98,7 @@ func DisplayPlay1() {
 		gl.BindVertexArray(vao)
 
 		for _, obj := range m3space.SpaceObj.Elements {
-			if obj != nil  && !obj.Key().IsAxe() {
+			if obj != nil {
 				toDraw := w.DrawingElementsMap[obj.Key()]
 				w.Model = mgl32.HomogRotate3D(float32(w.Angle), mgl32.Vec3{0, 0, 1})
 				w.Model = w.Model.Mul4(mgl32.Translate3D(float32(obj.Pos().X()), float32(obj.Pos().Y()), float32(obj.Pos().Z())))

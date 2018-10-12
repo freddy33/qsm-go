@@ -1,6 +1,12 @@
 package m3space
 
-import "fmt"
+import (
+	"fmt"
+)
+
+const (
+	AxeExtraLength = 3
+)
 
 type Point [3]int64
 
@@ -38,6 +44,7 @@ const (
 	EventA EventKind = iota
 	EventB
 	EventC
+	EventD
 )
 
 type Event struct {
@@ -57,8 +64,9 @@ type EventOutgrowth struct {
 type Space struct {
 	nodes       []*Node
 	connections []*Connection
+	currentId   EventID
 	events      map[EventID]*Event
-	current     TickTime
+	currentTime TickTime
 	max         int64
 	Elements    []SpaceDrawingElement
 }
@@ -66,6 +74,7 @@ type Space struct {
 var SpaceObj = Space{
 	make([]*Node, 0, 108),
 	make([]*Connection, 0, 500),
+	0,
 	make(map[EventID]*Event),
 	0,
 	9,
@@ -91,7 +100,7 @@ const (
 type ObjectColor int8
 
 const (
-	Grey  ObjectColor = iota
+	Grey   ObjectColor = iota
 	Red
 	Green
 	Blue
@@ -118,15 +127,15 @@ var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
 var BasePoints = [3]Point{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}}
 
-func (p *Point) Mul(m int64) Point {
+func (p Point) Mul(m int64) Point {
 	return Point{p[0] * m, p[1] * m, p[2] * m}
 }
 
-func (p1 *Point) Add(p2 Point) Point {
+func (p1 Point) Add(p2 Point) Point {
 	return Point{p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]}
 }
 
-func (p1 *Point) Sub(p2 Point) Point {
+func (p1 Point) Sub(p2 Point) Point {
 	return Point{p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]}
 }
 
@@ -137,9 +146,9 @@ func DS(p1, p2 *Point) int64 {
 	return x*x + y*y + z*z
 }
 
-func (p *Point) IsMainPoint() bool {
+func (p Point) IsMainPoint() bool {
 	allDivByThree := true
-	for _, c := range *p {
+	for _, c := range p {
 		if c%THREE != 0 {
 			allDivByThree = false
 		}
@@ -147,8 +156,8 @@ func (p *Point) IsMainPoint() bool {
 	return allDivByThree
 }
 
-func (p *Point) IsBorder(max int64) bool {
-	for _, c := range *p {
+func (p Point) IsBorder(max int64) bool {
+	for _, c := range p {
 		if c > 0 && c >= max-1 {
 			return true
 		}
@@ -161,21 +170,55 @@ func (p *Point) IsBorder(max int64) bool {
 
 func (s *Space) CreateStuff(max int64) {
 	s.max = max
-	org := s.createNodes()
-	e := Event{0, org, 0, EventA, make([]*EventOutgrowth, 1, 100)}
-	e.O[0] = &EventOutgrowth{org, &e, Distance(0)}
-	org.E = make([]*EventOutgrowth, 1)
-	org.E[0] = e.O[0]
-	s.events[0] = &e
+	s.createNodes()
+	s.CreateEvent(Point{3,0,3}.Mul(2), EventA)
+	s.CreateEvent(Point{-3,3,3}.Mul(2), EventB)
+	s.CreateEvent(Point{-3,-3,3}.Mul(2), EventC)
+	s.CreateEvent(Point{0,0,-3}.Mul(2), EventD)
 	s.createDrawingElements()
 }
 
 func (s *Space) ForwardTime() {
-	s.current++
+	for _, evt := range s.events {
+		for _, eg := range evt.O {
+			for _, c := range eg.N.C {
+				if c != nil {
+					otherNode := c.N1
+					if otherNode == eg.N {
+						otherNode = c.N2
+					}
+					if len(otherNode.E) == 0 || otherNode.E[0] == nil {
+						fmt.Println("Creating new event outgrowth for",evt.ID,"at",otherNode.P)
+						otherNode.E = make([]*EventOutgrowth, 1)
+						otherNode.E[0] = &EventOutgrowth{otherNode, evt, eg.D+1}
+						evt.O = append(evt.O, otherNode.E[0])
+					}
+				}
+			}
+		}
+	}
+	s.currentTime++
+	s.createDrawingElements()
 }
 
 func (s *Space) BackTime() {
-	s.current--
+	s.currentTime--
+}
+
+func (s *Space) CreateEvent(p Point, k EventKind) *Event {
+	n := s.GetNode(&p)
+	if n == nil {
+		fmt.Println("Creating event on non existent node, on point", p, "kind", k)
+		return nil
+	}
+	id := s.currentId
+	s.currentId++
+	e := Event{id, n, s.currentTime, k, make([]*EventOutgrowth, 1, 100)}
+	e.O[0] = &EventOutgrowth{n, &e, Distance(0)}
+	n.E = make([]*EventOutgrowth, 1)
+	n.E[0] = e.O[0]
+	s.events[id] = &e
+	return &e
 }
 
 func (s *Space) GetNode(p *Point) *Node {
@@ -306,13 +349,13 @@ func (s *Space) createDrawingElements() {
 	for axe := 0; axe < 3; axe++ {
 		elements[offset] = &AxeDrawingElement{
 			ObjectType(axe),
-			s.max,
+			s.max + AxeExtraLength,
 			false,
 		}
 		offset++
 		elements[offset] = &AxeDrawingElement{
 			ObjectType(axe),
-			s.max,
+			s.max + AxeExtraLength,
 			true,
 		}
 		offset++
@@ -385,7 +428,7 @@ func MakeConnectionDrawingElement(p1, p2 *Point) *ConnectionDrawingElement {
 			}
 		}
 		fmt.Println("What 1", p1, p2, bv)
-		return &ConnectionDrawingElement{Connection1, Grey,p1, p2,}
+		return &ConnectionDrawingElement{Connection1, Grey, p1, p2,}
 	} else if p2.IsMainPoint() {
 		bv = bv.Mul(-1)
 		for i, bp := range BasePoints {

@@ -139,7 +139,7 @@ func (w *World) CreateObjects() int {
 	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0, &(w.OpenGLBuffer)}
 	for axe := int16(0); axe < axes; axe++ {
 		p := m3space.Point{}
-		p[axe] = w.Max + 2
+		p[axe] = w.Max + m3space.AxeExtraLength
 		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
 	}
 	triangleFiller.fill(MakeSphere(m3space.NodeEmpty))
