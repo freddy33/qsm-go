@@ -13,8 +13,10 @@ import (
 // OpenGL const
 const (
 	FloatSize          = 4
+	IntSize            = 2
 	coordinates        = 3
-	FloatPerVertices   = 9 // PPPNNNCCC
+	FloatPerVertices   = 6 // PPPNNN
+	IntPerVertices     = 1 // C
 	circlePartsLine    = 16
 	trianglesPerLine   = circlePartsLine * 2
 	circlePartsSphere  = 32
@@ -25,7 +27,7 @@ const (
 
 // QSM DrawingElementsMap const
 const (
-	nodes       = 4
+	nodes       = 2
 	connections = 6
 	axes        = 3
 )
@@ -59,7 +61,7 @@ type OpenGLDrawingElement struct {
 }
 
 func MakeWorld(Max int64) World {
-	if Max % m3space.THREE != 0 {
+	if Max%m3space.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
 	}
 	verifyData()
@@ -71,7 +73,7 @@ func MakeWorld(Max int64) World {
 		make([]float32, 0),
 		make(map[m3space.ObjectType]OpenGLDrawingElement),
 		800, 600,
-		SizeVar{float64(Max), TopCornerDist * 4.0, TopCornerDist*1.5},
+		SizeVar{float64(Max), TopCornerDist * 4.0, TopCornerDist * 1.5},
 		SizeVar{10.0, 75.0, 30.0},
 		mgl32.Vec3{-1.0, 1.0, 1.0}.Normalize(),
 		mgl32.Vec3{1.0, 1.0, 1.0},
@@ -134,15 +136,14 @@ func (w *World) CreateObjects() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", w.NbVertices, "vertices,", w.NbVertices*FloatPerVertices, "buffer size.")
 		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
 	}
-	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0,&(w.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0, &(w.OpenGLBuffer)}
 	for axe := int16(0); axe < axes; axe++ {
 		p := m3space.Point{}
 		p[axe] = w.Max + 2
 		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
 	}
-	for node := 0; node < nodes; node++ {
-		triangleFiller.fill(MakeSphere(m3space.ObjectType(int(m3space.Node0) + node)))
-	}
+	triangleFiller.fill(MakeSphere(m3space.NodeEmpty))
+	triangleFiller.fill(MakeSphere(m3space.NodeActive))
 	for i, bp := range m3space.BasePoints {
 		triangleFiller.fill(MakeSegment(m3space.Origin, bp, m3space.ObjectType(int(m3space.Connection1)+i)))
 	}
@@ -151,7 +152,7 @@ func (w *World) CreateObjects() int {
 	triangleFiller.fill(MakeSegment(m3space.BasePoints[1], m3space.BasePoints[2].Add(m3space.Point{0, 0, 3}), m3space.Connection6))
 
 	w.DrawingElementsMap = triangleFiller.objMap
-	fmt.Println("Saved",len(w.DrawingElementsMap),"objects in world map.")
+	fmt.Println("Saved", len(w.DrawingElementsMap), "objects in world map.")
 
 	return nbTriangles
 }
@@ -159,63 +160,18 @@ func (w *World) CreateObjects() int {
 type Triangle struct {
 	vertices [pointsPerTriangle]mgl64.Vec3
 	normal   mgl64.Vec3
-	color    mgl64.Vec3
 }
 
-var AxeXColor = mgl64.Vec3{0.5, 0.2, 0.2}
-var AxeYColor = mgl64.Vec3{0.2, 0.5, 0.2}
-var AxeZColor = mgl64.Vec3{0.2, 0.2, 0.5}
-var Node0Color = mgl64.Vec3{0.3, 0.3, 0.3}
-var NodeAColor = mgl64.Vec3{1.0, 0.0, 0.0}
-var NodeBColor = mgl64.Vec3{0.0, 1.0, 0.0}
-var NodeCColor = mgl64.Vec3{0.0, 0.0, 1.0}
-var Conn1Color = mgl64.Vec3{0.8, 0.3, 0.0}
-var Conn2Color = mgl64.Vec3{0.3, 0.0, 0.8}
-var Conn3Color = mgl64.Vec3{0.0, 0.8, 0.3}
-var Conn4Color = mgl64.Vec3{0.8, 0.3, 0.2}
-var Conn5Color = mgl64.Vec3{0.3, 0.8, 0.3}
-
-func MakeTriangle(vert [3]mgl64.Vec3, t m3space.ObjectType) Triangle {
+func MakeTriangle(vert [3]mgl64.Vec3) Triangle {
 	AB := vert[1].Sub(vert[0])
 	AC := vert[2].Sub(vert[0])
 	norm := AB.Cross(AC).Normalize()
-	return MakeTriangleWithNorm(vert, norm, t)
+	return MakeTriangleWithNorm(vert, norm)
 }
 
-func MakeTriangleWithNorm(vert [3]mgl64.Vec3, norm mgl64.Vec3, t m3space.ObjectType) Triangle {
-	color := mgl64.Vec3{}
-	switch t {
-	case m3space.AxeX:
-		color = AxeXColor
-	case m3space.AxeY:
-		color = AxeYColor
-	case m3space.AxeZ:
-		color = AxeZColor
-	case m3space.Node0:
-		color = Node0Color
-	case m3space.NodeA:
-		color = NodeAColor
-	case m3space.NodeB:
-		color = NodeBColor
-	case m3space.NodeC:
-		color = NodeCColor
-	case m3space.Connection1:
-		color = Conn1Color
-	case m3space.Connection2:
-		color = Conn2Color
-	case m3space.Connection3:
-		color = Conn3Color
-	case m3space.Connection4:
-		color = Conn4Color
-	case m3space.Connection5:
-		color = Conn5Color
-		// No conn 6 <=> conn 5
-	case m3space.Connection6:
-		color = Conn5Color
-	}
-	return Triangle{vert, norm, color}
+func MakeTriangleWithNorm(vert [3]mgl64.Vec3, norm mgl64.Vec3) Triangle {
+	return Triangle{vert, norm}
 }
-
 
 func (w *World) ScaleView(win *glfw.Window) int64 {
 	// In Retina display retrieving the window size give half of what is needed. Using framebuffer size fix the issue.
@@ -250,10 +206,10 @@ func (w *World) SetMatrices() {
 }
 
 type TriangleFiller struct {
-	objMap           map[m3space.ObjectType]OpenGLDrawingElement
+	objMap         map[m3space.ObjectType]OpenGLDrawingElement
 	verticesOffset int32
-	bufferOffset int
-	buffer       *[]float32
+	bufferOffset   int
+	buffer         *[]float32
 }
 
 func (t *TriangleFiller) fill(o GLObject) {
@@ -273,10 +229,6 @@ func (t *TriangleFiller) fill(o GLObject) {
 			}
 			for coord := 0; coord < coordinates; coord++ {
 				(*t.buffer)[t.bufferOffset] = float32(tr.normal[coord])
-				t.bufferOffset++
-			}
-			for coord := 0; coord < coordinates; coord++ {
-				(*t.buffer)[t.bufferOffset] = float32(tr.color[coord])
 				t.bufferOffset++
 			}
 		}

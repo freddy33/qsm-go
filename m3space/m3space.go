@@ -18,7 +18,7 @@ func (p Point) Z() int64 {
 
 type Node struct {
 	P *Point
-	E *EventOutgrowth
+	E []*EventOutgrowth
 	C [3]*Connection
 }
 
@@ -45,11 +45,13 @@ type Event struct {
 	N  *Node
 	T  TickTime
 	K  EventKind
+	O  []*EventOutgrowth
 }
 
 type EventOutgrowth struct {
-	Evt *Event
-	D   Distance
+	N *Node
+	E *Event
+	D Distance
 }
 
 type Space struct {
@@ -70,16 +72,14 @@ var SpaceObj = Space{
 	make([]SpaceDrawingElement, 0, 500),
 }
 
-type ObjectType int16
+type ObjectType int8
 
 const (
 	AxeX        ObjectType = iota
 	AxeY
 	AxeZ
-	Node0
-	NodeA
-	NodeB
-	NodeC
+	NodeEmpty
+	NodeActive
 	Connection1
 	Connection2
 	Connection3
@@ -88,16 +88,26 @@ const (
 	Connection6
 )
 
+type ObjectColor int8
+
+const (
+	Grey  ObjectColor = iota
+	Red
+	Green
+	Blue
+	Yellow
+)
+
 func (ot ObjectType) IsAxe() bool {
-	return int16(ot) >= 0 && int16(ot) <= int16(AxeZ)
+	return int8(ot) >= 0 && int8(ot) <= int8(AxeZ)
 }
 
 func (ot ObjectType) IsNode() bool {
-	return int16(ot) >= int16(Node0) && int16(ot) <= int16(NodeC)
+	return int8(ot) >= int8(NodeEmpty) && int8(ot) <= int8(NodeActive)
 }
 
 func (ot ObjectType) IsConnection() bool {
-	return int16(ot) >= int16(Connection1) && int16(ot) <= int16(Connection6)
+	return int8(ot) >= int8(Connection1) && int8(ot) <= int8(Connection6)
 }
 
 const THREE = 3
@@ -147,6 +157,25 @@ func (p *Point) IsBorder(max int64) bool {
 		}
 	}
 	return false
+}
+
+func (s *Space) CreateStuff(max int64) {
+	s.max = max
+	org := s.createNodes()
+	e := Event{0, org, 0, EventA, make([]*EventOutgrowth, 1, 100)}
+	e.O[0] = &EventOutgrowth{org, &e, Distance(0)}
+	org.E = make([]*EventOutgrowth, 1)
+	org.E[0] = e.O[0]
+	s.events[0] = &e
+	s.createDrawingElements()
+}
+
+func (s *Space) ForwardTime() {
+	s.current++
+}
+
+func (s *Space) BackTime() {
+	s.current--
 }
 
 func (s *Space) GetNode(p *Point) *Node {
@@ -223,8 +252,8 @@ func (s *Space) createAndConnectBasePoints(n *Node) {
 	}
 }
 
-func (s *Space) createNodes() {
-	s.getOrCreateNode(&Origin)
+func (s *Space) createNodes() *Node {
+	org := s.getOrCreateNode(&Origin)
 	maxByThree := int64(s.max / THREE)
 	fmt.Println("Max by three", maxByThree)
 	for x := -maxByThree; x <= maxByThree; x++ {
@@ -249,17 +278,17 @@ func (s *Space) createNodes() {
 		}
 	}
 
-	// Verify all connections length squared is 2 or 3
+	// Verify all connections done
 	for _, node := range s.nodes {
 		for i, c := range node.C {
-			if c == nil {
-				// Should be on the border
-				if !node.P.IsBorder(s.max) {
-					fmt.Println("something wrong with node connection not done for", node.P, "connection", i)
-				}
+			// Should be on the border
+			if c == nil && !node.P.IsBorder(s.max) {
+				fmt.Println("something wrong with node connection not done for", node.P, "connection", i)
 			}
 		}
 	}
+
+	return org
 }
 
 func (n *Node) HasFreeConnections() bool {
@@ -269,14 +298,6 @@ func (n *Node) HasFreeConnections() bool {
 		}
 	}
 	return false
-}
-
-func (s *Space) CreateStuff(max int64) {
-	s.max = max
-	s.createNodes()
-	e := Event{0, s.GetNode(&Origin), 0, EventA,}
-	s.events[0] = &e
-	s.createDrawingElements()
 }
 
 func (s *Space) createDrawingElements() {
@@ -297,9 +318,15 @@ func (s *Space) createDrawingElements() {
 		offset++
 	}
 	for _, node := range s.nodes {
-		elements[offset] = &NodeDrawingElement{
-			Node0,
-			node,
+		// For now just the first one
+		if len(node.E) != 0 && node.E[0].E != nil {
+			elements[offset] = &NodeDrawingElement{
+				NodeActive, ObjectColor(1 + int8(node.E[0].E.K)), node,
+			}
+		} else {
+			elements[offset] = &NodeDrawingElement{
+				NodeEmpty, Grey, node,
+			}
 		}
 		offset++
 	}
@@ -307,28 +334,25 @@ func (s *Space) createDrawingElements() {
 		elements[offset] = MakeConnectionDrawingElement(conn.N1.P, conn.N2.P)
 		offset++
 	}
-	for _, evt := range s.events {
-		elements[offset] = &NodeDrawingElement{
-			ObjectType(int16(NodeA) + int16(evt.K)),
-			evt.N,
-		}
-	}
 	fmt.Println("Created", len(elements), "elements.")
 	s.Elements = elements
 }
 
 type SpaceDrawingElement interface {
 	Key() ObjectType
+	Color() ObjectColor
 	Pos() *Point
 }
 
 type NodeDrawingElement struct {
 	t ObjectType
+	c ObjectColor
 	n *Node
 }
 
 type ConnectionDrawingElement struct {
 	t      ObjectType
+	c      ObjectColor
 	p1, p2 *Point
 }
 
@@ -343,6 +367,10 @@ func (n *NodeDrawingElement) Key() ObjectType {
 	return n.t
 }
 
+func (n *NodeDrawingElement) Color() ObjectColor {
+	return n.c
+}
+
 func (n *NodeDrawingElement) Pos() *Point {
 	return n.n.P
 }
@@ -353,37 +381,41 @@ func MakeConnectionDrawingElement(p1, p2 *Point) *ConnectionDrawingElement {
 	if p1.IsMainPoint() {
 		for i, bp := range BasePoints {
 			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
-				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), p1, p2,}
+				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), Grey, p1, p2,}
 			}
 		}
 		fmt.Println("What 1", p1, p2, bv)
-		return &ConnectionDrawingElement{Connection1, p1, p2,}
+		return &ConnectionDrawingElement{Connection1, Grey,p1, p2,}
 	} else if p2.IsMainPoint() {
 		bv = bv.Mul(-1)
 		for i, bp := range BasePoints {
 			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
-				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), p2, p1,}
+				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), Grey, p2, p1,}
 			}
 		}
 		fmt.Println("What 2", p1, p2, bv)
-		return &ConnectionDrawingElement{Connection1, p2, p1,}
+		return &ConnectionDrawingElement{Connection1, Grey, p2, p1,}
 	} else {
 		if bv[0] == 1 {
 			if bv[1] != -1 || bv[2] != -1 {
 				fmt.Println("What 3", p1, p2, bv)
 			}
-			return &ConnectionDrawingElement{Connection4, p1, p2,}
+			return &ConnectionDrawingElement{Connection4, Grey, p1, p2,}
 		} else {
 			if bv[0] != -1 || bv[1] != 1 || bv[2] != 1 {
 				fmt.Println("What 4", p1, p2, bv)
 			}
-			return &ConnectionDrawingElement{Connection5, p1, p2,}
+			return &ConnectionDrawingElement{Connection5, Grey, p1, p2,}
 		}
 	}
 }
 
 func (c *ConnectionDrawingElement) Key() ObjectType {
 	return c.t
+}
+
+func (c *ConnectionDrawingElement) Color() ObjectColor {
+	return c.c
 }
 
 func (c *ConnectionDrawingElement) Pos() *Point {
@@ -393,6 +425,18 @@ func (c *ConnectionDrawingElement) Pos() *Point {
 // AxeDrawingElement functions
 func (a *AxeDrawingElement) Key() ObjectType {
 	return a.t
+}
+
+func (a *AxeDrawingElement) Color() ObjectColor {
+	switch a.t {
+	case AxeX:
+		return Red
+	case AxeY:
+		return Green
+	case AxeZ:
+		return Blue
+	}
+	return Grey
 }
 
 func (a *AxeDrawingElement) Pos() *Point {

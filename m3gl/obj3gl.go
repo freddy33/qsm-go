@@ -28,7 +28,7 @@ func MakeSegment(p1, p2 m3space.Point, t m3space.ObjectType) (Segment) {
 }
 
 func MakeSphere(t m3space.ObjectType) (Sphere) {
-	if t == m3space.Node0 {
+	if t == m3space.NodeEmpty {
 		return Sphere{
 			Origin,
 			SphereRadius.Val / 2.0,
@@ -88,22 +88,22 @@ func (s Sphere) ExtractTriangles() []Triangle {
 		// South triangle
 		result[offset] = MakeTriangleWithNorm([3]mgl64.Vec3{
 			south, middleCircles[0][i+1], middleCircles[0][i],
-		}, middleCirclesNorm[0][i], s.T)
+		}, middleCirclesNorm[0][i])
 		offset++
 		for zIdx := 0; zIdx < nbMiddleCircles-1; zIdx++ {
 			result[offset] = MakeTriangleWithNorm([3]mgl64.Vec3{
 				middleCircles[zIdx][i], middleCircles[zIdx][i+1], middleCircles[zIdx+1][i+1],
-			}, middleCirclesNorm[zIdx][i], s.T)
+			}, middleCirclesNorm[zIdx][i])
 			offset++
 			result[offset] = MakeTriangleWithNorm([3]mgl64.Vec3{
 				middleCircles[zIdx+1][i+1], middleCircles[zIdx+1][i], middleCircles[zIdx][i],
-			}, middleCirclesNorm[zIdx][i], s.T)
+			}, middleCirclesNorm[zIdx][i])
 			offset++
 		}
 		// North triangle
 		result[offset] = MakeTriangleWithNorm([3]mgl64.Vec3{
 			north, middleCircles[nbMiddleCircles-1][i], middleCircles[nbMiddleCircles-1][i+1],
-		}, middleCirclesNorm[nbMiddleCircles-1][i], s.T)
+		}, middleCirclesNorm[nbMiddleCircles-1][i])
 		offset++
 	}
 	return result
@@ -149,10 +149,10 @@ func (s Segment) ExtractTriangles() []Triangle {
 	for i := 0; i < circlePartsLine; i++ {
 		result[2*i] = MakeTriangle([3]mgl64.Vec3{
 			aPoints[i], bPoints[i+1], bPoints[i],
-		}, s.T)
+		})
 		result[2*i+1] = MakeTriangle([3]mgl64.Vec3{
 			bPoints[i+1], aPoints[i], aPoints[i+1],
-		}, s.T)
+		})
 	}
 	return result
 }
