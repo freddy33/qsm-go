@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	DEBUG = false
+	DEBUG = true
 	AxeExtraLength = 3
 )
 
@@ -192,13 +192,19 @@ func (s *Space) ForwardTime() {
 					if otherNode == eg.N {
 						otherNode = c.N2
 					}
-					if len(otherNode.E) == 0 || otherNode.E[0] == nil {
+					hasAlreadyEvent := false
+					for _, eo := range otherNode.E {
+						if eo.E.ID == evt.ID {
+							hasAlreadyEvent = true
+						}
+					}
+					if !hasAlreadyEvent {
 						if DEBUG {
 							fmt.Println("Creating new event outgrowth for",evt.ID,"at",otherNode.P)
 						}
-						otherNode.E = make([]*EventOutgrowth, 1)
-						otherNode.E[0] = &EventOutgrowth{otherNode, evt, eg.D+1}
-						evt.O = append(evt.O, otherNode.E[0])
+						newEo := &EventOutgrowth{otherNode, evt, eg.D+1}
+						otherNode.E = append(otherNode.E, newEo)
+						evt.O = append(evt.O, newEo)
 					}
 				}
 			}
