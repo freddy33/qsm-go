@@ -48,10 +48,17 @@ type World struct {
 	Projection     mgl32.Mat4
 	Camera         mgl32.Mat4
 	Model          mgl32.Mat4
-	previousTime   float64
 	previousArea   int64
-	Angle          float64
-	Rotate         bool
+	Angle          TimeAutoVar
+	Blinker        TimeAutoVar
+}
+
+type TimeAutoVar struct {
+	Enabled      bool
+	Threshold    float64
+	Ratio        float64
+	previousTime float64
+	Value        float64
 }
 
 type OpenGLDrawingElement struct {
@@ -80,10 +87,9 @@ func MakeWorld(Max int64) World {
 		mgl32.Ident4(),
 		mgl32.Ident4(),
 		mgl32.Ident4(),
-		glfw.GetTime(),
 		0,
-		0.0,
-		false,
+		TimeAutoVar{false, 0.01, 0.3,glfw.GetTime(), 0.0,},
+		TimeAutoVar{true, 0.5, 2.0,glfw.GetTime(), 0.0,},
 	}
 	w.SetMatrices()
 	w.CreateObjects()
@@ -91,8 +97,8 @@ func MakeWorld(Max int64) World {
 	return w
 }
 
-var LineWidth = SizeVar{0.001, 0.5, 0.04}
-var SphereRadius = SizeVar{0.05, 0.5, 0.1}
+var LineWidth = SizeVar{0.001, 0.5, 0.06}
+var SphereRadius = SizeVar{0.05, 0.5, 0.2}
 var XH = mgl64.Vec3{1.0, 0.0, 0.0}
 var YH = mgl64.Vec3{0.0, 1.0, 0.0}
 var ZH = mgl64.Vec3{0.0, 0.0, 1.0}
@@ -180,22 +186,28 @@ func (w *World) ScaleView(win *glfw.Window) int64 {
 	return int64(w.Width) * int64(w.Height)
 }
 
-func (w *World) Tick(win *glfw.Window) {
-	// Update
+func (t *TimeAutoVar) Tick(win *glfw.Window) {
 	time := glfw.GetTime()
-	elapsed := time - w.previousTime
-	w.previousTime = time
+	if t.Enabled {
+		elapsed := time - t.previousTime
+		if elapsed > t.Threshold {
+			t.previousTime = time
+			t.Value += elapsed * t.Ratio
+		}
+	} else {
+		// No change just previous time
+		t.previousTime = time
+	}
+}
 
+func (w *World) Tick(win *glfw.Window) {
 	area := w.ScaleView(win)
 	if area != w.previousArea {
 		w.SetMatrices()
 		w.previousArea = area
 	}
-
-	if w.Rotate {
-		w.Angle += elapsed / 2.0
-		w.Model = mgl32.HomogRotate3D(float32(w.Angle), mgl32.Vec3{0, 0, 1})
-	}
+	w.Angle.Tick(win)
+	w.Blinker.Tick(win)
 }
 
 func (w *World) SetMatrices() {

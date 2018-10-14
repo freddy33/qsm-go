@@ -41,7 +41,7 @@ func DisplayPlay1() {
 	fmt.Println("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
 	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
 
-	w = m3gl.MakeWorld(9)
+	w = m3gl.MakeWorld(18)
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
@@ -55,6 +55,7 @@ func DisplayPlay1() {
 	cameraUniform := gl.GetUniformLocation(prog, gl.Str("camera\x00"))
 	modelUniform := gl.GetUniformLocation(prog, gl.Str("model\x00"))
 	colorUniform := gl.GetUniformLocation(prog, gl.Str("obj_color\x00"))
+	colorAlphaUniform := gl.GetUniformLocation(prog, gl.Str("obj_alpha\x00"))
 	lightDirectionUniform := gl.GetUniformLocation(prog, gl.Str("light_direction\x00"))
 	lightColorUniform := gl.GetUniformLocation(prog, gl.Str("light_color\x00"))
 	gl.BindFragDataLocation(prog, 0, gl.Str("out_color\x00"))
@@ -95,15 +96,17 @@ func DisplayPlay1() {
 		gl.Uniform3f(lightDirectionUniform, w.LightDirection[0], w.LightDirection[1], w.LightDirection[2])
 		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
 		gl.Uniform1i(colorUniform, 0)
+		gl.Uniform1f(colorAlphaUniform, 1.0)
 		gl.BindVertexArray(vao)
 
 		for _, obj := range m3space.SpaceObj.Elements {
 			if obj != nil {
 				toDraw := w.DrawingElementsMap[obj.Key()]
-				w.Model = mgl32.HomogRotate3D(float32(w.Angle), mgl32.Vec3{0, 0, 1})
+				w.Model = mgl32.HomogRotate3D(float32(w.Angle.Value), mgl32.Vec3{0, 0, 1})
 				w.Model = w.Model.Mul4(mgl32.Translate3D(float32(obj.Pos().X()), float32(obj.Pos().Y()), float32(obj.Pos().Z())))
 				gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
 				gl.Uniform1i(colorUniform, int32(obj.Color()))
+				gl.Uniform1f(colorAlphaUniform, obj.Alpha())
 				gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
 			}
 		}
@@ -123,7 +126,7 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 			win.SetShouldClose(true)
 
 		case glfw.KeyS:
-			w.Rotate = !w.Rotate
+			w.Angle.Enabled = !w.Angle.Enabled
 
 		case glfw.KeyRight:
 			m3space.SpaceObj.ForwardTime()
@@ -184,6 +187,7 @@ uniform mat4 projection;
 uniform mat4 camera;
 uniform mat4 model;
 uniform int obj_color;
+uniform float obj_alpha;
 
 in vec3 vert;
 in vec3 norm;
@@ -195,17 +199,17 @@ void main() {
 	s_normal = vec3(model * vec4(norm, 0));
     gl_Position = projection * camera * model * vec4(vert, 1);
 	if (obj_color == 0) {
-		s_obj_color = vec3(0.25,0.25,0.25);
+		s_obj_color = vec3(0.25,0.25,0.25) * obj_alpha;
 	} else if (obj_color == 1) {
-		s_obj_color = vec3(1.0,0.0,0.0);
+		s_obj_color = vec3(1.0,0.0,0.0) * obj_alpha;
 	} else if (obj_color == 2) {
-		s_obj_color = vec3(0.0,1.0,0.0);
+		s_obj_color = vec3(0.0,1.0,0.0) * obj_alpha;
 	} else if (obj_color == 3) {
-		s_obj_color = vec3(0.0,0.0,1.0);
+		s_obj_color = vec3(0.0,0.0,1.0) * obj_alpha;
 	} else if (obj_color == 4) {
-		s_obj_color = vec3(1.0,1.0,0.0);
+		s_obj_color = vec3(1.0,1.0,0.0) * obj_alpha;
 	} else {
-		s_obj_color = vec3(1.0,1.0,1.0);
+		s_obj_color = vec3(1.0,1.0,1.0) * obj_alpha;
 	}
 }
 ` + "\x00"
@@ -230,8 +234,8 @@ void main() {
     // diffuse 
     float diff = max(dot(s_normal, light_direction), 0.0);
     vec3 diffuse = diff * light_color;
-            
-    vec3 result = (ambient + diffuse) * s_obj_color;
+
+    vec3 result = (ambient + diffuse) * vec3(s_obj_color);
     out_color = vec4(result, 1.0);
 }
 ` + "\x00"

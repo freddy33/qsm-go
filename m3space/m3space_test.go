@@ -6,6 +6,8 @@ import (
 )
 
 func TestSpace(t *testing.T) {
+	DEBUG = true
+
 	assert.Equal(t, int64(9), SpaceObj.max)
 	assert.Equal(t, 0, len(SpaceObj.nodes))
 	assert.Equal(t, 0, len(SpaceObj.connections))
@@ -74,7 +76,10 @@ func assertOutgrowthDistance(t *testing.T, topOnes map[EventID]int) {
 		nbTopOnes := 0
 		for _, eo := range evt.O {
 			if eo.D == Distance(SpaceObj.currentTime-evt.T) {
+				assert.Equal(t, eo.S, EventOutgrowthLatest, "Event outgrowth state test failed for evtID=%d node=%v . Should be latest", evt.ID,*(eo.N))
 				nbTopOnes++
+			} else {
+				assert.Equal(t, eo.S, EventOutgrowthOld, "Event outgrowth state test failed for evtID=%d node=%v . Should be old", evt.ID,*(eo.N))
 			}
 		}
 		assert.Equal(t, topOnes[evt.ID], nbTopOnes, "NB top ones expected failed for evtID=%d", evt.ID)
