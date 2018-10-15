@@ -37,9 +37,9 @@ type SpaceDrawingElement interface {
 
 type SpaceDrawingColor struct {
 	// Bitwise flag of colors. Bits 0->red, 1->green, 2->blue, 3->yellow. If 0 then it means grey
-	objColors int8
+	objColors uint8
 	// The dim yes/no flag ratio to apply to each color set in above bit mask
-	dimColors int8
+	dimColors uint8
 }
 
 type NodeDrawingElement struct {
@@ -73,7 +73,11 @@ func (ot ObjectType) IsConnection() bool {
 }
 
 func (sdc *SpaceDrawingColor) hasColor(c EventColor) bool {
-	return sdc.objColors&int8(c) != int8(0)
+	return sdc.objColors&(1<<uint8(c)) != uint8(0)
+}
+
+func (sdc *SpaceDrawingColor) hasDimm(c EventColor) bool {
+	return sdc.dimColors&(1<<uint8(c)) != uint8(0)
 }
 
 func (sdc *SpaceDrawingColor) howManyColors() int8 {
@@ -123,22 +127,22 @@ func (sdc *SpaceDrawingColor) color(blinkValue float64) int32 {
 	case 0:
 		return 0
 	case 1:
-		return int32(sdc.singleColor())
+		return int32(sdc.singleColor())+1
 	case 2:
 		if int(colorSwicth)%2 == 0 {
-			return int32(sdc.singleColor())
+			return int32(sdc.singleColor())+1
 		} else {
-			return int32(sdc.secondColor())
+			return int32(sdc.secondColor())+1
 		}
 	case 3:
 		if sdc.hasColor(colorSwicth) {
-			return int32(colorSwicth)
+			return int32(colorSwicth)+1
 		} else {
 			return 0
 		}
 	case 4:
 		if sdc.hasColor(colorSwicth) {
-			return int32(colorSwicth)
+			return int32(colorSwicth)+1
 		} else {
 			return 0
 		}
@@ -152,25 +156,25 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 	case 0:
 		return defaultGreyDimmer
 	case 1:
-		if sdc.dimColors&int8(sdc.singleColor()) != 0 {
+		if sdc.hasDimm(sdc.singleColor()) {
 			return defaultOldEventDimmer
 		}
 		return noDimmer
 	case 2:
 		if int(colorSwicth)%2 == 0 {
-			if sdc.dimColors&int8(sdc.singleColor()) != 0 {
+			if sdc.hasDimm(sdc.singleColor()) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
 		} else {
-			if sdc.dimColors&int8(sdc.secondColor()) != 0 {
+			if sdc.hasDimm(sdc.secondColor()) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
 		}
 	case 3:
 		if sdc.hasColor(colorSwicth) {
-			if sdc.dimColors&int8(colorSwicth) != 0 {
+			if sdc.hasDimm(colorSwicth) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
@@ -179,7 +183,7 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 		}
 	case 4:
 		if sdc.hasColor(colorSwicth) {
-			if sdc.dimColors&int8(colorSwicth) != 0 {
+			if sdc.hasDimm(colorSwicth) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
@@ -197,10 +201,10 @@ func MakeNodeDrawingElement(node *Node) *NodeDrawingElement {
 	for c := RedEvent; c <= YellowEvent; c++ {
 		for _, eo := range node.E {
 			if eo != nil {
-				sdc.objColors &= 1 << uint8(eo.event.color)
+				sdc.objColors |= 1 << uint8(eo.event.color)
 				// Event root themselves never dim
 				if eo.state != EventOutgrowthLatest && eo.distance != Distance(0) {
-					sdc.dimColors &= 1 << uint8(eo.event.color)
+					sdc.dimColors |= 1 << uint8(eo.event.color)
 				}
 				isActive = true
 			}
@@ -227,14 +231,14 @@ func MakeConnectionDrawingElement(conn *Connection) *ConnectionDrawingElement {
 		for _, eo1 := range n1.E {
 			if eo1.state == EventOutgrowthLatest {
 				if eo1.from != nil && eo1.from.node == n2 {
-					sdc.objColors &= 1 << uint8(eo1.event.color)
+					sdc.objColors |= 1 << uint8(eo1.event.color)
 				}
 			}
 		}
 		for _, eo2 := range n2.E {
 			if eo2.state == EventOutgrowthLatest {
 				if eo2.from != nil && eo2.from.node == n1 {
-					sdc.objColors &= 1 << uint8(eo2.event.color)
+					sdc.objColors |= 1 << uint8(eo2.event.color)
 				}
 			}
 		}
