@@ -18,25 +18,15 @@ type Distance uint64
 
 type EventID uint64
 
-type EventColor int8
+type EventColor uint8
 
-type EventOutgrowthState int8
-
-const (
-	EventA EventColor = iota
-	EventB
-	EventC
-	EventD
-)
-
-type ObjectColor int8
+type EventOutgrowthState uint8
 
 const (
-	Grey   ObjectColor = iota
-	Red
-	Green
-	Blue
-	Yellow
+	RedEvent    EventColor = iota
+	GreenEvent
+	BlueEvent
+	YellowEvent
 )
 
 const (
@@ -47,18 +37,19 @@ const (
 )
 
 type Event struct {
-	ID EventID
-	N  *Node
-	T  TickTime
-	K  EventColor
-	O  []*EventOutgrowth
+	id         EventID
+	node       *Node
+	created    TickTime
+	color      EventColor
+	outgrowths []*EventOutgrowth
 }
 
 type EventOutgrowth struct {
-	N *Node
-	E *Event
-	D Distance
-	S EventOutgrowthState
+	node     *Node
+	event    *Event
+	from     *EventOutgrowth
+	distance Distance
+	state    EventOutgrowthState
 }
 
 type Space struct {
@@ -84,37 +75,37 @@ var SpaceObj = Space{
 func (s *Space) CreateStuff(max int64) {
 	s.max = max
 	s.createNodes()
-	pyramidSize := int64(s.max/THREE) / 2 + 1
-	s.CreateEvent(Point{3, 0, 3}.Mul(pyramidSize), EventA)
-	s.CreateEvent(Point{-3, 3, 3}.Mul(pyramidSize), EventB)
-	s.CreateEvent(Point{-3, -3, 3}.Mul(pyramidSize), EventC)
-	s.CreateEvent(Point{0, 0, -3}.Mul(pyramidSize), EventD)
+	pyramidSize := int64(s.max/THREE)/2 + 1
+	s.CreateEvent(Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
+	s.CreateEvent(Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
+	s.CreateEvent(Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
+	s.CreateEvent(Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 	s.createDrawingElements()
 }
 
 func (s *Space) ForwardTime() {
 	for _, evt := range s.events {
-		for _, eg := range evt.O {
-			if eg.S == EventOutgrowthLatest {
-				for _, c := range eg.N.C {
+		for _, eg := range evt.outgrowths {
+			if eg.state == EventOutgrowthLatest {
+				for _, c := range eg.node.C {
 					if c != nil {
 						otherNode := c.N1
-						if otherNode == eg.N {
+						if otherNode == eg.node {
 							otherNode = c.N2
 						}
 						hasAlreadyEvent := false
 						for _, eo := range otherNode.E {
-							if eo.E.ID == evt.ID {
+							if eo.event.id == evt.id {
 								hasAlreadyEvent = true
 							}
 						}
 						if !hasAlreadyEvent {
 							if DEBUG {
-								fmt.Println("Creating new event outgrowth for", evt.ID, "at", otherNode.P)
+								fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.P)
 							}
-							newEo := &EventOutgrowth{otherNode, evt, eg.D + 1, EventOutgrowthNew}
+							newEo := &EventOutgrowth{otherNode, evt, eg, eg.distance + 1, EventOutgrowthNew}
 							otherNode.E = append(otherNode.E, newEo)
-							evt.O = append(evt.O, newEo)
+							evt.outgrowths = append(evt.outgrowths, newEo)
 						}
 					}
 				}
@@ -123,12 +114,12 @@ func (s *Space) ForwardTime() {
 	}
 	// Switch latest to old, and new to latest
 	for _, evt := range s.events {
-		for _, eg := range evt.O {
-			switch eg.S {
+		for _, eg := range evt.outgrowths {
+			switch eg.state {
 			case EventOutgrowthLatest:
-				eg.S = EventOutgrowthOld
+				eg.state = EventOutgrowthOld
 			case EventOutgrowthNew:
-				eg.S = EventOutgrowthLatest
+				eg.state = EventOutgrowthLatest
 			}
 		}
 	}
@@ -150,9 +141,9 @@ func (s *Space) CreateEvent(p Point, k EventColor) *Event {
 	id := s.currentId
 	s.currentId++
 	e := Event{id, n, s.currentTime, k, make([]*EventOutgrowth, 1, 100)}
-	e.O[0] = &EventOutgrowth{n, &e, Distance(0), EventOutgrowthLatest}
+	e.outgrowths[0] = &EventOutgrowth{n, &e, nil, Distance(0), EventOutgrowthLatest}
 	n.E = make([]*EventOutgrowth, 1)
-	n.E[0] = e.O[0]
+	n.E[0] = e.outgrowths[0]
 	s.events[id] = &e
 	return &e
 }
@@ -273,7 +264,7 @@ func (s *Space) createNodes() *Node {
 }
 
 func (s *Space) createDrawingElements() {
-	nbElements := 6+len(s.nodes)+len(s.connections)
+	nbElements := 6 + len(s.nodes) + len(s.connections)
 	elements := make([]SpaceDrawingElement, nbElements)
 	offset := 0
 	for axe := 0; axe < 3; axe++ {
@@ -291,28 +282,15 @@ func (s *Space) createDrawingElements() {
 		offset++
 	}
 	for _, node := range s.nodes {
-		// For now just the first one
-		if len(node.E) != 0 && node.E[0].E != nil {
-			a := float32(0.2)
-			if node.E[0].S == EventOutgrowthLatest {
-				a = float32(1.0)
-			}
-			elements[offset] = &NodeDrawingElement{
-				NodeActive, ObjectColor(1 + int8(node.E[0].E.K)), a, node,
-			}
-		} else {
-			elements[offset] = &NodeDrawingElement{
-				NodeEmpty, Grey, 0.7, node,
-			}
-		}
+		elements[offset] = MakeNodeDrawingElement(node)
 		offset++
 	}
 	for _, conn := range s.connections {
-		elements[offset] = MakeConnectionDrawingElement(conn.N1.P, conn.N2.P)
+		elements[offset] = MakeConnectionDrawingElement(conn)
 		offset++
 	}
 	if offset != nbElements {
-		fmt.Println("Created", offset, "elements, but it should be",nbElements)
+		fmt.Println("Created", offset, "elements, but it should be", nbElements)
 		return
 	}
 	if DEBUG {
@@ -320,4 +298,3 @@ func (s *Space) createDrawingElements() {
 	}
 	s.Elements = elements
 }
-

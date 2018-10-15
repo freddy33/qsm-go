@@ -61,7 +61,7 @@ func TestSpace(t *testing.T) {
 func assertOutgrowth(t *testing.T, expect int) {
 	nbOutgrowth := 0
 	for _, evt := range SpaceObj.events {
-		nbOutgrowth += len(evt.O)
+		nbOutgrowth += len(evt.outgrowths)
 	}
 	assert.Equal(t, expect, nbOutgrowth)
 	nbOutgrowth = 0
@@ -74,14 +74,14 @@ func assertOutgrowth(t *testing.T, expect int) {
 func assertOutgrowthDistance(t *testing.T, topOnes map[EventID]int) {
 	for _, evt := range SpaceObj.events {
 		nbTopOnes := 0
-		for _, eo := range evt.O {
-			if eo.D == Distance(SpaceObj.currentTime-evt.T) {
-				assert.Equal(t, eo.S, EventOutgrowthLatest, "Event outgrowth state test failed for evtID=%d node=%v . Should be latest", evt.ID,*(eo.N))
+		for _, eo := range evt.outgrowths {
+			if eo.distance == Distance(SpaceObj.currentTime-evt.created) {
+				assert.Equal(t, eo.state, EventOutgrowthLatest, "Event outgrowth state test failed for evtID=%d node=%v . Should be latest", evt.id,*(eo.node))
 				nbTopOnes++
 			} else {
-				assert.Equal(t, eo.S, EventOutgrowthOld, "Event outgrowth state test failed for evtID=%d node=%v . Should be old", evt.ID,*(eo.N))
+				assert.Equal(t, eo.state, EventOutgrowthOld, "Event outgrowth state test failed for evtID=%d node=%v . Should be old", evt.id,*(eo.node))
 			}
 		}
-		assert.Equal(t, topOnes[evt.ID], nbTopOnes, "NB top ones expected failed for evtID=%d", evt.ID)
+		assert.Equal(t, topOnes[evt.id], nbTopOnes, "NB top ones expected failed for evtID=%d", evt.id)
 	}
 }

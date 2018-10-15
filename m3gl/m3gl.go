@@ -208,6 +208,9 @@ func (w *World) Tick(win *glfw.Window) {
 	}
 	w.Angle.Tick(win)
 	w.Blinker.Tick(win)
+	if int32(w.Blinker.Value) >= 4 {
+		w.Blinker.Value = 0.0
+	}
 }
 
 func (w *World) SetMatrices() {

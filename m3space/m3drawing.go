@@ -2,6 +2,12 @@ package m3space
 
 import "fmt"
 
+const (
+	noDimmer              = 1.0
+	defaultGreyDimmer     = 0.7
+	defaultOldEventDimmer = 0.3
+)
+
 type ObjectType int8
 
 const (
@@ -19,23 +25,32 @@ const (
 )
 
 type SpaceDrawingElement interface {
+	// Key of the drawing element to point to the OpenGL buffer to render
 	Key() ObjectType
-	Color() ObjectColor
-	Alpha() float32
+	// The translation point to apply to the OpenGL model, since all the above are drawn at the origin
 	Pos() *Point
+	// Return the obj_color int for the shader program
+	Color(blinkValue float64) int32
+	// Return the obj_dimmer int for the shader program
+	Dimmer(blinkValue float64) float32
+}
+
+type SpaceDrawingColor struct {
+	// Bitwise flag of colors. Bits 0->red, 1->green, 2->blue, 3->yellow. If 0 then it means grey
+	objColors int8
+	// The dim yes/no flag ratio to apply to each color set in above bit mask
+	dimColors int8
 }
 
 type NodeDrawingElement struct {
 	t ObjectType
-	c ObjectColor
-	a float32
+	c SpaceDrawingColor
 	n *Node
 }
 
 type ConnectionDrawingElement struct {
 	t      ObjectType
-	c      ObjectColor
-	a      float32
+	c      SpaceDrawingColor
 	p1, p2 *Point
 }
 
@@ -57,30 +72,200 @@ func (ot ObjectType) IsConnection() bool {
 	return int8(ot) >= int8(Connection1) && int8(ot) <= int8(Connection6)
 }
 
-func MakeConnectionDrawingElement(p1, p2 *Point) *ConnectionDrawingElement {
+func (sdc *SpaceDrawingColor) hasColor(c EventColor) bool {
+	return sdc.objColors&int8(c) != int8(0)
+}
+
+func (sdc *SpaceDrawingColor) howManyColors() int8 {
+	if sdc.objColors == 0 {
+		return 0
+	}
+	r := int8(0)
+	for c := RedEvent; c <= YellowEvent; c++ {
+		if sdc.hasColor(c) {
+			r++
+		}
+	}
+	return r
+}
+
+func (sdc *SpaceDrawingColor) singleColor() EventColor {
+	if sdc.objColors == 0 {
+		return 0
+	}
+	for c := RedEvent; c <= YellowEvent; c++ {
+		if sdc.hasColor(c) {
+			return c
+		}
+	}
+	return 0
+}
+
+func (sdc *SpaceDrawingColor) secondColor() EventColor {
+	if sdc.objColors == 0 {
+		return 0
+	}
+	foundOne := false
+	for c := RedEvent; c <= YellowEvent; c++ {
+		if sdc.hasColor(c) {
+			if foundOne {
+				return c
+			}
+			foundOne = true
+		}
+	}
+	return 0
+}
+
+func (sdc *SpaceDrawingColor) color(blinkValue float64) int32 {
+	colorSwicth := EventColor(int8(blinkValue))
+	switch sdc.howManyColors() {
+	case 0:
+		return 0
+	case 1:
+		return int32(sdc.singleColor())
+	case 2:
+		if int(colorSwicth)%2 == 0 {
+			return int32(sdc.singleColor())
+		} else {
+			return int32(sdc.secondColor())
+		}
+	case 3:
+		if sdc.hasColor(colorSwicth) {
+			return int32(colorSwicth)
+		} else {
+			return 0
+		}
+	case 4:
+		if sdc.hasColor(colorSwicth) {
+			return int32(colorSwicth)
+		} else {
+			return 0
+		}
+	}
+	return 0
+}
+
+func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
+	colorSwicth := EventColor(int8(blinkValue))
+	switch sdc.howManyColors() {
+	case 0:
+		return defaultGreyDimmer
+	case 1:
+		if sdc.dimColors&int8(sdc.singleColor()) != 0 {
+			return defaultOldEventDimmer
+		}
+		return noDimmer
+	case 2:
+		if int(colorSwicth)%2 == 0 {
+			if sdc.dimColors&int8(sdc.singleColor()) != 0 {
+				return defaultOldEventDimmer
+			}
+			return noDimmer
+		} else {
+			if sdc.dimColors&int8(sdc.secondColor()) != 0 {
+				return defaultOldEventDimmer
+			}
+			return noDimmer
+		}
+	case 3:
+		if sdc.hasColor(colorSwicth) {
+			if sdc.dimColors&int8(colorSwicth) != 0 {
+				return defaultOldEventDimmer
+			}
+			return noDimmer
+		} else {
+			return defaultGreyDimmer
+		}
+	case 4:
+		if sdc.hasColor(colorSwicth) {
+			if sdc.dimColors&int8(colorSwicth) != 0 {
+				return defaultOldEventDimmer
+			}
+			return noDimmer
+		} else {
+			return defaultGreyDimmer
+		}
+	}
+	return defaultGreyDimmer
+}
+
+func MakeNodeDrawingElement(node *Node) *NodeDrawingElement {
+	// Collect all the colors of event outgrowth of this node. Dim if not latest
+	isActive := false
+	sdc := SpaceDrawingColor{}
+	for c := RedEvent; c <= YellowEvent; c++ {
+		for _, eo := range node.E {
+			if eo != nil {
+				sdc.objColors &= 1 << uint8(eo.event.color)
+				// Event root themselves never dim
+				if eo.state != EventOutgrowthLatest && eo.distance != Distance(0) {
+					sdc.dimColors &= 1 << uint8(eo.event.color)
+				}
+				isActive = true
+			}
+		}
+	}
+	if isActive {
+		return &NodeDrawingElement{
+			NodeActive, sdc, node,
+		}
+	} else {
+		return &NodeDrawingElement{
+			NodeEmpty, sdc, node,
+		}
+	}
+
+}
+
+func MakeConnectionDrawingElement(conn *Connection) *ConnectionDrawingElement {
+	n1 := conn.N1
+	n2 := conn.N2
+	// Collect all the colors of latest event outgrowth of a node coming from the other node
+	sdc := SpaceDrawingColor{}
+	for c := RedEvent; c <= YellowEvent; c++ {
+		for _, eo1 := range n1.E {
+			if eo1.state == EventOutgrowthLatest {
+				if eo1.from != nil && eo1.from.node == n2 {
+					sdc.objColors &= 1 << uint8(eo1.event.color)
+				}
+			}
+		}
+		for _, eo2 := range n2.E {
+			if eo2.state == EventOutgrowthLatest {
+				if eo2.from != nil && eo2.from.node == n1 {
+					sdc.objColors &= 1 << uint8(eo2.event.color)
+				}
+			}
+		}
+	}
+	p1 := n1.P
+	p2 := n2.P
 	bv := p2.Sub(*p1)
 	if p1.IsMainPoint() {
 		for i, bp := range BasePoints {
 			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
-				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), Grey, 0.7, p1, p2,}
+				return &ConnectionDrawingElement{ObjectType(int(Connection1) + i), sdc, p1, p2,}
 			}
 		}
-		fmt.Println("What 1", p1, p2, bv)
-		return &ConnectionDrawingElement{Connection1, Grey, 0.7, p1, p2,}
+		fmt.Println("Not possible! Connection from", p1, p2, "has p1 main and make vector", bv, "which is not part of any base point vector!")
+		return nil
 	} else if p2.IsMainPoint() {
-		fmt.Println("What 2", p1, p2, bv)
-		return &ConnectionDrawingElement{Connection1, Grey, 0.7, p2, p1,}
+		fmt.Println("Not possible! Connection from", p1, p2, "has P2 has main point which is not possible!")
+		return nil
 	} else {
 		if bv[0] == 1 {
 			if bv[1] != -1 || bv[2] != -1 {
-				fmt.Println("What 3", p1, p2, bv)
+				fmt.Println("Not possible! Connection from", p1, p2, "make vector", bv, "which is a DS=3 connection with X value 1 andr Y or Z value not neg 1!")
+				return nil
 			}
-			return &ConnectionDrawingElement{Connection4, Grey, 0.7, p1, p2,}
+			return &ConnectionDrawingElement{Connection4, sdc, p1, p2,}
 		} else {
 			if bv[0] != -1 || bv[1] != 1 || bv[2] != 1 {
-				fmt.Println("What 4", p1, p2, bv)
+				fmt.Println("Not possible! Connection from", p1, p2, "make vector", bv, "which is a DS=3 connection with X not value 1 so should be (-1,1,1)!")
+				return nil
 			}
-			return &ConnectionDrawingElement{Connection5, Grey, 0.7, p1, p2,}
+			return &ConnectionDrawingElement{Connection5, sdc, p1, p2,}
 		}
 	}
 }
@@ -90,12 +275,12 @@ func (n *NodeDrawingElement) Key() ObjectType {
 	return n.t
 }
 
-func (n *NodeDrawingElement) Color() ObjectColor {
-	return n.c
+func (n *NodeDrawingElement) Color(blinkValue float64) int32 {
+	return n.c.color(blinkValue)
 }
 
-func (n *NodeDrawingElement) Alpha() float32 {
-	return n.a
+func (n *NodeDrawingElement) Dimmer(blinkValue float64) float32 {
+	return n.c.dimmer(blinkValue)
 }
 
 func (n *NodeDrawingElement) Pos() *Point {
@@ -107,12 +292,12 @@ func (c *ConnectionDrawingElement) Key() ObjectType {
 	return c.t
 }
 
-func (c *ConnectionDrawingElement) Color() ObjectColor {
-	return c.c
+func (c *ConnectionDrawingElement) Color(blinkValue float64) int32 {
+	return c.c.color(blinkValue)
 }
 
-func (c *ConnectionDrawingElement) Alpha() float32 {
-	return c.a
+func (c *ConnectionDrawingElement) Dimmer(blinkValue float64) float32 {
+	return c.c.dimmer(blinkValue)
 }
 
 func (c *ConnectionDrawingElement) Pos() *Point {
@@ -124,20 +309,20 @@ func (a *AxeDrawingElement) Key() ObjectType {
 	return a.t
 }
 
-func (a *AxeDrawingElement) Alpha() float32 {
-	return 1.0
-}
-
-func (a *AxeDrawingElement) Color() ObjectColor {
+func (a *AxeDrawingElement) Color(blinkValue float64) int32 {
 	switch a.t {
 	case AxeX:
-		return Red
+		return int32(RedEvent)
 	case AxeY:
-		return Green
+		return int32(GreenEvent)
 	case AxeZ:
-		return Blue
+		return int32(BlueEvent)
 	}
-	return Grey
+	return 0
+}
+
+func (a *AxeDrawingElement) Dimmer(blinkValue float64) float32 {
+	return 1.0
 }
 
 func (a *AxeDrawingElement) Pos() *Point {

@@ -55,7 +55,7 @@ func DisplayPlay1() {
 	cameraUniform := gl.GetUniformLocation(prog, gl.Str("camera\x00"))
 	modelUniform := gl.GetUniformLocation(prog, gl.Str("model\x00"))
 	colorUniform := gl.GetUniformLocation(prog, gl.Str("obj_color\x00"))
-	colorAlphaUniform := gl.GetUniformLocation(prog, gl.Str("obj_alpha\x00"))
+	colorDimmerUniform := gl.GetUniformLocation(prog, gl.Str("obj_dimmer\x00"))
 	lightDirectionUniform := gl.GetUniformLocation(prog, gl.Str("light_direction\x00"))
 	lightColorUniform := gl.GetUniformLocation(prog, gl.Str("light_color\x00"))
 	gl.BindFragDataLocation(prog, 0, gl.Str("out_color\x00"))
@@ -96,7 +96,7 @@ func DisplayPlay1() {
 		gl.Uniform3f(lightDirectionUniform, w.LightDirection[0], w.LightDirection[1], w.LightDirection[2])
 		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
 		gl.Uniform1i(colorUniform, 0)
-		gl.Uniform1f(colorAlphaUniform, 1.0)
+		gl.Uniform1f(colorDimmerUniform, 1.0)
 		gl.BindVertexArray(vao)
 
 		for _, obj := range m3space.SpaceObj.Elements {
@@ -105,8 +105,10 @@ func DisplayPlay1() {
 				w.Model = mgl32.HomogRotate3D(float32(w.Angle.Value), mgl32.Vec3{0, 0, 1})
 				w.Model = w.Model.Mul4(mgl32.Translate3D(float32(obj.Pos().X()), float32(obj.Pos().Y()), float32(obj.Pos().Z())))
 				gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
-				gl.Uniform1i(colorUniform, int32(obj.Color()))
-				gl.Uniform1f(colorAlphaUniform, obj.Alpha())
+
+				gl.Uniform1i(colorUniform, obj.Color(w.Blinker.Value))
+				gl.Uniform1f(colorDimmerUniform, obj.Dimmer(w.Blinker.Value))
+
 				gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
 			}
 		}
@@ -187,7 +189,7 @@ uniform mat4 projection;
 uniform mat4 camera;
 uniform mat4 model;
 uniform int obj_color;
-uniform float obj_alpha;
+uniform float obj_dimmer;
 
 in vec3 vert;
 in vec3 norm;
@@ -196,20 +198,23 @@ out vec3 s_normal;
 out vec3 s_obj_color;
 
 void main() {
+// Be careful last val of vec4 is zero since no translation on normal vector
 	s_normal = vec3(model * vec4(norm, 0));
+
     gl_Position = projection * camera * model * vec4(vert, 1);
+
 	if (obj_color == 0) {
-		s_obj_color = vec3(0.25,0.25,0.25) * obj_alpha;
+		s_obj_color = vec3(0.25,0.25,0.25) * obj_dimmer;
 	} else if (obj_color == 1) {
-		s_obj_color = vec3(1.0,0.0,0.0) * obj_alpha;
+		s_obj_color = vec3(1.0,0.0,0.0) * obj_dimmer;
 	} else if (obj_color == 2) {
-		s_obj_color = vec3(0.0,1.0,0.0) * obj_alpha;
+		s_obj_color = vec3(0.0,1.0,0.0) * obj_dimmer;
 	} else if (obj_color == 3) {
-		s_obj_color = vec3(0.0,0.0,1.0) * obj_alpha;
+		s_obj_color = vec3(0.0,0.0,1.0) * obj_dimmer;
 	} else if (obj_color == 4) {
-		s_obj_color = vec3(1.0,1.0,0.0) * obj_alpha;
+		s_obj_color = vec3(1.0,1.0,0.0) * obj_dimmer;
 	} else {
-		s_obj_color = vec3(1.0,1.0,1.0) * obj_alpha;
+		s_obj_color = vec3(1.0,1.0,1.0) * obj_dimmer;
 	}
 }
 ` + "\x00"
@@ -228,7 +233,7 @@ out vec4 out_color;
 
 void main() {
     // ambient
-    float ambientStrength = 0.1;
+    float ambientStrength = 0.15;
     vec3 ambient = ambientStrength * light_color;
   	
     // diffuse 
