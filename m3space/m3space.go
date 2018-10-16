@@ -75,7 +75,10 @@ var SpaceObj = Space{
 func (s *Space) CreateStuff(max int64) {
 	s.max = max
 	s.createNodes()
-	pyramidSize := int64(s.max/THREE)/2 + 1
+	pyramidSize := int64(s.max/THREE)/2 - 1
+	if pyramidSize <= 0 {
+		pyramidSize = 1
+	}
 	s.CreateEvent(Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
 	s.CreateEvent(Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
 	s.CreateEvent(Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)

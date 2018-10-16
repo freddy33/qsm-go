@@ -8,7 +8,7 @@ const (
 	defaultOldEventDimmer = 0.3
 )
 
-type ObjectType int8
+type ObjectType uint8
 
 const (
 	AxeX        ObjectType = iota
@@ -33,6 +33,8 @@ type SpaceDrawingElement interface {
 	Color(blinkValue float64) int32
 	// Return the obj_dimmer int for the shader program
 	Dimmer(blinkValue float64) float32
+	// Display flag
+	Display() bool
 }
 
 type SpaceDrawingColor struct {
@@ -200,10 +202,10 @@ func MakeNodeDrawingElement(node *Node) *NodeDrawingElement {
 	sdc := SpaceDrawingColor{}
 	for c := RedEvent; c <= YellowEvent; c++ {
 		for _, eo := range node.E {
-			if eo != nil {
+			if eo != nil && (eo.DistanceFromLatest() <= 1 || eo.IsRoot()) {
 				sdc.objColors |= 1 << uint8(eo.event.color)
 				// Event root themselves never dim
-				if eo.state != EventOutgrowthLatest && eo.distance != Distance(0) {
+				if eo.state != EventOutgrowthLatest && eo.IsRoot() {
 					sdc.dimColors |= 1 << uint8(eo.event.color)
 				}
 				isActive = true
@@ -279,6 +281,13 @@ func (n *NodeDrawingElement) Key() ObjectType {
 	return n.t
 }
 
+func (n *NodeDrawingElement) Display() bool {
+	if n.t == NodeActive {
+		return true
+	}
+	return false
+}
+
 func (n *NodeDrawingElement) Color(blinkValue float64) int32 {
 	return n.c.color(blinkValue)
 }
@@ -296,12 +305,23 @@ func (c *ConnectionDrawingElement) Key() ObjectType {
 	return c.t
 }
 
+func (c *ConnectionDrawingElement) Display() bool {
+	if c.c.objColors != uint8(0) {
+		return true
+	}
+	return false
+}
+
 func (c *ConnectionDrawingElement) Color(blinkValue float64) int32 {
 	return c.c.color(blinkValue)
 }
 
 func (c *ConnectionDrawingElement) Dimmer(blinkValue float64) float32 {
-	return c.c.dimmer(blinkValue)
+	dimmer := c.c.dimmer(blinkValue)
+	if dimmer < 1.0 {
+		dimmer *= 0.5
+	}
+	return dimmer
 }
 
 func (c *ConnectionDrawingElement) Pos() *Point {
@@ -313,14 +333,18 @@ func (a *AxeDrawingElement) Key() ObjectType {
 	return a.t
 }
 
+func (a *AxeDrawingElement) Display() bool {
+	return true
+}
+
 func (a *AxeDrawingElement) Color(blinkValue float64) int32 {
 	switch a.t {
 	case AxeX:
-		return int32(RedEvent)
+		return int32(RedEvent)+1
 	case AxeY:
-		return int32(GreenEvent)
+		return int32(GreenEvent)+1
 	case AxeZ:
-		return int32(BlueEvent)
+		return int32(BlueEvent)+1
 	}
 	return 0
 }
