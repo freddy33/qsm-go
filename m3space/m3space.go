@@ -90,24 +90,24 @@ func (s *Space) ForwardTime() {
 	for _, evt := range s.events {
 		for _, eg := range evt.outgrowths {
 			if eg.state == EventOutgrowthLatest {
-				for _, c := range eg.node.C {
+				for _, c := range eg.node.connections {
 					if c != nil {
 						otherNode := c.N1
 						if otherNode == eg.node {
 							otherNode = c.N2
 						}
 						hasAlreadyEvent := false
-						for _, eo := range otherNode.E {
+						for _, eo := range otherNode.outgrowths {
 							if eo.event.id == evt.id {
 								hasAlreadyEvent = true
 							}
 						}
 						if !hasAlreadyEvent {
 							if DEBUG {
-								fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.P)
+								fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.point)
 							}
 							newEo := &EventOutgrowth{otherNode, evt, eg, eg.distance + 1, EventOutgrowthNew}
-							otherNode.E = append(otherNode.E, newEo)
+							otherNode.outgrowths = append(otherNode.outgrowths, newEo)
 							evt.outgrowths = append(evt.outgrowths, newEo)
 						}
 					}
@@ -145,15 +145,15 @@ func (s *Space) CreateEvent(p Point, k EventColor) *Event {
 	s.currentId++
 	e := Event{id, n, s.currentTime, k, make([]*EventOutgrowth, 1, 100)}
 	e.outgrowths[0] = &EventOutgrowth{n, &e, nil, Distance(0), EventOutgrowthLatest}
-	n.E = make([]*EventOutgrowth, 1)
-	n.E[0] = e.outgrowths[0]
+	n.outgrowths = make([]*EventOutgrowth, 1)
+	n.outgrowths[0] = e.outgrowths[0]
 	s.events[id] = &e
 	return &e
 }
 
 func (s *Space) GetNode(p *Point) *Node {
 	for _, n := range s.nodes {
-		if *(n.P) == *p {
+		if *(n.point) == *p {
 			return n
 		}
 	}
@@ -166,7 +166,7 @@ func (s *Space) getOrCreateNode(p *Point) *Node {
 		return n
 	}
 	n = &Node{}
-	n.P = p
+	n.point = p
 	s.nodes = append(s.nodes, n)
 	if p.IsMainPoint() {
 		s.createAndConnectBasePoints(n)
@@ -183,13 +183,13 @@ func (s *Space) makeConnection(n1, n2 *Node) *Connection {
 		fmt.Println("Node 2", n2, "does not have free connections")
 		return nil
 	}
-	if n2.P.IsMainPoint() {
-		fmt.Println("Passing second point of connection", *(n2.P), "is a main point. Only P1 can be main")
+	if n2.point.IsMainPoint() {
+		fmt.Println("Passing second point of connection", *(n2.point), "is a main point. Only P1 can be main")
 		return nil
 	}
-	d := DS(n1.P, n2.P)
+	d := DS(n1.point, n2.point)
 	if !(d == 2 || d == 3) {
-		fmt.Println("Connection between 2 points", *(n1.P), *(n2.P), "that are not 2 or 3 DS away!")
+		fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "that are not 2 or 3 DS away!")
 		return nil
 	}
 	c := &Connection{n1, n2}
@@ -197,12 +197,12 @@ func (s *Space) makeConnection(n1, n2 *Node) *Connection {
 	n1done := false
 	n2done := false
 	for i := 0; i < THREE; i++ {
-		if !n1done && n1.C[i] == nil {
-			n1.C[i] = c
+		if !n1done && n1.connections[i] == nil {
+			n1.connections[i] = c
 			n1done = true
 		}
-		if !n2done && n2.C[i] == nil {
-			n2.C[i] = c
+		if !n2done && n2.connections[i] == nil {
+			n2.connections[i] = c
 			n2done = true
 		}
 	}
@@ -214,12 +214,12 @@ func (s *Space) makeConnection(n1, n2 *Node) *Connection {
 }
 
 func (s *Space) createAndConnectBasePoints(n *Node) {
-	if !n.P.IsMainPoint() {
-		fmt.Println("Passing point to add base points", *(n.P), "is not a main point!")
+	if !n.point.IsMainPoint() {
+		fmt.Println("Passing point to add base points", *(n.point), "is not a main point!")
 		return
 	}
 	for _, b := range BasePoints {
-		p2 := n.P.Add(b)
+		p2 := n.point.Add(b)
 		bpn := s.getOrCreateNode(&p2)
 		s.makeConnection(n, bpn)
 	}
@@ -241,9 +241,9 @@ func (s *Space) createNodes() *Node {
 	}
 	// All nodes that are not main with nil connections find good one
 	for _, node := range s.nodes {
-		if !node.P.IsMainPoint() && node.HasFreeConnections() {
+		if !node.point.IsMainPoint() && node.HasFreeConnections() {
 			for _, other := range s.nodes {
-				if node != other && !other.P.IsMainPoint() && other.HasFreeConnections() && DS(other.P, node.P) == 3 {
+				if node != other && !other.point.IsMainPoint() && other.HasFreeConnections() && DS(other.point, node.point) == 3 {
 					s.makeConnection(node, other)
 				}
 				if !node.HasFreeConnections() {
@@ -255,10 +255,10 @@ func (s *Space) createNodes() *Node {
 
 	// Verify all connections done
 	for _, node := range s.nodes {
-		for i, c := range node.C {
+		for i, c := range node.connections {
 			// Should be on the border
-			if c == nil && !node.P.IsBorder(s.max) {
-				fmt.Println("something wrong with node connection not done for", node.P, "connection", i)
+			if c == nil && !node.point.IsBorder(s.max) {
+				fmt.Println("something wrong with node connection not done for", node.point, "connection", i)
 			}
 		}
 	}

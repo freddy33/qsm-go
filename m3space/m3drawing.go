@@ -37,6 +37,19 @@ type SpaceDrawingElement interface {
 	Display() bool
 }
 
+type SpaceDrawingFilter struct {
+	// Display grey empty nodes or not
+	DisplayEmptyNodes bool
+	// Display grey empty connections or not
+	DisplayEmptyConnections bool
+	// Distance from latest to display event outgrowth
+	EventOutgrowthThreshold Distance
+	// The events of certain colors to display. This is a mask.
+	EventColorMask uint8
+	// The outgrowth events with how many colors to display.
+	EventOutgrowthManyColors uint8
+}
+
 type SpaceDrawingColor struct {
 	// Bitwise flag of colors. Bits 0->red, 1->green, 2->blue, 3->yellow. If 0 then it means grey
 	objColors uint8
@@ -201,11 +214,11 @@ func MakeNodeDrawingElement(node *Node) *NodeDrawingElement {
 	isActive := false
 	sdc := SpaceDrawingColor{}
 	for c := RedEvent; c <= YellowEvent; c++ {
-		for _, eo := range node.E {
-			if eo != nil && (eo.DistanceFromLatest() <= 1 || eo.IsRoot()) {
+		for _, eo := range node.outgrowths {
+			if eo != nil && (eo.DistanceFromLatest() <= 2 || eo.IsRoot()) {
 				sdc.objColors |= 1 << uint8(eo.event.color)
 				// Event root themselves never dim
-				if eo.state != EventOutgrowthLatest && eo.IsRoot() {
+				if eo.state != EventOutgrowthLatest && !eo.IsRoot() {
 					sdc.dimColors |= 1 << uint8(eo.event.color)
 				}
 				isActive = true
@@ -230,14 +243,14 @@ func MakeConnectionDrawingElement(conn *Connection) *ConnectionDrawingElement {
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
 	for c := RedEvent; c <= YellowEvent; c++ {
-		for _, eo1 := range n1.E {
+		for _, eo1 := range n1.outgrowths {
 			if eo1.state == EventOutgrowthLatest {
 				if eo1.from != nil && eo1.from.node == n2 {
 					sdc.objColors |= 1 << uint8(eo1.event.color)
 				}
 			}
 		}
-		for _, eo2 := range n2.E {
+		for _, eo2 := range n2.outgrowths {
 			if eo2.state == EventOutgrowthLatest {
 				if eo2.from != nil && eo2.from.node == n1 {
 					sdc.objColors |= 1 << uint8(eo2.event.color)
@@ -245,8 +258,8 @@ func MakeConnectionDrawingElement(conn *Connection) *ConnectionDrawingElement {
 			}
 		}
 	}
-	p1 := n1.P
-	p2 := n2.P
+	p1 := n1.point
+	p2 := n2.point
 	bv := p2.Sub(*p1)
 	if p1.IsMainPoint() {
 		for i, bp := range BasePoints {
@@ -297,7 +310,7 @@ func (n *NodeDrawingElement) Dimmer(blinkValue float64) float32 {
 }
 
 func (n *NodeDrawingElement) Pos() *Point {
-	return n.n.P
+	return n.n.point
 }
 
 // ConnectionDrawingElement functions
@@ -318,9 +331,6 @@ func (c *ConnectionDrawingElement) Color(blinkValue float64) int32 {
 
 func (c *ConnectionDrawingElement) Dimmer(blinkValue float64) float32 {
 	dimmer := c.c.dimmer(blinkValue)
-	if dimmer < 1.0 {
-		dimmer *= 0.5
-	}
 	return dimmer
 }
 

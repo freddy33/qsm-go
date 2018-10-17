@@ -3,9 +3,9 @@ package m3space
 import "fmt"
 
 type Node struct {
-	P *Point
-	E []*EventOutgrowth
-	C [3]*Connection
+	point       *Point
+	outgrowths  []*EventOutgrowth
+	connections [3]*Connection
 }
 
 type Connection struct {
@@ -13,12 +13,35 @@ type Connection struct {
 }
 
 func (n *Node) HasFreeConnections() bool {
-	for _, c := range n.C {
+	for _, c := range n.connections {
 		if c == nil {
 			return true
 		}
 	}
 	return false
+}
+
+func (node *Node) IsRoot() bool {
+	for _, eo := range node.outgrowths {
+		if eo.IsRoot() {
+			return true
+		}
+	}
+	return false
+}
+
+func (node *Node) HowManyColors(threshold Distance) uint8 {
+	r := uint8(0)
+	m := uint8(0)
+	for _, eo := range node.outgrowths {
+		if eo.IsActive(threshold) {
+			if m&1<<eo.event.color == uint8(0) {
+				r++
+			}
+			m |= 1<<eo.event.color
+		}
+	}
+	return r
 }
 
 func (eo *EventOutgrowth) IsRoot() bool {
@@ -59,4 +82,8 @@ func (eo *EventOutgrowth) LatestDistance() Distance {
 func (eo *EventOutgrowth) DistanceFromLatest() Distance {
 	latestDistance := eo.LatestDistance()
 	return latestDistance - eo.distance
+}
+
+func (eo *EventOutgrowth) IsActive(threshold Distance) bool {
+	return eo.DistanceFromLatest() <= threshold
 }

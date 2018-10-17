@@ -15,47 +15,97 @@ func TestSpace(t *testing.T) {
 	assert.Equal(t, 0, len(SpaceObj.Elements))
 
 	SpaceObj.CreateStuff(3)
-
 	assert.Equal(t, int64(3), SpaceObj.max)
 	// Big nodes = (center + center face + middle edge + corner) * (main + 3)
 	nbNodes := (1 + 6 + 12 + 8) * 4
-	assert.Equal(t, nbNodes, len(SpaceObj.nodes))
-	assert.Equal(t, nbNodes+35, len(SpaceObj.connections))
-	assert.Equal(t, 4, len(SpaceObj.events))
-	assert.Equal(t, 2*nbNodes+35+6, len(SpaceObj.Elements))
+
+	/*******************  STEP 0 ******************/
+	nbOutgrowthsStep0 := 4
+	assertSpaceMax3(t, nbNodes)
+
 	assert.Equal(t, TickTime(0), SpaceObj.currentTime)
+
 	assertOutgrowth(t, 4)
-	assertOutgrowthDistance(t,map[EventID]int{0:1,1:1,2:1,3:1})
+	assertOutgrowthDistance(t, map[EventID]int{0: 1, 1: 1, 2: 1, 3: 1})
+	assertOutgrowthColors(t, 0, map[uint8]int{0: int(nbNodes - 4), 1: 4, 10: 4})
+	assertOutgrowthColors(t, 20, map[uint8]int{0: int(nbNodes - 4), 1: 4, 10: 4})
 
+	/*******************  STEP 1 ******************/
 	SpaceObj.ForwardTime()
 	// Same elements just color changes
-	assert.Equal(t, nbNodes, len(SpaceObj.nodes))
-	assert.Equal(t, nbNodes+35, len(SpaceObj.connections))
-	assert.Equal(t, 4, len(SpaceObj.events))
-	assert.Equal(t, 2*nbNodes+35+6, len(SpaceObj.Elements))
+	assertSpaceMax3(t, nbNodes)
+
 	assert.Equal(t, TickTime(1), SpaceObj.currentTime)
-	assertOutgrowth(t, 4+(4*3))
-	assertOutgrowthDistance(t,map[EventID]int{0:3,1:3,2:3,3:3})
+	newOutgrowthsStep1 := 4 * 3
+	nbOutgrowthsStep1 := nbOutgrowthsStep0 + newOutgrowthsStep1
 
+	assertOutgrowth(t, nbOutgrowthsStep1)
+	assertOutgrowthDistance(t, map[EventID]int{0: 3, 1: 3, 2: 3, 3: 3})
+	assertOutgrowthColors(t, 0, map[uint8]int{0: int(nbNodes - newOutgrowthsStep1), 1: newOutgrowthsStep1, 10: 4})
+	assertOutgrowthColors(t, 1, map[uint8]int{0: int(nbNodes - nbOutgrowthsStep1), 1: nbOutgrowthsStep1, 10: 4})
+	assertOutgrowthColors(t, 20, map[uint8]int{0: int(nbNodes - nbOutgrowthsStep1), 1: nbOutgrowthsStep1, 10: 4})
+
+	/*******************  STEP 2 ******************/
 	SpaceObj.ForwardTime()
-	// Same elements just color changes
-	assert.Equal(t, nbNodes, len(SpaceObj.nodes))
-	assert.Equal(t, nbNodes+35, len(SpaceObj.connections))
-	assert.Equal(t, 4, len(SpaceObj.events))
-	assert.Equal(t, 2*nbNodes+35+6, len(SpaceObj.Elements))
+	assertSpaceMax3(t, nbNodes)
+
 	assert.Equal(t, TickTime(2), SpaceObj.currentTime)
-	assertOutgrowth(t, 4+(4*3)+(4*3)+2)
-	assertOutgrowthDistance(t,map[EventID]int{0:3,1:3,2:3,3:5})
+	newOutgrowthsStep2 := (4 * 3) + 2
+	nbOutgrowthsStep2 := nbOutgrowthsStep1 + newOutgrowthsStep2
 
+	assertOutgrowth(t, nbOutgrowthsStep1+newOutgrowthsStep2)
+	assertOutgrowthDistance(t, map[EventID]int{0: 3, 1: 3, 2: 3, 3: 5})
+	assertOutgrowthColors(t, 0, map[uint8]int{0: int(nbNodes - newOutgrowthsStep2), 1: newOutgrowthsStep2, 10: 4})
+	assertOutgrowthColors(t, 1, map[uint8]int{0: int(nbNodes - (newOutgrowthsStep1 + newOutgrowthsStep2)), 1: newOutgrowthsStep1 + newOutgrowthsStep2, 10: 4})
+	assertOutgrowthColors(t, 2, map[uint8]int{0: int(nbNodes - nbOutgrowthsStep2), 1: nbOutgrowthsStep2, 10: 4})
+	assertOutgrowthColors(t, 20, map[uint8]int{0: int(nbNodes - nbOutgrowthsStep2), 1: nbOutgrowthsStep2, 10: 4})
+
+	/*******************  STEP 3 ******************/
 	SpaceObj.ForwardTime()
-	// Same elements just color changes
+	assertSpaceMax3(t, nbNodes)
+
+	assert.Equal(t, TickTime(3), SpaceObj.currentTime)
+	newOutgrowthsStep3 := (4*3)*2 - 1
+	nbOutgrowthsStep3 := nbOutgrowthsStep2 + newOutgrowthsStep3
+	nb2colorsStep3 := 2
+
+	assertOutgrowth(t, nbOutgrowthsStep3)
+	assertOutgrowthDistance(t, map[EventID]int{0: 4, 1: 6, 2: 4, 3: 9})
+	assertOutgrowthColors(t, 0, map[uint8]int{0: int(nbNodes - newOutgrowthsStep3 + nb2colorsStep3), 1: newOutgrowthsStep3 - 2*nb2colorsStep3, 2: nb2colorsStep3, 10: 4})
+	assertOutgrowthColors(t, 3, map[uint8]int{0: int(nbNodes - nbOutgrowthsStep3 + nb2colorsStep3), 1: nbOutgrowthsStep3 - 2*nb2colorsStep3, 2: nb2colorsStep3, 10: 4})
+
+	/*******************  STEP 4 ******************/
+	SpaceObj.ForwardTime()
+	assertSpaceMax3(t, nbNodes)
+
+	assert.Equal(t, TickTime(4), SpaceObj.currentTime)
+	newOutgrowthsStep4 := (4*3)*4 - 5
+	nbOutgrowthsStep4 := nbOutgrowthsStep3 + newOutgrowthsStep4
+	nb2colorsStep4 := 5 + nb2colorsStep3
+
+	assertOutgrowth(t, nbOutgrowthsStep4)
+	assertOutgrowthDistance(t, map[EventID]int{0: 7, 1: 12, 2: 7, 3: 17})
+	assertOutgrowthColors(t, 0, map[uint8]int{0: int(nbNodes - newOutgrowthsStep4 + nb2colorsStep4), 1: newOutgrowthsStep4 - 2*nb2colorsStep4, 2: nb2colorsStep4, 10: 4})
+
+	/*******************  STEP 5 ******************/
+	SpaceObj.ForwardTime()
+	assertSpaceMax3(t, nbNodes)
+
+	assert.Equal(t, TickTime(5), SpaceObj.currentTime)
+	newOutgrowthsStep5 := (4*3)*4 - 4
+	nbOutgrowthsStep5 := nbOutgrowthsStep4 + newOutgrowthsStep5
+	nb2colorsStep5 := 6
+
+	assertOutgrowth(t, nbOutgrowthsStep5)
+	assertOutgrowthDistance(t, map[EventID]int{0: 6, 1: 13, 2: 8, 3: 17})
+	assertOutgrowthColors(t, 0, map[uint8]int{0: int(nbNodes - newOutgrowthsStep5 + nb2colorsStep5 +2*2), 1: newOutgrowthsStep5 - 2*nb2colorsStep5 - 3*2, 2: nb2colorsStep5, 3:2, 10: 4})
+}
+
+func assertSpaceMax3(t *testing.T, nbNodes int) {
 	assert.Equal(t, nbNodes, len(SpaceObj.nodes))
 	assert.Equal(t, nbNodes+35, len(SpaceObj.connections))
 	assert.Equal(t, 4, len(SpaceObj.events))
 	assert.Equal(t, 2*nbNodes+35+6, len(SpaceObj.Elements))
-	assert.Equal(t, TickTime(3), SpaceObj.currentTime)
-	assertOutgrowth(t, 4+(4*3)*4+1)
-	assertOutgrowthDistance(t,map[EventID]int{0:4,1:6,2:4,3:9})
 }
 
 func assertOutgrowth(t *testing.T, expect int) {
@@ -66,7 +116,7 @@ func assertOutgrowth(t *testing.T, expect int) {
 	assert.Equal(t, expect, nbOutgrowth)
 	nbOutgrowth = 0
 	for _, node := range SpaceObj.nodes {
-		nbOutgrowth += len(node.E)
+		nbOutgrowth += len(node.outgrowths)
 	}
 	assert.Equal(t, expect, nbOutgrowth)
 }
@@ -76,12 +126,26 @@ func assertOutgrowthDistance(t *testing.T, topOnes map[EventID]int) {
 		nbTopOnes := 0
 		for _, eo := range evt.outgrowths {
 			if eo.distance == Distance(SpaceObj.currentTime-evt.created) {
-				assert.Equal(t, eo.state, EventOutgrowthLatest, "Event outgrowth state test failed for evtID=%d node=%v . Should be latest", evt.id,*(eo.node))
+				assert.Equal(t, eo.state, EventOutgrowthLatest, "Event outgrowth state test failed for evtID=%d node=%v . Should be latest", evt.id, *(eo.node))
 				nbTopOnes++
 			} else {
-				assert.Equal(t, eo.state, EventOutgrowthOld, "Event outgrowth state test failed for evtID=%d node=%v . Should be old", evt.id,*(eo.node))
+				assert.Equal(t, eo.state, EventOutgrowthOld, "Event outgrowth state test failed for evtID=%d node=%v . Should be old", evt.id, *(eo.node))
 			}
 		}
 		assert.Equal(t, topOnes[evt.id], nbTopOnes, "NB top ones expected failed for evtID=%d", evt.id)
+	}
+}
+
+func assertOutgrowthColors(t *testing.T, threshold Distance, multiOutgrowths map[uint8]int) {
+	// map of how many nodes have 0, 1, 2, 3, 4 event outgrowth, the key 10 is for the amount of root
+	count := make(map[uint8]int)
+	for _, node := range SpaceObj.nodes {
+		if node.IsRoot() {
+			count[10]++
+		}
+		count[node.HowManyColors(threshold)]++
+	}
+	for k, v := range count {
+		assert.Equal(t, multiOutgrowths[k], v, "color outgrowth count failed for k=%d and th=%d", k, threshold)
 	}
 }
