@@ -136,6 +136,30 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 		case glfw.KeyLeft:
 			m3space.SpaceObj.BackTime()
 
+		case glfw.KeyN:
+			m3space.DrawSelector.DisplayEmptyNodes = !m3space.DrawSelector.DisplayEmptyNodes
+		case glfw.KeyC:
+			m3space.DrawSelector.DisplayEmptyConnections = !m3space.DrawSelector.DisplayEmptyConnections
+
+		case glfw.KeyUp:
+			m3space.DrawSelector.EventOutgrowthThresholdIncrease()
+		case glfw.KeyDown:
+			m3space.DrawSelector.EventOutgrowthThresholdDecrease()
+
+		case glfw.KeyU:
+			m3space.DrawSelector.EventOutgrowthColorsIncrease()
+		case glfw.KeyI:
+			m3space.DrawSelector.EventOutgrowthColorsDecrease()
+
+		case glfw.Key1:
+			m3space.DrawSelector.ColorMaskSwitch(m3space.RedEvent)
+		case glfw.Key2:
+			m3space.DrawSelector.ColorMaskSwitch(m3space.GreenEvent)
+		case glfw.Key3:
+			m3space.DrawSelector.ColorMaskSwitch(m3space.BlueEvent)
+		case glfw.Key4:
+			m3space.DrawSelector.ColorMaskSwitch(m3space.YellowEvent)
+
 		case glfw.KeyZ:
 			w.FovAngle.Decrease()
 			reCalc = true

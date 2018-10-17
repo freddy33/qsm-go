@@ -301,3 +301,9 @@ func (s *Space) createDrawingElements() {
 	}
 	s.Elements = elements
 }
+
+func (s *Space) DisplaySettings() {
+	fmt.Println("========= Space Settings =========")
+	fmt.Println("Current Time", s.currentTime)
+	fmt.Println("Nb Nodes", len(s.nodes), ", Nb Connections", len(s.connections), ", Nb Events", len(s.events))
+}

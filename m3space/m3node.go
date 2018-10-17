@@ -30,6 +30,15 @@ func (node *Node) IsRoot() bool {
 	return false
 }
 
+func (node *Node) IsActive(threshold Distance) bool {
+	for _, eo := range node.outgrowths {
+		if eo.IsActive(threshold) {
+			return true
+		}
+	}
+	return false
+}
+
 func (node *Node) HowManyColors(threshold Distance) uint8 {
 	r := uint8(0)
 	m := uint8(0)
@@ -84,6 +93,16 @@ func (eo *EventOutgrowth) DistanceFromLatest() Distance {
 	return latestDistance - eo.distance
 }
 
+func (eo *EventOutgrowth) IsDrawn(filter SpaceDrawingFilter) bool {
+	return eo.IsActive(filter.EventOutgrowthThreshold) &&
+		filter.EventColorMask&1<<eo.event.color != uint8(0) &&
+		eo.node.HowManyColors(filter.EventOutgrowthThreshold) >= filter.EventOutgrowthManyColorsThreshold
+}
+
 func (eo *EventOutgrowth) IsActive(threshold Distance) bool {
+	if eo.IsRoot() {
+		// Root event always active
+		return true
+	}
 	return eo.DistanceFromLatest() <= threshold
 }

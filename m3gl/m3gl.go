@@ -127,12 +127,13 @@ func verifyData() {
 
 func (w World) DisplaySettings() {
 	fmt.Println("========= World Settings =========")
-	fmt.Println("Nb DrawingElementsMap", len(w.DrawingElementsMap))
 	fmt.Println("Width", w.Width, "Height", w.Height)
 	fmt.Println("Line Width [B,T]", LineWidth.Val)
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
 	fmt.Println("FOV Angle [Z,X]", w.FovAngle.Val)
 	fmt.Println("Eye Dist [Q,W]", w.EyeDist.Val)
+	m3space.SpaceObj.DisplaySettings()
+	m3space.DrawSelector.DisplaySettings()
 }
 
 func (w *World) CreateObjects() int {
