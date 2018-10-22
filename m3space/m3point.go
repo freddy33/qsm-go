@@ -1,5 +1,9 @@
 package m3space
 
+import (
+	"fmt"
+)
+
 type Point [3]int64
 
 var Origin = Point{0, 0, 0}
@@ -12,6 +16,7 @@ var NextMapping = [3][4]int{
 	{0,2,1,3},
 	{0,1,3,2},
 }
+var AllMod4Possible = make(map[Point]int)
 
 func init() {
 	for i := 1; i < 4; i++ {
@@ -19,6 +24,53 @@ func init() {
 			BasePoints[i][j] = BasePoints[i-1][j].PlusX()
 		}
 	}
+	for x := int64(0); x < 4; x++ {
+		for y := int64(0); y < 4; y++ {
+			for z := int64(0); z < 4; z++ {
+				p := Point{3*x, 3*y, 3*z}
+				AllMod4Possible[p.GetMod4Point()] = p.GetMod4Value()
+			}
+		}
+	}
+}
+
+func (p Point) GetMod4Point() Point {
+	if !p.IsMainPoint() {
+		panic(fmt.Sprintf("cannot ask for Mod4 on non main point %v!",p))
+	}
+	return Point{(p[0]/3)%4, (p[1]/3)%4, (p[2]/3)%4}
+}
+
+func (p Point) GetMod4Value() int {
+	pMod4 := p.GetMod4Point()
+	xMod4 := NextMapping[0][int(pMod4[0]%4)]
+	// Find in Y line the k matching xMod4
+	inYK := -1
+	for k := 0; k<4;k++ {
+		if NextMapping[1][k] == xMod4 {
+			inYK = k
+			break
+		}
+	}
+	if inYK == -1 {
+		fmt.Println("Something went really wrong trying to find x mod 4",xMod4,"from",p,"pMod4",pMod4)
+		return -1
+	}
+	yMod4 := NextMapping[1][int((pMod4[1]+int64(inYK))%4)]
+	// Find in Z line the k matching yMod4
+	inZK := -1
+	for k := 0; k<4;k++ {
+		if NextMapping[2][k] == yMod4 {
+			inZK = k
+			break
+		}
+	}
+	if inZK == -1 {
+		fmt.Println("Something went really wrong trying to find y mod 4",yMod4,"from",p,"pMod4",pMod4)
+		return -1
+	}
+	finalMod4 := NextMapping[2][int((pMod4[2]+int64(inZK))%4)]
+	return finalMod4
 }
 
 func Abs(i int64) int64 {

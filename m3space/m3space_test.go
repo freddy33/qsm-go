@@ -139,7 +139,16 @@ func TestBasePointsRotation(t *testing.T) {
 		}
 	}
 
-	// By modulo 4 there is commutation between axes
+	nbRun := 100
+	rdMax := int64(10)
+	for i := 0; i < nbRun; i++ {
+		randomPoint := Point{rand.Int63n(rdMax)*3, rand.Int63n(rdMax)*3, rand.Int63n(rdMax)*3}
+		assert.True(t, randomPoint.IsMainPoint(), "point %v should be main", randomPoint)
+		mod4Point := randomPoint.GetMod4Point()
+		mod4Val, ok := AllMod4Possible[mod4Point]
+		assert.True(t, ok, "Mod4 does not exists for %v mod4 point %v", randomPoint, mod4Point)
+		assert.Equal(t, randomPoint.GetMod4Value(), mod4Val, "Wrong Mod4 value for %v mod4 point %v", randomPoint, mod4Point)
+	}
 }
 
 // Verify the 2 arrays are actually identical just not particular order
