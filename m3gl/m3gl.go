@@ -67,7 +67,7 @@ type OpenGLDrawingElement struct {
 	NbVertices   int32
 }
 
-func MakeWorld(Max int64) World {
+func MakeWorld(Max int64, PyramidSize int64) World {
 	if Max%m3space.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
 	}
@@ -93,7 +93,7 @@ func MakeWorld(Max int64) World {
 	}
 	w.SetMatrices()
 	w.CreateObjects()
-	m3space.SpaceObj.CreateStuff(Max)
+	m3space.SpaceObj.CreateStuff(Max, PyramidSize)
 	return w
 }
 
@@ -151,12 +151,12 @@ func (w *World) CreateObjects() int {
 	}
 	triangleFiller.fill(MakeSphere(m3space.NodeEmpty))
 	triangleFiller.fill(MakeSphere(m3space.NodeActive))
-	for i, bp := range m3space.BasePoints {
+	for i, bp := range m3space.BasePoints[0] {
 		triangleFiller.fill(MakeSegment(m3space.Origin, bp, m3space.ObjectType(int(m3space.Connection1)+i)))
 	}
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[2].Add(m3space.Point{3, 0, 0}), m3space.Connection4))
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[0], m3space.BasePoints[1].Add(m3space.Point{0, 3, 0}), m3space.Connection5))
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[1], m3space.BasePoints[2].Add(m3space.Point{0, 0, 3}), m3space.Connection6))
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[0][0], m3space.BasePoints[0][2].Add(m3space.Point{3, 0, 0}), m3space.Connection4))
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[0][0], m3space.BasePoints[0][1].Add(m3space.Point{0, 3, 0}), m3space.Connection5))
+	triangleFiller.fill(MakeSegment(m3space.BasePoints[0][1], m3space.BasePoints[0][2].Add(m3space.Point{0, 0, 3}), m3space.Connection6))
 
 	w.DrawingElementsMap = triangleFiller.objMap
 	fmt.Println("Saved", len(w.DrawingElementsMap), "objects in world map.")

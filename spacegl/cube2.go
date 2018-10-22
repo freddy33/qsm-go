@@ -149,7 +149,7 @@ func DisplayCube2() {
 	previousTime := glfw.GetTime()
 
 	var pointsPos [4]m3space.Point
-	for i, p := range m3space.BasePoints {
+	for i, p := range m3space.BasePoints[0] {
 		pointsPos[i] = p.Mul(multiplier)
 	}
 

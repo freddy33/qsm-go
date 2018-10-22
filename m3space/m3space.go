@@ -10,7 +10,7 @@ const (
 	THREE = 3
 )
 
-var DEBUG = false
+var DEBUG = true
 
 type TickTime uint64
 
@@ -53,6 +53,7 @@ type EventOutgrowth struct {
 }
 
 type Space struct {
+	nodesMap    map[Point]*Node
 	nodes       []*Node
 	connections []*Connection
 	currentId   EventID
@@ -63,7 +64,8 @@ type Space struct {
 }
 
 var SpaceObj = Space{
-	make([]*Node, 0, 108),
+	make(map[Point]*Node),
+	make([]*Node, 0, 104),
 	make([]*Connection, 0, 500),
 	0,
 	make(map[EventID]*Event),
@@ -72,13 +74,9 @@ var SpaceObj = Space{
 	make([]SpaceDrawingElement, 0, 500),
 }
 
-func (s *Space) CreateStuff(max int64) {
+func (s *Space) CreateStuff(max int64, pyramidSize int64) {
 	s.max = max
 	s.createNodes()
-	pyramidSize := int64(s.max/THREE)/2 - 1
-	if pyramidSize <= 0 {
-		pyramidSize = 1
-	}
 	s.CreateEvent(Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
 	s.CreateEvent(Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
 	s.CreateEvent(Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
@@ -96,7 +94,8 @@ func (s *Space) ForwardTime() {
 						if otherNode == eg.node {
 							otherNode = c.N2
 						}
-						hasAlreadyEvent := false
+						// Roots cannot have outgrowth
+						hasAlreadyEvent := otherNode.IsRoot()
 						for _, eo := range otherNode.outgrowths {
 							if eo.event.id == evt.id {
 								hasAlreadyEvent = true
@@ -152,10 +151,9 @@ func (s *Space) CreateEvent(p Point, k EventColor) *Event {
 }
 
 func (s *Space) GetNode(p *Point) *Node {
-	for _, n := range s.nodes {
-		if *(n.point) == *p {
-			return n
-		}
+	n, ok := s.nodesMap[*p]
+	if ok {
+		return n
 	}
 	return nil
 }
@@ -168,6 +166,7 @@ func (s *Space) getOrCreateNode(p *Point) *Node {
 	n = &Node{}
 	n.point = p
 	s.nodes = append(s.nodes, n)
+	s.nodesMap[*p] = n
 	if p.IsMainPoint() {
 		s.createAndConnectBasePoints(n)
 	}
@@ -218,7 +217,7 @@ func (s *Space) createAndConnectBasePoints(n *Node) {
 		fmt.Println("Passing point to add base points", *(n.point), "is not a main point!")
 		return
 	}
-	for _, b := range BasePoints {
+	for _, b := range BasePoints[0] {
 		p2 := n.point.Add(b)
 		bpn := s.getOrCreateNode(&p2)
 		s.makeConnection(n, bpn)
@@ -226,11 +225,13 @@ func (s *Space) createAndConnectBasePoints(n *Node) {
 }
 
 func (s *Space) createNodes() *Node {
-	org := s.getOrCreateNode(&Origin)
 	maxByThree := int64(s.max / THREE)
 	if DEBUG {
 		fmt.Println("Max by three", maxByThree)
 	}
+	s.nodes = make([]*Node,0,3*(maxByThree*2)^3)
+	s.connections = make([]*Connection,0,5*(maxByThree*2)^3)
+	org := s.getOrCreateNode(&Origin)
 	for x := -maxByThree; x <= maxByThree; x++ {
 		for y := -maxByThree; y <= maxByThree; y++ {
 			for z := -maxByThree; z <= maxByThree; z++ {
@@ -239,6 +240,10 @@ func (s *Space) createNodes() *Node {
 			}
 		}
 	}
+	if DEBUG {
+		fmt.Println("Created",len(s.nodes),"nodes")
+	}
+
 	// All nodes that are not main with nil connections find good one
 	for _, node := range s.nodes {
 		if !node.point.IsMainPoint() && node.HasFreeConnections() {
@@ -251,6 +256,9 @@ func (s *Space) createNodes() *Node {
 				}
 			}
 		}
+	}
+	if DEBUG {
+		fmt.Println("Created",len(s.connections),"connections")
 	}
 
 	// Verify all connections done
