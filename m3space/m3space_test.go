@@ -167,7 +167,7 @@ func TestBasePointsRotation(t *testing.T) {
 
 	for k := -4; k < 6; k++ {
 		mapColumn := int(PosMod4(int64(k)))
-		fmt.Println("Checking map column",mapColumn,"from",k)
+		fmt.Println("Checking map column", mapColumn, "from", k)
 		assertSameTrio(t, BasePoints[NextMapping[0][mapColumn]], currentBasePoints[0])
 		assertSameTrio(t, BasePoints[NextMapping[1][mapColumn]], currentBasePoints[1])
 		assertSameTrio(t, BasePoints[NextMapping[2][mapColumn]], currentBasePoints[2])
@@ -190,13 +190,128 @@ func TestBasePointsRotation(t *testing.T) {
 	nbRun := 100
 	rdMax := int64(100000000000)
 	for i := 0; i < nbRun; i++ {
-		randomPoint := Point{randomInt64(rdMax)*3, randomInt64(rdMax)*3, randomInt64(rdMax)*3}
+		randomPoint := Point{randomInt64(rdMax) * 3, randomInt64(rdMax) * 3, randomInt64(rdMax) * 3}
 		assert.True(t, randomPoint.IsMainPoint(), "point %v should be main", randomPoint)
 		mod4Point := randomPoint.GetMod4Point()
 		mod4Val, ok := AllMod4Possible[mod4Point]
 		assert.True(t, ok, "Mod4 does not exists for %v mod4 point %v", randomPoint, mod4Point)
 		assert.Equal(t, randomPoint.CalculateMod4Value(), mod4Val, "Wrong Mod4 value for %v mod4 point %v", randomPoint, mod4Point)
 	}
+}
+
+func TestConnectionDetails(t *testing.T) {
+	DEBUG = true
+	for k, v := range AllConnectionsPossible {
+		assert.Equal(t, k, v.vector)
+		currentNumber := v.connNumber
+		sameNumber := 0
+		for _, nv := range AllConnectionsPossible {
+			if nv.connNumber == currentNumber {
+				sameNumber++
+				if nv.vector != v.vector {
+					assert.Equal(t, nv.vector.Neg(), v.vector, "Should have neg vector")
+					assert.Equal(t, !nv.connNeg, v.connNeg, "Should have opposite connNeg flag")
+				}
+			}
+		}
+		assert.Equal(t, 2, sameNumber, "Should have 2 with same conn number for %d", currentNumber)
+	}
+
+	// For any 2 close main points there should be a connection details if DS <= 3
+	min := int64(-5) // -5
+	max := int64(5)  // 5
+	for x := min; x < max; x++ {
+		for y := min; y < max; y++ {
+			for z := min; z < max; z++ {
+				mainPoint := Point{x, y, z}.Mul(3)
+				basePoints := BasePoints[mainPoint.GetMod4Value()]
+				for _, bp := range basePoints {
+
+					assertValidConnDetails(t, mainPoint, mainPoint.Add(bp), fmt.Sprint("Main Point", mainPoint, "base vector", bp))
+
+					nextMain := Origin
+					switch bp.X() {
+					case 0:
+						// Nothing out
+					case 1:
+						nextMain = mainPoint.Add(XFirst)
+					case -1:
+						nextMain = mainPoint.Sub(XFirst)
+					default:
+						assert.Fail(t, "There should not be a base point with x value %d", bp.X())
+					}
+					if nextMain != Origin {
+						// Find the base point on the other side ( the opposite 1 or -1 on X() )
+						nextBasePoints := BasePoints[nextMain.GetMod4Value()]
+						for _, nbp := range nextBasePoints {
+							if nbp.X() == -bp.X() {
+								assertValidConnDetails(t, mainPoint.Add(bp), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
+									"next point", nextMain, "mod4", mainPoint.GetMod4Value(),
+									"main base vector", bp, "next base vector", nbp))
+							}
+						}
+					}
+
+					nextMain = Origin
+					switch bp.Y() {
+					case 0:
+						// Nothing out
+					case 1:
+						nextMain = mainPoint.Add(YFirst)
+					case -1:
+						nextMain = mainPoint.Sub(YFirst)
+					default:
+						assert.Fail(t, "There should not be a base point with y value %d", bp.X())
+					}
+					if nextMain != Origin {
+						// Find the base point on the other side ( the opposite 1 or -1 on Y() )
+						nextBasePoints := BasePoints[nextMain.GetMod4Value()]
+						for _, nbp := range nextBasePoints {
+							if nbp.Y() == -bp.Y() {
+								assertValidConnDetails(t, mainPoint.Add(bp), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
+									"next point", nextMain, "mod4", mainPoint.GetMod4Value(),
+									"main base vector", bp, "next base vector", nbp))
+							}
+						}
+					}
+
+					nextMain = Origin
+					switch bp.Z() {
+					case 0:
+						// Nothing out
+					case 1:
+						nextMain = mainPoint.Add(ZFirst)
+					case -1:
+						nextMain = mainPoint.Sub(ZFirst)
+					default:
+						assert.Fail(t, "There should not be a base point with Z value %d", bp.X())
+					}
+					if nextMain != Origin {
+						// Find the base point on the other side ( the opposite 1 or -1 on Z() )
+						nextBasePoints := BasePoints[nextMain.GetMod4Value()]
+						for _, nbp := range nextBasePoints {
+							if nbp.Z() == -bp.Z() {
+								assertValidConnDetails(t, mainPoint.Add(bp), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
+									"next point", nextMain, "mod4", mainPoint.GetMod4Value(),
+									"main base vector", bp, "next base vector", nbp))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
+
+func assertValidConnDetails(t *testing.T, p1, p2 Point, msg string) {
+	connDetails1 := GetConnectionDetails(p1, p2)
+	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
+	assert.Equal(t, p2.Sub(p1), connDetails1.vector, msg)
+
+	connDetails2 := GetConnectionDetails(p2, p1)
+	assert.NotEqual(t, EmptyConnDetails, connDetails2, msg)
+	assert.Equal(t, p1.Sub(p2), connDetails2.vector, msg)
 }
 
 func randomInt64(max int64) int64 {

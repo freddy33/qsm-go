@@ -13,16 +13,25 @@ var ZFirst = Point{0, 0, THREE}
 var BasePoints = [4][3]Point{{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}},}
 var BasePoints2 = [4][3]Point{{{1, 1, 0}, {0, -1, -1}, {-1, 0, 1}},}
 var NextMapping = [3][4]int{
-	{0,1,2,3},
-	{0,2,1,3},
-	{0,1,3,2},
+	{0, 1, 2, 3},
+	{0, 2, 1, 3},
+	{0, 1, 3, 2},
 }
 var NextMapping2 = [3][4]int{
-	{0,1,2,3},
-	{0,1,3,2},
-	{0,3,1,2},
+	{0, 1, 2, 3},
+	{0, 1, 3, 2},
+	{0, 3, 1, 2},
 }
 var AllMod4Possible = make(map[Point]int)
+var AllConnectionsPossible = make(map[Point]ConnectionDetails)
+
+type ConnectionDetails struct {
+	vector     Point
+	connNumber uint8
+	connNeg    bool
+}
+
+var EmptyConnDetails = ConnectionDetails{Origin, 0, false}
 
 func init() {
 	for i := 1; i < 4; i++ {
@@ -34,20 +43,72 @@ func init() {
 	for x := int64(0); x < 4; x++ {
 		for y := int64(0); y < 4; y++ {
 			for z := int64(0); z < 4; z++ {
-				p := Point{3*x, 3*y, 3*z}
+				p := Point{x, y, z}.Mul(3)
 				AllMod4Possible[p.GetMod4Point()] = p.CalculateMod4Value()
 			}
 		}
 	}
+	connNumber := uint8(0)
+	// All combi of -1, 0, 1 except 0,0,0
+	for x := int64(1); x >= -1; x-- {
+		for y := int64(1); y >= -1; y-- {
+			for z := int64(1); z >= -1; z-- {
+				unit := Point{x, y, z}
+				if DS(&Origin, &unit) != 0 {
+					addConnDetail(&connNumber, unit)
+				}
+				// TODO: FInd oif there is a way to avoid them?
+				// Add the DS 5
+				if DS(&Origin, &unit) == 2 {
+					for i, v := range unit {
+						if v != 0 {
+							ds5 := unit
+							ds5[i] = v*2
+							addConnDetail(&connNumber, ds5)
+						}
+					}
+ 				}
+			}
+		}
+	}
+	for i := 0; i < 4; i++ {
+		for j := 0; j < 3; j++ {
+			addConnDetail(&connNumber, BasePoints[i][j])
+		}
+	}
+	fmt.Println("reach connNumber=", connNumber)
+}
+
+func addConnDetail(connNumber *uint8, bp Point) {
+	cd, ok := AllConnectionsPossible[bp]
+	if !ok {
+		cd, ok = AllConnectionsPossible[bp.Neg()]
+		if !ok {
+			cd = ConnectionDetails{bp, *connNumber, false,}
+			*connNumber++
+		} else {
+			cd = ConnectionDetails{bp, cd.connNumber, true,}
+		}
+		AllConnectionsPossible[bp] = cd
+	}
+}
+
+func GetConnectionDetails(p1, p2 Point) ConnectionDetails {
+	vector := p2.Sub(p1)
+	cd, ok := AllConnectionsPossible[vector]
+	if !ok {
+		return EmptyConnDetails
+	}
+	return cd
 }
 
 func PosMod4(i int64) int64 {
-	return i&0x0000000000000003
+	return i & 0x0000000000000003
 }
 
 func (p Point) GetMod4Point() Point {
 	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Mod4 on non main point %v!",p))
+		panic(fmt.Sprintf("cannot ask for Mod4 on non main point %v!", p))
 	}
 	return Point{PosMod4(p[0] / 3), PosMod4(p[1] / 3), PosMod4(p[2] / 3)}
 }
@@ -57,35 +118,38 @@ func (p Point) GetMod4Value() int {
 }
 
 func (p Point) CalculateMod4Value() int {
+	return int(PosMod4(p[0]/3 + p[1]/3 + p[2]/3))
+	/*
 	pMod4 := p.GetMod4Point()
 	xMod4 := NextMapping[0][int(pMod4[0])]
 	// Find in Y line the k matching xMod4
 	inYK := -1
-	for k := 0; k<4;k++ {
+	for k := 0; k < 4; k++ {
 		if NextMapping[1][k] == xMod4 {
 			inYK = k
 			break
 		}
 	}
 	if inYK == -1 {
-		fmt.Println("Something went really wrong trying to find x mod 4",xMod4,"from",p,"pMod4",pMod4)
+		fmt.Println("Something went really wrong trying to find x mod 4", xMod4, "from", p, "pMod4", pMod4)
 		return -1
 	}
 	yMod4 := NextMapping[1][int((pMod4[1]+int64(inYK))%4)]
 	// Find in Z line the k matching yMod4
 	inZK := -1
-	for k := 0; k<4;k++ {
+	for k := 0; k < 4; k++ {
 		if NextMapping[2][k] == yMod4 {
 			inZK = k
 			break
 		}
 	}
 	if inZK == -1 {
-		fmt.Println("Something went really wrong trying to find y mod 4",yMod4,"from",p,"pMod4",pMod4)
+		fmt.Println("Something went really wrong trying to find y mod 4", yMod4, "from", p, "pMod4", pMod4)
 		return -1
 	}
 	finalMod4 := NextMapping[2][int((pMod4[2]+int64(inZK))%4)]
 	return finalMod4
+	*/
 }
 
 func Abs(i int64) int64 {
