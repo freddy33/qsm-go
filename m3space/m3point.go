@@ -28,7 +28,7 @@ func init() {
 		for y := int64(0); y < 4; y++ {
 			for z := int64(0); z < 4; z++ {
 				p := Point{3*x, 3*y, 3*z}
-				AllMod4Possible[p.GetMod4Point()] = p.GetMod4Value()
+				AllMod4Possible[p.GetMod4Point()] = p.CalculateMod4Value()
 			}
 		}
 	}
@@ -46,6 +46,10 @@ func (p Point) GetMod4Point() Point {
 }
 
 func (p Point) GetMod4Value() int {
+	return AllMod4Possible[p.GetMod4Point()]
+}
+
+func (p Point) CalculateMod4Value() int {
 	pMod4 := p.GetMod4Point()
 	xMod4 := NextMapping[0][int(pMod4[0])]
 	// Find in Y line the k matching xMod4

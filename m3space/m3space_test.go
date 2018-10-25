@@ -5,12 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"fmt"
-	"time"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func TestPosMod4(t *testing.T) {
 	DEBUG = true
@@ -172,14 +167,14 @@ func TestBasePointsRotation(t *testing.T) {
 	}
 
 	nbRun := 100
-	rdMax := int64(10)
+	rdMax := int64(100000000000)
 	for i := 0; i < nbRun; i++ {
 		randomPoint := Point{randomInt64(rdMax)*3, randomInt64(rdMax)*3, randomInt64(rdMax)*3}
 		assert.True(t, randomPoint.IsMainPoint(), "point %v should be main", randomPoint)
 		mod4Point := randomPoint.GetMod4Point()
 		mod4Val, ok := AllMod4Possible[mod4Point]
 		assert.True(t, ok, "Mod4 does not exists for %v mod4 point %v", randomPoint, mod4Point)
-		assert.Equal(t, randomPoint.GetMod4Value(), mod4Val, "Wrong Mod4 value for %v mod4 point %v", randomPoint, mod4Point)
+		assert.Equal(t, randomPoint.CalculateMod4Value(), mod4Val, "Wrong Mod4 value for %v mod4 point %v", randomPoint, mod4Point)
 	}
 }
 
