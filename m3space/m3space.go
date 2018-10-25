@@ -217,7 +217,7 @@ func (s *Space) createAndConnectBasePoints(n *Node) {
 		fmt.Println("Passing point to add base points", *(n.point), "is not a main point!")
 		return
 	}
-	for _, b := range BasePoints[0] {
+	for _, b := range BasePoints[n.point.GetMod4Value()] {
 		p2 := n.point.Add(b)
 		bpn := s.getOrCreateNode(&p2)
 		s.makeConnection(n, bpn)
@@ -247,6 +247,7 @@ func (s *Space) createNodes() *Node {
 	// All nodes that are not main with nil connections find good one
 	for _, node := range s.nodes {
 		if !node.point.IsMainPoint() && node.HasFreeConnections() {
+
 			for _, other := range s.nodes {
 				if node != other && !other.point.IsMainPoint() && other.HasFreeConnections() && DS(other.point, node.point) == 3 {
 					s.makeConnection(node, other)

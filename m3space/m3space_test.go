@@ -202,15 +202,15 @@ func TestBasePointsRotation(t *testing.T) {
 func TestConnectionDetails(t *testing.T) {
 	DEBUG = true
 	for k, v := range AllConnectionsPossible {
-		assert.Equal(t, k, v.vector)
-		currentNumber := v.connNumber
+		assert.Equal(t, k, v.Vector)
+		currentNumber := v.ConnNumber
 		sameNumber := 0
 		for _, nv := range AllConnectionsPossible {
-			if nv.connNumber == currentNumber {
+			if nv.ConnNumber == currentNumber {
 				sameNumber++
-				if nv.vector != v.vector {
-					assert.Equal(t, nv.vector.Neg(), v.vector, "Should have neg vector")
-					assert.Equal(t, !nv.connNeg, v.connNeg, "Should have opposite connNeg flag")
+				if nv.Vector != v.Vector {
+					assert.Equal(t, nv.Vector.Neg(), v.Vector, "Should have neg vector")
+					assert.Equal(t, !nv.ConnNeg, v.ConnNeg, "Should have opposite connNeg flag")
 				}
 			}
 		}
@@ -307,11 +307,11 @@ func TestConnectionDetails(t *testing.T) {
 func assertValidConnDetails(t *testing.T, p1, p2 Point, msg string) {
 	connDetails1 := GetConnectionDetails(p1, p2)
 	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
-	assert.Equal(t, p2.Sub(p1), connDetails1.vector, msg)
+	assert.Equal(t, p2.Sub(p1), connDetails1.Vector, msg)
 
 	connDetails2 := GetConnectionDetails(p2, p1)
 	assert.NotEqual(t, EmptyConnDetails, connDetails2, msg)
-	assert.Equal(t, p1.Sub(p2), connDetails2.vector, msg)
+	assert.Equal(t, p1.Sub(p2), connDetails2.Vector, msg)
 }
 
 func randomInt64(max int64) int64 {

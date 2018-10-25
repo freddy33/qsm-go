@@ -28,7 +28,7 @@ const (
 // QSM DrawingElementsMap const
 const (
 	nodes       = 2
-	connections = 6
+	connections = 25
 	axes        = 3
 )
 
@@ -151,12 +151,13 @@ func (w *World) CreateObjects() int {
 	}
 	triangleFiller.fill(MakeSphere(m3space.NodeEmpty))
 	triangleFiller.fill(MakeSphere(m3space.NodeActive))
-	for i, bp := range m3space.BasePoints[0] {
-		triangleFiller.fill(MakeSegment(m3space.Origin, bp, m3space.ObjectType(int(m3space.Connection1)+i)))
+	connDone := make(map[uint8]bool)
+	for _, cd := range m3space.AllConnectionsPossible {
+		if !cd.ConnNeg && !connDone[cd.ConnNumber] {
+			triangleFiller.fill(MakeSegment(m3space.Origin, cd.Vector, m3space.ObjectType(uint8(m3space.Connection00)+cd.ConnNumber)))
+			connDone[cd.ConnNumber] = true
+		}
 	}
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[0][0], m3space.BasePoints[0][2].Add(m3space.Point{3, 0, 0}), m3space.Connection4))
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[0][0], m3space.BasePoints[0][1].Add(m3space.Point{0, 3, 0}), m3space.Connection5))
-	triangleFiller.fill(MakeSegment(m3space.BasePoints[0][1], m3space.BasePoints[0][2].Add(m3space.Point{0, 0, 3}), m3space.Connection6))
 
 	w.DrawingElementsMap = triangleFiller.objMap
 	fmt.Println("Saved", len(w.DrawingElementsMap), "objects in world map.")

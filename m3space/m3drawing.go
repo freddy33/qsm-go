@@ -17,23 +17,6 @@ const (
 	NodeEmpty
 	NodeActive
 	Connection00
-	Connection01
-	Connection02
-
-	Connection10
-	Connection11
-	Connection12
-
-	Connection20
-	Connection21
-	Connection22
-
-	Connection30
-	Connection31
-	Connection32
-
-	ConnectionPNN
-	ConnectionNNP
 )
 
 type SpaceDrawingElement interface {
@@ -139,7 +122,7 @@ func (ot ObjectType) IsNode() bool {
 }
 
 func (ot ObjectType) IsConnection() bool {
-	return int8(ot) >= int8(Connection00) && int8(ot) <= int8(ConnectionNNP)
+	return int8(ot) >= int8(Connection00)
 }
 
 func (sdc *SpaceDrawingColor) hasColor(c EventColor) bool {
@@ -315,33 +298,11 @@ func MakeConnectionDrawingElement(conn *Connection) *ConnectionDrawingElement {
 	}
 	p1 := n1.point
 	p2 := n2.point
-	bv := p2.Sub(*p1)
-	if p1.IsMainPoint() {
-		for i, bp := range BasePoints[0] {
-			if bp[0] == bv[0] && bp[1] == bv[1] && bp[2] == bv[2] {
-				return &ConnectionDrawingElement{ObjectType(int(Connection00) + i), sdc, p1, p2,}
-			}
-		}
-		fmt.Println("Not possible! Connection from", p1, p2, "has p1 main and make vector", bv, "which is not part of any base point vector!")
-		return nil
-	} else if p2.IsMainPoint() {
-		fmt.Println("Not possible! Connection from", p1, p2, "has P2 has main point which is not possible!")
-		return nil
-	} else {
-		if bv[0] == 1 {
-			if bv[1] != -1 || bv[2] != -1 {
-				fmt.Println("Not possible! Connection from", p1, p2, "make vector", bv, "which is a DS=3 connection with X value 1 andr Y or Z value not neg 1!")
-				return nil
-			}
-			return &ConnectionDrawingElement{ConnectionPNN, sdc, p1, p2,}
-		} else {
-			if bv[0] != -1 || bv[1] != 1 || bv[2] != 1 {
-				fmt.Println("Not possible! Connection from", p1, p2, "make vector", bv, "which is a DS=3 connection with X not value 1 so should be (-1,1,1)!")
-				return nil
-			}
-			return &ConnectionDrawingElement{ConnectionNNP, sdc, p1, p2,}
-		}
+	cd := GetConnectionDetails(*p1, *p2)
+	if cd.ConnNeg {
+		return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, p2, p1,}
 	}
+	return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, p1, p2,}
 }
 
 // NodeDrawingElement functions

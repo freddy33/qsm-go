@@ -26,9 +26,9 @@ var AllMod4Possible = make(map[Point]int)
 var AllConnectionsPossible = make(map[Point]ConnectionDetails)
 
 type ConnectionDetails struct {
-	vector     Point
-	connNumber uint8
-	connNeg    bool
+	Vector     Point
+	ConnNumber uint8
+	ConnNeg    bool
 }
 
 var EmptyConnDetails = ConnectionDetails{Origin, 0, false}
@@ -63,11 +63,11 @@ func init() {
 					for i, v := range unit {
 						if v != 0 {
 							ds5 := unit
-							ds5[i] = v*2
+							ds5[i] = v * 2
 							addConnDetail(&connNumber, ds5)
 						}
 					}
- 				}
+				}
 			}
 		}
 	}
@@ -87,7 +87,7 @@ func addConnDetail(connNumber *uint8, bp Point) {
 			cd = ConnectionDetails{bp, *connNumber, false,}
 			*connNumber++
 		} else {
-			cd = ConnectionDetails{bp, cd.connNumber, true,}
+			cd = ConnectionDetails{bp, cd.ConnNumber, true,}
 		}
 		AllConnectionsPossible[bp] = cd
 	}
@@ -118,8 +118,13 @@ func (p Point) GetMod4Value() int {
 }
 
 func (p Point) CalculateMod4Value() int {
+	return p.calculateMod4ValueByNextMapping()
+}
+func (p Point) calculateMod4ValueBySum() int {
 	return int(PosMod4(p[0]/3 + p[1]/3 + p[2]/3))
-	/*
+}
+
+func (p Point) calculateMod4ValueByNextMapping() int {
 	pMod4 := p.GetMod4Point()
 	xMod4 := NextMapping[0][int(pMod4[0])]
 	// Find in Y line the k matching xMod4
@@ -149,7 +154,7 @@ func (p Point) CalculateMod4Value() int {
 	}
 	finalMod4 := NextMapping[2][int((pMod4[2]+int64(inZK))%4)]
 	return finalMod4
-	*/
+
 }
 
 func Abs(i int64) int64 {
