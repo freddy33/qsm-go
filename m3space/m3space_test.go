@@ -4,7 +4,28 @@ import (
 	"testing"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
+	"fmt"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+func TestPosMod4(t *testing.T) {
+	DEBUG = true
+	assert.Equal(t, int64(1), PosMod4(5))
+	assert.Equal(t, int64(0), PosMod4(4))
+	assert.Equal(t, int64(3), PosMod4(3))
+	assert.Equal(t, int64(2), PosMod4(2))
+	assert.Equal(t, int64(1), PosMod4(1))
+	assert.Equal(t, int64(0), PosMod4(0))
+	assert.Equal(t, int64(3), PosMod4(-1))
+	assert.Equal(t, int64(2), PosMod4(-2))
+	assert.Equal(t, int64(1), PosMod4(-3))
+	assert.Equal(t, int64(0), PosMod4(-4))
+	assert.Equal(t, int64(3), PosMod4(-5))
+}
 
 func TestPoint(t *testing.T) {
 	DEBUG = true
@@ -15,39 +36,45 @@ func TestPoint(t *testing.T) {
 
 	// Test equal
 	assert.Equal(t, Orig, Origin)
-	assert.Equal(t, OneTwoThree, Point{1, 2, 3})
-	assert.Equal(t, P, Point{17, 11, 13})
+	assert.Equal(t, Point{1, 2, 3}, OneTwoThree)
+	assert.Equal(t, Point{17, 11, 13}, P)
 
 	// Test DS
-	assert.Equal(t, DS(&OneTwoThree, &Point{0, 1, 2}), int64(3))
+	assert.Equal(t, int64(3), DS(&OneTwoThree, &Point{0, 1, 2}))
 	// Make sure OneTwoThree did not change
-	assert.Equal(t, OneTwoThree, Point{1, 2, 3})
+	assert.Equal(t, Point{1, 2, 3}, OneTwoThree)
 
-	assert.Equal(t, DS(&OneTwoThree, &Point{-1, 2, 3}), int64(4))
-	assert.Equal(t, DS(&OneTwoThree, &Point{1, -2, 3}), int64(16))
-	assert.Equal(t, DS(&OneTwoThree, &Point{1, 2, -3}), int64(36))
+	assert.Equal(t, int64(4), DS(&OneTwoThree, &Point{-1, 2, 3}))
+	assert.Equal(t, int64(16), DS(&OneTwoThree, &Point{1, -2, 3}))
+	assert.Equal(t, int64(36), DS(&OneTwoThree, &Point{1, 2, -3}))
 
 	// Test Add
-	assert.Equal(t, Orig.Add(XFirst), Point{3, 0, 0})
+	assert.Equal(t, Point{3, 0, 0}, Orig.Add(XFirst))
 	// Make sure orig did not change
 	assert.Equal(t, Orig, Origin)
-	assert.Equal(t, Orig.Add(YFirst), Point{0, 3, 0})
-	assert.Equal(t, Orig.Add(ZFirst), Point{0, 0, 3})
-	assert.Equal(t, P.Add(OneTwoThree), Point{18, 13, 16})
+	assert.Equal(t, Point{0, 3, 0}, Orig.Add(YFirst))
+	assert.Equal(t, Point{0, 0, 3}, Orig.Add(ZFirst))
+	assert.Equal(t, Point{18, 13, 16}, P.Add(OneTwoThree))
 	// Make sure P and OneTwoThree did not change
-	assert.Equal(t, P, Point{17, 11, 13})
-	assert.Equal(t, OneTwoThree, Point{1, 2, 3})
+	assert.Equal(t, Point{17, 11, 13}, P)
+	assert.Equal(t, Point{1, 2, 3}, OneTwoThree)
 
 	// Test Sub
-	assert.Equal(t, Orig.Sub(XFirst), Point{-3, 0, 0})
+	assert.Equal(t, Point{-3, 0, 0}, Orig.Sub(XFirst))
 	// Make sure orig did not change
 	assert.Equal(t, Orig, Origin)
-	assert.Equal(t, Orig.Sub(YFirst), Point{0, -3, 0})
-	assert.Equal(t, Orig.Sub(ZFirst), Point{0, 0, -3})
-	assert.Equal(t, P.Sub(OneTwoThree), Point{16, 9, 10})
+
+	assert.Equal(t, Point{0, -3, 0}, Orig.Sub(YFirst))
+	assert.Equal(t, Point{0, 0, -3}, Orig.Sub(ZFirst))
+	assert.Equal(t, Point{16, 9, 10}, P.Sub(OneTwoThree))
 	// Make sure P and OneTwoThree did not change
-	assert.Equal(t, P, Point{17, 11, 13})
-	assert.Equal(t, OneTwoThree, Point{1, 2, 3})
+	assert.Equal(t, Point{17, 11, 13}, P)
+	assert.Equal(t, Point{1, 2, 3}, OneTwoThree)
+
+	// Test Neg
+	assert.Equal(t, Point{-1, -2, -3}, OneTwoThree.Neg())
+	// Make sure OneTwoThree did not change
+	assert.Equal(t, Point{1, 2, 3}, OneTwoThree)
 
 	// Test Mul
 	assert.Equal(t, OneTwoThree.Mul(2), Point{2, 4, 6})
@@ -67,8 +94,11 @@ func TestPoint(t *testing.T) {
 	nbRun := 100
 	rdMax := int64(100000000)
 	for i := 0; i < nbRun; i++ {
-		randomPoint := Point{rand.Int63n(rdMax), rand.Int63n(rdMax), rand.Int63n(rdMax)}
+		randomPoint := Point{randomInt64(rdMax), randomInt64(rdMax), randomInt64(rdMax)}
+		assert.Equal(t, Orig.Sub(randomPoint), randomPoint.Neg())
+		assert.Equal(t, randomPoint.Sub(randomPoint.Add(OneTwoThree)), OneTwoThree.Neg())
 		assert.Equal(t, randomPoint.Sub(randomPoint.Add(OneTwoThree)), OneTwoThree.Mul(-1))
+		assert.Equal(t, randomPoint.Add(randomPoint.Neg()), Orig)
 		assert.Equal(t, randomPoint.Add(randomPoint.Mul(-1)), Orig)
 
 		assert.Equal(t, randomPoint.PlusX().NegX(), randomPoint)
@@ -128,10 +158,12 @@ func TestBasePointsRotation(t *testing.T) {
 		currentBasePoints[axe][2] = BasePoints[0][2]
 	}
 
-	for k := 0; k < 4; k++ {
-		assertSameTrio(t, BasePoints[NextMapping[0][k]], currentBasePoints[0])
-		assertSameTrio(t, BasePoints[NextMapping[1][k]], currentBasePoints[1])
-		assertSameTrio(t, BasePoints[NextMapping[2][k]], currentBasePoints[2])
+	for k := -4; k < 6; k++ {
+		mapColumn := int(PosMod4(int64(k)))
+		fmt.Println("Checking map column",mapColumn,"from",k)
+		assertSameTrio(t, BasePoints[NextMapping[0][mapColumn]], currentBasePoints[0])
+		assertSameTrio(t, BasePoints[NextMapping[1][mapColumn]], currentBasePoints[1])
+		assertSameTrio(t, BasePoints[NextMapping[2][mapColumn]], currentBasePoints[2])
 		for i := 0; i < 3; i++ {
 			currentBasePoints[0][i] = currentBasePoints[0][i].PlusX()
 			currentBasePoints[1][i] = currentBasePoints[1][i].PlusY()
@@ -142,13 +174,21 @@ func TestBasePointsRotation(t *testing.T) {
 	nbRun := 100
 	rdMax := int64(10)
 	for i := 0; i < nbRun; i++ {
-		randomPoint := Point{rand.Int63n(rdMax)*3, rand.Int63n(rdMax)*3, rand.Int63n(rdMax)*3}
+		randomPoint := Point{randomInt64(rdMax)*3, randomInt64(rdMax)*3, randomInt64(rdMax)*3}
 		assert.True(t, randomPoint.IsMainPoint(), "point %v should be main", randomPoint)
 		mod4Point := randomPoint.GetMod4Point()
 		mod4Val, ok := AllMod4Possible[mod4Point]
 		assert.True(t, ok, "Mod4 does not exists for %v mod4 point %v", randomPoint, mod4Point)
 		assert.Equal(t, randomPoint.GetMod4Value(), mod4Val, "Wrong Mod4 value for %v mod4 point %v", randomPoint, mod4Point)
 	}
+}
+
+func randomInt64(max int64) int64 {
+	r := rand.Int63n(max)
+	if rand.Float32() < 0.5 {
+		return -r
+	}
+	return r
 }
 
 // Verify the 2 arrays are actually identical just not particular order

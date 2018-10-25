@@ -34,16 +34,20 @@ func init() {
 	}
 }
 
+func PosMod4(i int64) int64 {
+	return i&0x0000000000000003
+}
+
 func (p Point) GetMod4Point() Point {
 	if !p.IsMainPoint() {
 		panic(fmt.Sprintf("cannot ask for Mod4 on non main point %v!",p))
 	}
-	return Point{(p[0]/3)%4, (p[1]/3)%4, (p[2]/3)%4}
+	return Point{PosMod4(p[0] / 3), PosMod4(p[1] / 3), PosMod4(p[2] / 3)}
 }
 
 func (p Point) GetMod4Value() int {
 	pMod4 := p.GetMod4Point()
-	xMod4 := NextMapping[0][int(pMod4[0]%4)]
+	xMod4 := NextMapping[0][int(pMod4[0])]
 	// Find in Y line the k matching xMod4
 	inYK := -1
 	for k := 0; k<4;k++ {
@@ -102,6 +106,10 @@ func (p1 Point) Add(p2 Point) Point {
 
 func (p1 Point) Sub(p2 Point) Point {
 	return Point{p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]}
+}
+
+func (p Point) Neg() Point {
+	return Point{-p[0], -p[1], -p[2]}
 }
 
 // Positive PI/2 rotation on X
