@@ -127,30 +127,42 @@ func TestBasePoints(t *testing.T) {
 	for i := 1; i < 4; i++ {
 		for j := 0; j < 3; j++ {
 			assert.Equal(t, BasePoints[i][j], BasePoints[i-1][j].PlusX(), "Something wrong with base points %d %d", i, j)
+			assert.Equal(t, BasePoints2[i][j], BasePoints2[i-1][j].PlusX(), "Something wrong with base points 2 %d %d", i, j)
 		}
 	}
 
 	for i := 0; i < 4; i++ {
 		BackToOrig := Origin
+		BackToOrig2 := Origin
 		for j := 0; j < 3; j++ {
 			assert.Equal(t, int64(2), DS(&Origin, &BasePoints[i][j]), "Something wrong with size of base point %d %d", i, j)
+			assert.Equal(t, int64(2), DS(&Origin, &BasePoints2[i][j]), "Something wrong with size of base point 2 %d %d", i, j)
 			for c := 0; c < 3; c++ {
 				abs := Abs(BasePoints[i][j][c])
 				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of base point %d %d %d = %d", i, j, c, BasePoints[i][j][c])
+				abs = Abs(BasePoints2[i][j][c])
+				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of base point 2 %d %d %d = %d", i, j, c, BasePoints[i][j][c])
 			}
 			BackToOrig = BackToOrig.Add(BasePoints[i][j])
+			BackToOrig2 = BackToOrig2.Add(BasePoints2[i][j])
 		}
 		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of base points %d", i)
+		assert.Equal(t, Origin, BackToOrig2, "Something wrong with sum of base points 2 %d", i)
 	}
 }
 
 func TestBasePointsRotation(t *testing.T) {
 	// For each axe (first index), the three base point evolves with plusX, plusY and plusZ
 	currentBasePoints := [3][3]Point{}
+	currentBasePoints2 := [3][3]Point{}
 	for axe := 0; axe < 3; axe++ {
 		currentBasePoints[axe][0] = BasePoints[0][0]
 		currentBasePoints[axe][1] = BasePoints[0][1]
 		currentBasePoints[axe][2] = BasePoints[0][2]
+
+		currentBasePoints2[axe][0] = BasePoints2[0][0]
+		currentBasePoints2[axe][1] = BasePoints2[0][1]
+		currentBasePoints2[axe][2] = BasePoints2[0][2]
 	}
 
 	for k := -4; k < 6; k++ {
@@ -159,10 +171,19 @@ func TestBasePointsRotation(t *testing.T) {
 		assertSameTrio(t, BasePoints[NextMapping[0][mapColumn]], currentBasePoints[0])
 		assertSameTrio(t, BasePoints[NextMapping[1][mapColumn]], currentBasePoints[1])
 		assertSameTrio(t, BasePoints[NextMapping[2][mapColumn]], currentBasePoints[2])
+
+		assertSameTrio(t, BasePoints2[NextMapping2[0][mapColumn]], currentBasePoints2[0])
+		assertSameTrio(t, BasePoints2[NextMapping2[1][mapColumn]], currentBasePoints2[1])
+		assertSameTrio(t, BasePoints2[NextMapping2[2][mapColumn]], currentBasePoints2[2])
+
 		for i := 0; i < 3; i++ {
 			currentBasePoints[0][i] = currentBasePoints[0][i].PlusX()
 			currentBasePoints[1][i] = currentBasePoints[1][i].PlusY()
 			currentBasePoints[2][i] = currentBasePoints[2][i].PlusZ()
+
+			currentBasePoints2[0][i] = currentBasePoints2[0][i].PlusX()
+			currentBasePoints2[1][i] = currentBasePoints2[1][i].PlusY()
+			currentBasePoints2[2][i] = currentBasePoints2[2][i].PlusZ()
 		}
 	}
 

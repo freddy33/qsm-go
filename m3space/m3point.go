@@ -11,10 +11,16 @@ var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
 var BasePoints = [4][3]Point{{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}},}
+var BasePoints2 = [4][3]Point{{{1, 1, 0}, {0, -1, -1}, {-1, 0, 1}},}
 var NextMapping = [3][4]int{
 	{0,1,2,3},
 	{0,2,1,3},
 	{0,1,3,2},
+}
+var NextMapping2 = [3][4]int{
+	{0,1,2,3},
+	{0,1,3,2},
+	{0,3,1,2},
 }
 var AllMod4Possible = make(map[Point]int)
 
@@ -22,6 +28,7 @@ func init() {
 	for i := 1; i < 4; i++ {
 		for j := 0; j < 3; j++ {
 			BasePoints[i][j] = BasePoints[i-1][j].PlusX()
+			BasePoints2[i][j] = BasePoints2[i-1][j].PlusX()
 		}
 	}
 	for x := int64(0); x < 4; x++ {
