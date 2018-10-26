@@ -187,10 +187,27 @@ func (s *Space) makeConnection(n1, n2 *Node) *Connection {
 		return nil
 	}
 	d := DS(n1.point, n2.point)
-	if !(d == 2 || d == 3) {
-		fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "that are not 2 or 3 DS away!")
+	if !(d == 1 || d == 2 || d == 3 || d == 5) {
+		fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "that are not 1, 2, 3 or 5 DS away!")
 		return nil
 	}
+	// Verify not already connected
+	for i := 0; i < THREE; i++ {
+		if n1.connections[i] != nil && (n1.connections[i].N1 == n2 || n1.connections[i].N2 == n2) {
+			if DEBUG {
+				fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "already connected!")
+			}
+			return nil
+		}
+		if n2.connections[i] != nil && (n2.connections[i].N1 == n1 || n2.connections[i].N2 == n1) {
+			if DEBUG {
+				fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "already connected!")
+			}
+			return nil
+		}
+	}
+
+	// All good create connection
 	c := &Connection{n1, n2}
 	s.connections = append(s.connections, c)
 	n1done := false
@@ -212,15 +229,15 @@ func (s *Space) makeConnection(n1, n2 *Node) *Connection {
 	return c
 }
 
-func (s *Space) createAndConnectBasePoints(n *Node) {
-	if !n.point.IsMainPoint() {
-		fmt.Println("Passing point to add base points", *(n.point), "is not a main point!")
+func (s *Space) createAndConnectBasePoints(node *Node) {
+	if !node.point.IsMainPoint() {
+		fmt.Println("Passing point to add base points", *(node.point), "is not a main point!")
 		return
 	}
-	for _, b := range BasePoints[n.point.GetMod4Value()] {
-		p2 := n.point.Add(b)
-		bpn := s.getOrCreateNode(&p2)
-		s.makeConnection(n, bpn)
+	for _, connVector := range MainConnectingVectors[node.point.GetMod4Value()] {
+		p2 := node.point.Add(connVector)
+		nextNode := s.getOrCreateNode(&p2)
+		s.makeConnection(node, nextNode)
 	}
 }
 
@@ -247,13 +264,33 @@ func (s *Space) createNodes() *Node {
 	// All nodes that are not main with nil connections find good one
 	for _, node := range s.nodes {
 		if !node.point.IsMainPoint() && node.HasFreeConnections() {
-
-			for _, other := range s.nodes {
-				if node != other && !other.point.IsMainPoint() && other.HasFreeConnections() && DS(other.point, node.point) == 3 {
-					s.makeConnection(node, other)
+			// Find main point attached to it
+			var mainPointNode *Node
+			for _, conn := range node.connections {
+				if conn != nil {
+					if conn.N1.point.IsMainPoint() {
+						mainPointNode = conn.N1
+						break
+					}
+					if conn.N2.point.IsMainPoint() {
+						mainPointNode = conn.N2
+						break
+					}
 				}
-				if !node.HasFreeConnections() {
-					break
+			}
+			if mainPointNode == nil {
+				fmt.Println("Every node is connected to at least one main point! Why",*node,"is not?")
+				// Should be panic!
+			} else {
+				connVector := node.point.Sub(*mainPointNode.point)
+				nextPoints := getNextPoints(*mainPointNode.point, connVector)
+				for _, np := range nextPoints {
+					if !np.IsOutBorder(s.max) {
+						s.makeConnection(node, s.GetNode(&np))
+					}
+					if !node.HasFreeConnections() {
+						break
+					}
 				}
 			}
 		}

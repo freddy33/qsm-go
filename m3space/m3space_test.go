@@ -118,16 +118,16 @@ func TestPoint(t *testing.T) {
 
 func TestBasePoints(t *testing.T) {
 	DEBUG = true
-	assert.Equal(t, BasePoints[0][0], Point{1, 1, 0})
-	assert.Equal(t, BasePoints[0][1], Point{0, -1, 1})
-	assert.Equal(t, BasePoints[0][1], BasePoints[0][0].PlusY().PlusX().PlusX())
-	assert.Equal(t, BasePoints[0][2], Point{-1, 0, -1})
-	assert.Equal(t, BasePoints[0][2], BasePoints[0][0].PlusX().PlusY().PlusY())
+	assert.Equal(t, MainConnectingVectors[0][0], Point{1, 1, 0})
+	assert.Equal(t, MainConnectingVectors[0][1], Point{0, -1, 1})
+	assert.Equal(t, MainConnectingVectors[0][1], MainConnectingVectors[0][0].PlusY().PlusX().PlusX())
+	assert.Equal(t, MainConnectingVectors[0][2], Point{-1, 0, -1})
+	assert.Equal(t, MainConnectingVectors[0][2], MainConnectingVectors[0][0].PlusX().PlusY().PlusY())
 
 	for i := 1; i < 4; i++ {
 		for j := 0; j < 3; j++ {
-			assert.Equal(t, BasePoints[i][j], BasePoints[i-1][j].PlusX(), "Something wrong with base points %d %d", i, j)
-			assert.Equal(t, BasePoints2[i][j], BasePoints2[i-1][j].PlusX(), "Something wrong with base points 2 %d %d", i, j)
+			assert.Equal(t, MainConnectingVectors[i][j], MainConnectingVectors[i-1][j].PlusX(), "Something wrong with connecting vectors %d %d", i, j)
+			assert.Equal(t, MainConnectingVectors2[i][j], MainConnectingVectors2[i-1][j].PlusX(), "Something wrong with connecting vectors 2 %d %d", i, j)
 		}
 	}
 
@@ -135,55 +135,55 @@ func TestBasePoints(t *testing.T) {
 		BackToOrig := Origin
 		BackToOrig2 := Origin
 		for j := 0; j < 3; j++ {
-			assert.Equal(t, int64(2), DS(&Origin, &BasePoints[i][j]), "Something wrong with size of base point %d %d", i, j)
-			assert.Equal(t, int64(2), DS(&Origin, &BasePoints2[i][j]), "Something wrong with size of base point 2 %d %d", i, j)
+			assert.Equal(t, int64(2), DS(&Origin, &MainConnectingVectors[i][j]), "Something wrong with size of connecting vector %d %d", i, j)
+			assert.Equal(t, int64(2), DS(&Origin, &MainConnectingVectors2[i][j]), "Something wrong with size of connecting vector 2 %d %d", i, j)
 			for c := 0; c < 3; c++ {
-				abs := Abs(BasePoints[i][j][c])
-				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of base point %d %d %d = %d", i, j, c, BasePoints[i][j][c])
-				abs = Abs(BasePoints2[i][j][c])
-				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of base point 2 %d %d %d = %d", i, j, c, BasePoints[i][j][c])
+				abs := Abs(MainConnectingVectors[i][j][c])
+				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of connecting vector %d %d %d = %d", i, j, c, MainConnectingVectors[i][j][c])
+				abs = Abs(MainConnectingVectors2[i][j][c])
+				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of connecting vector 2 %d %d %d = %d", i, j, c, MainConnectingVectors[i][j][c])
 			}
-			BackToOrig = BackToOrig.Add(BasePoints[i][j])
-			BackToOrig2 = BackToOrig2.Add(BasePoints2[i][j])
+			BackToOrig = BackToOrig.Add(MainConnectingVectors[i][j])
+			BackToOrig2 = BackToOrig2.Add(MainConnectingVectors2[i][j])
 		}
-		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of base points %d", i)
-		assert.Equal(t, Origin, BackToOrig2, "Something wrong with sum of base points 2 %d", i)
+		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of connecting vectors %d", i)
+		assert.Equal(t, Origin, BackToOrig2, "Something wrong with sum of connecting vectors 2 %d", i)
 	}
 }
 
 func TestBasePointsRotation(t *testing.T) {
-	// For each axe (first index), the three base point evolves with plusX, plusY and plusZ
-	currentBasePoints := [3][3]Point{}
-	currentBasePoints2 := [3][3]Point{}
+	// For each axe (first index), the three connecting vectors evolves with plusX, plusY and plusZ
+	currentConnectingVectors := [3][3]Point{}
+	currentConnectingVectors2 := [3][3]Point{}
 	for axe := 0; axe < 3; axe++ {
-		currentBasePoints[axe][0] = BasePoints[0][0]
-		currentBasePoints[axe][1] = BasePoints[0][1]
-		currentBasePoints[axe][2] = BasePoints[0][2]
+		currentConnectingVectors[axe][0] = MainConnectingVectors[0][0]
+		currentConnectingVectors[axe][1] = MainConnectingVectors[0][1]
+		currentConnectingVectors[axe][2] = MainConnectingVectors[0][2]
 
-		currentBasePoints2[axe][0] = BasePoints2[0][0]
-		currentBasePoints2[axe][1] = BasePoints2[0][1]
-		currentBasePoints2[axe][2] = BasePoints2[0][2]
+		currentConnectingVectors2[axe][0] = MainConnectingVectors2[0][0]
+		currentConnectingVectors2[axe][1] = MainConnectingVectors2[0][1]
+		currentConnectingVectors2[axe][2] = MainConnectingVectors2[0][2]
 	}
 
 	for k := -4; k < 6; k++ {
 		mapColumn := int(PosMod4(int64(k)))
 		fmt.Println("Checking map column", mapColumn, "from", k)
-		assertSameTrio(t, BasePoints[NextMapping[0][mapColumn]], currentBasePoints[0])
-		assertSameTrio(t, BasePoints[NextMapping[1][mapColumn]], currentBasePoints[1])
-		assertSameTrio(t, BasePoints[NextMapping[2][mapColumn]], currentBasePoints[2])
+		assertSameTrio(t, MainConnectingVectors[NextMapping[0][mapColumn]], currentConnectingVectors[0])
+		assertSameTrio(t, MainConnectingVectors[NextMapping[1][mapColumn]], currentConnectingVectors[1])
+		assertSameTrio(t, MainConnectingVectors[NextMapping[2][mapColumn]], currentConnectingVectors[2])
 
-		assertSameTrio(t, BasePoints2[NextMapping2[0][mapColumn]], currentBasePoints2[0])
-		assertSameTrio(t, BasePoints2[NextMapping2[1][mapColumn]], currentBasePoints2[1])
-		assertSameTrio(t, BasePoints2[NextMapping2[2][mapColumn]], currentBasePoints2[2])
+		assertSameTrio(t, MainConnectingVectors2[NextMapping2[0][mapColumn]], currentConnectingVectors2[0])
+		assertSameTrio(t, MainConnectingVectors2[NextMapping2[1][mapColumn]], currentConnectingVectors2[1])
+		assertSameTrio(t, MainConnectingVectors2[NextMapping2[2][mapColumn]], currentConnectingVectors2[2])
 
 		for i := 0; i < 3; i++ {
-			currentBasePoints[0][i] = currentBasePoints[0][i].PlusX()
-			currentBasePoints[1][i] = currentBasePoints[1][i].PlusY()
-			currentBasePoints[2][i] = currentBasePoints[2][i].PlusZ()
+			currentConnectingVectors[0][i] = currentConnectingVectors[0][i].PlusX()
+			currentConnectingVectors[1][i] = currentConnectingVectors[1][i].PlusY()
+			currentConnectingVectors[2][i] = currentConnectingVectors[2][i].PlusZ()
 
-			currentBasePoints2[0][i] = currentBasePoints2[0][i].PlusX()
-			currentBasePoints2[1][i] = currentBasePoints2[1][i].PlusY()
-			currentBasePoints2[2][i] = currentBasePoints2[2][i].PlusZ()
+			currentConnectingVectors2[0][i] = currentConnectingVectors2[0][i].PlusX()
+			currentConnectingVectors2[1][i] = currentConnectingVectors2[1][i].PlusY()
+			currentConnectingVectors2[2][i] = currentConnectingVectors2[2][i].PlusZ()
 		}
 	}
 
@@ -224,13 +224,13 @@ func TestConnectionDetails(t *testing.T) {
 		for y := min; y < max; y++ {
 			for z := min; z < max; z++ {
 				mainPoint := Point{x, y, z}.Mul(3)
-				basePoints := BasePoints[mainPoint.GetMod4Value()]
-				for _, bp := range basePoints {
+				connectingVectors := MainConnectingVectors[mainPoint.GetMod4Value()]
+				for _, cVec := range connectingVectors {
 
-					assertValidConnDetails(t, mainPoint, mainPoint.Add(bp), fmt.Sprint("Main Point", mainPoint, "base vector", bp))
+					assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Point", mainPoint, "base vector", cVec))
 
 					nextMain := Origin
-					switch bp.X() {
+					switch cVec.X() {
 					case 0:
 						// Nothing out
 					case 1:
@@ -238,22 +238,22 @@ func TestConnectionDetails(t *testing.T) {
 					case -1:
 						nextMain = mainPoint.Sub(XFirst)
 					default:
-						assert.Fail(t, "There should not be a base point with x value %d", bp.X())
+						assert.Fail(t, "There should not be a connecting vector with x value %d", cVec.X())
 					}
 					if nextMain != Origin {
-						// Find the base point on the other side ( the opposite 1 or -1 on X() )
-						nextBasePoints := BasePoints[nextMain.GetMod4Value()]
-						for _, nbp := range nextBasePoints {
-							if nbp.X() == -bp.X() {
-								assertValidConnDetails(t, mainPoint.Add(bp), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
+						// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
+						nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+						for _, nbp := range nextConnectingVectors {
+							if nbp.X() == -cVec.X() {
+								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
 									"next point", nextMain, "mod4", mainPoint.GetMod4Value(),
-									"main base vector", bp, "next base vector", nbp))
+									"main base vector", cVec, "next base vector", nbp))
 							}
 						}
 					}
 
 					nextMain = Origin
-					switch bp.Y() {
+					switch cVec.Y() {
 					case 0:
 						// Nothing out
 					case 1:
@@ -261,22 +261,22 @@ func TestConnectionDetails(t *testing.T) {
 					case -1:
 						nextMain = mainPoint.Sub(YFirst)
 					default:
-						assert.Fail(t, "There should not be a base point with y value %d", bp.X())
+						assert.Fail(t, "There should not be a connecting vector with y value %d", cVec.Y())
 					}
 					if nextMain != Origin {
-						// Find the base point on the other side ( the opposite 1 or -1 on Y() )
-						nextBasePoints := BasePoints[nextMain.GetMod4Value()]
-						for _, nbp := range nextBasePoints {
-							if nbp.Y() == -bp.Y() {
-								assertValidConnDetails(t, mainPoint.Add(bp), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
+						// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
+						nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+						for _, nbp := range nextConnectingVectors {
+							if nbp.Y() == -cVec.Y() {
+								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
 									"next point", nextMain, "mod4", mainPoint.GetMod4Value(),
-									"main base vector", bp, "next base vector", nbp))
+									"main base vector", cVec, "next base vector", nbp))
 							}
 						}
 					}
 
 					nextMain = Origin
-					switch bp.Z() {
+					switch cVec.Z() {
 					case 0:
 						// Nothing out
 					case 1:
@@ -284,16 +284,16 @@ func TestConnectionDetails(t *testing.T) {
 					case -1:
 						nextMain = mainPoint.Sub(ZFirst)
 					default:
-						assert.Fail(t, "There should not be a base point with Z value %d", bp.X())
+						assert.Fail(t, "There should not be a connecting vector with Z value %d", cVec.Z())
 					}
 					if nextMain != Origin {
-						// Find the base point on the other side ( the opposite 1 or -1 on Z() )
-						nextBasePoints := BasePoints[nextMain.GetMod4Value()]
-						for _, nbp := range nextBasePoints {
-							if nbp.Z() == -bp.Z() {
-								assertValidConnDetails(t, mainPoint.Add(bp), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
+						// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
+						nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+						for _, nbp := range nextConnectingVectors {
+							if nbp.Z() == -cVec.Z() {
+								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point", mainPoint, "mod4", mainPoint.GetMod4Value(),
 									"next point", nextMain, "mod4", mainPoint.GetMod4Value(),
-									"main base vector", bp, "next base vector", nbp))
+									"main base vector", cVec, "next base vector", nbp))
 							}
 						}
 					}

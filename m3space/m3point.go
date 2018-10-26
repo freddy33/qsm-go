@@ -10,8 +10,8 @@ var Origin = Point{0, 0, 0}
 var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
-var BasePoints = [4][3]Point{{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}},}
-var BasePoints2 = [4][3]Point{{{1, 1, 0}, {0, -1, -1}, {-1, 0, 1}},}
+var MainConnectingVectors = [4][3]Point{{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}},}
+var MainConnectingVectors2 = [4][3]Point{{{1, 1, 0}, {0, -1, -1}, {-1, 0, 1}},}
 var NextMapping = [3][4]int{
 	{0, 1, 2, 3},
 	{0, 2, 1, 3},
@@ -36,8 +36,8 @@ var EmptyConnDetails = ConnectionDetails{Origin, 0, false}
 func init() {
 	for i := 1; i < 4; i++ {
 		for j := 0; j < 3; j++ {
-			BasePoints[i][j] = BasePoints[i-1][j].PlusX()
-			BasePoints2[i][j] = BasePoints2[i-1][j].PlusX()
+			MainConnectingVectors[i][j] = MainConnectingVectors[i-1][j].PlusX()
+			MainConnectingVectors2[i][j] = MainConnectingVectors2[i-1][j].PlusX()
 		}
 	}
 	for x := int64(0); x < 4; x++ {
@@ -73,7 +73,7 @@ func init() {
 	}
 	for i := 0; i < 4; i++ {
 		for j := 0; j < 3; j++ {
-			addConnDetail(&connNumber, BasePoints[i][j])
+			addConnDetail(&connNumber, MainConnectingVectors[i][j])
 		}
 	}
 	fmt.Println("reach connNumber=", connNumber)
@@ -155,6 +155,79 @@ func (p Point) calculateMod4ValueByNextMapping() int {
 	finalMod4 := NextMapping[2][int((pMod4[2]+int64(inZK))%4)]
 	return finalMod4
 
+}
+
+func getNextPoints(mainPoint Point, cVec Point) [2]Point {
+	offset := 0
+	result := [2]Point{}
+
+	nextMain := Origin
+	switch cVec.X() {
+	case 0:
+		// Nothing out
+	case 1:
+		nextMain = mainPoint.Add(XFirst)
+	case -1:
+		nextMain = mainPoint.Sub(XFirst)
+	default:
+		fmt.Printf("There should not be a connecting vector with x value %d\n", cVec.X())
+		return result
+	}
+	if nextMain != Origin {
+		// Find the base point on the other side ( the opposite 1 or -1 on X() )
+		nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+		for _, nbp := range nextConnectingVectors {
+			if nbp.X() == -cVec.X() {
+				result[offset] = nextMain.Add(nbp)
+				offset++
+			}
+		}
+	}
+
+	nextMain = Origin
+	switch cVec.Y() {
+	case 0:
+		// Nothing out
+	case 1:
+		nextMain = mainPoint.Add(YFirst)
+	case -1:
+		nextMain = mainPoint.Sub(YFirst)
+	default:
+		fmt.Printf("There should not be a connecting vector with y value %d\n", cVec.Y())
+	}
+	if nextMain != Origin {
+		// Find the base point on the other side ( the opposite 1 or -1 on Y() )
+		nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+		for _, nbp := range nextConnectingVectors {
+			if nbp.Y() == -cVec.Y() {
+				result[offset] = nextMain.Add(nbp)
+				offset++
+			}
+		}
+	}
+
+	nextMain = Origin
+	switch cVec.Z() {
+	case 0:
+		// Nothing out
+	case 1:
+		nextMain = mainPoint.Add(ZFirst)
+	case -1:
+		nextMain = mainPoint.Sub(ZFirst)
+	default:
+		fmt.Printf("There should not be a connecting vector with z value %d\n", cVec.Z())
+	}
+	if nextMain != Origin {
+		// Find the base point on the other side ( the opposite 1 or -1 on Z() )
+		nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+		for _, nbp := range nextConnectingVectors {
+			if nbp.Z() == -cVec.Z() {
+				result[offset] = nextMain.Add(nbp)
+				offset++
+			}
+		}
+	}
+	return result
 }
 
 func Abs(i int64) int64 {
@@ -245,6 +318,18 @@ func (p Point) IsBorder(max int64) bool {
 			return true
 		}
 		if c < 0 && c <= -max+1 {
+			return true
+		}
+	}
+	return false
+}
+
+func (p Point) IsOutBorder(max int64) bool {
+	for _, c := range p {
+		if c > 0 && c > max {
+			return true
+		}
+		if c < 0 && c < -max {
 			return true
 		}
 	}
