@@ -45,7 +45,7 @@ type SpaceDrawingFilter struct {
 	EventOutgrowthManyColorsThreshold uint8
 }
 
-var DrawSelector = SpaceDrawingFilter{true,true,Distance(0),uint8(0xFF),0,}
+var DrawSelector = SpaceDrawingFilter{false,false,Distance(1),uint8(0xFF),0,}
 
 func (filter *SpaceDrawingFilter) DisplaySettings() {
 	fmt.Println("========= Space Settings =========")

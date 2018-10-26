@@ -41,7 +41,10 @@ func DisplayPlay1() {
 	fmt.Println("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
 	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
 
-	w = m3gl.MakeWorld(9,1)
+	// ******************************************************************
+	//    HERE CHANGE THE SIZE
+	// ******************************************************************
+	w = m3gl.MakeWorld(9*9,9)
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)

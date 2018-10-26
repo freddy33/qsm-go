@@ -10,7 +10,7 @@ const (
 	THREE = 3
 )
 
-var DEBUG = true
+var DEBUG = false
 
 type TickTime uint64
 
