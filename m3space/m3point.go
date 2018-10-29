@@ -10,100 +10,13 @@ var Origin = Point{0, 0, 0}
 var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
-var MainConnectingVectors = [4][3]Point{{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}},}
-var MainConnectingVectors2 = [4][3]Point{{{1, 1, 0}, {0, -1, -1}, {-1, 0, 1}},}
-var NextMapping = [3][4]int{
-	{0, 1, 2, 3},
-	{0, 2, 1, 3},
-	{0, 1, 3, 2},
-}
-var NextMapping2 = [3][4]int{
-	{0, 1, 2, 3},
-	{0, 1, 3, 2},
-	{0, 3, 1, 2},
-}
-var AllMod4Possible = make(map[Point]int)
-var AllConnectionsPossible = make(map[Point]ConnectionDetails)
-
-type ConnectionDetails struct {
-	Vector     Point
-	ConnNumber uint8
-	ConnNeg    bool
-}
-
-var EmptyConnDetails = ConnectionDetails{Origin, 0, false}
-
-func init() {
-	for i := 1; i < 4; i++ {
-		for j := 0; j < 3; j++ {
-			MainConnectingVectors[i][j] = MainConnectingVectors[i-1][j].PlusX()
-			MainConnectingVectors2[i][j] = MainConnectingVectors2[i-1][j].PlusX()
-		}
-	}
-	for x := int64(0); x < 4; x++ {
-		for y := int64(0); y < 4; y++ {
-			for z := int64(0); z < 4; z++ {
-				p := Point{x, y, z}.Mul(3)
-				AllMod4Possible[p.GetMod4Point()] = p.CalculateMod4Value()
-			}
-		}
-	}
-	connNumber := uint8(0)
-	// All combi of -1, 0, 1 except 0,0,0
-	for x := int64(1); x >= -1; x-- {
-		for y := int64(1); y >= -1; y-- {
-			for z := int64(1); z >= -1; z-- {
-				unit := Point{x, y, z}
-				if DS(&Origin, &unit) != 0 {
-					addConnDetail(&connNumber, unit)
-				}
-				// TODO: FInd oif there is a way to avoid them?
-				// Add the DS 5
-				if DS(&Origin, &unit) == 2 {
-					for i, v := range unit {
-						if v != 0 {
-							ds5 := unit
-							ds5[i] = v * 2
-							addConnDetail(&connNumber, ds5)
-						}
-					}
-				}
-			}
-		}
-	}
-	for i := 0; i < 4; i++ {
-		for j := 0; j < 3; j++ {
-			addConnDetail(&connNumber, MainConnectingVectors[i][j])
-		}
-	}
-	fmt.Println("reach connNumber=", connNumber)
-}
-
-func addConnDetail(connNumber *uint8, bp Point) {
-	cd, ok := AllConnectionsPossible[bp]
-	if !ok {
-		cd, ok = AllConnectionsPossible[bp.Neg()]
-		if !ok {
-			cd = ConnectionDetails{bp, *connNumber, false,}
-			*connNumber++
-		} else {
-			cd = ConnectionDetails{bp, cd.ConnNumber, true,}
-		}
-		AllConnectionsPossible[bp] = cd
-	}
-}
-
-func GetConnectionDetails(p1, p2 Point) ConnectionDetails {
-	vector := p2.Sub(p1)
-	cd, ok := AllConnectionsPossible[vector]
-	if !ok {
-		return EmptyConnDetails
-	}
-	return cd
-}
 
 func PosMod4(i int64) int64 {
 	return i & 0x0000000000000003
+}
+
+func PosMod8(i int64) int64 {
+	return i & 0x0000000000000007
 }
 
 func (p Point) GetMod4Point() Point {
@@ -113,13 +26,25 @@ func (p Point) GetMod4Point() Point {
 	return Point{PosMod4(p[0] / 3), PosMod4(p[1] / 3), PosMod4(p[2] / 3)}
 }
 
-func (p Point) GetMod4Value() int {
-	return AllMod4Possible[p.GetMod4Point()]
+var Mod4Function = "sum" // or "sum"
+
+func (p Point) GetTrio() Trio {
+	return AllBaseTrio[AllMod8Rotations[0][int(PosMod8(p[0]/3 + p[1]/3 + p[2]/3))]]
 }
 
-func (p Point) CalculateMod4Value() int {
-	return p.calculateMod4ValueByNextMapping()
+func (p Point) GetMod4Value() int {
+	switch Mod4Function {
+	case "sum":
+		return p.calculateMod4ValueBySum()
+	case "map":
+		return p.calculateMod4ValueByNextMapping()
+	default:
+		fmt.Println("Mod4 function", Mod4Function, "not supported")
+		panic("unsupported Mod4 function")
+	}
+	return -1
 }
+
 func (p Point) calculateMod4ValueBySum() int {
 	return int(PosMod4(p[0]/3 + p[1]/3 + p[2]/3))
 }
@@ -157,11 +82,30 @@ func (p Point) calculateMod4ValueByNextMapping() int {
 
 }
 
+func (p Point) getNearMainPoint() Point {
+	res := Point{}
+	for i, c := range p {
+		switch c % THREE {
+		case 0:
+			res[i] = c
+		case 1:
+			res[i] = c - 1
+		case 2:
+			res[i] = c + 1
+		case -1:
+			res[i] = c + 1
+		case -2:
+			res[i] = c - 1
+		}
+	}
+	return res
+}
+
 func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 	offset := 0
 	result := [2]Point{}
 
-	nextMain := Origin
+	nextMain := mainPoint
 	switch cVec.X() {
 	case 0:
 		// Nothing out
@@ -173,9 +117,9 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 		fmt.Printf("There should not be a connecting vector with x value %d\n", cVec.X())
 		return result
 	}
-	if nextMain != Origin {
+	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on X() )
-		nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+		nextConnectingVectors := nextMain.GetTrio()
 		for _, nbp := range nextConnectingVectors {
 			if nbp.X() == -cVec.X() {
 				result[offset] = nextMain.Add(nbp)
@@ -184,7 +128,7 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 		}
 	}
 
-	nextMain = Origin
+	nextMain = mainPoint
 	switch cVec.Y() {
 	case 0:
 		// Nothing out
@@ -195,9 +139,9 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 	default:
 		fmt.Printf("There should not be a connecting vector with y value %d\n", cVec.Y())
 	}
-	if nextMain != Origin {
+	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on Y() )
-		nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+		nextConnectingVectors := nextMain.GetTrio()
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Y() == -cVec.Y() {
 				result[offset] = nextMain.Add(nbp)
@@ -206,7 +150,7 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 		}
 	}
 
-	nextMain = Origin
+	nextMain = mainPoint
 	switch cVec.Z() {
 	case 0:
 		// Nothing out
@@ -217,9 +161,9 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 	default:
 		fmt.Printf("There should not be a connecting vector with z value %d\n", cVec.Z())
 	}
-	if nextMain != Origin {
+	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on Z() )
-		nextConnectingVectors := MainConnectingVectors[nextMain.GetMod4Value()]
+		nextConnectingVectors := nextMain.GetTrio()
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Z() == -cVec.Z() {
 				result[offset] = nextMain.Add(nbp)
@@ -302,6 +246,10 @@ func DS(p1, p2 *Point) int64 {
 	return x*x + y*y + z*z
 }
 
+func (p Point) DistanceSquared() int64 {
+	return p[0]*p[0] + p[1]*p[1] + p[2]*p[2]
+}
+
 func (p Point) IsMainPoint() bool {
 	allDivByThree := true
 	for _, c := range p {
@@ -310,6 +258,39 @@ func (p Point) IsMainPoint() bool {
 		}
 	}
 	return allDivByThree
+}
+
+func (p Point) IsBaseConnectingVector() bool {
+	if p.IsOnlyOneAndZero() {
+		return p.DistanceSquared() == 2
+	}
+	return false
+}
+
+func (p Point) IsConnectionVector() bool {
+	if p.IsOnlyTwoOneAndZero() {
+		sizeSquared := p.DistanceSquared()
+		return sizeSquared == 1 || sizeSquared == 2 || sizeSquared == 3 || sizeSquared == 5
+	}
+	return false
+}
+
+func (p Point) IsOnlyOneAndZero() bool {
+	for _, c := range p {
+		if c != 0 && c != 1 && c!= -1 {
+			return false
+		}
+	}
+	return true
+}
+
+func (p Point) IsOnlyTwoOneAndZero() bool {
+	for _, c := range p {
+		if c != 0 && c != 1 && c!= -1 && c != 2 && c!= -2 {
+			return false
+		}
+	}
+	return true
 }
 
 func (p Point) IsBorder(max int64) bool {

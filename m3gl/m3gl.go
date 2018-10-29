@@ -137,6 +137,7 @@ func (w World) DisplaySettings() {
 }
 
 func (w *World) CreateObjects() int {
+	m3space.InitConnectionDetails()
 	nbTriangles := (axes+connections)*trianglesPerLine + (nodes * trianglesPerSphere)
 	if w.NbVertices != nbTriangles*3 {
 		w.NbVertices = nbTriangles * 3

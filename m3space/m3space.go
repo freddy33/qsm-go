@@ -42,6 +42,7 @@ type Event struct {
 	created    TickTime
 	color      EventColor
 	outgrowths []*EventOutgrowth
+	newOutgrowths []*EventOutgrowth
 }
 
 type EventOutgrowth struct {
@@ -63,15 +64,21 @@ type Space struct {
 	Elements    []SpaceDrawingElement
 }
 
-var SpaceObj = Space{
-	make(map[Point]*Node),
-	make([]*Node, 0, 104),
-	make([]*Connection, 0, 500),
-	0,
-	make(map[EventID]*Event),
-	0,
-	9,
-	make([]SpaceDrawingElement, 0, 500),
+var SpaceObj = Space{}
+
+func init() {
+	SpaceObj.Clear()
+}
+
+func (s *Space) Clear() {
+	s.nodesMap = make(map[Point]*Node)
+	s.nodes = make([]*Node, 0, 104)
+	s.connections = make([]*Connection, 0, 500)
+	s.currentId = 0
+	s.events = make(map[EventID]*Event)
+	s.currentTime = 0
+	s.max = 9
+	s.Elements = make([]SpaceDrawingElement, 0, 500)
 }
 
 func (s *Space) CreateStuff(max int64, pyramidSize int64) {
@@ -84,46 +91,60 @@ func (s *Space) CreateStuff(max int64, pyramidSize int64) {
 	s.createDrawingElements()
 }
 
-func (s *Space) ForwardTime() {
-	for _, evt := range s.events {
-		for _, eg := range evt.outgrowths {
-			if eg.state == EventOutgrowthLatest {
-				for _, c := range eg.node.connections {
-					if c != nil {
-						otherNode := c.N1
-						if otherNode == eg.node {
-							otherNode = c.N2
+func (evt *Event) createNewOutgrowths() {
+	evt.newOutgrowths = evt.newOutgrowths[:0]
+	for _, eg := range evt.outgrowths {
+		if eg.state == EventOutgrowthLatest {
+			for _, c := range eg.node.connections {
+				if c != nil {
+					otherNode := c.N1
+					if otherNode == eg.node {
+						otherNode = c.N2
+					}
+					// Roots cannot have outgrowth
+					hasAlreadyEvent := otherNode.IsRoot()
+					for _, eo := range otherNode.outgrowths {
+						if eo.event.id == evt.id {
+							hasAlreadyEvent = true
 						}
-						// Roots cannot have outgrowth
-						hasAlreadyEvent := otherNode.IsRoot()
-						for _, eo := range otherNode.outgrowths {
-							if eo.event.id == evt.id {
-								hasAlreadyEvent = true
-							}
+					}
+					if !hasAlreadyEvent {
+						if DEBUG {
+							fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.point)
 						}
-						if !hasAlreadyEvent {
-							if DEBUG {
-								fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.point)
-							}
-							newEo := &EventOutgrowth{otherNode, evt, eg, eg.distance + 1, EventOutgrowthNew}
-							otherNode.outgrowths = append(otherNode.outgrowths, newEo)
-							evt.outgrowths = append(evt.outgrowths, newEo)
-						}
+						newEo := &EventOutgrowth{otherNode, evt, eg, eg.distance + 1, EventOutgrowthNew}
+						otherNode.outgrowths = append(otherNode.outgrowths, newEo)
+						evt.newOutgrowths = append(evt.newOutgrowths, newEo)
 					}
 				}
 			}
 		}
 	}
+}
+
+func (evt *Event) moveNewOutgrowthsToLatest() {
+	for _, eg := range evt.outgrowths {
+		switch eg.state {
+		case EventOutgrowthLatest:
+			eg.state = EventOutgrowthOld
+		}
+	}
+	for _, eg := range evt.newOutgrowths {
+		switch eg.state {
+		case EventOutgrowthNew:
+			eg.state = EventOutgrowthLatest
+			evt.outgrowths = append(evt.outgrowths, eg)
+		}
+	}
+}
+
+func (s *Space) ForwardTime() {
+	for _, evt := range s.events {
+		evt.createNewOutgrowths()
+	}
 	// Switch latest to old, and new to latest
 	for _, evt := range s.events {
-		for _, eg := range evt.outgrowths {
-			switch eg.state {
-			case EventOutgrowthLatest:
-				eg.state = EventOutgrowthOld
-			case EventOutgrowthNew:
-				eg.state = EventOutgrowthLatest
-			}
-		}
+		evt.moveNewOutgrowthsToLatest()
 	}
 	s.currentTime++
 	// Same drawing elements just changed color :(
@@ -131,7 +152,8 @@ func (s *Space) ForwardTime() {
 }
 
 func (s *Space) BackTime() {
-	s.currentTime--
+	fmt.Println("Very hard to go back in time !!!")
+	//s.currentTime--
 }
 
 func (s *Space) CreateEvent(p Point, k EventColor) *Event {
@@ -142,7 +164,7 @@ func (s *Space) CreateEvent(p Point, k EventColor) *Event {
 	}
 	id := s.currentId
 	s.currentId++
-	e := Event{id, n, s.currentTime, k, make([]*EventOutgrowth, 1, 100)}
+	e := Event{id, n, s.currentTime, k, make([]*EventOutgrowth, 1, 100), make([]*EventOutgrowth, 0, 10), }
 	e.outgrowths[0] = &EventOutgrowth{n, &e, nil, Distance(0), EventOutgrowthLatest}
 	n.outgrowths = make([]*EventOutgrowth, 1)
 	n.outgrowths[0] = e.outgrowths[0]
@@ -234,7 +256,7 @@ func (s *Space) createAndConnectBasePoints(node *Node) {
 		fmt.Println("Passing point to add base points", *(node.point), "is not a main point!")
 		return
 	}
-	for _, connVector := range MainConnectingVectors[node.point.GetMod4Value()] {
+	for _, connVector := range node.point.GetTrio() {
 		p2 := node.point.Add(connVector)
 		nextNode := s.getOrCreateNode(&p2)
 		s.makeConnection(node, nextNode)
@@ -246,8 +268,8 @@ func (s *Space) createNodes() *Node {
 	if DEBUG {
 		fmt.Println("Max by three", maxByThree)
 	}
-	s.nodes = make([]*Node,0,3*(maxByThree*2)^3)
-	s.connections = make([]*Connection,0,5*(maxByThree*2)^3)
+	s.nodes = make([]*Node, 0, 3*(maxByThree*2)^3)
+	s.connections = make([]*Connection, 0, 5*(maxByThree*2)^3)
 	org := s.getOrCreateNode(&Origin)
 	for x := -maxByThree; x <= maxByThree; x++ {
 		for y := -maxByThree; y <= maxByThree; y++ {
@@ -258,7 +280,7 @@ func (s *Space) createNodes() *Node {
 		}
 	}
 	if DEBUG {
-		fmt.Println("Created",len(s.nodes),"nodes")
+		fmt.Println("Created", len(s.nodes), "nodes")
 	}
 
 	// All nodes that are not main with nil connections find good one
@@ -279,14 +301,21 @@ func (s *Space) createNodes() *Node {
 				}
 			}
 			if mainPointNode == nil {
-				fmt.Println("Every node is connected to at least one main point! Why",*node,"is not?")
+				fmt.Println("Every node is connected to at least one main point! Why", *node, "is not?")
 				// Should be panic!
 			} else {
 				connVector := node.point.Sub(*mainPointNode.point)
 				nextPoints := getNextPoints(*mainPointNode.point, connVector)
 				for _, np := range nextPoints {
 					if !np.IsOutBorder(s.max) {
-						s.makeConnection(node, s.GetNode(&np))
+						nextNode := s.GetNode(&np)
+						if nextNode == nil {
+							fmt.Println("No node found at", np, "which should not be!")
+							// Should be panic!
+						}
+						if nextNode.HasFreeConnections() {
+							s.makeConnection(node, nextNode)
+						}
 					}
 					if !node.HasFreeConnections() {
 						break
@@ -296,7 +325,7 @@ func (s *Space) createNodes() *Node {
 		}
 	}
 	if DEBUG {
-		fmt.Println("Created",len(s.connections),"connections")
+		fmt.Println("Created", len(s.connections), "connections")
 	}
 
 	// Verify all connections done
