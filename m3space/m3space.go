@@ -256,9 +256,11 @@ func (s *Space) makeConnection(n1, n2 *Node) *Connection {
 		fmt.Println("Node 2", n2, "does not have free connections")
 		return nil
 	}
+	// Flipping if needed to make sure n1 is main
 	if n2.point.IsMainPoint() {
-		fmt.Println("Passing second point of connection", *(n2.point), "is a main point. Only P1 can be main")
-		return nil
+		temp := n1
+		n1 = n2
+		n2 = temp
 	}
 	d := DS(n1.point, n2.point)
 	if !(d == 1 || d == 2 || d == 3 || d == 5) {
