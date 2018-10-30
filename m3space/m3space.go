@@ -81,9 +81,18 @@ func (s *Space) Clear() {
 	s.Elements = make([]SpaceDrawingElement, 0, 500)
 }
 
-func (s *Space) CreateStuff(max int64, pyramidSize int64) {
+func (s *Space) CreateSpaceNodes(max int64) {
 	s.max = max
 	s.createNodes()
+	s.createDrawingElements()
+}
+
+func (s *Space) CreateSingleEventCenter() {
+	s.CreateEvent(Origin, GreenEvent)
+	s.createDrawingElements()
+}
+
+func (s *Space) CreatePyramid(pyramidSize int64) {
 	s.CreateEvent(Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
 	s.CreateEvent(Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
 	s.CreateEvent(Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)

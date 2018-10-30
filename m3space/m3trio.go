@@ -8,7 +8,18 @@ var reverseMap = [3]int{2,1,0}
 
 var AllBaseTrio [8]Trio
 
-var AllMod4Rotations = [12][4]int{
+var ValidNextTrio = [3*4][2]int{
+	{0,4},{0,6},{0,7},
+	{1,4},{1,5},{1,7},
+	{2,4},{2,5},{2,6},
+	{3,5},{3,6},{3,7},
+}
+
+var Full5NextTrio = [4][2]int{
+	{0,5},{1,6},{2,7},{3,4},
+}
+
+var AllMod4Permutations = [12][4]int{
 	{0,4,1,7},
 	{0,4,2,6},
 	{0,6,2,4},
@@ -23,22 +34,19 @@ var AllMod4Rotations = [12][4]int{
 	{2,6,3,5},
 }
 
-var AllMod8Rotations = [4][8]int{
+var AllMod8Permutations = [12][8]int{
 	{0,4,1,5,2,6,3,7},
 	{0,4,1,7,3,5,2,6},
 	{0,4,2,5,1,7,3,6},
 	{0,4,2,6,3,5,1,7},
-}
-
-var NextMapping = [3][4]int{
-	{0, 1, 2, 3},
-	{0, 2, 1, 3},
-	{0, 1, 3, 2},
-}
-var NextMapping2 = [3][4]int{
-	{0, 1, 2, 3},
-	{0, 1, 3, 2},
-	{0, 3, 1, 2},
+	{0,6,2,4,1,5,3,7},
+	{0,6,2,5,3,7,1,4},
+	{0,6,3,5,2,4,1,7},
+	{0,6,3,7,1,5,2,4},
+	{0,7,1,4,2,5,3,6},
+	{0,7,1,5,3,6,2,4},
+	{0,7,3,5,1,4,2,6},
+	{0,7,3,6,2,5,1,4},
 }
 
 var AllConnectionsPossible map[Point]ConnectionDetails
@@ -53,9 +61,9 @@ var EmptyConnDetails = ConnectionDetails{Origin, 0, false}
 
 func init() {
 	// Initial Trio 0
-	AllBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {0, -1, 1}, {-1, 0, -1}})
+	AllBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
 	// Initial Trio 0 prime
-	AllBaseTrio[4] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {0, -1, -1}, {-1, 0, 1}})
+	AllBaseTrio[4] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, 1}, {0, -1, -1}})
 	for i := 1; i < 4; i++ {
 		AllBaseTrio[i] = AllBaseTrio[i-1].PlusX()
 		AllBaseTrio[i+4] = AllBaseTrio[i+4-1].PlusX()
@@ -199,10 +207,8 @@ func InitConnectionDetails() uint8 {
 		for _, vec := range tr {
 			addConnDetail(&connNumber, vec)
 		}
-	}
-	for _, mr := range AllMod4Rotations {
-		for j := 0; j < 4; j++ {
-			conns := GetNonBaseConnections(AllBaseTrio[mr[j]], AllBaseTrio[mr[(j+1)%4]])
+		for _, tB := range AllBaseTrio {
+			conns := GetNonBaseConnections(tr,tB)
 			for _, conn := range conns {
 				addConnDetail(&connNumber, conn)
 			}

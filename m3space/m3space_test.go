@@ -15,9 +15,9 @@ const (
 )
 
 type MainPointData struct {
-	mainNode *Node
-	kind NodeCubeBorderType
-	mod4 int
+	mainNode      *Node
+	kind          NodeCubeBorderType
+	trioIndex     int
 	nbOutOfBorder int
 }
 
@@ -27,12 +27,11 @@ type KindData struct {
 	nbOutOfBorder int
 }
 
-func TestEventSum(t *testing.T) {
+func TestEmptySpace(t *testing.T) {
 	DEBUG = true
 	SpaceObj.Clear()
 	assertEmptySpace(t)
 
-	Mod4Function = "sum"
 	SpaceObj.max = 3
 	SpaceObj.createNodes()
 
@@ -50,7 +49,7 @@ func TestEventSum(t *testing.T) {
 
 	assert.Equal(t, 27, len(classNodes))
 
-	// TODO: Check the mod4 repartition is good
+	// TODO: Check the trioIndex repartition is good
 
 	borders := convertToBorders(classNodes)
 
@@ -60,48 +59,7 @@ func TestEventSum(t *testing.T) {
 	assert.Equal(t, 12, borders[Edge].nbMainPoints)
 	assert.Equal(t, 8, borders[Corner].nbMainPoints)
 
-	// Out of border depends on mod4 function for edge and corner
-	assert.Equal(t, 0, borders[InCube].nbOutOfBorder)
-	assert.Equal(t, 6, borders[Face].nbOutOfBorder)
-	assert.Equal(t, 12*2 - 3, borders[Edge].nbOutOfBorder)
-	assert.Equal(t, 8*2 + 1, borders[Corner].nbOutOfBorder)
-
-	//assertSpaceMax3NoEvents(t, 108)
-}
-
-func TestEventMap(t *testing.T) {
-	DEBUG = true
-	SpaceObj.Clear()
-	assertEmptySpace(t)
-
-	Mod4Function = "map"
-	SpaceObj.max = 3
-	SpaceObj.createNodes()
-
-	SpaceObj.createDrawingElements()
-
-	assert.Equal(t, int64(3), SpaceObj.max)
-	// Check near main point is consistent for all nodes
-	assertNearMainPoints(t)
-
-	// Main points = (1 center cube + 6 center face + 12 middle edge + 8 corner) = 27 main points
-	// Each main points as 1 + 3 nodes (from base vectors) =  4 nodes
-	// Total nodes = 27 * 4 = 108
-	classNodes := classifyNodes()
-
-	assert.Equal(t, 27, len(classNodes))
-
-	// TODO: Check the mod4 repartition is good
-
-	borders := convertToBorders(classNodes)
-
-	// Out of border vectors = (1 center cube * 0 vectors + 6 center face * 1 vector + 12 middle edge * 2 vectors + 8 corner * 2 vectors) = 27 main points
-	assert.Equal(t, 1, borders[InCube].nbMainPoints)
-	assert.Equal(t, 6, borders[Face].nbMainPoints)
-	assert.Equal(t, 12, borders[Edge].nbMainPoints)
-	assert.Equal(t, 8, borders[Corner].nbMainPoints)
-
-	// Out of border depends on mod4 function for edge and corner
+	// Out of border depends on trioIndex function for edge and corner
 	assert.Equal(t, 0, borders[InCube].nbOutOfBorder)
 	assert.Equal(t, 6, borders[Face].nbOutOfBorder)
 	assert.Equal(t, 12*2 - 3, borders[Edge].nbOutOfBorder)
@@ -143,7 +101,7 @@ func classifyNodes() map[Point]*MainPointData {
 
 		obj, ok := res[mainPoint]
 		if !ok {
-			obj = &MainPointData{SpaceObj.GetNode(&mainPoint), GetKind(mainPoint), mainPoint.GetMod4Value(), 0,}
+			obj = &MainPointData{SpaceObj.GetNode(&mainPoint), GetKind(mainPoint), mainPoint.GetTrioIndex(), 0,}
 			res[mainPoint] = obj
 		}
 		if n.point.IsOutBorder(SpaceObj.max) {
@@ -198,7 +156,8 @@ func TestSpace(t *testing.T) {
 	SpaceObj.Clear()
 	assertEmptySpace(t)
 
-	SpaceObj.CreateStuff(3, 1)
+	SpaceObj.CreateSpaceNodes(3)
+	SpaceObj.CreatePyramid(1)
 	assert.Equal(t, int64(3), SpaceObj.max)
 	// Big nodes = (center + center face + middle edge + corner) * (main + 3)
 	nbNodes := (1 + 6 + 12 + 8) * 4

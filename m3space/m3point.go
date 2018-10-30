@@ -11,6 +11,10 @@ var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
 
+func PosMod2(i int64) int64 {
+	return i & 0x0000000000000001
+}
+
 func PosMod4(i int64) int64 {
 	return i & 0x0000000000000003
 }
@@ -19,67 +23,27 @@ func PosMod8(i int64) int64 {
 	return i & 0x0000000000000007
 }
 
-func (p Point) GetMod4Point() Point {
+func (p Point) GetTrioIndex() int {
 	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Mod4 on non main point %v!", p))
+		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v!", p))
 	}
-	return Point{PosMod4(p[0] / 3), PosMod4(p[1] / 3), PosMod4(p[2] / 3)}
+	return int(PosMod8(p[0]/3 + p[1]/3 + p[2]/3))
 }
 
-var Mod4Function = "sum" // or "sum"
+func (p Point) GetPerm8Index() int {
+	if !p.IsMainPoint() {
+		panic(fmt.Sprintf("cannot ask for Permutation 8 index on non main point %v!", p))
+	}
+	blockOf8 := (p[0]/3 + p[1]/3 + p[2]/3) / 8
+	res := blockOf8 % 12
+	if res < 0 {
+		res += 12
+	}
+	return int(res)
+}
 
 func (p Point) GetTrio() Trio {
-	return AllBaseTrio[AllMod8Rotations[0][int(PosMod8(p[0]/3 + p[1]/3 + p[2]/3))]]
-}
-
-func (p Point) GetMod4Value() int {
-	switch Mod4Function {
-	case "sum":
-		return p.calculateMod4ValueBySum()
-	case "map":
-		return p.calculateMod4ValueByNextMapping()
-	default:
-		fmt.Println("Mod4 function", Mod4Function, "not supported")
-		panic("unsupported Mod4 function")
-	}
-	return -1
-}
-
-func (p Point) calculateMod4ValueBySum() int {
-	return int(PosMod4(p[0]/3 + p[1]/3 + p[2]/3))
-}
-
-func (p Point) calculateMod4ValueByNextMapping() int {
-	pMod4 := p.GetMod4Point()
-	xMod4 := NextMapping[0][int(pMod4[0])]
-	// Find in Y line the k matching xMod4
-	inYK := -1
-	for k := 0; k < 4; k++ {
-		if NextMapping[1][k] == xMod4 {
-			inYK = k
-			break
-		}
-	}
-	if inYK == -1 {
-		fmt.Println("Something went really wrong trying to find x mod 4", xMod4, "from", p, "pMod4", pMod4)
-		return -1
-	}
-	yMod4 := NextMapping[1][int((pMod4[1]+int64(inYK))%4)]
-	// Find in Z line the k matching yMod4
-	inZK := -1
-	for k := 0; k < 4; k++ {
-		if NextMapping[2][k] == yMod4 {
-			inZK = k
-			break
-		}
-	}
-	if inZK == -1 {
-		fmt.Println("Something went really wrong trying to find y mod 4", yMod4, "from", p, "pMod4", pMod4)
-		return -1
-	}
-	finalMod4 := NextMapping[2][int((pMod4[2]+int64(inZK))%4)]
-	return finalMod4
-
+	return AllBaseTrio[AllMod8Permutations[p.GetPerm8Index()][p.GetTrioIndex()]]
 }
 
 func (p Point) getNearMainPoint() Point {

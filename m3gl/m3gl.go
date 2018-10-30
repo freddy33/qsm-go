@@ -67,7 +67,7 @@ type OpenGLDrawingElement struct {
 	NbVertices   int32
 }
 
-func MakeWorld(Max int64, PyramidSize int64) World {
+func MakeWorld(Max int64) World {
 	if Max%m3space.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
 	}
@@ -93,7 +93,6 @@ func MakeWorld(Max int64, PyramidSize int64) World {
 	}
 	w.SetMatrices()
 	w.CreateObjects()
-	m3space.SpaceObj.CreateStuff(Max, PyramidSize)
 	return w
 }
 
