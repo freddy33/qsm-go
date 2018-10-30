@@ -6,6 +6,13 @@ import (
 
 type Point [3]int64
 
+type GrowthContext struct {
+	permutationType    uint8 // 1,2,4, or 8
+	permutationIndex   int   // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
+	permutationNegFlow bool  // true for backward flow in permutation
+	permutationOffset  int   // Offset in perm modulo
+}
+
 var Origin = Point{0, 0, 0}
 var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
@@ -23,27 +30,47 @@ func PosMod8(i int64) int64 {
 	return i & 0x0000000000000007
 }
 
-func (p Point) GetTrioIndex() int {
+func (p Point) GetTrioIndex(ctx *GrowthContext) int {
 	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v!", p))
+		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v in context %v!", p, ctx))
 	}
-	return int(PosMod8(p[0]/3 + p[1]/3 + p[2]/3))
+	if ctx.permutationType == 1 {
+		// Always same value
+		return ctx.permutationIndex
+	}
+
+	divByThreeWithOffset := int64(ctx.permutationOffset) + (p[0]/3 + p[1]/3 + p[2]/3)
+	switch ctx.permutationType {
+	case 2:
+		permutMap := ValidNextTrio[ctx.permutationIndex]
+		idx := int(PosMod2(divByThreeWithOffset))
+		if ctx.permutationNegFlow {
+			return permutMap[reverse2Map[idx]]
+		} else {
+			return permutMap[idx]
+		}
+	case 4:
+		permutMap := AllMod4Permutations[ctx.permutationIndex]
+		idx := int(PosMod4(divByThreeWithOffset))
+		if ctx.permutationNegFlow {
+			return permutMap[reverse4Map[idx]]
+		} else {
+			return permutMap[idx]
+		}
+	case 8:
+		permutMap := AllMod8Permutations[ctx.permutationIndex]
+		idx := int(PosMod8(divByThreeWithOffset))
+		if ctx.permutationNegFlow {
+			return permutMap[reverse8Map[idx]]
+		} else {
+			return permutMap[idx]
+		}
+	}
+	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", ctx.permutationType, ctx))
 }
 
-func (p Point) GetPerm8Index() int {
-	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Permutation 8 index on non main point %v!", p))
-	}
-	blockOf8 := (p[0]/3 + p[1]/3 + p[2]/3) / 8
-	res := blockOf8 % 12
-	if res < 0 {
-		res += 12
-	}
-	return int(res)
-}
-
-func (p Point) GetTrio() Trio {
-	return AllBaseTrio[AllMod8Permutations[p.GetPerm8Index()][p.GetTrioIndex()]]
+func (p Point) GetTrio(ctx *GrowthContext) Trio {
+	return AllBaseTrio[p.GetTrioIndex(ctx)]
 }
 
 func (p Point) getNearMainPoint() Point {
@@ -65,7 +92,29 @@ func (p Point) getNearMainPoint() Point {
 	return res
 }
 
-func getNextPoints(mainPoint Point, cVec Point) [2]Point {
+// Give the 3 next points of a given node activated in the context of the current event.
+// Return a clean new array not interacting with existing nodes, just the points extensions here based on the permutations.
+// TODO (in the calling method): If the node already connected,
+// TODO: only the connecting points that natches the normal event growth permutation cycle are returned.
+func (currentPoint Point) getNextPoints(ctx *GrowthContext) [3]Point {
+	result := [3]Point{}
+	if currentPoint.IsMainPoint() {
+		trio := currentPoint.GetTrio(ctx)
+		for i, tr := range trio {
+			result[i] = currentPoint.Add(tr)
+		}
+		return result
+	}
+	mainPoint := currentPoint.getNearMainPoint()
+	result[0] = mainPoint
+	cVec := currentPoint.Sub(mainPoint)
+	nextPoints := mainPoint.getNextPointsFromMainAndVector(cVec, ctx)
+	result[1] = nextPoints[0]
+	result[2] = nextPoints[1]
+	return result
+}
+
+func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthContext) [2]Point {
 	offset := 0
 	result := [2]Point{}
 
@@ -83,7 +132,7 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 	}
 	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on X() )
-		nextConnectingVectors := nextMain.GetTrio()
+		nextConnectingVectors := nextMain.GetTrio(ctx)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.X() == -cVec.X() {
 				result[offset] = nextMain.Add(nbp)
@@ -105,7 +154,7 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 	}
 	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on Y() )
-		nextConnectingVectors := nextMain.GetTrio()
+		nextConnectingVectors := nextMain.GetTrio(ctx)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Y() == -cVec.Y() {
 				result[offset] = nextMain.Add(nbp)
@@ -127,7 +176,7 @@ func getNextPoints(mainPoint Point, cVec Point) [2]Point {
 	}
 	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on Z() )
-		nextConnectingVectors := nextMain.GetTrio()
+		nextConnectingVectors := nextMain.GetTrio(ctx)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Z() == -cVec.Z() {
 				result[offset] = nextMain.Add(nbp)

@@ -27,61 +27,68 @@ type KindData struct {
 	nbOutOfBorder int
 }
 
-func TestEmptySpace(t *testing.T) {
+func TestSingleRedEvent(t *testing.T) {
 	DEBUG = true
 	SpaceObj.Clear()
+	InitConnectionDetails()
 	assertEmptySpace(t)
 
-	SpaceObj.max = 3
-	SpaceObj.createNodes()
+	SpaceObj.max = 3*9
 
-	SpaceObj.createDrawingElements()
+	assert.Equal(t, int64(3*9), SpaceObj.max)
 
-	assert.Equal(t, int64(3), SpaceObj.max)
-
-	// Check near main point is consistent for all nodes
+	SpaceObj.CreateSingleEventCenter()
+	SpaceObj.ForwardTime()
 	assertNearMainPoints(t)
+	assertSpace1Events1Time(t)
 
-	// Main points = (1 center cube + 6 center face + 12 middle edge + 8 corner) = 27 main points
-	// Each main points as 1 + 3 nodes (from base vectors) =  4 nodes
-	// Total nodes = 27 * 4 = 108
-	classNodes := classifyNodes()
+	SpaceObj.ForwardTime()
+	assertNearMainPoints(t)
+	assertSpace1Events2Time(t)
 
-	assert.Equal(t, 27, len(classNodes))
+	classNodes := classifyNodes(&(SpaceObj.events[EventID(0)].growthContext))
+
+	assert.Equal(t, 7, len(classNodes))
 
 	// TODO: Check the trioIndex repartition is good
 
 	borders := convertToBorders(classNodes)
 
 	// Out of border vectors = (1 center cube * 0 vectors + 6 center face * 1 vector + 12 middle edge * 2 vectors + 8 corner * 2 vectors) = 27 main points
-	assert.Equal(t, 1, borders[InCube].nbMainPoints)
-	assert.Equal(t, 6, borders[Face].nbMainPoints)
-	assert.Equal(t, 12, borders[Edge].nbMainPoints)
-	assert.Equal(t, 8, borders[Corner].nbMainPoints)
-
-	// Out of border depends on trioIndex function for edge and corner
+	assert.Equal(t, 1, len(borders))
+	assert.Equal(t, 7, borders[InCube].nbMainPoints)
+	//assert.Equal(t, 6, borders[Face].nbMainPoints)
+	//assert.Equal(t, 12, borders[Edge].nbMainPoints)
+	//assert.Equal(t, 8, borders[Corner].nbMainPoints)
+	//
+	//// Out of border depends on trioIndex function for edge and corner
 	assert.Equal(t, 0, borders[InCube].nbOutOfBorder)
-	assert.Equal(t, 6, borders[Face].nbOutOfBorder)
-	assert.Equal(t, 12*2 - 3, borders[Edge].nbOutOfBorder)
-	assert.Equal(t, 8*2 + 1, borders[Corner].nbOutOfBorder)
+	//assert.Equal(t, 6, borders[Face].nbOutOfBorder)
+	//assert.Equal(t, 12*2 - 3, borders[Edge].nbOutOfBorder)
+	//assert.Equal(t, 8*2 + 1, borders[Corner].nbOutOfBorder)
 
-	assertSpaceMax3NoEvents(t, 108)
 }
 
 func assertEmptySpace(t *testing.T) {
 	assert.Equal(t, int64(9), SpaceObj.max)
-	assert.Equal(t, 0, len(SpaceObj.nodes))
+	assert.Equal(t, 0, len(SpaceObj.nodesMap))
 	assert.Equal(t, 0, len(SpaceObj.connections))
 	assert.Equal(t, 0, len(SpaceObj.events))
 	assert.Equal(t, 0, len(SpaceObj.Elements))
 }
 
-func assertSpaceMax3NoEvents(t *testing.T, nbNodes int) {
-	assert.Equal(t, nbNodes, len(SpaceObj.nodesMap))
-	assert.Equal(t, nbNodes, len(SpaceObj.nodes))
-	assert.Equal(t, nbNodes+16, len(SpaceObj.connections))
-	assert.Equal(t, 0, len(SpaceObj.events))
-	assert.Equal(t, 2*nbNodes+16+6, len(SpaceObj.Elements))
+func assertSpace1Events1Time(t *testing.T) {
+	assert.Equal(t, 4, len(SpaceObj.nodesMap))
+	assert.Equal(t, 3, len(SpaceObj.connections))
+	assert.Equal(t, 1, len(SpaceObj.events))
+	assert.Equal(t, 4+3+6, len(SpaceObj.Elements))
+}
+
+func assertSpace1Events2Time(t *testing.T) {
+	assert.Equal(t, 4+8-2, len(SpaceObj.nodesMap))
+	assert.Equal(t, 3+6, len(SpaceObj.connections))
+	assert.Equal(t, 1, len(SpaceObj.events))
+	assert.Equal(t, 4+8+3+6+6-2, len(SpaceObj.Elements))
 }
 
 func GetKind(mainPoint Point) NodeCubeBorderType {
@@ -94,14 +101,14 @@ func GetKind(mainPoint Point) NodeCubeBorderType {
 	return NodeCubeBorderType(nbMax)
 }
 
-func classifyNodes() map[Point]*MainPointData {
+func classifyNodes(ctx *GrowthContext) map[Point]*MainPointData {
 	res := make(map[Point]*MainPointData)
-	for _, n := range SpaceObj.nodes {
+	for _, n := range SpaceObj.nodesMap {
 		mainPoint := n.point.getNearMainPoint()
 
 		obj, ok := res[mainPoint]
 		if !ok {
-			obj = &MainPointData{SpaceObj.GetNode(&mainPoint), GetKind(mainPoint), mainPoint.GetTrioIndex(), 0,}
+			obj = &MainPointData{SpaceObj.GetNode(&mainPoint), GetKind(mainPoint), mainPoint.GetTrioIndex(ctx), 0,}
 			res[mainPoint] = obj
 		}
 		if n.point.IsOutBorder(SpaceObj.max) {
@@ -127,7 +134,7 @@ func convertToBorders(classNodes map[Point]*MainPointData) map[NodeCubeBorderTyp
 }
 
 func assertNearMainPoints(t *testing.T) {
-	for _, node := range SpaceObj.nodes {
+	for _, node := range SpaceObj.nodesMap {
 		// Find main point attached to node
 		var mainPointNode *Node
 		if node.point.IsMainPoint() {
@@ -146,7 +153,9 @@ func assertNearMainPoints(t *testing.T) {
 				}
 			}
 		}
-		assert.Equal(t, node.point.getNearMainPoint(), *(mainPointNode.point))
+		if mainPointNode != nil {
+			assert.Equal(t, node.point.getNearMainPoint(), *(mainPointNode.point))
+		}
 	}
 }
 
@@ -156,7 +165,7 @@ func TestSpace(t *testing.T) {
 	SpaceObj.Clear()
 	assertEmptySpace(t)
 
-	SpaceObj.CreateSpaceNodes(3)
+	SpaceObj.SetMax(3)
 	SpaceObj.CreatePyramid(1)
 	assert.Equal(t, int64(3), SpaceObj.max)
 	// Big nodes = (center + center face + middle edge + corner) * (main + 3)
@@ -249,7 +258,6 @@ func TestSpace(t *testing.T) {
 
 func assertSpaceMax3WithEvents(t *testing.T, nbNodes int) {
 	assert.Equal(t, nbNodes, len(SpaceObj.nodesMap))
-	assert.Equal(t, nbNodes, len(SpaceObj.nodes))
 	assert.Equal(t, nbNodes+35, len(SpaceObj.connections))
 	assert.Equal(t, 4, len(SpaceObj.events))
 	assert.Equal(t, 2*nbNodes+35+6, len(SpaceObj.Elements))
@@ -262,7 +270,7 @@ func assertOutgrowth(t *testing.T, expect int) {
 	}
 	assert.Equal(t, expect, nbOutgrowth)
 	nbOutgrowth = 0
-	for _, node := range SpaceObj.nodes {
+	for _, node := range SpaceObj.nodesMap {
 		nbOutgrowth += len(node.outgrowths)
 	}
 	assert.Equal(t, expect, nbOutgrowth)
@@ -286,7 +294,7 @@ func assertOutgrowthDistance(t *testing.T, topOnes map[EventID]int) {
 func assertOutgrowthColors(t *testing.T, threshold Distance, multiOutgrowths map[uint8]int) {
 	// map of how many nodes have 0, 1, 2, 3, 4 event outgrowth, the key 10 is for the amount of root
 	count := make(map[uint8]int)
-	for _, node := range SpaceObj.nodes {
+	for _, node := range SpaceObj.nodesMap {
 		if node.IsRoot() {
 			count[10]++
 		}

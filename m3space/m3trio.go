@@ -4,19 +4,18 @@ import "fmt"
 
 type Trio [3]Point
 
-var reverseMap = [3]int{2,1,0}
+var reverse2Map = [2]int{1,0}
+var reverse3Map = [3]int{2,1,0}
+var reverse4Map = [4]int{3,2,1,0}
+var reverse8Map = [8]int{7,6,5,4,3,2,1,0}
 
 var AllBaseTrio [8]Trio
 
-var ValidNextTrio = [3*4][2]int{
+var ValidNextTrio = [12][2]int{
 	{0,4},{0,6},{0,7},
 	{1,4},{1,5},{1,7},
 	{2,4},{2,5},{2,6},
 	{3,5},{3,6},{3,7},
-}
-
-var Full5NextTrio = [4][2]int{
-	{0,5},{1,6},{2,7},{3,4},
 }
 
 var AllMod4Permutations = [12][4]int{
@@ -86,7 +85,7 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	for _, p := range points {
 		for i:=0;i<3;i++ {
 			if p[i] == 0 {
-				res[reverseMap[i]] = p
+				res[reverse3Map[i]] = p
 			}
 		}
 	}
@@ -214,42 +213,7 @@ func InitConnectionDetails() uint8 {
 			}
 		}
 	}
-
-	/* TODO: Verify we have completion
-
-	// All combi of -1, 0, 1 except 0,0,0
-	for x := int64(1); x >= -1; x-- {
-		for y := int64(1); y >= -1; y-- {
-			for z := int64(1); z >= -1; z-- {
-				unit := Point{x, y, z}
-				sizeSquared := unit.DistanceSquared()
-				if sizeSquared != 0 {
-					addConnDetail(&connNumber, unit)
-				}
-
-				// Add the DS 5
-				// TODO: Find if there is a way to avoid them?
-				if sizeSquared == 2 {
-					for i, v := range unit {
-						if v != 0 {
-							ds5 := unit
-							ds5[i] = v * 2
-							addConnDetail(&connNumber, ds5)
-						}
-					}
-				}
-			}
-		}
-	}
-	for i := 0; i < 4; i++ {
-		for j := 0; j < 3; j++ {
-			addConnDetail(&connNumber, AllBaseTrio[i][j])
-		}
-	}
-
-	*/
-
-	fmt.Println("reach connNumber=", connNumber)
+	fmt.Println("Number of connection details created ", connNumber)
 	return connNumber
 }
 
