@@ -158,7 +158,10 @@ func TestAllTrio(t *testing.T) {
 			assertIsGenericNonBaseConnectingVector(t, GetNonBaseConnections(tr, tB), i, j, outTable)
 		}
 	}
+}
 
+func TestAllFull5Trio(t *testing.T) {
+	DEBUG = true
 	idxMap := createAll8IndexMap()
 	for i, nextTrio := range Full5NextTrio {
 		assertValidNextTrio(t, nextTrio, i)
@@ -169,8 +172,10 @@ func TestAllTrio(t *testing.T) {
 		idxMap[nextTrio[1]]++
 	}
 	assertAllIndexUsed(t, idxMap, 1, "full 5 trios")
+}
 
-	idxMap = createAll8IndexMap()
+func TestAllValidTrio(t *testing.T) {
+	idxMap := createAll8IndexMap()
 	for i, nextTrio := range ValidNextTrio {
 		assertValidNextTrio(t, nextTrio, i)
 
@@ -180,8 +185,10 @@ func TestAllTrio(t *testing.T) {
 		idxMap[nextTrio[1]]++
 	}
 	assertAllIndexUsed(t, idxMap, 3, "valid trios")
+}
 
-	idxMap = createAll8IndexMap()
+func TestAllMod4Permutations(t *testing.T) {
+	idxMap := createAll8IndexMap()
 	for i, permutMap := range AllMod4Permutations {
 		for j := 0; j < 4; j++ {
 			startIdx := permutMap[j]
@@ -191,9 +198,11 @@ func TestAllTrio(t *testing.T) {
 		}
 	}
 	assertAllIndexUsed(t, idxMap, 6, "all mod4 permutations")
+}
 
+func TestAllMod8Permutations(t *testing.T) {
 	for i, permutMap := range AllMod8Permutations {
-		idxMap = createAll8IndexMap()
+		idxMap := createAll8IndexMap()
 		for j := 0; j < 8; j++ {
 			startIdx := permutMap[j]
 			endIdx := permutMap[(j+1)%8]
@@ -202,7 +211,6 @@ func TestAllTrio(t *testing.T) {
 		}
 		assertAllIndexUsed(t, idxMap, 1, fmt.Sprint("in mod8 permutation[", i, "]=", permutMap))
 	}
-
 }
 
 func assertExistsInValidNextTrio(t *testing.T, startIdx int, endIdx int, msg string) {
@@ -285,144 +293,6 @@ func assertIsFull5NonBaseConnectingVector(t *testing.T, conns [6]Point, i, j int
 		ds := conn.DistanceSquared()
 		assert.True(t, ds == 5, "Found wrong connection %v at %d %d", conn, i, j)
 	}
-}
-
-func getAllContexes() []GrowthContext {
-	res := make([]GrowthContext, 0, 8+3*12*2*(2+4+8))
-
-	for pIdx := 0; pIdx < 8; pIdx++ {
-		res = append(res, GrowthContext{1, pIdx, false, 0,})
-	}
-
-	for _, pType := range [4]uint8{2, 4, 8} {
-		for pIdx := 0; pIdx < 12; pIdx++ {
-			for offset := 0; offset < int(pType); offset++ {
-				res = append(res, GrowthContext{pType, pIdx, false, offset,})
-				res = append(res, GrowthContext{pType, pIdx, true, offset,})
-			}
-		}
-	}
-	return res
-}
-
-func TestConnectionDetails(t *testing.T) {
-	DEBUG = true
-	InitConnectionDetails()
-	for k, v := range AllConnectionsPossible {
-		assert.Equal(t, k, v.Vector)
-		currentNumber := v.ConnNumber
-		sameNumber := 0
-		for _, nv := range AllConnectionsPossible {
-			if nv.ConnNumber == currentNumber {
-				sameNumber++
-				if nv.Vector != v.Vector {
-					assert.Equal(t, nv.Vector.Neg(), v.Vector, "Should have neg vector")
-					assert.Equal(t, !nv.ConnNeg, v.ConnNeg, "Should have opposite connNeg flag")
-				}
-			}
-		}
-		assert.Equal(t, 2, sameNumber, "Should have 2 with same conn number for %d", currentNumber)
-	}
-
-	allCtx := getAllContexes()
-	fmt.Println("Created", len(allCtx), "contexes")
-	// For all trioIndex rotations, any 2 close main points there should be a connection details
-	min := int64(-2) // -5
-	max := int64(2)  // 5
-	for _, ctx := range allCtx {
-		for x := min; x < max; x++ {
-			for y := min; y < max; y++ {
-				for z := min; z < max; z++ {
-					mainPoint := Point{x, y, z}.Mul(3)
-					connectingVectors := mainPoint.GetTrio(&ctx)
-					for _, cVec := range connectingVectors {
-
-						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Point", mainPoint, "base vector", cVec))
-
-						nextMain := Origin
-						switch cVec.X() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(XFirst)
-						case -1:
-							nextMain = mainPoint.Sub(XFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with x value %d", cVec.X())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-							nextConnectingVectors := nextMain.GetTrio(&ctx)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.X() == -cVec.X() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", mainPoint.GetTrioIndex(&ctx),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = Origin
-						switch cVec.Y() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(YFirst)
-						case -1:
-							nextMain = mainPoint.Sub(YFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with y value %d", cVec.Y())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-							nextConnectingVectors := nextMain.GetTrio(&ctx)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Y() == -cVec.Y() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", mainPoint.GetTrioIndex(&ctx),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = Origin
-						switch cVec.Z() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(ZFirst)
-						case -1:
-							nextMain = mainPoint.Sub(ZFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with Z value %d", cVec.Z())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-							nextConnectingVectors := nextMain.GetTrio(&ctx)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Z() == -cVec.Z() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", mainPoint.GetTrioIndex(&ctx),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-}
-
-func assertValidConnDetails(t *testing.T, p1, p2 Point, msg string) {
-	connDetails1 := GetConnectionDetails(p1, p2)
-	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
-	assert.Equal(t, p2.Sub(p1), connDetails1.Vector, msg)
-
-	connDetails2 := GetConnectionDetails(p2, p1)
-	assert.NotEqual(t, EmptyConnDetails, connDetails2, msg)
-	assert.Equal(t, p1.Sub(p2), connDetails2.Vector, msg)
 }
 
 func randomInt64(max int64) int64 {

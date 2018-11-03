@@ -1,7 +1,5 @@
 package m3space
 
-import "fmt"
-
 type Node struct {
 	point       *Point
 	outgrowths  []*EventOutgrowth
@@ -51,58 +49,4 @@ func (node *Node) HowManyColors(threshold Distance) uint8 {
 		}
 	}
 	return r
-}
-
-func (eo *EventOutgrowth) IsRoot() bool {
-	if eo.distance == Distance(0) {
-		if eo.from != nil {
-			fmt.Println("An event outgrowth of",eo.event.id,"has distance 0 and from not nil!")
-		}
-	}
-	return eo.from == nil
-}
-
-func (e *Event) LatestDistance() Distance {
-	// Usually the latest outgrowth are the last in the list
-	lastEO := len(e.outgrowths) - 1
-	if lastEO < 0 {
-		return Distance(0)
-	}
-	eo := e.outgrowths[lastEO]
-	if eo.state == EventOutgrowthLatest {
-		return eo.distance
-	}
-	for _, eo = range e.outgrowths {
-		if eo.state == EventOutgrowthLatest {
-			return eo.distance
-		}
-	}
-	fmt.Println("Did not find any latest in the list of Outgrowth! Impossible!")
-	return Distance(0)
-}
-
-func (eo *EventOutgrowth) LatestDistance() Distance {
-	if eo.state == EventOutgrowthLatest {
-		return eo.distance
-	}
-	return eo.event.LatestDistance()
-}
-
-func (eo *EventOutgrowth) DistanceFromLatest() Distance {
-	latestDistance := eo.LatestDistance()
-	return latestDistance - eo.distance
-}
-
-func (eo *EventOutgrowth) IsDrawn(filter SpaceDrawingFilter) bool {
-	return eo.IsActive(filter.EventOutgrowthThreshold) &&
-		filter.EventColorMask&1<<eo.event.color != uint8(0) &&
-		eo.node.HowManyColors(filter.EventOutgrowthThreshold) >= filter.EventOutgrowthManyColorsThreshold
-}
-
-func (eo *EventOutgrowth) IsActive(threshold Distance) bool {
-	if eo.IsRoot() {
-		// Root event always active
-		return true
-	}
-	return eo.DistanceFromLatest() <= threshold
 }

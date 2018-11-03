@@ -7,6 +7,7 @@ import (
 type Point [3]int64
 
 type GrowthContext struct {
+	center             *Point
 	permutationType    uint8 // 1,2,4, or 8
 	permutationIndex   int   // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
 	permutationNegFlow bool  // true for backward flow in permutation
@@ -30,16 +31,37 @@ func PosMod8(i int64) int64 {
 	return i & 0x0000000000000007
 }
 
-func (p Point) GetTrioIndex(ctx *GrowthContext) int {
-	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v in context %v!", p, ctx))
-	}
+func (ctx *GrowthContext) GetTrioIndex(divByThree int64) int {
 	if ctx.permutationType == 1 {
 		// Always same value
 		return ctx.permutationIndex
 	}
+	if ctx.permutationType == 3 {
+		// Center on Trio index ctx.permutationIndex and then use X, Y, Z where conn are 1
+		mod2 := PosMod2(divByThree)
+		if mod2 == 0 {
+			return ctx.permutationIndex
+		}
+		mod3 := int(((divByThree-1)/2 + int64(ctx.permutationOffset)) % 3)
+		if mod3 < 0 {
+			mod3 += 3
+		}
+		if ctx.permutationIndex < 4 {
+			return ValidNextTrio[3*ctx.permutationIndex+mod3][1]
+		}
+		count := 0
+		for _, validTrio := range ValidNextTrio {
+			if validTrio[1] == ctx.permutationIndex {
+				if count == mod3 {
+					return validTrio[0]
+				}
+				count++
+			}
+		}
+		panic(fmt.Sprintf("did not find valid Trio for div by three value %d in context %v!", divByThree, ctx))
+	}
 
-	divByThreeWithOffset := int64(ctx.permutationOffset) + (p[0]/3 + p[1]/3 + p[2]/3)
+	divByThreeWithOffset := int64(ctx.permutationOffset) + divByThree
 	switch ctx.permutationType {
 	case 2:
 		permutMap := ValidNextTrio[ctx.permutationIndex]
@@ -67,6 +89,14 @@ func (p Point) GetTrioIndex(ctx *GrowthContext) int {
 		}
 	}
 	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", ctx.permutationType, ctx))
+}
+
+func (p Point) GetTrioIndex(ctx *GrowthContext) int {
+	if !p.IsMainPoint() {
+		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v in context %v!", p, ctx))
+	}
+	divByThree := int64((p[0]-ctx.center[0])/3 + (p[1]-ctx.center[1])/3 + (p[2]-ctx.center[2])/3)
+	return ctx.GetTrioIndex(divByThree)
 }
 
 func (p Point) GetTrio(ctx *GrowthContext) Trio {
@@ -290,7 +320,7 @@ func (p Point) IsConnectionVector() bool {
 
 func (p Point) IsOnlyOneAndZero() bool {
 	for _, c := range p {
-		if c != 0 && c != 1 && c!= -1 {
+		if c != 0 && c != 1 && c != -1 {
 			return false
 		}
 	}
@@ -299,7 +329,7 @@ func (p Point) IsOnlyOneAndZero() bool {
 
 func (p Point) IsOnlyTwoOneAndZero() bool {
 	for _, c := range p {
-		if c != 0 && c != 1 && c!= -1 && c != 2 && c!= -2 {
+		if c != 0 && c != 1 && c != -1 && c != 2 && c != -2 {
 			return false
 		}
 	}

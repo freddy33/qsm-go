@@ -44,10 +44,10 @@ func DisplayPlay1() {
 	// ******************************************************************
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
-	w = m3gl.MakeWorld(20*m3space.THREE)
+	w = m3gl.MakeWorld(40*m3space.THREE)
 	m3space.SpaceObj.SetMax(w.Max)
 	//m3space.SpaceObj.CreateSingleEventCenter()
-	m3space.SpaceObj.CreatePyramid(5)
+	m3space.SpaceObj.CreatePyramid(12)
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
