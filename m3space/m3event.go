@@ -11,10 +11,10 @@ type EventColor uint8
 type EventOutgrowthState uint8
 
 const (
-	RedEvent    EventColor = iota
-	GreenEvent
-	BlueEvent
-	YellowEvent
+	RedEvent    EventColor = 0x01
+	GreenEvent  EventColor = 0x02
+	BlueEvent   EventColor = 0x04
+	YellowEvent EventColor = 0x08
 )
 
 const (
@@ -23,6 +23,8 @@ const (
 	EventOutgrowthOld
 	EventOutgrowthDead
 )
+
+var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 
 type Event struct {
 	space         *Space
@@ -44,19 +46,19 @@ type EventOutgrowth struct {
 }
 
 func (space *Space) CreateEvent(p Point, k EventColor) *Event {
-	ctx := GrowthContext{&Origin, 3, 0, false, 0}
+	ctx := GrowthContext{&Origin, 8, 0, false, 0}
 	switch k {
 	case RedEvent:
 		// No change
 	case GreenEvent:
-		ctx.permutationIndex = 1
-		ctx.permutationOffset = 0
-	case BlueEvent:
 		ctx.permutationIndex = 4
 		ctx.permutationOffset = 0
-	case YellowEvent:
-		ctx.permutationIndex = 5
+	case BlueEvent:
+		ctx.permutationIndex = 8
 		ctx.permutationOffset = 0
+	case YellowEvent:
+		ctx.permutationIndex = 10
+		ctx.permutationOffset = 4
 	}
 	return space.CreateEventWithGrowthContext(p, k, ctx)
 }
@@ -104,10 +106,14 @@ func (evt *Event) createNewOutgrowths() {
 					}
 					if !alreadyMapped {
 						otherNode := evt.space.getOrCreateNode(&nextPoint)
-						evt.space.makeConnection(eg.node, otherNode)
-						for connIdx, conn := range eg.node.connections {
-							if conn != nil && (nextPoint == *(conn.N1.point) || nextPoint == *(conn.N2.point)) {
-								connToPoint[connIdx] = pointIdx
+						if otherNode.HasFreeConnections() {
+							newConn := evt.space.makeConnection(eg.node, otherNode)
+							if newConn != nil {
+								for connIdx, conn := range eg.node.connections {
+									if conn != nil && (nextPoint == *(conn.N1.point) || nextPoint == *(conn.N2.point)) {
+										connToPoint[connIdx] = pointIdx
+									}
+								}
 							}
 						}
 					}
@@ -203,7 +209,7 @@ func (eventOutgrowth *EventOutgrowth) DistanceFromLatest() Distance {
 
 func (eventOutgrowth *EventOutgrowth) IsDrawn(filter SpaceDrawingFilter) bool {
 	return eventOutgrowth.IsActive(filter.EventOutgrowthThreshold) &&
-		filter.EventColorMask&1<<eventOutgrowth.event.color != uint8(0) &&
+		filter.EventColorMask&uint8(eventOutgrowth.event.color) != uint8(0) &&
 		eventOutgrowth.node.HowManyColors(filter.EventOutgrowthThreshold) >= filter.EventOutgrowthManyColorsThreshold
 }
 

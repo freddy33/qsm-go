@@ -32,6 +32,32 @@ func getAllContexes() map[uint8][]GrowthContext {
 	return res
 }
 
+func TestDivByThree(t *testing.T) {
+	DEBUG = true
+	someCenter1 := Point{3,-6,9}
+	ctx := GrowthContext{&someCenter1, 1, 1, false, 0,}
+	assert.Equal(t, someCenter1, *(ctx.center))
+	assert.Equal(t, uint8(1), ctx.permutationType)
+	assert.Equal(t, 1, ctx.permutationIndex)
+	assert.Equal(t, false, ctx.permutationNegFlow)
+	assert.Equal(t, 0, ctx.permutationOffset)
+
+	assert.Equal(t, int64(1), Point{0,-6,9}.GetDivByThree(&ctx))
+	assert.Equal(t, int64(1), Point{6,-6,9}.GetDivByThree(&ctx))
+	assert.Equal(t, int64(1), Point{3,-3,9}.GetDivByThree(&ctx))
+	assert.Equal(t, int64(1), Point{3,-9,9}.GetDivByThree(&ctx))
+	assert.Equal(t, int64(1), Point{3,-6,12}.GetDivByThree(&ctx))
+	assert.Equal(t, int64(1), Point{3,-6,6}.GetDivByThree(&ctx))
+
+	assert.Equal(t, int64(6), Point{0,0,0}.GetDivByThree(&ctx))
+
+	// Verify trio index unaffected
+	for d := int64(-10); d < 10; d++ {
+		assert.Equal(t, 1, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
+	}
+
+}
+
 func TestGrowthContext1(t *testing.T) {
 	DEBUG = true
 	ctx := GrowthContext{&Origin, 1, 3, false, 0,}

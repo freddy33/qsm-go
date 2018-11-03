@@ -239,9 +239,9 @@ void main() {
 		s_obj_color = vec3(1.0,0.0,0.0) * obj_dimmer;
 	} else if (obj_color == 2) {
 		s_obj_color = vec3(0.0,1.0,0.0) * obj_dimmer;
-	} else if (obj_color == 3) {
-		s_obj_color = vec3(0.0,0.0,1.0) * obj_dimmer;
 	} else if (obj_color == 4) {
+		s_obj_color = vec3(0.0,0.0,1.0) * obj_dimmer;
+	} else if (obj_color == 8) {
 		s_obj_color = vec3(1.0,1.0,0.0) * obj_dimmer;
 	} else {
 		s_obj_color = vec3(1.0,1.0,1.0) * obj_dimmer;

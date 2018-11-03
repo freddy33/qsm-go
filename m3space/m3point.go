@@ -91,12 +91,15 @@ func (ctx *GrowthContext) GetTrioIndex(divByThree int64) int {
 	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", ctx.permutationType, ctx))
 }
 
-func (p Point) GetTrioIndex(ctx *GrowthContext) int {
+func (p Point) GetDivByThree(ctx *GrowthContext) int64 {
 	if !p.IsMainPoint() {
 		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v in context %v!", p, ctx))
 	}
-	divByThree := int64((p[0]-ctx.center[0])/3 + (p[1]-ctx.center[1])/3 + (p[2]-ctx.center[2])/3)
-	return ctx.GetTrioIndex(divByThree)
+	return int64(Abs(p[0]-ctx.center[0])/3 + Abs(p[1]-ctx.center[1])/3 + Abs(p[2]-ctx.center[2])/3)
+}
+
+func (p Point) GetTrioIndex(ctx *GrowthContext) int {
+	return ctx.GetTrioIndex(p.GetDivByThree(ctx))
 }
 
 func (p Point) GetTrio(ctx *GrowthContext) Trio {

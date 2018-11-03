@@ -42,10 +42,10 @@ func (node *Node) HowManyColors(threshold Distance) uint8 {
 	m := uint8(0)
 	for _, eo := range node.outgrowths {
 		if eo.IsActive(threshold) {
-			if m&1<<eo.event.color == uint8(0) {
+			if m&uint8(eo.event.color) == uint8(0) {
 				r++
 			}
-			m |= 1<<eo.event.color
+			m |= uint8(eo.event.color)
 		}
 	}
 	return r

@@ -11,7 +11,10 @@ func TestSingleRedEvent(t *testing.T) {
 	InitConnectionDetails()
 	assertEmptySpace(t)
 
-	SpaceObj.max = 3*9
+	// Only latest counting
+	DrawSelector.EventOutgrowthThreshold = Distance(0)
+
+	SpaceObj.max = 3 * 9
 	expectedTime := TickTime(0)
 	nbNodes := 1
 	nbConnections := 0
@@ -19,47 +22,47 @@ func TestSingleRedEvent(t *testing.T) {
 	assert.Equal(t, int64(3*9), SpaceObj.max)
 
 	SpaceObj.CreateSingleEventCenter()
-	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections)
+	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, 1)
 
 	SpaceObj.ForwardTime()
 	expectedTime++
 	newNodes := 3
 	nbNodes += newNodes
 	nbConnections += newNodes
-	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections)
+	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, 3+1)
 
 	SpaceObj.ForwardTime()
 	expectedTime++
 	newNodes *= 2
 	nbNodes += newNodes
 	nbConnections += newNodes
-	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections)
+	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, 6+1)
 
 	SpaceObj.ForwardTime()
 	expectedTime++
 	newNodes *= 2
 	nbNodes += newNodes
 	nbConnections += newNodes
-	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections)
+	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, 12+1)
 
 	SpaceObj.ForwardTime()
 	expectedTime++
 	newConnections := newNodes * 2
 	newNodes *= 2
-	newNodes -= 3 // 3 nodes already done
+	newNodes -= 2 // 2 nodes already done
 	nbNodes += newNodes
 	nbConnections += newConnections
-	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections)
+	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, 24-2+1)
 
 	SpaceObj.ForwardTime()
 	expectedTime++
 	newConnections = newNodes * 2
-	newConnections -= 3 // 3 already done
+	newConnections -= 2 // 2 already done
 	newNodes *= 2
-	newNodes -= 8 // 8 nodes already done
+	newNodes -= 10 // 10 nodes already done
 	nbNodes += newNodes
 	nbConnections += newConnections
-	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections)
+	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, newNodes+1)
 
 	assertNearMainPoints(t)
 }
@@ -72,12 +75,24 @@ func assertEmptySpace(t *testing.T) {
 	assert.Equal(t, 0, len(SpaceObj.Elements))
 }
 
-func assertSpaceSingleEvent(t *testing.T, time TickTime, nbNodes, nbConnections int) {
+func assertSpaceSingleEvent(t *testing.T, time TickTime, nbNodes, nbConnections int, nbActive int) {
 	assert.Equal(t, time, SpaceObj.currentTime)
 	assert.Equal(t, nbNodes, len(SpaceObj.nodesMap))
 	assert.Equal(t, nbConnections, len(SpaceObj.connections))
 	assert.Equal(t, 1, len(SpaceObj.events))
 	assert.Equal(t, nbNodes+nbConnections+6, len(SpaceObj.Elements))
+	collectActiveElements := make([]*NodeDrawingElement, 0, 20)
+	for _, draw := range SpaceObj.Elements {
+		if draw.Key() == NodeActive {
+			nodeDrawing, ok := draw.(*NodeDrawingElement)
+			assert.True(t, ok, "Node draw element should be of type NodeDrawingElement not %v", draw)
+			collectActiveElements = append(collectActiveElements, nodeDrawing)
+		}
+	}
+	assert.Equal(t, nbActive, len(collectActiveElements))
+	for _, nodeDraw := range collectActiveElements {
+		assert.Equal(t, uint8(1), nodeDraw.sdc.howManyColors())
+	}
 }
 
 func assertNearMainPoints(t *testing.T) {
