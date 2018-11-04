@@ -96,8 +96,8 @@ func MakeWorld(Max int64) World {
 	return w
 }
 
-var LineWidth = SizeVar{0.001, 0.5, 0.06}
-var SphereRadius = SizeVar{0.05, 0.5, 0.3}
+var LineWidth = SizeVar{0.05, 0.5, 0.18}
+var SphereRadius = SizeVar{0.1, 0.8, 0.5}
 var XH = mgl64.Vec3{1.0, 0.0, 0.0}
 var YH = mgl64.Vec3{0.0, 1.0, 0.0}
 var ZH = mgl64.Vec3{0.0, 0.0, 1.0}

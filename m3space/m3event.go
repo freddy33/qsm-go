@@ -64,7 +64,7 @@ func (space *Space) CreateEvent(p Point, k EventColor) *Event {
 }
 
 func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx GrowthContext) *Event {
-	n := space.getOrCreateNode(&p)
+	n := space.getOrCreateNode(p)
 	id := space.currentId
 	space.currentId++
 	e := Event{space, id, n, space.currentTime, k,
@@ -81,69 +81,44 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 func (evt *Event) createNewOutgrowths() {
 	evt.newOutgrowths = evt.newOutgrowths[:0]
 	for _, eg := range evt.outgrowths {
-		if eg.state == EventOutgrowthLatest {
+		if eg.state == EventOutgrowthLatest && eg.node.HasFreeConnections() {
 			nextPoints := eg.node.point.getNextPoints(&(evt.growthContext))
-			connToPoint := [3]int{-1, -1, -1}
-
-			for connIdx, conn := range eg.node.connections {
-				if conn != nil {
-					for pointIdx, nextPoint := range nextPoints {
-						if nextPoint == *(conn.N1.point) || nextPoint == *(conn.N2.point) {
-							connToPoint[connIdx] = pointIdx
-						}
-					}
+			var otherNodes []*Node
+			if eg.from == nil {
+				otherNodes = make([]*Node,3)
+			} else {
+				otherNodes = make([]*Node,2)
+			}
+			offset := 0
+			for _, nextPoint := range nextPoints {
+				otherNode := evt.space.getOrCreateNode(nextPoint)
+				if eg.from == nil || otherNode != eg.from.node {
+					otherNodes[offset] = otherNode
+					offset++
 				}
 			}
 
-			if eg.node.HasFreeConnections() {
-				for pointIdx, _ := range nextPoints {
-					nextPoint := nextPoints[pointIdx]
-					alreadyMapped := false
-					for _, cIdx := range connToPoint {
-						if cIdx == pointIdx {
-							alreadyMapped = true
-						}
-					}
-					if !alreadyMapped {
-						otherNode := evt.space.getOrCreateNode(&nextPoint)
-						if otherNode.HasFreeConnections() {
-							newConn := evt.space.makeConnection(eg.node, otherNode)
-							if newConn != nil {
-								for connIdx, conn := range eg.node.connections {
-									if conn != nil && (nextPoint == *(conn.N1.point) || nextPoint == *(conn.N2.point)) {
-										connToPoint[connIdx] = pointIdx
-									}
-								}
-							}
-						}
-					}
-					if !eg.node.HasFreeConnections() {
-						break
+			for _, otherNode := range otherNodes {
+				// Roots cannot have outgrowth that not theirs (TODO: why?)
+				hasAlreadyEvent := otherNode.IsRoot()
+				for _, eo := range otherNode.outgrowths {
+					if eo.event.id == evt.id {
+						hasAlreadyEvent = true
 					}
 				}
-			}
-
-			for connIdx, pointIdx := range connToPoint {
-				if pointIdx != -1 {
-					c := eg.node.connections[connIdx]
-					otherNode := c.N1
-					if otherNode == eg.node {
-						otherNode = c.N2
+				if !hasAlreadyEvent {
+					if DEBUG {
+						fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.point)
 					}
-					// Roots cannot have outgrowth that not theirs (TODO: why?)
-					hasAlreadyEvent := otherNode.IsRoot()
-					for _, eo := range otherNode.outgrowths {
-						if eo.event.id == evt.id {
-							hasAlreadyEvent = true
-						}
+					if !otherNode.IsAlreadyConnected(eg.node) && otherNode.HasFreeConnections() && eg.node.HasFreeConnections() {
+						evt.space.makeConnection(eg.node, otherNode)
 					}
-					if !hasAlreadyEvent {
-						if DEBUG {
-							fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.point)
-						}
+					if otherNode.IsAlreadyConnected(eg.node) {
 						newEo := &EventOutgrowth{otherNode, evt, eg, eg.distance + 1, EventOutgrowthNew}
 						otherNode.outgrowths = append(otherNode.outgrowths, newEo)
 						evt.newOutgrowths = append(evt.newOutgrowths, newEo)
+					} else {
+						fmt.Println("Could NOT create new event outgrowth for", evt.id, "at", otherNode.point, "since no more free connections!")
 					}
 				}
 			}

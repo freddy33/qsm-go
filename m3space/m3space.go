@@ -75,22 +75,21 @@ func (space *Space) BackTime() {
 	//space.currentTime--
 }
 
-func (space *Space) GetNode(p *Point) *Node {
-	n, ok := space.nodesMap[*p]
+func (space *Space) GetNode(p Point) *Node {
+	n, ok := space.nodesMap[p]
 	if ok {
 		return n
 	}
 	return nil
 }
 
-func (space *Space) getOrCreateNode(p *Point) *Node {
+func (space *Space) getOrCreateNode(p Point) *Node {
 	n := space.GetNode(p)
 	if n != nil {
 		return n
 	}
-	n = &Node{}
-	n.point = p
-	space.nodesMap[*p] = n
+	n = &Node{&p, nil, nil, }
+	space.nodesMap[p] = n
 	return n
 }
 
@@ -115,37 +114,16 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 		return nil
 	}
 	// Verify not already connected
-	for i := 0; i < THREE; i++ {
-		if n1.connections[i] != nil && (n1.connections[i].N1 == n2 || n1.connections[i].N2 == n2) {
-			if DEBUG {
-				fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "already connected!")
-			}
-			return nil
-		}
-		if n2.connections[i] != nil && (n2.connections[i].N1 == n1 || n2.connections[i].N2 == n1) {
-			if DEBUG {
-				fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "already connected!")
-			}
-			return nil
-		}
+	if n1.IsAlreadyConnected(n2) {
+		fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "already connected!")
+		return nil
 	}
-
 	// All good create connection
 	c := &Connection{n1, n2}
 	space.connections = append(space.connections, c)
-	n1done := false
-	n2done := false
-	for i := 0; i < THREE; i++ {
-		if !n1done && n1.connections[i] == nil {
-			n1.connections[i] = c
-			n1done = true
-		}
-		if !n2done && n2.connections[i] == nil {
-			n2.connections[i] = c
-			n2done = true
-		}
-	}
-	if !n1done || !n2done {
+	n1done := n1.AddConnection(c)
+	n2done := n2.AddConnection(c)
+	if n1done < 0 || n2done < 0 {
 		fmt.Println("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
 		return nil
 	}

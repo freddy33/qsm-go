@@ -1,18 +1,36 @@
 package m3space
 
+var MaxConnections = 6
+
 type Node struct {
 	point       *Point
 	outgrowths  []*EventOutgrowth
-	connections [3]*Connection
+	connections []*Connection
 }
 
 type Connection struct {
 	N1, N2 *Node
 }
 
-func (n *Node) HasFreeConnections() bool {
-	for _, c := range n.connections {
-		if c == nil {
+func (node *Node) HasFreeConnections() bool {
+	return node.connections == nil || len(node.connections) < MaxConnections
+}
+
+func (node *Node) AddConnection(conn *Connection) int {
+	if !node.HasFreeConnections() {
+		return -1
+	}
+	if node.connections == nil {
+		node.connections = make ([]*Connection, 0, 3)
+	}
+	index := len(node.connections)
+	node.connections = append(node.connections, conn)
+	return index
+}
+
+func (node *Node) IsAlreadyConnected(otherNode *Node) bool {
+	for _, conn := range node.connections {
+		if conn.IsConnectedTo(otherNode) {
 			return true
 		}
 	}
@@ -49,4 +67,8 @@ func (node *Node) HowManyColors(threshold Distance) uint8 {
 		}
 	}
 	return r
+}
+
+func (conn *Connection) IsConnectedTo(node *Node) bool {
+	return conn.N1 == node || conn.N2 == node
 }

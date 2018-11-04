@@ -47,19 +47,22 @@ func TestSingleRedEvent(t *testing.T) {
 
 	SpaceObj.ForwardTime()
 	expectedTime++
-	newConnections := newNodes * 2
+
 	newNodes *= 2
 	newNodes -= 2 // 2 nodes already done
+	newConnections := newNodes
+
 	nbNodes += newNodes
 	nbConnections += newConnections
 	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, 24-2+1)
 
 	SpaceObj.ForwardTime()
 	expectedTime++
-	newConnections = newNodes * 2
-	newConnections -= 2 // 2 already done
+
 	newNodes *= 2
 	newNodes -= 10 // 10 nodes already done
+	newConnections = newNodes
+
 	nbNodes += newNodes
 	nbConnections += newConnections
 	assertSpaceSingleEvent(t, expectedTime, nbNodes, nbConnections, newNodes+1)
