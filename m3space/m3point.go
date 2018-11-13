@@ -91,19 +91,15 @@ func (ctx *GrowthContext) GetTrioIndex(divByThree int64) int {
 	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", ctx.permutationType, ctx))
 }
 
-func (p Point) GetDivByThree(ctx *GrowthContext) int64 {
+func (ctx *GrowthContext) GetDivByThree(p Point) int64 {
 	if !p.IsMainPoint() {
 		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v in context %v!", p, ctx))
 	}
 	return int64(Abs(p[0]-ctx.center[0])/3 + Abs(p[1]-ctx.center[1])/3 + Abs(p[2]-ctx.center[2])/3)
 }
 
-func (p Point) GetTrioIndex(ctx *GrowthContext) int {
-	return ctx.GetTrioIndex(p.GetDivByThree(ctx))
-}
-
-func (p Point) GetTrio(ctx *GrowthContext) Trio {
-	return AllBaseTrio[p.GetTrioIndex(ctx)]
+func (ctx *GrowthContext) GetTrio(p Point) Trio {
+	return AllBaseTrio[ctx.GetTrioIndex(ctx.GetDivByThree(p))]
 }
 
 func (p Point) getNearMainPoint() Point {
@@ -132,7 +128,7 @@ func (p Point) getNearMainPoint() Point {
 func (currentPoint Point) getNextPoints(ctx *GrowthContext) [3]Point {
 	result := [3]Point{}
 	if currentPoint.IsMainPoint() {
-		trio := currentPoint.GetTrio(ctx)
+		trio := ctx.GetTrio(currentPoint)
 		for i, tr := range trio {
 			result[i] = currentPoint.Add(tr)
 		}
@@ -165,7 +161,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 	}
 	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on X() )
-		nextConnectingVectors := nextMain.GetTrio(ctx)
+		nextConnectingVectors := ctx.GetTrio(nextMain)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.X() == -cVec.X() {
 				result[offset] = nextMain.Add(nbp)
@@ -187,7 +183,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 	}
 	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on Y() )
-		nextConnectingVectors := nextMain.GetTrio(ctx)
+		nextConnectingVectors := ctx.GetTrio(nextMain)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Y() == -cVec.Y() {
 				result[offset] = nextMain.Add(nbp)
@@ -209,7 +205,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 	}
 	if nextMain != mainPoint {
 		// Find the base point on the other side ( the opposite 1 or -1 on Z() )
-		nextConnectingVectors := nextMain.GetTrio(ctx)
+		nextConnectingVectors := ctx.GetTrio(nextMain)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Z() == -cVec.Z() {
 				result[offset] = nextMain.Add(nbp)

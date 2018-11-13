@@ -32,14 +32,15 @@ const (
 	axes        = 3
 )
 
-type World struct {
-	Max           int64
-	TopCornerDist float64
+type DisplayWorld struct {
+	Space  m3space.Space
+	Filter m3space.SpaceDrawingFilter
 
 	NbVertices         int
 	OpenGLBuffer       []float32
 	DrawingElementsMap map[m3space.ObjectType]OpenGLDrawingElement
 
+	TopCornerDist  float64
 	Width, Height  int
 	EyeDist        SizeVar
 	FovAngle       SizeVar
@@ -67,18 +68,19 @@ type OpenGLDrawingElement struct {
 	NbVertices   int32
 }
 
-func MakeWorld(Max int64) World {
+func MakeWorld(Max int64) DisplayWorld {
 	if Max%m3space.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
 	}
 	verifyData()
 	TopCornerDist := math.Sqrt(float64(3.0*Max*Max)) + 1.1
-	w := World{
-		Max,
-		TopCornerDist,
+	w := DisplayWorld{
+		m3space.MakeSpace(Max),
+		m3space.SpaceDrawingFilter{false, false, uint8(0xFF), 0, nil,},
 		0,
 		make([]float32, 0),
 		make(map[m3space.ObjectType]OpenGLDrawingElement),
+		TopCornerDist,
 		800, 600,
 		SizeVar{float64(Max), TopCornerDist * 4.0, TopCornerDist * 1.5},
 		SizeVar{10.0, 75.0, 30.0},
@@ -88,9 +90,10 @@ func MakeWorld(Max int64) World {
 		mgl32.Ident4(),
 		mgl32.Ident4(),
 		0,
-		TimeAutoVar{false, 0.01, 0.3,glfw.GetTime(), 0.0,},
-		TimeAutoVar{true, 0.5, 2.0,glfw.GetTime(), 0.0,},
+		TimeAutoVar{false, 0.01, 0.3, glfw.GetTime(), 0.0,},
+		TimeAutoVar{true, 0.5, 2.0, glfw.GetTime(), 0.0,},
 	}
+	w.Filter.Space = &(w.Space)
 	w.SetMatrices()
 	w.CreateObjects()
 	return w
@@ -124,29 +127,29 @@ func verifyData() {
 	}
 }
 
-func (w World) DisplaySettings() {
-	fmt.Println("========= World Settings =========")
-	fmt.Println("Width", w.Width, "Height", w.Height)
+func (world DisplayWorld) DisplaySettings() {
+	fmt.Println("========= DisplayWorld Settings =========")
+	fmt.Println("Width", world.Width, "Height", world.Height)
 	fmt.Println("Line Width [B,T]", LineWidth.Val)
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
-	fmt.Println("FOV Angle [Z,X]", w.FovAngle.Val)
-	fmt.Println("Eye Dist [Q,W]", w.EyeDist.Val)
-	m3space.SpaceObj.DisplaySettings()
-	m3space.DrawSelector.DisplaySettings()
+	fmt.Println("FOV Angle [Z,X]", world.FovAngle.Val)
+	fmt.Println("Eye Dist [Q,W]", world.EyeDist.Val)
+	world.Space.DisplaySettings()
+	world.Filter.DisplaySettings()
 }
 
-func (w *World) CreateObjects() int {
+func (world *DisplayWorld) CreateObjects() int {
 	m3space.InitConnectionDetails()
 	nbTriangles := (axes+connections)*trianglesPerLine + (nodes * trianglesPerSphere)
-	if w.NbVertices != nbTriangles*3 {
-		w.NbVertices = nbTriangles * 3
-		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", w.NbVertices, "vertices,", w.NbVertices*FloatPerVertices, "buffer size.")
-		w.OpenGLBuffer = make([]float32, w.NbVertices*FloatPerVertices)
+	if world.NbVertices != nbTriangles*3 {
+		world.NbVertices = nbTriangles * 3
+		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
+		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
-	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0, &(w.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	for axe := int16(0); axe < axes; axe++ {
 		p := m3space.Point{}
-		p[axe] = w.Max + m3space.AxeExtraLength
+		p[axe] = world.Space.Max + m3space.AxeExtraLength
 		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
 	}
 	triangleFiller.fill(MakeSphere(m3space.NodeEmpty))
@@ -159,8 +162,8 @@ func (w *World) CreateObjects() int {
 		}
 	}
 
-	w.DrawingElementsMap = triangleFiller.objMap
-	fmt.Println("Saved", len(w.DrawingElementsMap), "objects in world map.")
+	world.DrawingElementsMap = triangleFiller.objMap
+	fmt.Println("Saved", len(world.DrawingElementsMap), "objects in world map.")
 
 	return nbTriangles
 }
@@ -181,11 +184,11 @@ func MakeTriangleWithNorm(vert [3]mgl64.Vec3, norm mgl64.Vec3) Triangle {
 	return Triangle{vert, norm}
 }
 
-func (w *World) ScaleView(win *glfw.Window) int64 {
+func (world *DisplayWorld) ScaleView(win *glfw.Window) int64 {
 	// In Retina display retrieving the window size give half of what is needed. Using framebuffer size fix the issue.
-	w.Width, w.Height = win.GetFramebufferSize()
-	gl.Viewport(0, 0, int32(w.Width), int32(w.Height))
-	return int64(w.Width) * int64(w.Height)
+	world.Width, world.Height = win.GetFramebufferSize()
+	gl.Viewport(0, 0, int32(world.Width), int32(world.Height))
+	return int64(world.Width) * int64(world.Height)
 }
 
 func (t *TimeAutoVar) Tick(win *glfw.Window) {
@@ -202,24 +205,24 @@ func (t *TimeAutoVar) Tick(win *glfw.Window) {
 	}
 }
 
-func (w *World) Tick(win *glfw.Window) {
-	area := w.ScaleView(win)
-	if area != w.previousArea {
-		w.SetMatrices()
-		w.previousArea = area
+func (world *DisplayWorld) Tick(win *glfw.Window) {
+	area := world.ScaleView(win)
+	if area != world.previousArea {
+		world.SetMatrices()
+		world.previousArea = area
 	}
-	w.Angle.Tick(win)
-	w.Blinker.Tick(win)
-	if int32(w.Blinker.Value) >= 4 {
-		w.Blinker.Value = 0.0
+	world.Angle.Tick(win)
+	world.Blinker.Tick(win)
+	if int32(world.Blinker.Value) >= 4 {
+		world.Blinker.Value = 0.0
 	}
 }
 
-func (w *World) SetMatrices() {
-	Eye := mgl32.Vec3{float32(w.EyeDist.Val), float32(w.EyeDist.Val), float32(w.EyeDist.Val),}
-	Far := Eye.Len() + float32(w.TopCornerDist)
-	w.Projection = mgl32.Perspective(mgl32.DegToRad(float32(w.FovAngle.Val)), float32(w.Width)/float32(w.Height), 1.0, Far)
-	w.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 0, 1})
+func (world *DisplayWorld) SetMatrices() {
+	Eye := mgl32.Vec3{float32(world.EyeDist.Val), float32(world.EyeDist.Val), float32(world.EyeDist.Val),}
+	Far := Eye.Len() + float32(world.TopCornerDist)
+	world.Projection = mgl32.Perspective(mgl32.DegToRad(float32(world.FovAngle.Val)), float32(world.Width)/float32(world.Height), 1.0, Far)
+	world.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 0, 1})
 }
 
 type TriangleFiller struct {

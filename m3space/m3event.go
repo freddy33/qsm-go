@@ -183,9 +183,9 @@ func (eventOutgrowth *EventOutgrowth) DistanceFromLatest() Distance {
 }
 
 func (eventOutgrowth *EventOutgrowth) IsDrawn(filter SpaceDrawingFilter) bool {
-	return eventOutgrowth.IsActive(filter.EventOutgrowthThreshold) &&
+	return eventOutgrowth.IsActive(eventOutgrowth.event.space.EventOutgrowthThreshold) &&
 		filter.EventColorMask&uint8(eventOutgrowth.event.color) != uint8(0) &&
-		eventOutgrowth.node.HowManyColors(filter.EventOutgrowthThreshold) >= filter.EventOutgrowthManyColorsThreshold
+		eventOutgrowth.node.HowManyColors(eventOutgrowth.event.space.EventOutgrowthThreshold) >= filter.EventOutgrowthManyColorsThreshold
 }
 
 func (eventOutgrowth *EventOutgrowth) IsActive(threshold Distance) bool {

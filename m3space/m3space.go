@@ -20,28 +20,27 @@ type Space struct {
 	connections []*Connection
 	currentId   EventID
 	currentTime TickTime
-	max         int64
 	Elements    []SpaceDrawingElement
+	// Max size of all space. TODO: Make it variable using the furthest node from origin
+	Max         int64
+	// Max number of connections per node
+	MaxConnections int
+	// Distance from latest to consider event outgrowth active
+	EventOutgrowthThreshold Distance
 }
 
-var SpaceObj = Space{}
-
-func init() {
-	SpaceObj.Clear()
-}
-
-func (space *Space) Clear() {
+func MakeSpace(max int64) Space {
+	space := Space{}
 	space.events = make(map[EventID]*Event)
 	space.nodesMap = make(map[Point]*Node)
 	space.connections = make([]*Connection, 0, 500)
 	space.currentId = 0
 	space.currentTime = 0
-	space.max = 9
+	space.Max = max
 	space.Elements = make([]SpaceDrawingElement, 0, 500)
-}
-
-func (space *Space) SetMax(max int64) {
-	space.max = max
+	space.MaxConnections = 6
+	space.EventOutgrowthThreshold = Distance(1)
+	return space
 }
 
 func (space *Space) CreateSingleEventCenter() {
@@ -58,6 +57,7 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) ForwardTime() {
+	fmt.Println("Moving up time from",space.currentTime)
 	for _, evt := range space.events {
 		evt.createNewOutgrowths()
 	}
@@ -88,7 +88,7 @@ func (space *Space) getOrCreateNode(p Point) *Node {
 	if n != nil {
 		return n
 	}
-	n = &Node{&p, nil, nil, }
+	n = &Node{space, &p, nil, nil, }
 	space.nodesMap[p] = n
 	return n
 }
@@ -137,13 +137,13 @@ func (space *Space) createDrawingElements() {
 	for axe := 0; axe < 3; axe++ {
 		elements[offset] = &AxeDrawingElement{
 			ObjectType(axe),
-			space.max + AxeExtraLength,
+			space.Max + AxeExtraLength,
 			false,
 		}
 		offset++
 		elements[offset] = &AxeDrawingElement{
 			ObjectType(axe),
-			space.max + AxeExtraLength,
+			space.Max + AxeExtraLength,
 			true,
 		}
 		offset++

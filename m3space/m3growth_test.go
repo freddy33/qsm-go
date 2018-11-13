@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func getAllContexes() map[uint8][]GrowthContext {
+func getAllContexts() map[uint8][]GrowthContext {
 	res := make(map[uint8][]GrowthContext)
 	res[1] = make([]GrowthContext, 0, 8)
 	res[3] = make([]GrowthContext, 0, 8*4)
@@ -42,14 +42,14 @@ func TestDivByThree(t *testing.T) {
 	assert.Equal(t, false, ctx.permutationNegFlow)
 	assert.Equal(t, 0, ctx.permutationOffset)
 
-	assert.Equal(t, int64(1), Point{0,-6,9}.GetDivByThree(&ctx))
-	assert.Equal(t, int64(1), Point{6,-6,9}.GetDivByThree(&ctx))
-	assert.Equal(t, int64(1), Point{3,-3,9}.GetDivByThree(&ctx))
-	assert.Equal(t, int64(1), Point{3,-9,9}.GetDivByThree(&ctx))
-	assert.Equal(t, int64(1), Point{3,-6,12}.GetDivByThree(&ctx))
-	assert.Equal(t, int64(1), Point{3,-6,6}.GetDivByThree(&ctx))
+	assert.Equal(t, int64(1), ctx.GetDivByThree(Point{0,-6,9}))
+	assert.Equal(t, int64(1), ctx.GetDivByThree(Point{6,-6,9}))
+	assert.Equal(t, int64(1), ctx.GetDivByThree(Point{3,-3,9}))
+	assert.Equal(t, int64(1), ctx.GetDivByThree(Point{3,-9,9}))
+	assert.Equal(t, int64(1), ctx.GetDivByThree(Point{3,-6,12}))
+	assert.Equal(t, int64(1), ctx.GetDivByThree(Point{3,-6,6}))
 
-	assert.Equal(t, int64(6), Point{0,0,0}.GetDivByThree(&ctx))
+	assert.Equal(t, int64(6), ctx.GetDivByThree(Point{0,0,0}))
 
 	// Verify trio index unaffected
 	for d := int64(-10); d < 10; d++ {
@@ -100,7 +100,7 @@ func TestGrowthContext3(t *testing.T) {
 func TestGrowthContexes(t *testing.T) {
 	DEBUG = true
 
-	growthContexts := getAllContexes()
+	growthContexts := getAllContexts()
 	for _, ctx := range growthContexts[1] {
 		assert.Equal(t, uint8(1), ctx.permutationType)
 		for d := int64(-10); d < 10; d++ {
@@ -159,7 +159,7 @@ func TestConnectionDetails(t *testing.T) {
 		}
 	}
 
-	allCtx := getAllContexes()
+	allCtx := getAllContexts()
 	assert.Equal(t, 5, len(allCtx))
 
 	nbCtx := 0
@@ -176,7 +176,7 @@ func TestConnectionDetails(t *testing.T) {
 			for y := min; y < max; y++ {
 				for z := min; z < max; z++ {
 					mainPoint := Point{x, y, z}.Mul(3)
-					connectingVectors := mainPoint.GetTrio(&ctx)
+					connectingVectors := ctx.GetTrio(mainPoint)
 					for _, cVec := range connectingVectors {
 
 						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Point", mainPoint, "base vector", cVec))
@@ -194,11 +194,11 @@ func TestConnectionDetails(t *testing.T) {
 						}
 						if nextMain != Origin {
 							// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-							nextConnectingVectors := nextMain.GetTrio(&ctx)
+							nextConnectingVectors := ctx.GetTrio(nextMain)
 							for _, nbp := range nextConnectingVectors {
 								if nbp.X() == -cVec.X() {
 									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", mainPoint.GetTrioIndex(&ctx),
+										"next point=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
 										"main base vector", cVec, "next base vector", nbp))
 								}
 							}
@@ -217,11 +217,11 @@ func TestConnectionDetails(t *testing.T) {
 						}
 						if nextMain != Origin {
 							// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-							nextConnectingVectors := nextMain.GetTrio(&ctx)
+							nextConnectingVectors := ctx.GetTrio(nextMain)
 							for _, nbp := range nextConnectingVectors {
 								if nbp.Y() == -cVec.Y() {
 									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", mainPoint.GetTrioIndex(&ctx),
+										"next point=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
 										"main base vector", cVec, "next base vector", nbp))
 								}
 							}
@@ -240,11 +240,11 @@ func TestConnectionDetails(t *testing.T) {
 						}
 						if nextMain != Origin {
 							// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-							nextConnectingVectors := nextMain.GetTrio(&ctx)
+							nextConnectingVectors := ctx.GetTrio(nextMain)
 							for _, nbp := range nextConnectingVectors {
 								if nbp.Z() == -cVec.Z() {
 									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", mainPoint.GetTrioIndex(&ctx),
+										"next point=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
 										"main base vector", cVec, "next base vector", nbp))
 								}
 							}

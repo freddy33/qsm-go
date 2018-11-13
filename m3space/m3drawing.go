@@ -29,7 +29,7 @@ type SpaceDrawingElement interface {
 	// Return the obj_dimmer int for the shader program
 	Dimmer(blinkValue float64) float32
 	// Display flag
-	Display() bool
+	Display(filter SpaceDrawingFilter) bool
 }
 
 type SpaceDrawingFilter struct {
@@ -37,34 +37,32 @@ type SpaceDrawingFilter struct {
 	DisplayEmptyNodes bool
 	// Display grey empty connections or not
 	DisplayEmptyConnections bool
-	// Distance from latest to display event outgrowth
-	EventOutgrowthThreshold Distance
 	// The events of certain colors to display. This is a mask.
 	EventColorMask uint8
 	// The outgrowth events with how many colors to display.
 	EventOutgrowthManyColorsThreshold uint8
+	// The space the filter apply to
+	Space *Space
 }
-
-var DrawSelector = SpaceDrawingFilter{false, false, Distance(1), uint8(0xFF), 0,}
 
 func (filter *SpaceDrawingFilter) DisplaySettings() {
 	fmt.Println("========= Space Settings =========")
 	fmt.Println("Empty Nodes [N]", filter.DisplayEmptyNodes, ", Empty Connections [C]", filter.DisplayEmptyConnections)
-	fmt.Println("Event Outgrowth Threshold [UP,DOWN]", filter.EventOutgrowthThreshold, ", Event Outgrowth Many Colors Threshold [U,I]", filter.EventOutgrowthManyColorsThreshold)
+	fmt.Println("Event Outgrowth Threshold [UP,DOWN]", filter.Space.EventOutgrowthThreshold, ", Event Outgrowth Many Colors Threshold [U,I]", filter.EventOutgrowthManyColorsThreshold)
 	fmt.Println("Event Colors Mask [1,2,3,4]", filter.EventColorMask)
 }
 
-func (filter *SpaceDrawingFilter) EventOutgrowthThresholdIncrease() {
-	filter.EventOutgrowthThreshold++
-	SpaceObj.createDrawingElements()
+func (space *Space) EventOutgrowthThresholdIncrease() {
+	space.EventOutgrowthThreshold++
+	space.createDrawingElements()
 }
 
-func (filter *SpaceDrawingFilter) EventOutgrowthThresholdDecrease() {
-	filter.EventOutgrowthThreshold--
-	if filter.EventOutgrowthThreshold < 0 {
-		filter.EventOutgrowthThreshold = 0
+func (space *Space) EventOutgrowthThresholdDecrease() {
+	space.EventOutgrowthThreshold--
+	if space.EventOutgrowthThreshold < 0 {
+		space.EventOutgrowthThreshold = 0
 	}
-	SpaceObj.createDrawingElements()
+	space.createDrawingElements()
 }
 
 func (filter *SpaceDrawingFilter) EventOutgrowthColorsIncrease() {
@@ -72,7 +70,6 @@ func (filter *SpaceDrawingFilter) EventOutgrowthColorsIncrease() {
 	if filter.EventOutgrowthManyColorsThreshold > 4 {
 		filter.EventOutgrowthManyColorsThreshold = 4
 	}
-	SpaceObj.createDrawingElements()
 }
 
 func (filter *SpaceDrawingFilter) EventOutgrowthColorsDecrease() {
@@ -80,12 +77,10 @@ func (filter *SpaceDrawingFilter) EventOutgrowthColorsDecrease() {
 	if filter.EventOutgrowthManyColorsThreshold < 0 {
 		filter.EventOutgrowthManyColorsThreshold = 0
 	}
-	SpaceObj.createDrawingElements()
 }
 
 func (filter *SpaceDrawingFilter) ColorMaskSwitch(color EventColor) {
 	filter.EventColorMask ^= 1 << color
-	SpaceObj.createDrawingElements()
 }
 
 type SpaceDrawingColor struct {
@@ -129,7 +124,7 @@ func (sdc *SpaceDrawingColor) hasColor(c EventColor) bool {
 	return sdc.objColors&uint8(c) != uint8(0)
 }
 
-func (sdc *SpaceDrawingColor) hasDimm(c EventColor) bool {
+func (sdc *SpaceDrawingColor) hasDimming(c EventColor) bool {
 	return sdc.dimColors&(1<<uint8(c)) != uint8(0)
 }
 
@@ -175,15 +170,15 @@ func (sdc *SpaceDrawingColor) secondColor() EventColor {
 }
 
 func (sdc *SpaceDrawingColor) color(blinkValue float64) int32 {
-	colorSwicth := uint8(blinkValue)
-	color := EventColor(1 << colorSwicth)
+	colorSwitch := uint8(blinkValue)
+	color := EventColor(1 << colorSwitch)
 	switch sdc.howManyColors() {
 	case 0:
 		return 0
 	case 1:
 		return int32(sdc.singleColor())
 	case 2:
-		if int(colorSwicth)%2 == 0 {
+		if int(colorSwitch)%2 == 0 {
 			return int32(sdc.singleColor())
 		} else {
 			return int32(sdc.secondColor())
@@ -205,31 +200,31 @@ func (sdc *SpaceDrawingColor) color(blinkValue float64) int32 {
 }
 
 func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
-	colorSwicth := uint8(blinkValue)
-	color := EventColor(1 << colorSwicth)
+	colorSwitch := uint8(blinkValue)
+	color := EventColor(1 << colorSwitch)
 	switch sdc.howManyColors() {
 	case 0:
 		return defaultGreyDimmer
 	case 1:
-		if sdc.hasDimm(sdc.singleColor()) {
+		if sdc.hasDimming(sdc.singleColor()) {
 			return defaultOldEventDimmer
 		}
 		return noDimmer
 	case 2:
-		if int(colorSwicth)%2 == 0 {
-			if sdc.hasDimm(sdc.singleColor()) {
+		if int(colorSwitch)%2 == 0 {
+			if sdc.hasDimming(sdc.singleColor()) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
 		} else {
-			if sdc.hasDimm(sdc.secondColor()) {
+			if sdc.hasDimming(sdc.secondColor()) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
 		}
 	case 3:
 		if sdc.hasColor(color) {
-			if sdc.hasDimm(color) {
+			if sdc.hasDimming(color) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
@@ -238,7 +233,7 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 		}
 	case 4:
 		if sdc.hasColor(color) {
-			if sdc.hasDimm(color) {
+			if sdc.hasDimming(color) {
 				return defaultOldEventDimmer
 			}
 			return noDimmer
@@ -254,7 +249,7 @@ func MakeNodeDrawingElement(node *Node) *NodeDrawingElement {
 	isActive := false
 	sdc := SpaceDrawingColor{}
 	for _, eo := range node.outgrowths {
-		if eo.IsActive(DrawSelector.EventOutgrowthThreshold) {
+		if eo.IsActive(node.space.EventOutgrowthThreshold) {
 			sdc.objColors |= uint8(eo.event.color)
 			// TODO: Another threshold for dim?
 			//if eo.state != EventOutgrowthLatest && !eo.IsRoot() {
@@ -282,15 +277,15 @@ func MakeConnectionDrawingElement(conn *Connection) *ConnectionDrawingElement {
 	sdc := SpaceDrawingColor{}
 
 	for _, eo1 := range n1.outgrowths {
-		if eo1.IsActive(DrawSelector.EventOutgrowthThreshold) {
-			if eo1.from != nil && eo1.from.node == n2 && eo1.from.node.IsActive(DrawSelector.EventOutgrowthThreshold) {
+		if eo1.IsActive(n1.space.EventOutgrowthThreshold) {
+			if eo1.from != nil && eo1.from.node == n2 && eo1.from.node.IsActive(n1.space.EventOutgrowthThreshold) {
 				sdc.objColors |= uint8(eo1.event.color)
 			}
 		}
 	}
 	for _, eo2 := range n2.outgrowths {
-		if eo2.IsActive(DrawSelector.EventOutgrowthThreshold) {
-			if eo2.from != nil && eo2.from.node == n1 && eo2.from.node.IsActive(DrawSelector.EventOutgrowthThreshold) {
+		if eo2.IsActive(n2.space.EventOutgrowthThreshold) {
+			if eo2.from != nil && eo2.from.node == n1 && eo2.from.node.IsActive(n2.space.EventOutgrowthThreshold) {
 				sdc.objColors |= uint8(eo2.event.color)
 			}
 		}
@@ -309,14 +304,14 @@ func (n NodeDrawingElement) Key() ObjectType {
 	return n.objectType
 }
 
-func (n NodeDrawingElement) Display() bool {
+func (n NodeDrawingElement) Display(filter SpaceDrawingFilter) bool {
 	if n.objectType == NodeActive {
 		if n.node.IsRoot() {
 			return true
 		}
-		return n.sdc.objColors&DrawSelector.EventColorMask != 0 && n.sdc.howManyColors() >= DrawSelector.EventOutgrowthManyColorsThreshold
+		return n.sdc.objColors&filter.EventColorMask != 0 && n.sdc.howManyColors() >= filter.EventOutgrowthManyColorsThreshold
 	}
-	return DrawSelector.DisplayEmptyNodes
+	return filter.DisplayEmptyNodes
 }
 
 func (n NodeDrawingElement) Color(blinkValue float64) int32 {
@@ -336,11 +331,11 @@ func (c ConnectionDrawingElement) Key() ObjectType {
 	return c.objectType
 }
 
-func (c ConnectionDrawingElement) Display() bool {
-	if c.sdc.objColors&DrawSelector.EventColorMask != uint8(0) && c.sdc.howManyColors() >= DrawSelector.EventOutgrowthManyColorsThreshold {
+func (c ConnectionDrawingElement) Display(filter SpaceDrawingFilter) bool {
+	if c.sdc.objColors&filter.EventColorMask != uint8(0) && c.sdc.howManyColors() >= filter.EventOutgrowthManyColorsThreshold {
 		return true
 	}
-	return DrawSelector.DisplayEmptyConnections
+	return filter.DisplayEmptyConnections
 }
 
 func (c ConnectionDrawingElement) Color(blinkValue float64) int32 {
@@ -361,7 +356,7 @@ func (a AxeDrawingElement) Key() ObjectType {
 	return a.objectType
 }
 
-func (a AxeDrawingElement) Display() bool {
+func (a AxeDrawingElement) Display(filter SpaceDrawingFilter) bool {
 	return true
 }
 

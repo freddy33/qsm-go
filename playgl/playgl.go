@@ -14,7 +14,7 @@ import (
 const windowWidth = 800
 const windowHeight = 600
 
-var w m3gl.World
+var world m3gl.DisplayWorld
 
 func DisplayPlay1() {
 	runtime.LockOSThread()
@@ -44,10 +44,10 @@ func DisplayPlay1() {
 	// ******************************************************************
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
-	w = m3gl.MakeWorld(40*m3space.THREE)
-	m3space.SpaceObj.SetMax(w.Max)
+	max := int64(40 * m3space.THREE)
+	world = m3gl.MakeWorld(max)
 	//m3space.SpaceObj.CreateSingleEventCenter()
-	m3space.SpaceObj.CreatePyramid(12)
+	world.Space.CreatePyramid(12)
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
@@ -74,8 +74,8 @@ func DisplayPlay1() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	fmt.Println("Nb vertices", w.NbVertices, ", total size", len(w.OpenGLBuffer))
-	gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*m3gl.FloatPerVertices*m3gl.FloatSize, gl.Ptr(w.OpenGLBuffer), gl.STATIC_DRAW)
+	fmt.Println("Nb vertices", world.NbVertices, ", total size", len(world.OpenGLBuffer))
+	gl.BufferData(gl.ARRAY_BUFFER, world.NbVertices*m3gl.FloatPerVertices*m3gl.FloatSize, gl.Ptr(world.OpenGLBuffer), gl.STATIC_DRAW)
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
@@ -92,28 +92,28 @@ func DisplayPlay1() {
 
 	for !win.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		w.Tick(win)
+		world.Tick(win)
 
 		gl.UseProgram(prog)
 
-		gl.UniformMatrix4fv(projectionUniform, 1, false, &(w.Projection[0]))
-		gl.UniformMatrix4fv(cameraUniform, 1, false, &(w.Camera[0]))
-		gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
-		gl.Uniform3f(lightDirectionUniform, w.LightDirection[0], w.LightDirection[1], w.LightDirection[2])
-		gl.Uniform3f(lightColorUniform, w.LightColor[0], w.LightColor[1], w.LightColor[2])
+		gl.UniformMatrix4fv(projectionUniform, 1, false, &(world.Projection[0]))
+		gl.UniformMatrix4fv(cameraUniform, 1, false, &(world.Camera[0]))
+		gl.UniformMatrix4fv(modelUniform, 1, false, &(world.Model[0]))
+		gl.Uniform3f(lightDirectionUniform, world.LightDirection[0], world.LightDirection[1], world.LightDirection[2])
+		gl.Uniform3f(lightColorUniform, world.LightColor[0], world.LightColor[1], world.LightColor[2])
 		gl.Uniform1i(colorUniform, 0)
 		gl.Uniform1f(colorDimmerUniform, 1.0)
 		gl.BindVertexArray(vao)
 
-		for _, obj := range m3space.SpaceObj.Elements {
-			if obj != nil && obj.Display() {
-				toDraw := w.DrawingElementsMap[obj.Key()]
-				w.Model = mgl32.HomogRotate3D(float32(w.Angle.Value), mgl32.Vec3{0, 0, 1})
-				w.Model = w.Model.Mul4(mgl32.Translate3D(float32(obj.Pos().X()), float32(obj.Pos().Y()), float32(obj.Pos().Z())))
-				gl.UniformMatrix4fv(modelUniform, 1, false, &(w.Model[0]))
+		for _, obj := range world.Space.Elements {
+			if obj != nil && obj.Display(world.Filter) {
+				toDraw := world.DrawingElementsMap[obj.Key()]
+				world.Model = mgl32.HomogRotate3D(float32(world.Angle.Value), mgl32.Vec3{0, 0, 1})
+				world.Model = world.Model.Mul4(mgl32.Translate3D(float32(obj.Pos().X()), float32(obj.Pos().Y()), float32(obj.Pos().Z())))
+				gl.UniformMatrix4fv(modelUniform, 1, false, &(world.Model[0]))
 
-				gl.Uniform1i(colorUniform, obj.Color(w.Blinker.Value))
-				gl.Uniform1f(colorDimmerUniform, obj.Dimmer(w.Blinker.Value))
+				gl.Uniform1i(colorUniform, obj.Color(world.Blinker.Value))
+				gl.Uniform1f(colorDimmerUniform, obj.Dimmer(world.Blinker.Value))
 
 				gl.DrawArrays(gl.TRIANGLES, toDraw.OpenGLOffset, toDraw.NbVertices)
 			}
@@ -126,57 +126,58 @@ func DisplayPlay1() {
 }
 
 func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	reCalc := false
-	reFill := false
 	if action == glfw.Press {
+		reCalc := false
+		reFill := false
+
 		switch key {
 		case glfw.KeyEscape:
 			win.SetShouldClose(true)
 
 		case glfw.KeyS:
-			w.Angle.Enabled = !w.Angle.Enabled
+			world.Angle.Enabled = !world.Angle.Enabled
 
 		case glfw.KeyRight:
-			m3space.SpaceObj.ForwardTime()
+			world.Space.ForwardTime()
 
 		case glfw.KeyLeft:
-			m3space.SpaceObj.BackTime()
+			world.Space.BackTime()
 
 		case glfw.KeyN:
-			m3space.DrawSelector.DisplayEmptyNodes = !m3space.DrawSelector.DisplayEmptyNodes
+			world.Filter.DisplayEmptyNodes = !world.Filter.DisplayEmptyNodes
 		case glfw.KeyC:
-			m3space.DrawSelector.DisplayEmptyConnections = !m3space.DrawSelector.DisplayEmptyConnections
+			world.Filter.DisplayEmptyConnections = !world.Filter.DisplayEmptyConnections
 
 		case glfw.KeyUp:
-			m3space.DrawSelector.EventOutgrowthThresholdIncrease()
+			world.Space.EventOutgrowthThresholdIncrease()
 		case glfw.KeyDown:
-			m3space.DrawSelector.EventOutgrowthThresholdDecrease()
+			world.Space.EventOutgrowthThresholdDecrease()
 
 		case glfw.KeyU:
-			m3space.DrawSelector.EventOutgrowthColorsIncrease()
+			world.Filter.EventOutgrowthColorsIncrease()
 		case glfw.KeyI:
-			m3space.DrawSelector.EventOutgrowthColorsDecrease()
+			world.Filter.EventOutgrowthColorsDecrease()
 
 		case glfw.Key1:
-			m3space.DrawSelector.ColorMaskSwitch(m3space.RedEvent)
+			world.Filter.ColorMaskSwitch(m3space.RedEvent)
 		case glfw.Key2:
-			m3space.DrawSelector.ColorMaskSwitch(m3space.GreenEvent)
+			world.Filter.ColorMaskSwitch(m3space.GreenEvent)
 		case glfw.Key3:
-			m3space.DrawSelector.ColorMaskSwitch(m3space.BlueEvent)
+			world.Filter.ColorMaskSwitch(m3space.BlueEvent)
 		case glfw.Key4:
-			m3space.DrawSelector.ColorMaskSwitch(m3space.YellowEvent)
+			world.Filter.ColorMaskSwitch(m3space.YellowEvent)
 
 		case glfw.KeyZ:
-			w.FovAngle.Decrease()
+			world.FovAngle.Decrease()
 			reCalc = true
 		case glfw.KeyX:
-			w.FovAngle.Increase()
+			world.FovAngle.Increase()
 			reCalc = true
 		case glfw.KeyQ:
-			w.EyeDist.Increase()
+			world.EyeDist.Increase()
 			reCalc = true
 		case glfw.KeyW:
-			w.EyeDist.Decrease()
+			world.EyeDist.Decrease()
 			reCalc = true
 		case glfw.KeyB:
 			m3gl.LineWidth.Increase()
@@ -195,20 +196,21 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 			reCalc = true
 			reFill = true
 		}
-	}
-	if reCalc {
-		recalc(reFill)
-	} else {
-		w.DisplaySettings()
+
+		if reCalc {
+			recalc(reFill)
+		} else {
+			world.DisplaySettings()
+		}
 	}
 }
 
 func recalc(fill bool) {
-	w.DisplaySettings()
-	w.SetMatrices()
+	world.DisplaySettings()
+	world.SetMatrices()
 	if fill {
-		w.CreateObjects()
-		gl.BufferData(gl.ARRAY_BUFFER, w.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(w.OpenGLBuffer), gl.STATIC_DRAW)
+		world.CreateObjects()
+		gl.BufferData(gl.ARRAY_BUFFER, world.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(world.OpenGLBuffer), gl.STATIC_DRAW)
 	}
 }
 

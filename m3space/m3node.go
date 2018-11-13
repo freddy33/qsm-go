@@ -1,8 +1,8 @@
 package m3space
 
-var MaxConnections = 6
 
 type Node struct {
+	space       *Space
 	point       *Point
 	outgrowths  []*EventOutgrowth
 	connections []*Connection
@@ -13,7 +13,7 @@ type Connection struct {
 }
 
 func (node *Node) HasFreeConnections() bool {
-	return node.connections == nil || len(node.connections) < MaxConnections
+	return node.connections == nil || len(node.connections) < node.space.MaxConnections
 }
 
 func (node *Node) AddConnection(conn *Connection) int {
