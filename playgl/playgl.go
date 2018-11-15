@@ -143,6 +143,7 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 
 		case glfw.KeyRight:
 			world.Space.ForwardTime()
+			world.CreateDrawingElements()
 
 		case glfw.KeyN:
 			world.Filter.DisplayEmptyNodes = !world.Filter.DisplayEmptyNodes

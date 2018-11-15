@@ -34,7 +34,7 @@ const (
 var DEBUG = true
 
 type DisplayWorld struct {
-	Space    m3space.Space
+	Space    *m3space.Space
 	Filter   SpaceDrawingFilter
 	Elements []SpaceDrawingElement
 
@@ -77,7 +77,7 @@ func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 	verifyData()
 	TopCornerDist := math.Sqrt(float64(3.0*Max*Max)) + 1.1
 	w := DisplayWorld{
-		m3space.MakeSpace(Max),
+		nil,
 		SpaceDrawingFilter{false, false, uint8(0xFF), 0, nil,},
 		make([]SpaceDrawingElement, 0, 500),
 		0,
@@ -96,7 +96,9 @@ func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 		TimeAutoVar{false, 0.01, 0.3, glfwTime, 0.0,},
 		TimeAutoVar{true, 0.5, 2.0, glfwTime, 0.0,},
 	}
-	w.Filter.Space = &(w.Space)
+	space := m3space.MakeSpace(Max)
+	w.Space = &space
+	w.Filter.Space = &space
 	w.SetMatrices()
 	w.CreateDrawingElementsMap()
 	return w
