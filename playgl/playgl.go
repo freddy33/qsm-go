@@ -48,6 +48,7 @@ func DisplayPlay1() {
 	world = m3gl.MakeWorld(max, glfw.GetTime())
 	//m3space.SpaceObj.CreateSingleEventCenter()
 	world.Space.CreatePyramid(12)
+	world.CreateDrawingElements()
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)

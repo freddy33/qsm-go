@@ -31,7 +31,7 @@ const (
 	axes           = 3
 )
 
-var DEBUG = false
+var DEBUG = true
 
 type DisplayWorld struct {
 	Space    m3space.Space
@@ -176,10 +176,10 @@ func (creator *DrawingElementsCreator) VisitConnection(space *m3space.Space, con
 
 func (world *DisplayWorld) ForwardTime() {
 	world.Space.ForwardTime()
-	world.createDrawingElements()
+	world.CreateDrawingElements()
 }
 
-func (world *DisplayWorld) createDrawingElements() {
+func (world *DisplayWorld) CreateDrawingElements() {
 	space := world.Space
 	dec := DrawingElementsCreator{}
 	dec.nbElements = 6 + space.GetNbNodes() + space.GetNbConnections()

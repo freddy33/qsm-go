@@ -6,7 +6,7 @@ import (
 	"github.com/freddy33/qsm-go/m3space"
 )
 
-type ExpectedSpaceState struct  {
+type ExpectedSpaceState struct {
 	baseNodes int
 	newNodes  int
 }
@@ -21,13 +21,13 @@ func TestSingleRedEvent(t *testing.T) {
 	world.Space.EventOutgrowthThreshold = m3space.Distance(0)
 
 	world.Space.CreateSingleEventCenter()
-	world.createDrawingElements()
+	world.CreateDrawingElements()
 
 	expectedState := map[m3space.TickTime]ExpectedSpaceState{
-		0:{1, 0},
-		1:{1, 3},
-		4:{1, -2},
-		5:{1, -10},
+		0: {1, 0},
+		1: {1, 3},
+		4: {1, -2},
+		5: {1, -10},
 	}
 	assertSpaceStates(t, &world, expectedState, 5)
 }
@@ -74,11 +74,12 @@ func assertSpaceStates(t *testing.T, world *DisplayWorld, expectMap map[m3space.
 }
 
 func assertSpaceSingleEvent(t *testing.T, world *DisplayWorld, time m3space.TickTime, nbNodes, nbConnections int, nbActive int) {
-	assert.Equal(t, time, world.Space.GetCurrentTime())
-	assert.Equal(t, nbNodes, world.Space.GetNbNodes())
-	assert.Equal(t, nbConnections, world.Space.GetNbConnections())
-	assert.Equal(t, 1, world.Space.GetNbEvents())
-	assert.Equal(t, nbNodes+nbConnections+6, len(world.Elements))
+	assert.Equal(t, time, world.Space.GetCurrentTime(), "failed at %d", time)
+	assert.Equal(t, nbNodes, world.Space.GetNbNodes(), "failed at %d", time)
+	assert.Equal(t, nbConnections, world.Space.GetNbConnections(), "failed at %d", time)
+	assert.Equal(t, 1, world.Space.GetNbEvents(), "failed at %d", time)
+	assert.Equal(t, nbNodes+nbConnections+6, len(world.Elements), "failed at %d", time)
+	nbDisplay := 0
 	collectActiveElements := make([]*NodeDrawingElement, 0, 20)
 	for _, draw := range world.Elements {
 		if draw.Key() == NodeActive {
@@ -86,9 +87,16 @@ func assertSpaceSingleEvent(t *testing.T, world *DisplayWorld, time m3space.Tick
 			assert.True(t, ok, "Node draw element should be of type NodeDrawingElement not %v", draw)
 			collectActiveElements = append(collectActiveElements, nodeDrawing)
 		}
+		if draw.Display(world.Filter) {
+			// TODO: Should be able to test active connections...
+			if !draw.Key().IsConnection() {
+				nbDisplay++
+			}
+		}
 	}
-	assert.Equal(t, nbActive, len(collectActiveElements))
+	assert.Equal(t, 6+nbActive, nbDisplay, "failed at %d", time)
+	assert.Equal(t, nbActive, len(collectActiveElements), "failed at %d", time)
 	for _, nodeDraw := range collectActiveElements {
-		assert.Equal(t, uint8(1), nodeDraw.sdc.howManyColors())
+		assert.Equal(t, uint8(1), nodeDraw.sdc.howManyColors(), "failed at %d", time)
 	}
 }

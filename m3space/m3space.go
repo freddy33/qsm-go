@@ -9,7 +9,7 @@ const (
 	THREE = 3
 )
 
-var DEBUG = false
+var DEBUG = true
 
 type TickTime uint64
 
@@ -25,7 +25,7 @@ type Space struct {
 	currentId   EventID
 	currentTime TickTime
 	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from origin
-	Max         int64
+	Max int64
 	// Max number of connections per node
 	MaxConnections int
 	// Distance from latest to consider event outgrowth active
@@ -82,7 +82,7 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) ForwardTime() {
-	fmt.Println("Moving up time from",space.currentTime)
+	fmt.Println("Moving up time from", space.currentTime)
 	for _, evt := range space.events {
 		evt.createNewOutgrowths()
 	}
@@ -106,7 +106,7 @@ func (space *Space) getOrCreateNode(p Point) *Node {
 	if n != nil {
 		return n
 	}
-	n = &Node{&p, nil, nil, }
+	n = &Node{&p, nil, nil,}
 	space.nodesMap[p] = n
 	return n
 }
