@@ -179,7 +179,7 @@ func TestConnectionDetails(t *testing.T) {
 					connectingVectors := ctx.GetTrio(mainPoint)
 					for _, cVec := range connectingVectors {
 
-						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Point", mainPoint, "base vector", cVec))
+						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Pos", mainPoint, "base vector", cVec))
 
 						nextMain := Origin
 						switch cVec.X() {
@@ -197,8 +197,8 @@ func TestConnectionDetails(t *testing.T) {
 							nextConnectingVectors := ctx.GetTrio(nextMain)
 							for _, nbp := range nextConnectingVectors {
 								if nbp.X() == -cVec.X() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
+									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
+										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
 										"main base vector", cVec, "next base vector", nbp))
 								}
 							}
@@ -220,8 +220,8 @@ func TestConnectionDetails(t *testing.T) {
 							nextConnectingVectors := ctx.GetTrio(nextMain)
 							for _, nbp := range nextConnectingVectors {
 								if nbp.Y() == -cVec.Y() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
+									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
+										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
 										"main base vector", cVec, "next base vector", nbp))
 								}
 							}
@@ -243,8 +243,8 @@ func TestConnectionDetails(t *testing.T) {
 							nextConnectingVectors := ctx.GetTrio(nextMain)
 							for _, nbp := range nextConnectingVectors {
 								if nbp.Z() == -cVec.Z() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Point=", mainPoint,
-										"next point=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
+									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
+										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
 										"main base vector", cVec, "next base vector", nbp))
 								}
 							}

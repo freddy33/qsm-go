@@ -1,6 +1,9 @@
-package m3space
+package m3gl
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/freddy33/qsm-go/m3space"
+)
 
 const (
 	noDimmer              = 1.0
@@ -23,7 +26,7 @@ type SpaceDrawingElement interface {
 	// Key of the drawing element to point to the OpenGL buffer to render
 	Key() ObjectType
 	// The translation point to apply to the OpenGL model, since all the above are drawn at the origin
-	Pos() *Point
+	Pos() *m3space.Point
 	// Return the obj_color int for the shader program
 	Color(blinkValue float64) int32
 	// Return the obj_dimmer int for the shader program
@@ -42,7 +45,7 @@ type SpaceDrawingFilter struct {
 	// The outgrowth events with how many colors to display.
 	EventOutgrowthManyColorsThreshold uint8
 	// The space the filter apply to
-	Space *Space
+	Space *m3space.Space
 }
 
 func (filter *SpaceDrawingFilter) DisplaySettings() {
@@ -52,17 +55,17 @@ func (filter *SpaceDrawingFilter) DisplaySettings() {
 	fmt.Println("Event Colors Mask [1,2,3,4]", filter.EventColorMask)
 }
 
-func (space *Space) EventOutgrowthThresholdIncrease() {
-	space.EventOutgrowthThreshold++
-	space.createDrawingElements()
+func (world *DisplayWorld) EventOutgrowthThresholdIncrease() {
+	world.Space.EventOutgrowthThreshold++
+	world.createDrawingElements()
 }
 
-func (space *Space) EventOutgrowthThresholdDecrease() {
-	space.EventOutgrowthThreshold--
-	if space.EventOutgrowthThreshold < 0 {
-		space.EventOutgrowthThreshold = 0
+func (world *DisplayWorld) EventOutgrowthThresholdDecrease() {
+	world.Space.EventOutgrowthThreshold--
+	if world.Space.EventOutgrowthThreshold < 0 {
+		world.Space.EventOutgrowthThreshold = 0
 	}
-	space.createDrawingElements()
+	world.createDrawingElements()
 }
 
 func (filter *SpaceDrawingFilter) EventOutgrowthColorsIncrease() {
@@ -79,7 +82,7 @@ func (filter *SpaceDrawingFilter) EventOutgrowthColorsDecrease() {
 	}
 }
 
-func (filter *SpaceDrawingFilter) ColorMaskSwitch(color EventColor) {
+func (filter *SpaceDrawingFilter) ColorMaskSwitch(color m3space.EventColor) {
 	filter.EventColorMask ^= 1 << color
 }
 
@@ -93,13 +96,13 @@ type SpaceDrawingColor struct {
 type NodeDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	node       *Node
+	node       *m3space.Node
 }
 
 type ConnectionDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	p1, p2     *Point
+	p1, p2     *m3space.Point
 }
 
 type AxeDrawingElement struct {
@@ -120,11 +123,11 @@ func (ot ObjectType) IsConnection() bool {
 	return int8(ot) >= int8(Connection00)
 }
 
-func (sdc *SpaceDrawingColor) hasColor(c EventColor) bool {
+func (sdc *SpaceDrawingColor) hasColor(c m3space.EventColor) bool {
 	return sdc.objColors&uint8(c) != uint8(0)
 }
 
-func (sdc *SpaceDrawingColor) hasDimming(c EventColor) bool {
+func (sdc *SpaceDrawingColor) hasDimming(c m3space.EventColor) bool {
 	return sdc.dimColors&(1<<uint8(c)) != uint8(0)
 }
 
@@ -133,7 +136,7 @@ func (sdc *SpaceDrawingColor) howManyColors() uint8 {
 		return 0
 	}
 	r := uint8(0)
-	for _, c := range AllColors {
+	for _, c := range m3space.AllColors {
 		if sdc.hasColor(c) {
 			r++
 		}
@@ -141,11 +144,11 @@ func (sdc *SpaceDrawingColor) howManyColors() uint8 {
 	return r
 }
 
-func (sdc *SpaceDrawingColor) singleColor() EventColor {
+func (sdc *SpaceDrawingColor) singleColor() m3space.EventColor {
 	if sdc.objColors == 0 {
 		return 0
 	}
-	for _, c := range AllColors {
+	for _, c := range m3space.AllColors {
 		if sdc.hasColor(c) {
 			return c
 		}
@@ -153,12 +156,12 @@ func (sdc *SpaceDrawingColor) singleColor() EventColor {
 	return 0
 }
 
-func (sdc *SpaceDrawingColor) secondColor() EventColor {
+func (sdc *SpaceDrawingColor) secondColor() m3space.EventColor {
 	if sdc.objColors == 0 {
 		return 0
 	}
 	foundOne := false
-	for _, c := range AllColors {
+	for _, c := range m3space.AllColors {
 		if sdc.hasColor(c) {
 			if foundOne {
 				return c
@@ -171,7 +174,7 @@ func (sdc *SpaceDrawingColor) secondColor() EventColor {
 
 func (sdc *SpaceDrawingColor) color(blinkValue float64) int32 {
 	colorSwitch := uint8(blinkValue)
-	color := EventColor(1 << colorSwitch)
+	color := m3space.EventColor(1 << colorSwitch)
 	switch sdc.howManyColors() {
 	case 0:
 		return 0
@@ -201,7 +204,7 @@ func (sdc *SpaceDrawingColor) color(blinkValue float64) int32 {
 
 func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 	colorSwitch := uint8(blinkValue)
-	color := EventColor(1 << colorSwitch)
+	color := m3space.EventColor(1 << colorSwitch)
 	switch sdc.howManyColors() {
 	case 0:
 		return defaultGreyDimmer
@@ -244,21 +247,16 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 	return defaultGreyDimmer
 }
 
-func MakeNodeDrawingElement(node *Node) *NodeDrawingElement {
+func MakeNodeDrawingElement(space *m3space.Space, node *m3space.Node) *NodeDrawingElement {
 	// Collect all the colors of event outgrowth of this node. Dim if not latest
-	isActive := false
 	sdc := SpaceDrawingColor{}
-	for _, eo := range node.outgrowths {
-		if eo.IsActive(node.space.EventOutgrowthThreshold) {
-			sdc.objColors |= uint8(eo.event.color)
-			// TODO: Another threshold for dim?
-			//if eo.state != EventOutgrowthLatest && !eo.IsRoot() {
-			//	sdc.dimColors |= 1 << uint8(eo.event.color)
-			//}
-			isActive = true
-		}
-	}
-	if isActive {
+	sdc.objColors = node.GetColorMask(space.EventOutgrowthThreshold)
+	// TODO: Another threshold for dim?
+	//if eo.state != EventOutgrowthLatest && !eo.IsRoot() {
+	//	sdc.dimColors |= 1 << uint8(eo.event.color)
+	//}
+
+	if sdc.objColors != uint8(0) {
 		return &NodeDrawingElement{
 			NodeActive, sdc, node,
 		}
@@ -270,29 +268,15 @@ func MakeNodeDrawingElement(node *Node) *NodeDrawingElement {
 
 }
 
-func MakeConnectionDrawingElement(conn *Connection) *ConnectionDrawingElement {
+func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection) *ConnectionDrawingElement {
 	n1 := conn.N1
 	n2 := conn.N2
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
-
-	for _, eo1 := range n1.outgrowths {
-		if eo1.IsActive(n1.space.EventOutgrowthThreshold) {
-			if eo1.from != nil && eo1.from.node == n2 && eo1.from.node.IsActive(n1.space.EventOutgrowthThreshold) {
-				sdc.objColors |= uint8(eo1.event.color)
-			}
-		}
-	}
-	for _, eo2 := range n2.outgrowths {
-		if eo2.IsActive(n2.space.EventOutgrowthThreshold) {
-			if eo2.from != nil && eo2.from.node == n1 && eo2.from.node.IsActive(n2.space.EventOutgrowthThreshold) {
-				sdc.objColors |= uint8(eo2.event.color)
-			}
-		}
-	}
-	p1 := n1.point
-	p2 := n2.point
-	cd := GetConnectionDetails(*p1, *p2)
+	sdc.objColors = conn.GetColorMask(space.EventOutgrowthThreshold)
+	p1 := n1.Pos
+	p2 := n2.Pos
+	cd := m3space.GetConnectionDetails(*p1, *p2)
 	if cd.ConnNeg {
 		return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, p2, p1,}
 	}
@@ -322,8 +306,8 @@ func (n NodeDrawingElement) Dimmer(blinkValue float64) float32 {
 	return n.sdc.dimmer(blinkValue)
 }
 
-func (n NodeDrawingElement) Pos() *Point {
-	return n.node.point
+func (n NodeDrawingElement) Pos() *m3space.Point {
+	return n.node.Pos
 }
 
 // ConnectionDrawingElement functions
@@ -347,7 +331,7 @@ func (c ConnectionDrawingElement) Dimmer(blinkValue float64) float32 {
 	return dimmer
 }
 
-func (c ConnectionDrawingElement) Pos() *Point {
+func (c ConnectionDrawingElement) Pos() *m3space.Point {
 	return c.p1
 }
 
@@ -363,11 +347,11 @@ func (a AxeDrawingElement) Display(filter SpaceDrawingFilter) bool {
 func (a AxeDrawingElement) Color(blinkValue float64) int32 {
 	switch a.objectType {
 	case AxeX:
-		return int32(RedEvent)
+		return int32(m3space.RedEvent)
 	case AxeY:
-		return int32(GreenEvent)
+		return int32(m3space.GreenEvent)
 	case AxeZ:
-		return int32(BlueEvent)
+		return int32(m3space.BlueEvent)
 	}
 	return 0
 }
@@ -376,16 +360,16 @@ func (a AxeDrawingElement) Dimmer(blinkValue float64) float32 {
 	return 1.0
 }
 
-func (a AxeDrawingElement) Pos() *Point {
+func (a AxeDrawingElement) Pos() *m3space.Point {
 	if a.neg {
 		switch a.objectType {
 		case AxeX:
-			return &Point{-a.max, 0, 0}
+			return &m3space.Point{-a.max, 0, 0}
 		case AxeY:
-			return &Point{0, -a.max, 0}
+			return &m3space.Point{0, -a.max, 0}
 		case AxeZ:
-			return &Point{0, 0, -a.max}
+			return &m3space.Point{0, 0, -a.max}
 		}
 	}
-	return &Origin
+	return &m3space.Origin
 }

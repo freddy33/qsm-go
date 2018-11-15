@@ -45,7 +45,7 @@ func DisplayPlay1() {
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
 	max := int64(40 * m3space.THREE)
-	world = m3gl.MakeWorld(max)
+	world = m3gl.MakeWorld(max, glfw.GetTime())
 	//m3space.SpaceObj.CreateSingleEventCenter()
 	world.Space.CreatePyramid(12)
 
@@ -92,7 +92,10 @@ func DisplayPlay1() {
 
 	for !win.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		world.Tick(win)
+		// In Retina display retrieving the window size give half of what is needed. Using framebuffer size fix the issue.
+		world.Width, world.Height = win.GetFramebufferSize()
+		gl.Viewport(0, 0, int32(world.Width), int32(world.Height))
+		world.Tick(glfw.GetTime())
 
 		gl.UseProgram(prog)
 
@@ -105,7 +108,7 @@ func DisplayPlay1() {
 		gl.Uniform1f(colorDimmerUniform, 1.0)
 		gl.BindVertexArray(vao)
 
-		for _, obj := range world.Space.Elements {
+		for _, obj := range world.Elements {
 			if obj != nil && obj.Display(world.Filter) {
 				toDraw := world.DrawingElementsMap[obj.Key()]
 				world.Model = mgl32.HomogRotate3D(float32(world.Angle.Value), mgl32.Vec3{0, 0, 1})
@@ -140,18 +143,15 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 		case glfw.KeyRight:
 			world.Space.ForwardTime()
 
-		case glfw.KeyLeft:
-			world.Space.BackTime()
-
 		case glfw.KeyN:
 			world.Filter.DisplayEmptyNodes = !world.Filter.DisplayEmptyNodes
 		case glfw.KeyC:
 			world.Filter.DisplayEmptyConnections = !world.Filter.DisplayEmptyConnections
 
 		case glfw.KeyUp:
-			world.Space.EventOutgrowthThresholdIncrease()
+			world.EventOutgrowthThresholdIncrease()
 		case glfw.KeyDown:
-			world.Space.EventOutgrowthThresholdDecrease()
+			world.EventOutgrowthThresholdDecrease()
 
 		case glfw.KeyU:
 			world.Filter.EventOutgrowthColorsIncrease()
@@ -179,6 +179,7 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 		case glfw.KeyW:
 			world.EyeDist.Decrease()
 			reCalc = true
+
 		case glfw.KeyB:
 			m3gl.LineWidth.Increase()
 			reCalc = true
@@ -209,7 +210,7 @@ func recalc(fill bool) {
 	world.DisplaySettings()
 	world.SetMatrices()
 	if fill {
-		world.CreateObjects()
+		world.CreateDrawingElementsMap()
 		gl.BufferData(gl.ARRAY_BUFFER, world.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(world.OpenGLBuffer), gl.STATIC_DRAW)
 	}
 }

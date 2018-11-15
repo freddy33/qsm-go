@@ -4,8 +4,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/freddy33/qsm-go/m3space"
 	"fmt"
-	"github.com/go-gl/glfw/v3.2/glfw"
-	"github.com/go-gl/gl/v4.1-core/gl"
 	"math"
 	"github.com/go-gl/mathgl/mgl64"
 )
@@ -27,18 +25,22 @@ const (
 
 // QSM DrawingElementsMap const
 const (
-	nodes       = 2
-	connections = 25
-	axes        = 3
+	AxeExtraLength = 3
+	nodes          = 2
+	connections    = 25
+	axes           = 3
 )
 
+var DEBUG = false
+
 type DisplayWorld struct {
-	Space  m3space.Space
-	Filter m3space.SpaceDrawingFilter
+	Space    m3space.Space
+	Filter   SpaceDrawingFilter
+	Elements []SpaceDrawingElement
 
 	NbVertices         int
 	OpenGLBuffer       []float32
-	DrawingElementsMap map[m3space.ObjectType]OpenGLDrawingElement
+	DrawingElementsMap map[ObjectType]OpenGLDrawingElement
 
 	TopCornerDist  float64
 	Width, Height  int
@@ -63,12 +65,12 @@ type TimeAutoVar struct {
 }
 
 type OpenGLDrawingElement struct {
-	k            m3space.ObjectType
+	k            ObjectType
 	OpenGLOffset int32
 	NbVertices   int32
 }
 
-func MakeWorld(Max int64) DisplayWorld {
+func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 	if Max%m3space.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
 	}
@@ -76,10 +78,11 @@ func MakeWorld(Max int64) DisplayWorld {
 	TopCornerDist := math.Sqrt(float64(3.0*Max*Max)) + 1.1
 	w := DisplayWorld{
 		m3space.MakeSpace(Max),
-		m3space.SpaceDrawingFilter{false, false, uint8(0xFF), 0, nil,},
+		SpaceDrawingFilter{false, false, uint8(0xFF), 0, nil,},
+		make([]SpaceDrawingElement, 0, 500),
 		0,
 		make([]float32, 0),
-		make(map[m3space.ObjectType]OpenGLDrawingElement),
+		make(map[ObjectType]OpenGLDrawingElement),
 		TopCornerDist,
 		800, 600,
 		SizeVar{float64(Max), TopCornerDist * 4.0, TopCornerDist * 1.5},
@@ -90,12 +93,12 @@ func MakeWorld(Max int64) DisplayWorld {
 		mgl32.Ident4(),
 		mgl32.Ident4(),
 		0,
-		TimeAutoVar{false, 0.01, 0.3, glfw.GetTime(), 0.0,},
-		TimeAutoVar{true, 0.5, 2.0, glfw.GetTime(), 0.0,},
+		TimeAutoVar{false, 0.01, 0.3, glfwTime, 0.0,},
+		TimeAutoVar{true, 0.5, 2.0, glfwTime, 0.0,},
 	}
 	w.Filter.Space = &(w.Space)
 	w.SetMatrices()
-	w.CreateObjects()
+	w.CreateDrawingElementsMap()
 	return w
 }
 
@@ -138,7 +141,63 @@ func (world DisplayWorld) DisplaySettings() {
 	world.Filter.DisplaySettings()
 }
 
-func (world *DisplayWorld) CreateObjects() int {
+type DrawingElementsCreator struct {
+	nbElements int
+	elements   []SpaceDrawingElement
+	offset     int
+}
+
+func (creator *DrawingElementsCreator) createAxes(max int64) {
+	for axe := 0; axe < 3; axe++ {
+		creator.elements[creator.offset] = &AxeDrawingElement{
+			ObjectType(axe),
+			max + AxeExtraLength,
+			false,
+		}
+		creator.offset++
+		creator.elements[creator.offset] = &AxeDrawingElement{
+			ObjectType(axe),
+			max + AxeExtraLength,
+			true,
+		}
+		creator.offset++
+	}
+}
+
+func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node *m3space.Node) {
+	creator.elements[creator.offset] = MakeNodeDrawingElement(space, node)
+	creator.offset++
+}
+
+func (creator *DrawingElementsCreator) VisitConnection(space *m3space.Space, conn *m3space.Connection) {
+	creator.elements[creator.offset] = MakeConnectionDrawingElement(space, conn)
+	creator.offset++
+}
+
+func (world *DisplayWorld) ForwardTime() {
+	world.Space.ForwardTime()
+	world.createDrawingElements()
+}
+
+func (world *DisplayWorld) createDrawingElements() {
+	space := world.Space
+	dec := DrawingElementsCreator{}
+	dec.nbElements = 6 + space.GetNbNodes() + space.GetNbConnections()
+	dec.elements = make([]SpaceDrawingElement, dec.nbElements)
+	dec.offset = 0
+	dec.createAxes(space.Max)
+	space.VisitAll(&dec)
+	if dec.offset != dec.nbElements {
+		fmt.Println("Created", dec.offset, "elements, but it should be", dec.nbElements)
+		return
+	}
+	if DEBUG {
+		fmt.Println("Created", dec.nbElements, "drawing elements.")
+	}
+	world.Elements = dec.elements
+}
+
+func (world *DisplayWorld) CreateDrawingElementsMap() int {
 	m3space.InitConnectionDetails()
 	nbTriangles := (axes+connections)*trianglesPerLine + (nodes * trianglesPerSphere)
 	if world.NbVertices != nbTriangles*3 {
@@ -146,18 +205,18 @@ func (world *DisplayWorld) CreateObjects() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
-	triangleFiller := TriangleFiller{make(map[m3space.ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	for axe := int16(0); axe < axes; axe++ {
 		p := m3space.Point{}
-		p[axe] = world.Space.Max + m3space.AxeExtraLength
-		triangleFiller.fill(MakeSegment(m3space.Origin, p, m3space.ObjectType(axe)))
+		p[axe] = world.Space.Max + AxeExtraLength
+		triangleFiller.fill(MakeSegment(m3space.Origin, p, ObjectType(axe)))
 	}
-	triangleFiller.fill(MakeSphere(m3space.NodeEmpty))
-	triangleFiller.fill(MakeSphere(m3space.NodeActive))
+	triangleFiller.fill(MakeSphere(NodeEmpty))
+	triangleFiller.fill(MakeSphere(NodeActive))
 	connDone := make(map[uint8]bool)
 	for _, cd := range m3space.AllConnectionsPossible {
 		if !cd.ConnNeg && !connDone[cd.ConnNumber] {
-			triangleFiller.fill(MakeSegment(m3space.Origin, cd.Vector, m3space.ObjectType(uint8(m3space.Connection00)+cd.ConnNumber)))
+			triangleFiller.fill(MakeSegment(m3space.Origin, cd.Vector, ObjectType(uint8(Connection00)+cd.ConnNumber)))
 			connDone[cd.ConnNumber] = true
 		}
 	}
@@ -184,35 +243,27 @@ func MakeTriangleWithNorm(vert [3]mgl64.Vec3, norm mgl64.Vec3) Triangle {
 	return Triangle{vert, norm}
 }
 
-func (world *DisplayWorld) ScaleView(win *glfw.Window) int64 {
-	// In Retina display retrieving the window size give half of what is needed. Using framebuffer size fix the issue.
-	world.Width, world.Height = win.GetFramebufferSize()
-	gl.Viewport(0, 0, int32(world.Width), int32(world.Height))
-	return int64(world.Width) * int64(world.Height)
-}
-
-func (t *TimeAutoVar) Tick(win *glfw.Window) {
-	time := glfw.GetTime()
+func (t *TimeAutoVar) Tick(glfwTime float64) {
 	if t.Enabled {
-		elapsed := time - t.previousTime
+		elapsed := glfwTime - t.previousTime
 		if elapsed > t.Threshold {
-			t.previousTime = time
+			t.previousTime = glfwTime
 			t.Value += elapsed * t.Ratio
 		}
 	} else {
 		// No change just previous time
-		t.previousTime = time
+		t.previousTime = glfwTime
 	}
 }
 
-func (world *DisplayWorld) Tick(win *glfw.Window) {
-	area := world.ScaleView(win)
+func (world *DisplayWorld) Tick(glfwTime float64) {
+	area := int64(world.Width) * int64(world.Height)
 	if area != world.previousArea {
 		world.SetMatrices()
 		world.previousArea = area
 	}
-	world.Angle.Tick(win)
-	world.Blinker.Tick(win)
+	world.Angle.Tick(glfwTime)
+	world.Blinker.Tick(glfwTime)
 	if int32(world.Blinker.Value) >= 4 {
 		world.Blinker.Value = 0.0
 	}
@@ -226,7 +277,7 @@ func (world *DisplayWorld) SetMatrices() {
 }
 
 type TriangleFiller struct {
-	objMap         map[m3space.ObjectType]OpenGLDrawingElement
+	objMap         map[ObjectType]OpenGLDrawingElement
 	verticesOffset int32
 	bufferOffset   int
 	buffer         *[]float32

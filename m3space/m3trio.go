@@ -235,7 +235,7 @@ func GetConnectionDetails(p1, p2 Point) ConnectionDetails {
 	vector := p2.Sub(p1)
 	cd, ok := AllConnectionsPossible[vector]
 	if !ok {
-		fmt.Println("Trying to connect to point",p1,p2,"that cannot be connected with any known connection details")
+		fmt.Println("Trying to connect to Pos",p1,p2,"that cannot be connected with any known connection details")
 		return EmptyConnDetails
 	}
 	return cd

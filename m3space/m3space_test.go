@@ -38,7 +38,6 @@ func assertEmptySpace(t *testing.T, space *Space, max int64) {
 	assert.Equal(t, 0, len(space.nodesMap))
 	assert.Equal(t, 0, len(space.connections))
 	assert.Equal(t, 0, len(space.events))
-	assert.Equal(t, 0, len(space.Elements))
 }
 
 func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]ExpectedSpaceState, finalTime TickTime) {
@@ -79,35 +78,45 @@ func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, 
 	assert.Equal(t, nbNodes, len(space.nodesMap))
 	assert.Equal(t, nbConnections, len(space.connections))
 	assert.Equal(t, 1, len(space.events))
-	assert.Equal(t, nbNodes+nbConnections+6, len(space.Elements))
-	collectActiveElements := make([]*NodeDrawingElement, 0, 20)
-	for _, draw := range space.Elements {
-		if draw.Key() == NodeActive {
-			nodeDrawing, ok := draw.(*NodeDrawingElement)
-			assert.True(t, ok, "Node draw element should be of type NodeDrawingElement not %v", draw)
-			collectActiveElements = append(collectActiveElements, nodeDrawing)
+	totalNodeActive := 0
+	for _, node := range space.nodesMap {
+		if node.IsActive(space.EventOutgrowthThreshold) {
+			totalNodeActive++
+			// Only one color since it's single event
+			assert.Equal(t, uint8(1), node.HowManyColors(space.EventOutgrowthThreshold), "Number of colors of node %v wrong", node)
+			// The color should be red only
+			assert.Equal(t, uint8(RedEvent), node.GetColorMask(space.EventOutgrowthThreshold), "Number of colors of node %v wrong", node)
 		}
 	}
-	assert.Equal(t, nbActive, len(collectActiveElements))
-	for _, nodeDraw := range collectActiveElements {
-		assert.Equal(t, uint8(1), nodeDraw.sdc.howManyColors())
+	assert.Equal(t, nbActive, totalNodeActive)
+
+	totalConnActive := 0
+	for _, conn := range space.connections {
+		if conn.IsActive(space.EventOutgrowthThreshold) {
+			totalNodeActive++
+			// Only one color since it's single event
+			assert.Equal(t, uint8(1), conn.HowManyColors(space.EventOutgrowthThreshold), "Number of colors of conn %v wrong", conn)
+			// The color should be red only
+			assert.Equal(t, uint8(RedEvent), conn.GetColorMask(space.EventOutgrowthThreshold), "Number of colors of conn %v wrong", conn)
+		}
 	}
+	assert.Equal(t, 0, totalConnActive)
 }
 
 func assertNearMainPoints(t *testing.T, space *Space) {
 	for _, node := range space.nodesMap {
-		// Find main point attached to node
+		// Find main Pos attached to node
 		var mainPointNode *Node
-		if node.point.IsMainPoint() {
+		if node.Pos.IsMainPoint() {
 			mainPointNode = node
 		} else {
 			for _, conn := range node.connections {
 				if conn != nil {
-					if conn.N1.point.IsMainPoint() {
+					if conn.N1.Pos.IsMainPoint() {
 						mainPointNode = conn.N1
 						break
 					}
-					if conn.N2.point.IsMainPoint() {
+					if conn.N2.Pos.IsMainPoint() {
 						mainPointNode = conn.N2
 						break
 					}
@@ -115,7 +124,7 @@ func assertNearMainPoints(t *testing.T, space *Space) {
 			}
 		}
 		if mainPointNode != nil {
-			assert.Equal(t, node.point.getNearMainPoint(), *(mainPointNode.point))
+			assert.Equal(t, node.Pos.getNearMainPoint(), *(mainPointNode.Pos))
 		}
 	}
 }

@@ -93,7 +93,7 @@ func (ctx *GrowthContext) GetTrioIndex(divByThree int64) int {
 
 func (ctx *GrowthContext) GetDivByThree(p Point) int64 {
 	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Trio index on non main point %v in context %v!", p, ctx))
+		panic(fmt.Sprintf("cannot ask for Trio index on non main Pos %v in context %v!", p, ctx))
 	}
 	return int64(Abs(p[0]-ctx.center[0])/3 + Abs(p[1]-ctx.center[1])/3 + Abs(p[2]-ctx.center[2])/3)
 }
@@ -160,7 +160,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 		return result
 	}
 	if nextMain != mainPoint {
-		// Find the base point on the other side ( the opposite 1 or -1 on X() )
+		// Find the base Pos on the other side ( the opposite 1 or -1 on X() )
 		nextConnectingVectors := ctx.GetTrio(nextMain)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.X() == -cVec.X() {
@@ -182,7 +182,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 		fmt.Printf("There should not be a connecting vector with y value %d\n", cVec.Y())
 	}
 	if nextMain != mainPoint {
-		// Find the base point on the other side ( the opposite 1 or -1 on Y() )
+		// Find the base Pos on the other side ( the opposite 1 or -1 on Y() )
 		nextConnectingVectors := ctx.GetTrio(nextMain)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Y() == -cVec.Y() {
@@ -204,7 +204,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 		fmt.Printf("There should not be a connecting vector with z value %d\n", cVec.Z())
 	}
 	if nextMain != mainPoint {
-		// Find the base point on the other side ( the opposite 1 or -1 on Z() )
+		// Find the base Pos on the other side ( the opposite 1 or -1 on Z() )
 		nextConnectingVectors := ctx.GetTrio(nextMain)
 		for _, nbp := range nextConnectingVectors {
 			if nbp.Z() == -cVec.Z() {

@@ -8,18 +8,18 @@ import (
 
 type Segment struct {
 	A, B mgl64.Vec3
-	T    m3space.ObjectType
+	T    ObjectType
 }
 
 type Sphere struct {
 	C mgl64.Vec3
 	R float64
-	T m3space.ObjectType
+	T ObjectType
 }
 
 var Origin = mgl64.Vec3{0.0, 0.0, 0.0}
 
-func MakeSegment(p1, p2 m3space.Point, t m3space.ObjectType) (Segment) {
+func MakeSegment(p1, p2 m3space.Point, t ObjectType) (Segment) {
 	return Segment{
 		Origin,
 		mgl64.Vec3{float64(p2.X()-p1.X()), float64(p2.Y()-p1.Y()), float64(p2.Z()-p1.Z()),},
@@ -27,8 +27,8 @@ func MakeSegment(p1, p2 m3space.Point, t m3space.ObjectType) (Segment) {
 	}
 }
 
-func MakeSphere(t m3space.ObjectType) (Sphere) {
-	if t == m3space.NodeEmpty {
+func MakeSphere(t ObjectType) (Sphere) {
+	if t == NodeEmpty {
 		return Sphere{
 			Origin,
 			SphereRadius.Val / 2.0,
@@ -43,12 +43,12 @@ func MakeSphere(t m3space.ObjectType) (Sphere) {
 }
 
 type GLObject interface {
-	Key() m3space.ObjectType
+	Key() ObjectType
 	NumberOfVertices() int
 	ExtractTriangles() []Triangle
 }
 
-func (s Sphere) Key() m3space.ObjectType {
+func (s Sphere) Key() ObjectType {
 	return s.T
 }
 
@@ -109,7 +109,7 @@ func (s Sphere) ExtractTriangles() []Triangle {
 	return result
 }
 
-func (s Segment) Key() m3space.ObjectType {
+func (s Segment) Key() ObjectType {
 	return s.T
 }
 
@@ -132,7 +132,7 @@ func (s Segment) ExtractTriangles() []Triangle {
 	aPoints := make([]mgl64.Vec3, circlePartsLine+1)
 	bPoints := make([]mgl64.Vec3, circlePartsLine+1)
 	var lw float64
-	if int(s.T) <= int(m3space.AxeZ) {
+	if int(s.T) <= int(AxeZ) {
 		lw = LineWidth.Val
 	} else {
 		lw = LineWidth.Val / 2.0

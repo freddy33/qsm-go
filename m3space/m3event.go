@@ -21,7 +21,7 @@ const (
 	EventOutgrowthLatest EventOutgrowthState = iota
 	EventOutgrowthNew
 	EventOutgrowthOld
-	EventOutgrowthDead
+	//EventOutgrowthDead
 )
 
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
@@ -74,15 +74,15 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	n.outgrowths = make([]*EventOutgrowth, 1)
 	n.outgrowths[0] = e.outgrowths[0]
 	space.events[id] = &e
-	ctx.center = n.point
+	ctx.center = n.Pos
 	return &e
 }
 
 func (evt *Event) createNewOutgrowths() {
 	evt.newOutgrowths = evt.newOutgrowths[:0]
 	for _, eg := range evt.outgrowths {
-		if eg.state == EventOutgrowthLatest && eg.node.HasFreeConnections() {
-			nextPoints := eg.node.point.getNextPoints(&(evt.growthContext))
+		if eg.state == EventOutgrowthLatest && eg.node.HasFreeConnections(evt.space) {
+			nextPoints := eg.node.Pos.getNextPoints(&(evt.growthContext))
 			var otherNodes []*Node
 			if eg.from == nil {
 				otherNodes = make([]*Node,3)
@@ -108,9 +108,9 @@ func (evt *Event) createNewOutgrowths() {
 				}
 				if !hasAlreadyEvent {
 					if DEBUG {
-						fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.point)
+						fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.Pos)
 					}
-					if !otherNode.IsAlreadyConnected(eg.node) && otherNode.HasFreeConnections() && eg.node.HasFreeConnections() {
+					if !otherNode.IsAlreadyConnected(eg.node) && otherNode.HasFreeConnections(evt.space) && eg.node.HasFreeConnections(evt.space) {
 						evt.space.makeConnection(eg.node, otherNode)
 					}
 					if otherNode.IsAlreadyConnected(eg.node) {
@@ -118,7 +118,7 @@ func (evt *Event) createNewOutgrowths() {
 						otherNode.outgrowths = append(otherNode.outgrowths, newEo)
 						evt.newOutgrowths = append(evt.newOutgrowths, newEo)
 					} else {
-						fmt.Println("Could NOT create new event outgrowth for", evt.id, "at", otherNode.point, "since no more free connections!")
+						fmt.Println("Could NOT create new event outgrowth for", evt.id, "at", otherNode.Pos, "since no more free connections!")
 					}
 				}
 			}
@@ -152,22 +152,8 @@ func (eventOutgrowth *EventOutgrowth) IsRoot() bool {
 }
 
 func (evt *Event) LatestDistance() Distance {
-	// Usually the latest outgrowth are the last in the list
-	lastEO := len(evt.outgrowths) - 1
-	if lastEO < 0 {
-		return Distance(0)
-	}
-	eo := evt.outgrowths[lastEO]
-	if eo.state == EventOutgrowthLatest {
-		return eo.distance
-	}
-	for _, eo = range evt.outgrowths {
-		if eo.state == EventOutgrowthLatest {
-			return eo.distance
-		}
-	}
-	fmt.Println("Did not find any latest in the list of Outgrowth! Impossible!")
-	return Distance(0)
+	// Distance and time are the same...
+	return Distance(evt.space.currentTime - evt.created)
 }
 
 func (eventOutgrowth *EventOutgrowth) LatestDistance() Distance {
@@ -180,12 +166,6 @@ func (eventOutgrowth *EventOutgrowth) LatestDistance() Distance {
 func (eventOutgrowth *EventOutgrowth) DistanceFromLatest() Distance {
 	latestDistance := eventOutgrowth.LatestDistance()
 	return latestDistance - eventOutgrowth.distance
-}
-
-func (eventOutgrowth *EventOutgrowth) IsDrawn(filter SpaceDrawingFilter) bool {
-	return eventOutgrowth.IsActive(eventOutgrowth.event.space.EventOutgrowthThreshold) &&
-		filter.EventColorMask&uint8(eventOutgrowth.event.color) != uint8(0) &&
-		eventOutgrowth.node.HowManyColors(eventOutgrowth.event.space.EventOutgrowthThreshold) >= filter.EventOutgrowthManyColorsThreshold
 }
 
 func (eventOutgrowth *EventOutgrowth) IsActive(threshold Distance) bool {

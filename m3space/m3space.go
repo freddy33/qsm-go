@@ -5,7 +5,6 @@ import (
 )
 
 const (
-	AxeExtraLength = 3
 	// Where the number matters and appear. Remember that 3 is the number!
 	THREE = 3
 )
@@ -14,14 +13,18 @@ var DEBUG = false
 
 type TickTime uint64
 
+type SpaceVisitor interface {
+	VisitNode(space *Space, node *Node)
+	VisitConnection(space *Space, conn *Connection)
+}
+
 type Space struct {
 	events      map[EventID]*Event
 	nodesMap    map[Point]*Node
 	connections []*Connection
 	currentId   EventID
 	currentTime TickTime
-	Elements    []SpaceDrawingElement
-	// Max size of all space. TODO: Make it variable using the furthest node from origin
+	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from origin
 	Max         int64
 	// Max number of connections per node
 	MaxConnections int
@@ -37,15 +40,38 @@ func MakeSpace(max int64) Space {
 	space.currentId = 0
 	space.currentTime = 0
 	space.Max = max
-	space.Elements = make([]SpaceDrawingElement, 0, 500)
 	space.MaxConnections = 6
 	space.EventOutgrowthThreshold = Distance(1)
 	return space
 }
 
+func (space *Space) GetCurrentTime() TickTime {
+	return space.currentTime
+}
+
+func (space *Space) GetNbNodes() int {
+	return len(space.nodesMap)
+}
+
+func (space *Space) GetNbConnections() int {
+	return len(space.connections)
+}
+
+func (space *Space) GetNbEvents() int {
+	return len(space.events)
+}
+
+func (space *Space) VisitAll(visitor SpaceVisitor) {
+	for _, node := range space.nodesMap {
+		visitor.VisitNode(space, node)
+	}
+	for _, conn := range space.connections {
+		visitor.VisitConnection(space, conn)
+	}
+}
+
 func (space *Space) CreateSingleEventCenter() {
-	space.CreateEvent(Origin, GreenEvent)
-	space.createDrawingElements()
+	space.CreateEvent(Origin, RedEvent)
 }
 
 func (space *Space) CreatePyramid(pyramidSize int64) {
@@ -53,7 +79,6 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 	space.CreateEvent(Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
 	space.CreateEvent(Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
 	space.CreateEvent(Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
-	space.createDrawingElements()
 }
 
 func (space *Space) ForwardTime() {
@@ -66,13 +91,6 @@ func (space *Space) ForwardTime() {
 		evt.moveNewOutgrowthsToLatest()
 	}
 	space.currentTime++
-	// Same drawing elements just changed color :(
-	space.createDrawingElements()
-}
-
-func (space *Space) BackTime() {
-	fmt.Println("Very hard to go back in time !!!")
-	//space.currentTime--
 }
 
 func (space *Space) GetNode(p Point) *Node {
@@ -88,82 +106,46 @@ func (space *Space) getOrCreateNode(p Point) *Node {
 	if n != nil {
 		return n
 	}
-	n = &Node{space, &p, nil, nil, }
+	n = &Node{&p, nil, nil, }
 	space.nodesMap[p] = n
 	return n
 }
 
 func (space *Space) makeConnection(n1, n2 *Node) *Connection {
-	if !n1.HasFreeConnections() {
+	if !n1.HasFreeConnections(space) {
 		fmt.Println("Node 1", n1, "does not have free connections")
 		return nil
 	}
-	if !n2.HasFreeConnections() {
+	if !n2.HasFreeConnections(space) {
 		fmt.Println("Node 2", n2, "does not have free connections")
 		return nil
 	}
 	// Flipping if needed to make sure n1 is main
-	if n2.point.IsMainPoint() {
+	if n2.Pos.IsMainPoint() {
 		temp := n1
 		n1 = n2
 		n2 = temp
 	}
-	d := DS(n1.point, n2.point)
+	d := DS(n1.Pos, n2.Pos)
 	if !(d == 1 || d == 2 || d == 3 || d == 5) {
-		fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "that are not 1, 2, 3 or 5 DS away!")
+		fmt.Println("Connection between 2 points", *(n1.Pos), *(n2.Pos), "that are not 1, 2, 3 or 5 DS away!")
 		return nil
 	}
 	// Verify not already connected
 	if n1.IsAlreadyConnected(n2) {
-		fmt.Println("Connection between 2 points", *(n1.point), *(n2.point), "already connected!")
+		fmt.Println("Connection between 2 points", *(n1.Pos), *(n2.Pos), "already connected!")
 		return nil
 	}
 	// All good create connection
 	c := &Connection{n1, n2}
 	space.connections = append(space.connections, c)
-	n1done := n1.AddConnection(c)
-	n2done := n2.AddConnection(c)
+	n1done := n1.AddConnection(c, space)
+	n2done := n2.AddConnection(c, space)
 	if n1done < 0 || n2done < 0 {
 		fmt.Println("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
 		return nil
 	}
 	return c
-}
-
-func (space *Space) createDrawingElements() {
-	nbElements := 6 + len(space.nodesMap) + len(space.connections)
-	elements := make([]SpaceDrawingElement, nbElements)
-	offset := 0
-	for axe := 0; axe < 3; axe++ {
-		elements[offset] = &AxeDrawingElement{
-			ObjectType(axe),
-			space.Max + AxeExtraLength,
-			false,
-		}
-		offset++
-		elements[offset] = &AxeDrawingElement{
-			ObjectType(axe),
-			space.Max + AxeExtraLength,
-			true,
-		}
-		offset++
-	}
-	for _, node := range space.nodesMap {
-		elements[offset] = MakeNodeDrawingElement(node)
-		offset++
-	}
-	for _, conn := range space.connections {
-		elements[offset] = MakeConnectionDrawingElement(conn)
-		offset++
-	}
-	if offset != nbElements {
-		fmt.Println("Created", offset, "elements, but it should be", nbElements)
-		return
-	}
-	if DEBUG {
-		fmt.Println("Created", nbElements, "elements.")
-	}
-	space.Elements = elements
 }
 
 func (space *Space) DisplaySettings() {
