@@ -9,7 +9,7 @@ const (
 	THREE = 3
 )
 
-var DEBUG = true
+var DEBUG = false
 
 type TickTime uint64
 
@@ -70,8 +70,8 @@ func (space *Space) VisitAll(visitor SpaceVisitor) {
 	}
 }
 
-func (space *Space) CreateSingleEventCenter() {
-	space.CreateEvent(Origin, RedEvent)
+func (space *Space) CreateSingleEventCenter() *Event {
+	return space.CreateEvent(Origin, RedEvent)
 }
 
 func (space *Space) CreatePyramid(pyramidSize int64) {

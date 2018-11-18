@@ -31,7 +31,7 @@ const (
 	axes           = 3
 )
 
-var DEBUG = true
+var DEBUG = false
 
 type DisplayWorld struct {
 	Space    *m3space.Space

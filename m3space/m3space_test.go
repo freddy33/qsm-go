@@ -12,30 +12,89 @@ type ExpectedSpaceState struct {
 }
 
 func TestSingleRedEventD0(t *testing.T) {
-	DEBUG = true
-	space := MakeSpace(3 * 9)
+	DEBUG = false
+	for trioIdx := 0; trioIdx < 12; trioIdx++ {
+		space := MakeSpace(3 * 9)
 
-	InitConnectionDetails()
-	assertEmptySpace(t, &space, 3*9)
+		InitConnectionDetails()
+		assertEmptySpace(t, &space, 3*9)
 
-	// Only latest counting
-	space.EventOutgrowthThreshold = Distance(0)
+		// Force to only 3
+		space.MaxConnections = 3
+		// Only latest counting
+		space.EventOutgrowthThreshold = Distance(0)
 
-	space.CreateSingleEventCenter()
+		evt := space.CreateSingleEventCenter()
+		evt.growthContext.permutationIndex = trioIdx
 
-	expectedState := map[TickTime]ExpectedSpaceState{
-		0: {1, 0, 0},
-		1: {1, 3, 0},
-		4: {1, -2, 0},
-		5: {1, -10, 0},
+		deltaT8FromIdx0 := 0
+		deltaT9FromIdx0 := 0
+		deltaT10FromIdx0 := 0
+		deltaT11FromIdx0 := 0
+		if AllMod8Permutations[trioIdx][3] != 5 {
+			deltaT8FromIdx0 = 5
+			deltaT9FromIdx0 = -11
+			deltaT10FromIdx0 = -13
+			deltaT11FromIdx0 = -22
+		}
+
+		expectedState := map[TickTime]ExpectedSpaceState{
+			0: {1, 0, 0},
+			1: {1, 3, 0},
+			4: {1, -2, 0},
+			5: {1, -10, 0},
+			6: {1, -19, 0},
+			7: {1, -25, 0},
+
+			8:  {1, -51 + deltaT8FromIdx0, 0},
+			9:  {1, -69 + deltaT9FromIdx0, 0},
+			10: {1, -79 + deltaT10FromIdx0, 0},
+			11: {1, -131 + deltaT11FromIdx0, 0},
+		}
+		assertSpaceStates(t, &space, expectedState, 10)
+
+		assertNearMainPoints(t, &space)
 	}
-	assertSpaceStates(t, &space, expectedState, 5)
+}
 
-	assertNearMainPoints(t, &space)
+func TestSingleSimpleContextD0(t *testing.T) {
+	DEBUG = false
+	for trioIdx := 0; trioIdx < 8; trioIdx++ {
+		space := MakeSpace(3 * 9)
+
+		InitConnectionDetails()
+		assertEmptySpace(t, &space, 3*9)
+
+		// Force to only 3
+		space.MaxConnections = 3
+		// Only latest counting
+		space.EventOutgrowthThreshold = Distance(0)
+		ctx := GrowthContext{&Origin, 1, trioIdx, false, 0}
+		space.CreateEventWithGrowthContext(Origin, RedEvent, ctx)
+
+		expectedState := map[TickTime]ExpectedSpaceState{
+			0:  {1, 0, 0},
+			1:  {1, 3, 0},
+			4:  {1, 0, 0},
+			5:  {1, -13, 0},
+			6:  {1, -22, 0},
+			7:  {1, -27, 0},
+			8:  {1, -52, 0},
+			9:  {1, -64, 0},
+			10: {1, -78, 0},
+			11: {1, -115, 0},
+			12: {1, -130, 0},
+			13: {1, -153, 0},
+			14: {1, -202, 0},
+		}
+		assertSpaceStates(t, &space, expectedState, 14)
+
+		assertNearMainPoints(t, &space)
+	}
 }
 
 func TestSingleRedEventD1(t *testing.T) {
-	DEBUG = true
+	DEBUG = false
 	space := MakeSpace(3 * 9)
 
 	InitConnectionDetails()
@@ -73,13 +132,31 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 	activeNodes := baseNodes
 	nbNodes := baseNodes
 	nbConnections := 0
+	nbMainPoints := baseNodes
+	nbActiveMainPoints := baseNodes
 	for {
-		assertSpaceSingleEvent(t, space, expectedTime, nbNodes, nbConnections, activeNodes)
+		assertSpaceSingleEvent(t, space, expectedTime, nbNodes, nbConnections, activeNodes, nbMainPoints, nbActiveMainPoints)
 		if expectedTime == finalTime {
 			break
 		}
 		space.ForwardTime()
 		expectedTime++
+		if expectedTime == 3 {
+			// Should reach all center face
+			nbMainPoints = baseNodes + 6
+			nbActiveMainPoints = baseNodes + 6
+		} else if expectedTime == 4 {
+			nbMainPoints = nbMainPoints + 6
+			nbActiveMainPoints = baseNodes + 6
+		} else if expectedTime == 5 {
+			nbMainPoints = nbMainPoints + 2
+			nbActiveMainPoints = baseNodes + 2
+		} else if expectedTime == 6 {
+			// Stop testing main points
+			nbMainPoints = -1
+			nbActiveMainPoints = -1
+		}
+
 		expect, ok = expectMap[expectedTime]
 		if ok {
 			if expect.newNodes <= 0 {
@@ -89,6 +166,13 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 				newNodes = expect.newNodes
 			}
 			activeNodes = newNodes + expect.oldActiveNodes + baseNodes
+			if expectedTime == 5 && expect.newNodes == -10 {
+				nbMainPoints += 2
+				nbActiveMainPoints += 2
+			}
+			if (expectedTime == 4 || expectedTime == 5) && expect.oldActiveNodes > 0 {
+				nbActiveMainPoints += 6
+			}
 		} else {
 			newNodes *= 2
 			activeNodes = newNodes + baseNodes
@@ -98,12 +182,14 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 	}
 }
 
-func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, nbConnections int, nbActive int) {
+func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, nbConnections, nbActive, nbMainPoints, nbActiveMainPoints int) {
 	assert.Equal(t, time, space.currentTime)
-	assert.Equal(t, nbNodes, len(space.nodesMap), "failed at %d", time)
-	assert.Equal(t, nbConnections, len(space.connections), "failed at %d", time)
-	assert.Equal(t, 1, len(space.events), "failed at %d", time)
+	assert.Equal(t, nbNodes, len(space.nodesMap), "nbNodes failed at %d", time)
+	assert.Equal(t, nbConnections, len(space.connections), "nbConnections failed at %d", time)
+	assert.Equal(t, 1, len(space.events), "nbEvents failed at %d", time)
 	totalNodeActive := 0
+	totalMainPoints := 0
+	totalMainPointsActive := 0
 	for _, node := range space.nodesMap {
 		if node.IsActive(space.EventOutgrowthThreshold) {
 			totalNodeActive++
@@ -112,8 +198,18 @@ func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, 
 			// The color should be red only
 			assert.Equal(t, uint8(RedEvent), node.GetColorMask(space.EventOutgrowthThreshold), "Number of colors of node %v wrong at time %d", node, time)
 		}
+		if node.Pos.IsMainPoint() {
+			totalMainPoints++
+			if node.IsActive(space.EventOutgrowthThreshold) {
+				totalMainPointsActive++
+			}
+		}
 	}
-	assert.Equal(t, nbActive, totalNodeActive, "failed at %d", time)
+	assert.Equal(t, nbActive, totalNodeActive, "nbActiveNodes failed at %d", time)
+	if nbMainPoints > 0 {
+		assert.Equal(t, nbMainPoints, totalMainPoints, "totalMainPoints failed at %d", time)
+		assert.Equal(t, nbActiveMainPoints, totalMainPointsActive, "totalMainPointsActive failed at %d", time)
+	}
 
 	totalConnActive := 0
 	for _, conn := range space.connections {
@@ -125,7 +221,7 @@ func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, 
 			assert.Equal(t, uint8(RedEvent), conn.GetColorMask(space.EventOutgrowthThreshold), "Number of colors of conn %v wrong at time %d", conn, time)
 		}
 	}
-	assert.Equal(t, 0, totalConnActive, "failed at %d", time)
+	assert.Equal(t, 0, totalConnActive, "nbActiveConnections failed at %d", time)
 }
 
 func assertNearMainPoints(t *testing.T, space *Space) {

@@ -95,6 +95,10 @@ func (conn *Connection) GetColorMask(threshold Distance) uint8 {
 }
 
 func (conn *Connection) IsActive(threshold Distance) bool {
+	// 0 threshold cannot have active connections
+	if threshold == 0 {
+		return false
+	}
 	// Connection is active if event outgrowth latest match
 	if conn.N1 != nil && conn.N2 != nil {
 		for _, eo1 := range conn.N1.outgrowths {
