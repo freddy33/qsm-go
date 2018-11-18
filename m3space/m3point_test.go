@@ -9,17 +9,12 @@ import (
 
 func TestPosMod4(t *testing.T) {
 	DEBUG = true
-	assert.Equal(t, int64(1), PosMod4(5))
-	assert.Equal(t, int64(0), PosMod4(4))
-	assert.Equal(t, int64(3), PosMod4(3))
-	assert.Equal(t, int64(2), PosMod4(2))
-	assert.Equal(t, int64(1), PosMod4(1))
-	assert.Equal(t, int64(0), PosMod4(0))
-	assert.Equal(t, int64(3), PosMod4(-1))
-	assert.Equal(t, int64(2), PosMod4(-2))
-	assert.Equal(t, int64(1), PosMod4(-3))
-	assert.Equal(t, int64(0), PosMod4(-4))
-	assert.Equal(t, int64(3), PosMod4(-5))
+	assert.Equal(t, uint64(1), PosMod4(5))
+	assert.Equal(t, uint64(0), PosMod4(4))
+	assert.Equal(t, uint64(3), PosMod4(3))
+	assert.Equal(t, uint64(2), PosMod4(2))
+	assert.Equal(t, uint64(1), PosMod4(1))
+	assert.Equal(t, uint64(0), PosMod4(0))
 }
 
 func TestPoint(t *testing.T) {

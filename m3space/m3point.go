@@ -6,101 +6,10 @@ import (
 
 type Point [3]int64
 
-type GrowthContext struct {
-	center             *Point
-	permutationType    uint8 // 1,2,4, or 8
-	permutationIndex   int   // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
-	permutationNegFlow bool  // true for backward flow in permutation
-	permutationOffset  int   // Offset in perm modulo
-}
-
 var Origin = Point{0, 0, 0}
 var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
-
-func PosMod2(i int64) int64 {
-	return i & 0x0000000000000001
-}
-
-func PosMod4(i int64) int64 {
-	return i & 0x0000000000000003
-}
-
-func PosMod8(i int64) int64 {
-	return i & 0x0000000000000007
-}
-
-func (ctx *GrowthContext) GetTrioIndex(divByThree int64) int {
-	if ctx.permutationType == 1 {
-		// Always same value
-		return ctx.permutationIndex
-	}
-	if ctx.permutationType == 3 {
-		// Center on Trio index ctx.permutationIndex and then use X, Y, Z where conn are 1
-		mod2 := PosMod2(divByThree)
-		if mod2 == 0 {
-			return ctx.permutationIndex
-		}
-		mod3 := int(((divByThree-1)/2 + int64(ctx.permutationOffset)) % 3)
-		if mod3 < 0 {
-			mod3 += 3
-		}
-		if ctx.permutationIndex < 4 {
-			return ValidNextTrio[3*ctx.permutationIndex+mod3][1]
-		}
-		count := 0
-		for _, validTrio := range ValidNextTrio {
-			if validTrio[1] == ctx.permutationIndex {
-				if count == mod3 {
-					return validTrio[0]
-				}
-				count++
-			}
-		}
-		panic(fmt.Sprintf("did not find valid Trio for div by three value %d in context %v!", divByThree, ctx))
-	}
-
-	divByThreeWithOffset := int64(ctx.permutationOffset) + divByThree
-	switch ctx.permutationType {
-	case 2:
-		permutMap := ValidNextTrio[ctx.permutationIndex]
-		idx := int(PosMod2(divByThreeWithOffset))
-		if ctx.permutationNegFlow {
-			return permutMap[reverse2Map[idx]]
-		} else {
-			return permutMap[idx]
-		}
-	case 4:
-		permutMap := AllMod4Permutations[ctx.permutationIndex]
-		idx := int(PosMod4(divByThreeWithOffset))
-		if ctx.permutationNegFlow {
-			return permutMap[reverse4Map[idx]]
-		} else {
-			return permutMap[idx]
-		}
-	case 8:
-		permutMap := AllMod8Permutations[ctx.permutationIndex]
-		idx := int(PosMod8(divByThreeWithOffset))
-		if ctx.permutationNegFlow {
-			return permutMap[reverse8Map[idx]]
-		} else {
-			return permutMap[idx]
-		}
-	}
-	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", ctx.permutationType, ctx))
-}
-
-func (ctx *GrowthContext) GetDivByThree(p Point) int64 {
-	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Trio index on non main Pos %v in context %v!", p, ctx))
-	}
-	return int64(Abs(p[0]-ctx.center[0])/3 + Abs(p[1]-ctx.center[1])/3 + Abs(p[2]-ctx.center[2])/3)
-}
-
-func (ctx *GrowthContext) GetTrio(p Point) Trio {
-	return AllBaseTrio[ctx.GetTrioIndex(ctx.GetDivByThree(p))]
-}
 
 func (p Point) getNearMainPoint() Point {
 	res := Point{}
