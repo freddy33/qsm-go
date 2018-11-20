@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"time"
 )
 
 const (
@@ -82,15 +83,190 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) ForwardTime() {
-	fmt.Println("Moving up time from", space.currentTime)
+	fmt.Println("Stepping up time from", space.currentTime, "for", len(space.events), "events")
+	nbLatest := 0
+	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
-		evt.createNewOutgrowths()
+		go evt.createNewPossibleOutgrowths(c)
+		nbLatest += len(evt.latestOutgrowths)
 	}
+	collector := space.processNewOutgrowth(c, nbLatest)
+
+	fmt.Println("Found", len(collector.single), "single new outgrowth,",
+		len(collector.sameEvent), "overlap outgrowth on same event,",
+		len(collector.multiEvents), "overlap on multi events.")
+
+	space.realizeAllOutgrowth(collector)
+
 	// Switch latest to old, and new to latest
 	for _, evt := range space.events {
 		evt.moveNewOutgrowthsToLatest()
 	}
 	space.currentTime++
+}
+
+func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
+	// No problem just realize all single ones that fit
+	for _, newPosEo := range collector.single {
+		newPosEo.realize()
+	}
+	// Realize only one of conflicting same event
+	for _, newPosEoList := range collector.sameEvent {
+		(*newPosEoList)[0].realize()
+	}
+	// Realize only one per event of conflicting multi events
+	for _, newPosEoList := range collector.multiEvents {
+		idsAlreadyDone := make([]EventID, 0, 2)
+		for _, newPosEo := range *newPosEoList {
+			done := false
+			for _, id := range idsAlreadyDone {
+				if id == newPosEo.event.id {
+					done = true
+					break
+				}
+			}
+			if !done {
+				if newPosEo.realize() != nil {
+					idsAlreadyDone = append(idsAlreadyDone, newPosEo.event.id)
+				}
+			}
+		}
+	}
+}
+
+type OutgrowthCollector struct {
+	single      map[Point]*NewPossibleOutgrowth
+	sameEvent   map[Point]*[]*NewPossibleOutgrowth
+	multiEvents map[Point]*[]*NewPossibleOutgrowth
+}
+
+func MakeOutgrowthCollector(nbLatest int) *OutgrowthCollector {
+	if nbLatest < 5 {
+		nbLatest = 5
+	}
+	return &OutgrowthCollector{
+		make(map[Point]*NewPossibleOutgrowth, 2*nbLatest),
+		make(map[Point]*[]*NewPossibleOutgrowth, nbLatest/3),
+		make(map[Point]*[]*NewPossibleOutgrowth, 100),
+	}
+}
+
+func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *OutgrowthCollector {
+	// Protect full calculation timeout with 5 milliseconds per latest outgrowth
+	timeout := int64(5 * nbLatest)
+	if timeout < 1000 {
+		timeout = 1000
+	}
+	nbEvents := len(space.events)
+	nbEventsDone := 0
+	collector := MakeOutgrowthCollector(nbLatest)
+	for {
+		stop := false
+		select {
+		case newEo := <-c:
+
+			switch newEo.state {
+			case EventOutgrowthEnd:
+				nbEventsDone++
+			case EventOutgrowthNew:
+
+				fromSingle, ok := collector.single[newEo.pos]
+				if !ok {
+					collector.single[newEo.pos] = newEo
+				} else {
+					switch fromSingle.state {
+					case EventOutgrowthNew:
+						// First multiple entry, check if same event or not and move event outgrowth there
+						if fromSingle.event.id == newEo.event.id {
+							fromSameEvent, okSameEvent := collector.sameEvent[newEo.pos]
+							if !okSameEvent {
+								newSameEventList := make([]*NewPossibleOutgrowth, 2, 3)
+								newSameEventList[0] = fromSingle
+								newSameEventList[1] = newEo
+								fromSingle.state = EventOutgrowthMultipleSameEvent
+								newEo.state = EventOutgrowthMultipleSameEvent
+								collector.sameEvent[newEo.pos] = &newSameEventList
+							} else {
+								fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "is state new but has an entry in the multi same event Map!!")
+								fromSingle.state = EventOutgrowthMultipleSameEvent
+								newEo.state = EventOutgrowthMultipleSameEvent
+								*fromSameEvent = append(*fromSameEvent, newEo)
+							}
+						} else {
+							fromMultiEvent, okMultiEvent := collector.multiEvents[newEo.pos]
+							if !okMultiEvent {
+								newMultiEventList := make([]*NewPossibleOutgrowth, 2, 3)
+								newMultiEventList[0] = fromSingle
+								newMultiEventList[1] = newEo
+								fromSingle.state = EventOutgrowthMultipleEvents
+								newEo.state = EventOutgrowthMultipleEvents
+								collector.multiEvents[newEo.pos] = &newMultiEventList
+							} else {
+								fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "is state new but has an entry in the multi events Map!!")
+								fromSingle.state = EventOutgrowthMultipleEvents
+								newEo.state = EventOutgrowthMultipleEvents
+								*fromMultiEvent = append(*fromMultiEvent, newEo)
+							}
+						}
+					case EventOutgrowthMultipleSameEvent:
+						fromSameEvent, okSameEvent := collector.sameEvent[newEo.pos]
+						if !okSameEvent {
+							fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "does not have an entry in the multi same event Map!!")
+						} else {
+							if fromSingle.event.id == newEo.event.id {
+								newEo.state = EventOutgrowthMultipleSameEvent
+								*fromSameEvent = append(*fromSameEvent, newEo)
+							} else {
+								// Move all from same event to multi event
+								fromMultiEvent, okMultiEvent := collector.multiEvents[newEo.pos]
+								if !okMultiEvent {
+									*fromSameEvent = append(*fromSameEvent, newEo)
+									for _, eo := range *fromSameEvent {
+										eo.state = EventOutgrowthMultipleEvents
+									}
+									// Just verify
+									if newEo.state != EventOutgrowthMultipleEvents || fromSingle.state != EventOutgrowthMultipleEvents {
+										fmt.Println("ERROR: Event outgrowth state change failed for", *fromSingle, "and", *newEo)
+									}
+									collector.multiEvents[newEo.pos] = fromSameEvent
+									delete(collector.sameEvent, newEo.pos)
+								} else {
+									fmt.Println("ERROR: An event outgrowth in multi same event map with state", fromSingle.state, "full=", *(fromSingle), "is state same event but has an entry in the multi events Map!!")
+									fromSingle.state = EventOutgrowthMultipleEvents
+									newEo.state = EventOutgrowthMultipleEvents
+									*fromMultiEvent = append(*fromMultiEvent, newEo)
+								}
+							}
+						}
+					case EventOutgrowthMultipleEvents:
+						fromMultiEvent, okMultiEvent := collector.multiEvents[newEo.pos]
+						if !okMultiEvent {
+							fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "does not have an entry in the multi events Map!!")
+						} else {
+							newEo.state = EventOutgrowthMultipleEvents
+							*fromMultiEvent = append(*fromMultiEvent, newEo)
+						}
+					}
+				}
+			default:
+				fmt.Println("ERROR: Receive an event on channel with wrong state", newEo.state, "full=", *(newEo))
+			}
+
+			if nbEventsDone == nbEvents {
+				stop = true
+				break
+			}
+		case <-time.After(time.Duration(timeout) * time.Millisecond):
+			stop = true
+			fmt.Println("Did not manage to process", nbLatest, "latest event outgrowth from", nbEvents, "events in", nbLatest*5, "msecs")
+			break
+		}
+		if stop {
+			break
+		}
+	}
+
+	return collector
 }
 
 func (space *Space) GetNode(p Point) *Node {

@@ -18,27 +18,37 @@ const (
 )
 
 const (
-	EventOutgrowthLatest EventOutgrowthState = iota
+	EventOutgrowthLatest            EventOutgrowthState = iota
 	EventOutgrowthNew
 	EventOutgrowthOld
-	//EventOutgrowthDead
+	EventOutgrowthEnd
+	EventOutgrowthMultipleSameEvent
+	EventOutgrowthMultipleEvents
 )
 
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 
 type Event struct {
-	space         *Space
-	id            EventID
-	node          *Node
-	created       TickTime
-	color         EventColor
-	growthContext GrowthContext
-	outgrowths    []*EventOutgrowth
-	newOutgrowths []*EventOutgrowth
+	space            *Space
+	id               EventID
+	node             *Node
+	created          TickTime
+	color            EventColor
+	growthContext    GrowthContext
+	oldOutgrowths    []*EventOutgrowth
+	latestOutgrowths []*EventOutgrowth
 }
 
 type EventOutgrowth struct {
 	node     *Node
+	event    *Event
+	from     *EventOutgrowth
+	distance Distance
+	state    EventOutgrowthState
+}
+
+type NewPossibleOutgrowth struct {
+	pos      Point
 	event    *Event
 	from     *EventOutgrowth
 	distance Distance
@@ -69,77 +79,64 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	space.currentId++
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
-		make([]*EventOutgrowth, 1, 100), make([]*EventOutgrowth, 0, 10),}
-	e.outgrowths[0] = &EventOutgrowth{n, &e, nil, Distance(0), EventOutgrowthLatest}
+		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
+	e.latestOutgrowths[0] = &EventOutgrowth{n, &e, nil, Distance(0), EventOutgrowthLatest}
 	n.outgrowths = make([]*EventOutgrowth, 1)
-	n.outgrowths[0] = e.outgrowths[0]
+	n.outgrowths[0] = e.latestOutgrowths[0]
 	space.events[id] = &e
 	ctx.center = n.Pos
 	return &e
 }
 
-func (evt *Event) createNewOutgrowths() {
-	evt.newOutgrowths = evt.newOutgrowths[:0]
-	for _, eg := range evt.outgrowths {
-		if eg.state == EventOutgrowthLatest && eg.node.HasFreeConnections(evt.space) {
-			nextPoints := eg.node.Pos.getNextPoints(&(evt.growthContext))
-			var otherNodes []*Node
-			if eg.from == nil {
-				otherNodes = make([]*Node,3)
-			} else {
-				otherNodes = make([]*Node,2)
-			}
-			offset := 0
-			for _, nextPoint := range nextPoints {
-				otherNode := evt.space.getOrCreateNode(nextPoint)
-				if eg.from == nil || otherNode != eg.from.node {
-					otherNodes[offset] = otherNode
-					offset++
-				}
-			}
+func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
+	for _, eg := range evt.latestOutgrowths {
+		if eg.state != EventOutgrowthLatest {
+			panic(fmt.Sprintf("wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, *(eg.node.Pos)))
+		}
 
-			for _, otherNode := range otherNodes {
-				// Roots cannot have outgrowth that not theirs (TODO: why?)
-				hasAlreadyEvent := otherNode.IsRoot()
-				for _, eo := range otherNode.outgrowths {
-					if eo.event.id == evt.id {
-						hasAlreadyEvent = true
-					}
+		nextPoints := eg.node.Pos.getNextPoints(&(evt.growthContext))
+		for _, nextPoint := range nextPoints {
+			if eg.from == nil || nextPoint != *(eg.from.node.Pos) {
+				if DEBUG {
+					fmt.Println("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
 				}
-				if !hasAlreadyEvent {
-					if DEBUG {
-						fmt.Println("Creating new event outgrowth for", evt.id, "at", otherNode.Pos)
-					}
-					if !otherNode.IsAlreadyConnected(eg.node) && otherNode.HasFreeConnections(evt.space) && eg.node.HasFreeConnections(evt.space) {
-						evt.space.makeConnection(eg.node, otherNode)
-					}
-					if otherNode.IsAlreadyConnected(eg.node) {
-						newEo := &EventOutgrowth{otherNode, evt, eg, eg.distance + 1, EventOutgrowthNew}
-						otherNode.outgrowths = append(otherNode.outgrowths, newEo)
-						evt.newOutgrowths = append(evt.newOutgrowths, newEo)
-					} else {
-						fmt.Println("Could NOT create new event outgrowth for", evt.id, "at", otherNode.Pos, "since no more free connections!")
-					}
-				}
+				c <- &NewPossibleOutgrowth{nextPoint, evt, eg, eg.distance + 1, EventOutgrowthNew}
 			}
 		}
 	}
+	c <- &NewPossibleOutgrowth{*(evt.node.Pos), evt, nil, Distance(0), EventOutgrowthEnd}
+}
+
+func (newPosEo *NewPossibleOutgrowth) realize() *EventOutgrowth {
+	evt := newPosEo.event
+	space := evt.space
+	newNode := space.getOrCreateNode(newPosEo.pos)
+	if !newNode.CanReceiveOutgrowth(newPosEo) {
+		return nil
+	}
+	fromNode := newPosEo.from.node
+	if !fromNode.IsAlreadyConnected(newNode) {
+		space.makeConnection(fromNode, newNode)
+	}
+	newEo := &EventOutgrowth{newNode, evt, newPosEo.from, newPosEo.distance, EventOutgrowthNew}
+	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
+	newNode.AddOutgrowth(newEo)
+	return newEo
 }
 
 func (evt *Event) moveNewOutgrowthsToLatest() {
-	for _, eg := range evt.outgrowths {
+	finalLatest := evt.latestOutgrowths[:0]
+	for _, eg := range evt.latestOutgrowths {
 		switch eg.state {
 		case EventOutgrowthLatest:
 			eg.state = EventOutgrowthOld
-		}
-	}
-	for _, eg := range evt.newOutgrowths {
-		switch eg.state {
+			evt.oldOutgrowths = append(evt.oldOutgrowths, eg)
 		case EventOutgrowthNew:
 			eg.state = EventOutgrowthLatest
-			evt.outgrowths = append(evt.outgrowths, eg)
+			finalLatest = append(finalLatest, eg)
 		}
 	}
+	evt.latestOutgrowths = finalLatest
 }
 
 func (eventOutgrowth *EventOutgrowth) IsRoot() bool {

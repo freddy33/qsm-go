@@ -97,7 +97,7 @@ func TestGrowthContext3(t *testing.T) {
 	assert.Equal(t, 4, ctx.GetTrioIndex(7), "failed trio index for ctx %v", ctx)
 }
 
-func TestGrowthContexes(t *testing.T) {
+func TestGrowthContextsExpectType3(t *testing.T) {
 	DEBUG = true
 
 	growthContexts := getAllContexts()

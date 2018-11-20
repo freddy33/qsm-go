@@ -60,15 +60,17 @@ func assertSpaceStates(t *testing.T, world *DisplayWorld, expectMap map[m3space.
 		if ok {
 			if expect.newNodes < 0 {
 				newNodes *= 2
+				nbConnections += newNodes
 				newNodes += expect.newNodes
 			} else {
 				newNodes = expect.newNodes
+				nbConnections += newNodes
 			}
 		} else {
 			newNodes *= 2
+			nbConnections += newNodes
 		}
 		activeNodes = newNodes + baseNodes
-		nbConnections += newNodes
 		nbNodes += newNodes
 	}
 }

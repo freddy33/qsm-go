@@ -11,6 +11,10 @@ type Connection struct {
 	N1, N2 *Node
 }
 
+/***************************************************************/
+// Node Functions
+/***************************************************************/
+
 func (node *Node) HasFreeConnections(space *Space) bool {
 	return node.connections == nil || len(node.connections) < space.MaxConnections
 }
@@ -71,6 +75,28 @@ func (node *Node) GetColorMask(threshold Distance) uint8 {
 	}
 	return m
 }
+
+func (node *Node) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
+	for _, eo := range node.outgrowths {
+		if eo.event.id == newPosEo.event.id {
+			return false
+		}
+	}
+	return true
+}
+
+func (node *Node) AddOutgrowth(eo *EventOutgrowth) {
+	if node.outgrowths == nil {
+		node.outgrowths = make([]*EventOutgrowth,1,3)
+		node.outgrowths[0] = eo
+	} else {
+		node.outgrowths = append(node.outgrowths, eo)
+	}
+}
+
+/***************************************************************/
+// Connection Functions
+/***************************************************************/
 
 func (conn *Connection) IsConnectedTo(node *Node) bool {
 	return conn.N1 == node || conn.N2 == node
