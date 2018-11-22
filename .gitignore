@@ -1,3 +1,5 @@
 space
 qsm-go
 *.iml
+
+docs/generated/

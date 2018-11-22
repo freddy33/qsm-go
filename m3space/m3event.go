@@ -11,10 +11,10 @@ type EventColor uint8
 type EventOutgrowthState uint8
 
 const (
-	RedEvent    EventColor = 0x01
-	GreenEvent  EventColor = 0x02
-	BlueEvent   EventColor = 0x04
-	YellowEvent EventColor = 0x08
+	RedEvent    EventColor = 1 << iota
+	GreenEvent
+	BlueEvent
+	YellowEvent
 )
 
 const (

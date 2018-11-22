@@ -11,6 +11,10 @@ var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
 
+func (p Point) String() string {
+	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
+}
+
 func (p Point) getNearMainPoint() Point {
 	res := Point{}
 	for i, c := range p {

@@ -12,9 +12,10 @@ type ConnectionDetails struct {
 	Vector     Point
 	ConnNumber uint8
 	ConnNeg    bool
+	ConnDS     int64
 }
 
-var EmptyConnDetails = ConnectionDetails{Origin, 0, false}
+var EmptyConnDetails = ConnectionDetails{Origin, 0, false, 0,}
 
 func init() {
 	// Initial Trio 0
@@ -28,7 +29,7 @@ func init() {
 }
 
 func (t Trio) PlusX() Trio {
-	return MakeBaseConnectingVectorsTrio([3]Point{t[0].PlusX(),t[1].PlusX(),t[2].PlusX()})
+	return MakeBaseConnectingVectorsTrio([3]Point{t[0].PlusX(), t[1].PlusX(), t[2].PlusX()})
 }
 
 func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
@@ -36,12 +37,12 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	// All points should be a connecting vector
 	for _, p := range points {
 		if !p.IsBaseConnectingVector() {
-			fmt.Println("Trying to create a base trio out of non base vector!",p)
+			fmt.Println("Trying to create a base trio out of non base vector!", p)
 			return res
 		}
 	}
 	for _, p := range points {
-		for i:=0;i<3;i++ {
+		for i := 0; i < 3; i++ {
 			if p[i] == 0 {
 				res[reverse3Map[i]] = p
 			}
@@ -49,7 +50,6 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	}
 	return res
 }
-
 
 // Return the 6 connections possible +X, -X, +Y, -Y, +Z, -Z vectors between 2 Trio
 func GetNonBaseConnections(tA, tB Trio) [6]Point {
@@ -156,36 +156,87 @@ func (t Trio) getMinusZVector() Point {
 }
 
 func InitConnectionDetails() uint8 {
-	connNumber := uint8(0)
-	AllConnectionsPossible = make(map[Point]ConnectionDetails)
-
+	connMap := make(map[Point]*ConnectionDetails)
 	// All Trio and all combi of Trio
 	for _, tr := range AllBaseTrio {
 		for _, vec := range tr {
-			addConnDetail(&connNumber, vec)
+			addConnDetail(&connMap, vec)
 		}
 		for _, tB := range AllBaseTrio {
-			conns := GetNonBaseConnections(tr,tB)
+			conns := GetNonBaseConnections(tr, tB)
 			for _, conn := range conns {
-				addConnDetail(&connNumber, conn)
+				addConnDetail(&connMap, conn)
 			}
 		}
 	}
-	fmt.Println("Number of connection details created ", connNumber)
-	return connNumber
+	nbConnDetails := len(connMap) / 2
+	fmt.Println("Number of connection details created ", nbConnDetails)
+	newOrderedMap := make(map[Point]ConnectionDetails)
+	// Reordering connection details number by size, and x, y, z
+	for currentConnNumber := uint8(0); currentConnNumber < uint8(nbConnDetails); currentConnNumber++ {
+		var smallestCD *ConnectionDetails
+		for _, cd := range connMap {
+			if cd.ConnNumber == 0xFF && !cd.ConnNeg {
+				if smallestCD == nil {
+					smallestCD = cd
+				} else if smallestCD.ConnDS > cd.ConnDS {
+					smallestCD = cd
+				} else if smallestCD.ConnDS == cd.ConnDS {
+					if cd.Vector.X() > smallestCD.Vector.X() {
+						smallestCD = cd
+					} else if cd.Vector.Y() > smallestCD.Vector.Y() {
+						smallestCD = cd
+					} else if cd.Vector.Z() > smallestCD.Vector.Z() {
+						smallestCD = cd
+					}
+				}
+			}
+		}
+		smallestCD.ConnNumber = currentConnNumber
+		newOrderedMap[smallestCD.Vector] = *smallestCD
+		negVec := smallestCD.Vector.Neg()
+		smallestCD = connMap[negVec]
+		smallestCD.ConnNumber = currentConnNumber
+		newOrderedMap[negVec] = *smallestCD
+	}
+	AllConnectionsPossible = newOrderedMap
+	return uint8(nbConnDetails)
 }
 
-func addConnDetail(connNumber *uint8, connVector Point) {
-	cd, ok := AllConnectionsPossible[connVector]
+func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
+	ds := connVector.DistanceSquared()
+	if ds == 0 {
+		panic("zero vector cannot be a connection")
+	}
+	if !(ds == 1 || ds == 2 || ds == 3 || ds == 5) {
+		panic(fmt.Sprintf("vector %v of ds=%d cannot be a connection", connVector, ds))
+	}
+	_, ok := (*connMap)[connVector]
 	if !ok {
-		cd, ok = AllConnectionsPossible[connVector.Neg()]
-		if !ok {
-			cd = ConnectionDetails{connVector, *connNumber, false,}
-			*connNumber++
-		} else {
-			cd = ConnectionDetails{connVector, cd.ConnNumber, true,}
+		// Consider negative if X, then Y, then Z is neg to flip
+		posVec := connVector
+		negVec := connVector.Neg()
+		if connVector.X() < 0 {
+			// flip
+			posVec = negVec
+			negVec = connVector
+		} else if connVector.X() == 0 {
+			if connVector.Y() < 0 {
+				// flip
+				posVec = negVec
+				negVec = connVector
+			} else if connVector.Y() == 0 {
+				if connVector.Z() < 0 {
+					// flip
+					posVec = negVec
+					negVec = connVector
+				}
+			}
 		}
-		AllConnectionsPossible[connVector] = cd
+		posConnDetails := &ConnectionDetails{posVec, 0xFF, false, ds,}
+		negConnDetails := &ConnectionDetails{negVec, 0xFF, true, ds,}
+		(*connMap)[posVec] = posConnDetails
+		(*connMap)[negVec] = negConnDetails
 	}
 }
 
@@ -193,7 +244,7 @@ func GetConnectionDetails(p1, p2 Point) ConnectionDetails {
 	vector := p2.Sub(p1)
 	cd, ok := AllConnectionsPossible[vector]
 	if !ok {
-		fmt.Println("Trying to connect to Pos",p1,p2,"that cannot be connected with any known connection details")
+		fmt.Println("Trying to connect to Pos", p1, p2, "that cannot be connected with any known connection details")
 		return EmptyConnDetails
 	}
 	return cd
