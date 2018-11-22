@@ -60,11 +60,8 @@ func GetTrioDistanceTableTxt() map[Int2][7]string {
 			txtOut[0] = GetTrioConnType(conns)
 			for i, conn := range conns {
 				ds := conn.DistanceSquared()
-				if b == 0 {
-					txtOut[i+1] = fmt.Sprintf("%v = %d", conn, ds)
-				} else {
-					txtOut[i+1] = fmt.Sprintf("\t%v = %d", conn, ds)
-				}
+				// Total size 18
+				txtOut[i+1] = fmt.Sprintf("%v = %d", conn, ds)
 			}
 			result[Int2{a, b}] = txtOut
 		}
@@ -160,17 +157,23 @@ func WriteTrioConnectionsTable() {
 
 	txtOutputs := GetTrioDistanceTableTxt()
 	for a := 0; a < 8; a++ {
-		out := txtOutputs[Int2{a, 0}]
-		txtFile.WriteString(fmt.Sprintf("%d, %d %s        ", a, 0, out[0]))
-		for b := 1; b < 8; b++ {
+		for b := 0; b < 8; b++ {
 			out := txtOutputs[Int2{a, b}]
-			txtFile.WriteString(fmt.Sprintf("\t%d, %d %s         ", a, b, out[0]))
+			if b == 7 {
+				txtFile.WriteString(fmt.Sprintf("%d, %d %s", a, b, out[0]))
+			} else {
+				txtFile.WriteString(fmt.Sprintf("%d, %d %s            ", a, b, out[0]))
+			}
 		}
 		txtFile.WriteString("\n")
 		for i := 0; i < 6; i++ {
 			for b := 0; b < 8; b++ {
 				out := txtOutputs[Int2{a, b}]
+				// this is 18 chars
 				txtFile.WriteString(out[i+1])
+				if b != 7 {
+					txtFile.WriteString("   ")
+				}
 			}
 			txtFile.WriteString("\n")
 		}
@@ -194,7 +197,7 @@ func WriteAllTrioTable() {
 	csvWriter := csv.NewWriter(csvFile)
 	csvWriter.WriteAll(GetTrioTableCsv())
 	for a, trio := range AllBaseTrio {
-		txtFile.WriteString(fmt.Sprintf("%d:\t%v\n", a, trio[0]))
+		txtFile.WriteString(fmt.Sprintf("T%d:\t%v\n", a, trio[0]))
 		txtFile.WriteString(fmt.Sprintf("\t%v\n", trio[1]))
 		txtFile.WriteString(fmt.Sprintf("\t%v\n", trio[2]))
 		txtFile.WriteString("\n")
@@ -241,8 +244,8 @@ func WriteAllConnectionDetails() {
 					fmt.Sprintf("% d",negVec[2]),
 					fmt.Sprintf("% d",ds),
 				})
-				txtFile.WriteString(fmt.Sprintf("% 3d: %v = %d\n",cdNb,posVec,ds))
-				txtFile.WriteString(fmt.Sprintf("% 3d: %v = %d\n",-int(cdNb),negVec,ds))
+				txtFile.WriteString(fmt.Sprintf("CP%02d: %v = %d\n",cdNb,posVec,ds))
+				txtFile.WriteString(fmt.Sprintf("CN%02d: %v = %d\n",cdNb,negVec,ds))
 				break
 			}
 		}

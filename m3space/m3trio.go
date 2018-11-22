@@ -182,11 +182,11 @@ func InitConnectionDetails() uint8 {
 				} else if smallestCD.ConnDS > cd.ConnDS {
 					smallestCD = cd
 				} else if smallestCD.ConnDS == cd.ConnDS {
-					if cd.Vector.X() > smallestCD.Vector.X() {
+					if Abs(cd.Vector.X()) > Abs(smallestCD.Vector.X()) {
 						smallestCD = cd
-					} else if cd.Vector.Y() > smallestCD.Vector.Y() {
+					} else if Abs(cd.Vector.X()) == Abs(smallestCD.Vector.X()) && Abs(cd.Vector.Y()) > Abs(smallestCD.Vector.Y()) {
 						smallestCD = cd
-					} else if cd.Vector.Z() > smallestCD.Vector.Z() {
+					} else if Abs(cd.Vector.X()) == Abs(smallestCD.Vector.X()) && Abs(cd.Vector.Y()) == Abs(smallestCD.Vector.Y()) && Abs(cd.Vector.Z()) > Abs(smallestCD.Vector.Z()) {
 						smallestCD = cd
 					}
 				}
@@ -195,9 +195,9 @@ func InitConnectionDetails() uint8 {
 		smallestCD.ConnNumber = currentConnNumber
 		newOrderedMap[smallestCD.Vector] = *smallestCD
 		negVec := smallestCD.Vector.Neg()
-		smallestCD = connMap[negVec]
-		smallestCD.ConnNumber = currentConnNumber
-		newOrderedMap[negVec] = *smallestCD
+		negSmallestCD := connMap[negVec]
+		negSmallestCD.ConnNumber = currentConnNumber
+		newOrderedMap[negVec] = *negSmallestCD
 	}
 	AllConnectionsPossible = newOrderedMap
 	return uint8(nbConnDetails)
