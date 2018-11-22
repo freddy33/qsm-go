@@ -28,6 +28,14 @@ func init() {
 	}
 }
 
+func (cd *ConnectionDetails) GetName() string {
+	if cd.ConnNeg {
+		return fmt.Sprintf("CN%02d",cd.ConnNumber)
+	} else {
+		return fmt.Sprintf("CP%02d",cd.ConnNumber)
+	}
+}
+
 func (t Trio) PlusX() Trio {
 	return MakeBaseConnectingVectorsTrio([3]Point{t[0].PlusX(), t[1].PlusX(), t[2].PlusX()})
 }

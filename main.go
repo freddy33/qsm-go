@@ -17,22 +17,10 @@ func main() {
 	case "play1":
 		playgl.DisplayPlay1()
 	case "writeTables":
-		changeToDocsDir()
-		m3space.WriteAllTrioTable()
-		m3space.WriteTrioConnectionsTable()
-		m3space.WriteAllConnectionDetails()
+		m3space.WriteAllTables()
 	default:
 		fmt.Println("The param",c,"unknown")
 	}
 	fmt.Println("Finished Executing", c)
 }
 
-func changeToDocsDir() {
-	if _, err := os.Stat("docs"); !os.IsNotExist(err) {
-		os.Chdir("docs")
-		if _, err := os.Stat("generated"); os.IsNotExist(err) {
-			os.Mkdir("generated", os.ModePerm)
-		}
-		os.Chdir("generated")
-	}
-}

@@ -7,6 +7,24 @@ import (
 	"encoding/csv"
 )
 
+func WriteAllTables() {
+	changeToDocsDir()
+	InitConnectionDetails()
+	writeAllTrioTable()
+	writeTrioConnectionsTable()
+	writeAllConnectionDetails()
+}
+
+func changeToDocsDir() {
+	if _, err := os.Stat("docs"); !os.IsNotExist(err) {
+		os.Chdir("docs")
+		if _, err := os.Stat("generated"); os.IsNotExist(err) {
+			os.Mkdir("generated", os.ModePerm)
+		}
+		os.Chdir("generated")
+	}
+}
+
 type Int2 struct {
 	a, b int
 }
@@ -59,9 +77,9 @@ func GetTrioDistanceTableTxt() map[Int2][7]string {
 			conns := GetNonBaseConnections(tA, tB)
 			txtOut[0] = GetTrioConnType(conns)
 			for i, conn := range conns {
-				ds := conn.DistanceSquared()
+				cd := AllConnectionsPossible[conn]
 				// Total size 18
-				txtOut[i+1] = fmt.Sprintf("%v = %d", conn, ds)
+				txtOut[i+1] = fmt.Sprintf("%v %s", conn, cd.GetName())
 			}
 			result[Int2{a, b}] = txtOut
 		}
@@ -140,7 +158,7 @@ func GetTrioTableCsv() [][]string {
 }
 
 // Write all the 8x8 connections possible for all trio in text and CSV files, and classify the connections size DS
-func WriteTrioConnectionsTable() {
+func writeTrioConnectionsTable() {
 	txtFile, err := os.Create("TrioConnectionsTable.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
@@ -172,7 +190,7 @@ func WriteTrioConnectionsTable() {
 				// this is 18 chars
 				txtFile.WriteString(out[i+1])
 				if b != 7 {
-					txtFile.WriteString("   ")
+					txtFile.WriteString("  ")
 				}
 			}
 			txtFile.WriteString("\n")
@@ -182,7 +200,7 @@ func WriteTrioConnectionsTable() {
 }
 
 // Write all the 8 base vectors trio in text and CSV files
-func WriteAllTrioTable() {
+func writeAllTrioTable() {
 	txtFile, err := os.Create("AllTrioTable.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
@@ -205,7 +223,7 @@ func WriteAllTrioTable() {
 }
 
 // Write all the connection details in text and CSV files
-func WriteAllConnectionDetails() {
+func writeAllConnectionDetails() {
 	txtFile, err := os.Create("AllConnectionDetails.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
@@ -217,19 +235,14 @@ func WriteAllConnectionDetails() {
 	defer txtFile.Close()
 	defer csvFile.Close()
 
-	nbConnDetails := InitConnectionDetails()
+	nbConnDetails := uint8(len(AllConnectionsPossible) / 2)
 	csvWriter := csv.NewWriter(csvFile)
 	for cdNb := uint8(0); cdNb < nbConnDetails; cdNb++ {
 		for _, v := range AllConnectionsPossible {
-			if v.ConnNumber == cdNb {
-				ds := v.Vector.DistanceSquared()
+			if v.ConnNumber == cdNb && !v.ConnNeg {
+				ds := v.ConnDS
 				posVec := v.Vector
 				negVec := v.Vector.Neg()
-				if v.ConnNeg {
-					// flip
-					posVec = negVec
-					negVec = v.Vector
-				}
 				csvWriter.Write([]string{
 					fmt.Sprintf(" %d",cdNb),
 					fmt.Sprintf("% d",posVec[0]),
@@ -244,8 +257,9 @@ func WriteAllConnectionDetails() {
 					fmt.Sprintf("% d",negVec[2]),
 					fmt.Sprintf("% d",ds),
 				})
-				txtFile.WriteString(fmt.Sprintf("CP%02d: %v = %d\n",cdNb,posVec,ds))
-				txtFile.WriteString(fmt.Sprintf("CN%02d: %v = %d\n",cdNb,negVec,ds))
+				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n",v.GetName(),posVec,ds))
+				negCD := AllConnectionsPossible[negVec]
+				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n",negCD.GetName(),negVec,ds))
 				break
 			}
 		}
