@@ -244,30 +244,127 @@ func writeAllConnectionDetails() {
 				posVec := v.Vector
 				negVec := v.Vector.Neg()
 				csvWriter.Write([]string{
-					fmt.Sprintf(" %d",cdNb),
-					fmt.Sprintf("% d",posVec[0]),
-					fmt.Sprintf("% d",posVec[1]),
-					fmt.Sprintf("% d",posVec[2]),
-					fmt.Sprintf("% d",ds),
+					fmt.Sprintf(" %d", cdNb),
+					fmt.Sprintf("% d", posVec[0]),
+					fmt.Sprintf("% d", posVec[1]),
+					fmt.Sprintf("% d", posVec[2]),
+					fmt.Sprintf("% d", ds),
 				})
 				csvWriter.Write([]string{
-					fmt.Sprintf("-%d",cdNb),
-					fmt.Sprintf("% d",negVec[0]),
-					fmt.Sprintf("% d",negVec[1]),
-					fmt.Sprintf("% d",negVec[2]),
-					fmt.Sprintf("% d",ds),
+					fmt.Sprintf("-%d", cdNb),
+					fmt.Sprintf("% d", negVec[0]),
+					fmt.Sprintf("% d", negVec[1]),
+					fmt.Sprintf("% d", negVec[2]),
+					fmt.Sprintf("% d", ds),
 				})
-				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n",v.GetName(),posVec,ds))
+				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n", v.GetName(), posVec, ds))
 				negCD := AllConnectionsPossible[negVec]
-				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n",negCD.GetName(),negVec,ds))
+				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n", negCD.GetName(), negVec, ds))
 				break
 			}
 		}
 	}
 }
 
+type PointFrom struct {
+	time TickTime
+	index int
+}
+
+type PointState struct {
+	globalIdx int
+	creationTime TickTime
+	main bool
+	trioIndex int
+	from []PointFrom
+}
+
 // Write all the points, base vector used, DS and connection details used from T=0 to T=X when transitioning from Trio Index 0 to 4 back and forth
 func Write0To4TimeFlow() {
+	changeToDocsDir()
 	InitConnectionDetails()
+	// Start from origin with growth context type 2 index 0
+	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
 
+	untilTime := TickTime(5)
+	txtFile, err := os.Create(fmt.Sprintf("Center_%03d_%03d_%03d_Growth_%d_%d_Time_%03d.txt",
+		ctx.center[0], ctx.center[1], ctx.center[2],
+		ctx.permutationType, ctx.permutationIndex, untilTime))
+	if err != nil {
+		log.Fatal("Cannot create text file", err)
+	}
+
+	globalPointIdx := 0
+	time := TickTime(0)
+	allPoints := make(map[Point]*PointState, 100)
+	from := make([]PointFrom, 1, 2)
+	from[0] = PointFrom{0, -1}
+	allPoints[Origin] = &PointState{globalPointIdx,time, true, ctx.GetTrioIndex(ctx.GetDivByThree(Origin)), from,}
+	globalPointIdx++
+	WriteCurrentPointsToFile(txtFile, time, &allPoints)
+
+	nbPoints := 3
+	for ;time <= untilTime; {
+		currentPoints := make([]Point,0,nbPoints)
+		for k,v := range allPoints {
+			if v.creationTime == time {
+				currentPoints = append(currentPoints, k)
+			}
+		}
+		nbPoints = len(currentPoints)*2
+		newPoints := make([]Point, 0, nbPoints)
+		for _, p := range currentPoints {
+			currentState := allPoints[p]
+			nps := p.getNextPoints(ctx)
+			for _, np := range nps {
+				npState, ok := allPoints[np]
+				if !ok {
+					from := make([]PointFrom, 1, 2)
+					from[0] = PointFrom{currentState.creationTime, currentState.globalIdx}
+					isMainPoint := np.IsMainPoint()
+					if isMainPoint {
+						allPoints[np] = &PointState{globalPointIdx, time+1, isMainPoint, ctx.GetTrioIndex(ctx.GetDivByThree(Origin)), from,}
+					} else {
+						allPoints[np] = &PointState{globalPointIdx, time+1, isMainPoint, -1, from,}
+					}
+					globalPointIdx++
+				} else {
+					npState.from = append(npState.from, PointFrom{currentState.creationTime, currentState.globalIdx})
+				}
+			}
+		}
+		currentPoints = newPoints
+		time++
+		WriteCurrentPointsToFile(txtFile, time, &allPoints)
+	}
+}
+
+func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Point]*PointState) {
+	mainPoints := make([]Point,0,len(*allPoints)/3)
+	currentPoints := make([]Point,0,len(*allPoints) - cap(mainPoints))
+	for k,v := range *allPoints {
+		if v.creationTime == time {
+			if k.IsMainPoint() {
+				mainPoints = append(mainPoints, k)
+			} else {
+				currentPoints = append(currentPoints, k)
+			}
+		}
+	}
+	txtFile.WriteString(fmt.Sprintf("\nTime: %4d\nMAIN POINTS: %4d", time, len(mainPoints)))
+	for i, p := range mainPoints {
+		if i%6 == 0 {
+			txtFile.WriteString("\n")
+		}
+		pState := (*allPoints)[p]
+			txtFile.WriteString(fmt.Sprintf("%3d: %2d, %2d, %2d <= %d %3d | ", pState.globalIdx, p[0], p[1], p[2], len(pState.from), pState.from[0]))
+	}
+	txtFile.WriteString(fmt.Sprintf("\nOTHER POINTS: %4d", len(currentPoints)))
+	for i, p := range currentPoints {
+		if i%6 == 0 {
+			txtFile.WriteString("\n")
+		}
+		pState := (*allPoints)[p]
+		txtFile.WriteString(fmt.Sprintf("%3d: %2d, %2d, %2d <= %d %3d | ",  pState.globalIdx, p[0], p[1], p[2], len(pState.from), pState.from[0]))
+	}
 }

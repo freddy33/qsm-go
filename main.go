@@ -18,6 +18,8 @@ func main() {
 		playgl.DisplayPlay1()
 	case "writeTables":
 		m3space.WriteAllTables()
+	case "writeTimeFlows":
+		m3space.Write0To4TimeFlow()
 	default:
 		fmt.Println("The param",c,"unknown")
 	}
