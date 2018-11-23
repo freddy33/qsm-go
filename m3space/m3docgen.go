@@ -69,7 +69,7 @@ func GetTrioConnType(conns [6]Point) string {
 	return "WRONG"
 }
 
-func GetTrioDistanceTableTxt() map[Int2][7]string {
+func GetTrioTransitionTableTxt() map[Int2][7]string {
 	result := make(map[Int2][7]string, 8*8)
 	for a, tA := range AllBaseTrio {
 		for b, tB := range AllBaseTrio {
@@ -87,7 +87,7 @@ func GetTrioDistanceTableTxt() map[Int2][7]string {
 	return result
 }
 
-func GetTrioDistanceTableCsv() [][]string {
+func GetTrioTransitionTableCsv() [][]string {
 	csvOutput := make([][]string, 8*8)
 	for a, tA := range AllBaseTrio {
 		for b, tB := range AllBaseTrio {
@@ -131,19 +131,21 @@ func GetTrioDistanceTableCsv() [][]string {
 }
 
 func GetTrioTableCsv() [][]string {
-	csvOutput := make([][]string, 8*4)
+	nbColumns := 5
+	nbRowsPerTrio := 4
+	csvOutput := make([][]string, len(AllBaseTrio)*nbColumns)
 	for a, trio := range AllBaseTrio {
-		lineNb := a * 4
-		csvOutput[lineNb] = make([]string, 4)
+		lineNb := a * nbRowsPerTrio
+		csvOutput[lineNb] = make([]string, nbColumns)
 		columnNb := 0
 		csvOutput[lineNb][columnNb] = fmt.Sprintf("%d", a)
 		columnNb++
-		for ; columnNb < 4; columnNb++ {
+		for ; columnNb < nbColumns; columnNb++ {
 			csvOutput[lineNb][columnNb] = ""
 		}
 		for _, bv := range trio {
 			lineNb++
-			csvOutput[lineNb] = make([]string, 4)
+			csvOutput[lineNb] = make([]string, nbColumns)
 			columnNb := 0
 			csvOutput[lineNb][columnNb] = ""
 			columnNb++
@@ -152,6 +154,8 @@ func GetTrioTableCsv() [][]string {
 			csvOutput[lineNb][columnNb] = fmt.Sprintf("%d", bv[1])
 			columnNb++
 			csvOutput[lineNb][columnNb] = fmt.Sprintf("%d", bv[2])
+			columnNb++
+			csvOutput[lineNb][columnNb] = AllConnectionsPossible[bv].GetName()
 		}
 	}
 	return csvOutput
@@ -171,9 +175,9 @@ func writeTrioConnectionsTable() {
 	defer csvFile.Close()
 
 	csvWriter := csv.NewWriter(csvFile)
-	csvWriter.WriteAll(GetTrioDistanceTableCsv())
+	csvWriter.WriteAll(GetTrioTransitionTableCsv())
 
-	txtOutputs := GetTrioDistanceTableTxt()
+	txtOutputs := GetTrioTransitionTableTxt()
 	for a := 0; a < 8; a++ {
 		for b := 0; b < 8; b++ {
 			out := txtOutputs[Int2{a, b}]
@@ -215,9 +219,9 @@ func writeAllTrioTable() {
 	csvWriter := csv.NewWriter(csvFile)
 	csvWriter.WriteAll(GetTrioTableCsv())
 	for a, trio := range AllBaseTrio {
-		txtFile.WriteString(fmt.Sprintf("T%d:\t%v\n", a, trio[0]))
-		txtFile.WriteString(fmt.Sprintf("\t%v\n", trio[1]))
-		txtFile.WriteString(fmt.Sprintf("\t%v\n", trio[2]))
+		txtFile.WriteString(fmt.Sprintf("T%d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
+		txtFile.WriteString(fmt.Sprintf("\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
+		txtFile.WriteString(fmt.Sprintf("\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
 		txtFile.WriteString("\n")
 	}
 }
@@ -267,16 +271,26 @@ func writeAllConnectionDetails() {
 }
 
 type PointFrom struct {
-	time TickTime
+	time  TickTime
 	index int
 }
 
 type PointState struct {
-	globalIdx int
+	globalIdx    int
 	creationTime TickTime
-	main bool
-	trioIndex int
-	from []PointFrom
+	main         bool
+	trioIndex    int
+	from         []PointFrom
+}
+
+func (ps PointState) GetFromString() string {
+	if ps.from == nil || len(ps.from) == 0 {
+		return fmt.Sprintf("%3s %3s", " ", " ")
+	}
+	if len(ps.from) == 1 {
+		return fmt.Sprintf("%3d %3s", ps.from[0].index, " ")
+	}
+	return fmt.Sprintf("%3d %3d", ps.from[0].index, ps.from[1].index)
 }
 
 // Write all the points, base vector used, DS and connection details used from T=0 to T=X when transitioning from Trio Index 0 to 4 back and forth
@@ -297,21 +311,19 @@ func Write0To4TimeFlow() {
 	globalPointIdx := 0
 	time := TickTime(0)
 	allPoints := make(map[Point]*PointState, 100)
-	from := make([]PointFrom, 1, 2)
-	from[0] = PointFrom{0, -1}
-	allPoints[Origin] = &PointState{globalPointIdx,time, true, ctx.GetTrioIndex(ctx.GetDivByThree(Origin)), from,}
+	allPoints[Origin] = &PointState{globalPointIdx, time, true, ctx.GetTrioIndex(ctx.GetDivByThree(Origin)), nil,}
 	globalPointIdx++
 	WriteCurrentPointsToFile(txtFile, time, &allPoints)
 
 	nbPoints := 3
-	for ;time <= untilTime; {
-		currentPoints := make([]Point,0,nbPoints)
-		for k,v := range allPoints {
+	for ; time <= untilTime; {
+		currentPoints := make([]Point, 0, nbPoints)
+		for k, v := range allPoints {
 			if v.creationTime == time {
 				currentPoints = append(currentPoints, k)
 			}
 		}
-		nbPoints = len(currentPoints)*2
+		nbPoints = len(currentPoints) * 2
 		newPoints := make([]Point, 0, nbPoints)
 		for _, p := range currentPoints {
 			currentState := allPoints[p]
@@ -323,9 +335,9 @@ func Write0To4TimeFlow() {
 					from[0] = PointFrom{currentState.creationTime, currentState.globalIdx}
 					isMainPoint := np.IsMainPoint()
 					if isMainPoint {
-						allPoints[np] = &PointState{globalPointIdx, time+1, isMainPoint, ctx.GetTrioIndex(ctx.GetDivByThree(Origin)), from,}
+						allPoints[np] = &PointState{globalPointIdx, time + 1, isMainPoint, ctx.GetTrioIndex(ctx.GetDivByThree(np)), from,}
 					} else {
-						allPoints[np] = &PointState{globalPointIdx, time+1, isMainPoint, -1, from,}
+						allPoints[np] = &PointState{globalPointIdx, time + 1, isMainPoint, -1, from,}
 					}
 					globalPointIdx++
 				} else {
@@ -340,9 +352,9 @@ func Write0To4TimeFlow() {
 }
 
 func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Point]*PointState) {
-	mainPoints := make([]Point,0,len(*allPoints)/3)
-	currentPoints := make([]Point,0,len(*allPoints) - cap(mainPoints))
-	for k,v := range *allPoints {
+	mainPoints := make([]Point, 0, len(*allPoints)/3)
+	currentPoints := make([]Point, 0, len(*allPoints)-cap(mainPoints))
+	for k, v := range *allPoints {
 		if v.creationTime == time {
 			if k.IsMainPoint() {
 				mainPoints = append(mainPoints, k)
@@ -351,13 +363,14 @@ func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Po
 			}
 		}
 	}
-	txtFile.WriteString(fmt.Sprintf("\nTime: %4d\nMAIN POINTS: %4d", time, len(mainPoints)))
+	txtFile.WriteString("\n**************************************************\n")
+	txtFile.WriteString(fmt.Sprintf("Time: %4d\nMAIN POINTS: ", time))
 	for i, p := range mainPoints {
-		if i%6 == 0 {
+		if i%6 == 5 {
 			txtFile.WriteString("\n")
 		}
 		pState := (*allPoints)[p]
-			txtFile.WriteString(fmt.Sprintf("%3d: %2d, %2d, %2d <= %d %3d | ", pState.globalIdx, p[0], p[1], p[2], len(pState.from), pState.from[0]))
+		txtFile.WriteString(fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
 	}
 	txtFile.WriteString(fmt.Sprintf("\nOTHER POINTS: %4d", len(currentPoints)))
 	for i, p := range currentPoints {
@@ -365,6 +378,6 @@ func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Po
 			txtFile.WriteString("\n")
 		}
 		pState := (*allPoints)[p]
-		txtFile.WriteString(fmt.Sprintf("%3d: %2d, %2d, %2d <= %d %3d | ",  pState.globalIdx, p[0], p[1], p[2], len(pState.from), pState.from[0]))
+		txtFile.WriteString(fmt.Sprintf("%3d: %2d, %2d, %2d <= %s | ", pState.globalIdx, p[0], p[1], p[2], pState.GetFromString()))
 	}
 }

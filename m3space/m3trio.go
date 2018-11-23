@@ -28,7 +28,7 @@ func init() {
 	}
 }
 
-func (cd *ConnectionDetails) GetName() string {
+func (cd ConnectionDetails) GetName() string {
 	if cd.ConnNeg {
 		return fmt.Sprintf("CN%02d",cd.ConnNumber)
 	} else {
