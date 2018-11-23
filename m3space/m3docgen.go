@@ -5,6 +5,7 @@ import (
 	"os"
 	"log"
 	"encoding/csv"
+	"sort"
 )
 
 func WriteAllTables() {
@@ -290,17 +291,20 @@ func (ps PointState) GetFromString() string {
 	if len(ps.from) == 1 {
 		return fmt.Sprintf("%3d %3s", ps.from[0].index, " ")
 	}
-	return fmt.Sprintf("%3d %3d", ps.from[0].index, ps.from[1].index)
+	if len(ps.from) == 2 {
+		return fmt.Sprintf("%3d %3d", ps.from[0].index, ps.from[1].index)
+	}
+	return fmt.Sprintf("%d:%3d %3d", len(ps.from), ps.from[0].index, ps.from[1].index)
 }
 
-// Write all the points, base vector used, DS and connection details used from T=0 to T=X when transitioning from Trio Index 0 to 4 back and forth
+// Write all the points, base vector used, DS and connection details used from1 T=0 to T=X when transitioning from1 Trio Index 0 to 4 back and forth
 func Write0To4TimeFlow() {
 	changeToDocsDir()
 	InitConnectionDetails()
-	// Start from origin with growth context type 2 index 0
+	// Start from1 origin with growth context type 2 index 0
 	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
 
-	untilTime := TickTime(5)
+	untilTime := TickTime(8)
 	txtFile, err := os.Create(fmt.Sprintf("Center_%03d_%03d_%03d_Growth_%d_%d_Time_%03d.txt",
 		ctx.center[0], ctx.center[1], ctx.center[2],
 		ctx.permutationType, ctx.permutationIndex, untilTime))
@@ -316,7 +320,7 @@ func Write0To4TimeFlow() {
 	WriteCurrentPointsToFile(txtFile, time, &allPoints)
 
 	nbPoints := 3
-	for ; time <= untilTime; {
+	for ; time < untilTime; {
 		currentPoints := make([]Point, 0, nbPoints)
 		for k, v := range allPoints {
 			if v.creationTime == time {
@@ -363,16 +367,18 @@ func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Po
 			}
 		}
 	}
+	sort.Slice(mainPoints, func (i, j int) bool { return len((*allPoints)[mainPoints[i]].from) > len((*allPoints)[mainPoints[j]].from) })
+	sort.Slice(currentPoints, func (i, j int) bool { return len((*allPoints)[currentPoints[i]].from) > len((*allPoints)[currentPoints[j]].from) })
 	txtFile.WriteString("\n**************************************************\n")
-	txtFile.WriteString(fmt.Sprintf("Time: %4d\nMAIN POINTS: ", time))
+	txtFile.WriteString(fmt.Sprintf("Time: %4d       %4d       %4d\n######  MAIN POINTS: %4d #######", time, time, time, len(mainPoints)))
 	for i, p := range mainPoints {
-		if i%6 == 5 {
+		if i%4 == 0 {
 			txtFile.WriteString("\n")
 		}
 		pState := (*allPoints)[p]
 		txtFile.WriteString(fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
 	}
-	txtFile.WriteString(fmt.Sprintf("\nOTHER POINTS: %4d", len(currentPoints)))
+	txtFile.WriteString(fmt.Sprintf("\n###### OTHER POINTS: %4d #######", len(currentPoints)))
 	for i, p := range currentPoints {
 		if i%6 == 0 {
 			txtFile.WriteString("\n")

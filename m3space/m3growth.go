@@ -5,7 +5,7 @@ import "fmt"
 type GrowthContext struct {
 	center             *Point
 	permutationType    uint8 // 1,2,4, or 8
-	permutationIndex   int   // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
+	permutationIndex   int   // Index in the permutations to choose from1. For type 1 [0,7] for the other in the 12 list [0,11]
 	permutationNegFlow bool  // true for backward flow in permutation
 	permutationOffset  int   // Offset in perm modulo
 }

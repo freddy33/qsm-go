@@ -25,11 +25,11 @@ type Space struct {
 	connections []*Connection
 	currentId   EventID
 	currentTime TickTime
-	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from origin
+	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from1 origin
 	Max int64
 	// Max number of connections per node
 	MaxConnections int
-	// Distance from latest to consider event outgrowth active
+	// Distance from1 latest to consider event outgrowth active
 	EventOutgrowthThreshold Distance
 }
 
@@ -83,7 +83,7 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) ForwardTime() {
-	fmt.Println("Stepping up time from", space.currentTime, "for", len(space.events), "events")
+	fmt.Println("Stepping up time from1", space.currentTime, "for", len(space.events), "events")
 	nbLatest := 0
 	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
@@ -112,22 +112,32 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 	}
 	// Realize only one of conflicting same event
 	for _, newPosEoList := range collector.sameEvent {
-		(*newPosEoList)[0].realize()
+		if len(*newPosEoList) > 2 {
+			fmt.Println("ERROR: 3 overlap from same event",(*newPosEoList)[0].event.id,"at position",(*newPosEoList)[0].pos)
+		} else {
+			newEo := (*newPosEoList)[0].realize()
+			if newEo == nil {
+				newEo = (*newPosEoList)[1].realize()
+			} else {
+				newEo.from2 = (*newPosEoList)[1].from
+			}
+		}
 	}
 	// Realize only one per event of conflicting multi events
 	for _, newPosEoList := range collector.multiEvents {
-		idsAlreadyDone := make([]EventID, 0, 2)
+		idsAlreadyDone := make(map[EventID]*EventOutgrowth, 2)
 		for _, newPosEo := range *newPosEoList {
-			done := false
-			for _, id := range idsAlreadyDone {
-				if id == newPosEo.event.id {
-					done = true
-					break
-				}
-			}
+			doneEo, done := idsAlreadyDone[newPosEo.event.id]
 			if !done {
-				if newPosEo.realize() != nil {
-					idsAlreadyDone = append(idsAlreadyDone, newPosEo.event.id)
+				newEo := newPosEo.realize()
+				if newEo != nil {
+					idsAlreadyDone[newPosEo.event.id] = newEo
+				}
+			} else {
+				if doneEo.HasFrom2() {
+					fmt.Println("ERROR: 3 overlap from same event",newPosEo.event.id,"at position",newPosEo.pos)
+				} else {
+					doneEo.from2 = newPosEo.from
 				}
 			}
 		}
@@ -217,7 +227,7 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 								newEo.state = EventOutgrowthMultipleSameEvent
 								*fromSameEvent = append(*fromSameEvent, newEo)
 							} else {
-								// Move all from same event to multi event
+								// Move all from1 same event to multi event
 								fromMultiEvent, okMultiEvent := collector.multiEvents[newEo.pos]
 								if !okMultiEvent {
 									*fromSameEvent = append(*fromSameEvent, newEo)
@@ -258,7 +268,7 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 			}
 		case <-time.After(time.Duration(timeout) * time.Millisecond):
 			stop = true
-			fmt.Println("Did not manage to process", nbLatest, "latest event outgrowth from", nbEvents, "events in", nbLatest*5, "msecs")
+			fmt.Println("Did not manage to process", nbLatest, "latest event outgrowth from1", nbEvents, "events in", nbLatest*5, "msecs")
 			break
 		}
 		if stop {

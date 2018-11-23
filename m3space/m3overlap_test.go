@@ -42,7 +42,7 @@ func TestOverlapSameEvent(t *testing.T) {
 	assert.Equal(t, nbLatestNodes-13, len(latestNodes))
 }
 
-// Retrieve all nodes having outgrowth at exact distance d from the event
+// Retrieve all nodes having outgrowth at exact distance d from1 the event
 func getAllNodeWithOutgrowthAtD(t *testing.T, space *Space, atD Distance) []*Node {
 	res := make([]*Node, 0, 25)
 	for _, node := range space.nodesMap {

@@ -42,7 +42,8 @@ type Event struct {
 type EventOutgrowth struct {
 	node     *Node
 	event    *Event
-	from     *EventOutgrowth
+	from1    *EventOutgrowth
+	from2    *EventOutgrowth
 	distance Distance
 	state    EventOutgrowthState
 }
@@ -80,7 +81,7 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
 		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
-	e.latestOutgrowths[0] = &EventOutgrowth{n, &e, nil, Distance(0), EventOutgrowthLatest}
+	e.latestOutgrowths[0] = &EventOutgrowth{n, &e, nil, nil, Distance(0), EventOutgrowthLatest}
 	n.outgrowths = make([]*EventOutgrowth, 1)
 	n.outgrowths[0] = e.latestOutgrowths[0]
 	space.events[id] = &e
@@ -96,7 +97,7 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 
 		nextPoints := eg.node.Pos.getNextPoints(&(evt.growthContext))
 		for _, nextPoint := range nextPoints {
-			if eg.from == nil || nextPoint != *(eg.from.node.Pos) {
+			if !eg.CameFromPoint(nextPoint) {
 				if DEBUG {
 					fmt.Println("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
 				}
@@ -105,23 +106,6 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 		}
 	}
 	c <- &NewPossibleOutgrowth{*(evt.node.Pos), evt, nil, Distance(0), EventOutgrowthEnd}
-}
-
-func (newPosEo *NewPossibleOutgrowth) realize() *EventOutgrowth {
-	evt := newPosEo.event
-	space := evt.space
-	newNode := space.getOrCreateNode(newPosEo.pos)
-	if !newNode.CanReceiveOutgrowth(newPosEo) {
-		return nil
-	}
-	fromNode := newPosEo.from.node
-	if !fromNode.IsAlreadyConnected(newNode) {
-		space.makeConnection(fromNode, newNode)
-	}
-	newEo := &EventOutgrowth{newNode, evt, newPosEo.from, newPosEo.distance, EventOutgrowthNew}
-	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
-	newNode.AddOutgrowth(newEo)
-	return newEo
 }
 
 func (evt *Event) moveNewOutgrowthsToLatest() {
@@ -139,36 +123,64 @@ func (evt *Event) moveNewOutgrowthsToLatest() {
 	evt.latestOutgrowths = finalLatest
 }
 
-func (eventOutgrowth *EventOutgrowth) IsRoot() bool {
-	if eventOutgrowth.distance == Distance(0) {
-		if eventOutgrowth.from != nil {
-			fmt.Println("An event outgrowth of", eventOutgrowth.event.id, "has distance 0 and from not nil!")
-		}
-	}
-	return eventOutgrowth.from == nil
-}
-
 func (evt *Event) LatestDistance() Distance {
 	// Distance and time are the same...
 	return Distance(evt.space.currentTime - evt.created)
 }
 
-func (eventOutgrowth *EventOutgrowth) LatestDistance() Distance {
-	if eventOutgrowth.state == EventOutgrowthLatest {
-		return eventOutgrowth.distance
+func (newPosEo *NewPossibleOutgrowth) realize() *EventOutgrowth {
+	evt := newPosEo.event
+	space := evt.space
+	newNode := space.getOrCreateNode(newPosEo.pos)
+	if !newNode.CanReceiveOutgrowth(newPosEo) {
+		return nil
 	}
-	return eventOutgrowth.event.LatestDistance()
+	fromNode := newPosEo.from.node
+	if !fromNode.IsAlreadyConnected(newNode) {
+		space.makeConnection(fromNode, newNode)
+	}
+	newEo := &EventOutgrowth{newNode, evt, newPosEo.from, nil, newPosEo.distance, EventOutgrowthNew}
+	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
+	newNode.AddOutgrowth(newEo)
+	return newEo
 }
 
-func (eventOutgrowth *EventOutgrowth) DistanceFromLatest() Distance {
-	latestDistance := eventOutgrowth.LatestDistance()
-	return latestDistance - eventOutgrowth.distance
+func (eo *EventOutgrowth) HasFrom() bool {
+	return eo.from1 != nil
 }
 
-func (eventOutgrowth *EventOutgrowth) IsActive(threshold Distance) bool {
-	if eventOutgrowth.IsRoot() {
+func (eo *EventOutgrowth) HasFrom2() bool {
+	return eo.from2 != nil
+}
+
+func (eo *EventOutgrowth) CameFrom(node *Node) bool {
+	return (eo.HasFrom() && eo.from1.node == node) || (eo.HasFrom2() && eo.from2.node == node)
+}
+
+func (eo *EventOutgrowth) CameFromPoint(point Point) bool {
+	return (eo.HasFrom() && *(eo.from1.node.Pos) == point) || (eo.HasFrom2() && *(eo.from2.node.Pos) == point)
+}
+
+func (eo *EventOutgrowth) IsRoot() bool {
+	return !eo.HasFrom()
+}
+
+func (eo *EventOutgrowth) LatestDistance() Distance {
+	if eo.state == EventOutgrowthLatest {
+		return eo.distance
+	}
+	return eo.event.LatestDistance()
+}
+
+func (eo *EventOutgrowth) DistanceFromLatest() Distance {
+	latestDistance := eo.LatestDistance()
+	return latestDistance - eo.distance
+}
+
+func (eo *EventOutgrowth) IsActive(threshold Distance) bool {
+	if eo.IsRoot() {
 		// Root event always active
 		return true
 	}
-	return eventOutgrowth.DistanceFromLatest() <= threshold
+	return eo.DistanceFromLatest() <= threshold
 }

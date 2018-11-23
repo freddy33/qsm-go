@@ -107,12 +107,12 @@ func (conn *Connection) GetColorMask(threshold Distance) uint8 {
 	m := uint8(0)
 	if conn.N1 != nil && conn.N2 != nil {
 		for _, eo1 := range conn.N1.outgrowths {
-			if eo1.from != nil && eo1.from.node == conn.N2 && eo1.IsActive(threshold) {
+			if eo1.CameFrom(conn.N2) && eo1.IsActive(threshold) {
 				m |= uint8(eo1.event.color)
 			}
 		}
 		for _, eo2 := range conn.N2.outgrowths {
-			if eo2.from != nil && eo2.from.node == conn.N1 && eo2.IsActive(threshold) {
+			if eo2.CameFrom(conn.N1) && eo2.IsActive(threshold) {
 				m |= uint8(eo2.event.color)
 			}
 		}
@@ -128,12 +128,12 @@ func (conn *Connection) IsActive(threshold Distance) bool {
 	// Connection is active if event outgrowth latest match
 	if conn.N1 != nil && conn.N2 != nil {
 		for _, eo1 := range conn.N1.outgrowths {
-			if eo1.from != nil && eo1.from.node == conn.N2 && eo1.IsActive(threshold) {
+			if eo1.CameFrom(conn.N2) && eo1.IsActive(threshold) {
 				return true
 			}
 		}
 		for _, eo2 := range conn.N2.outgrowths {
-			if eo2.from != nil && eo2.from.node == conn.N1 && eo2.IsActive(threshold) {
+			if eo2.CameFrom(conn.N1) && eo2.IsActive(threshold) {
 				return true
 			}
 		}

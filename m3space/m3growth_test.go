@@ -227,7 +227,7 @@ func TestConnectionDetails(t *testing.T) {
 		nbCtx += len(contextList)
 	}
 	fmt.Println("Created", nbCtx, "contexes")
-	fmt.Println("Using", len(allCtx[8]), " contexes from the 8 context")
+	fmt.Println("Using", len(allCtx[8]), " contexes from1 the 8 context")
 	// For all trioIndex rotations, any 2 close main points there should be a connection details
 	min := int64(-2) // -5
 	max := int64(2)  // 5
