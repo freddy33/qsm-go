@@ -83,7 +83,7 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) ForwardTime() {
-	fmt.Println("Stepping up time from1", space.currentTime, "for", len(space.events), "events")
+	fmt.Println("\n**********\nStepping up time from", space.currentTime, "for", len(space.events), "events")
 	nbLatest := 0
 	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
@@ -91,11 +91,6 @@ func (space *Space) ForwardTime() {
 		nbLatest += len(evt.latestOutgrowths)
 	}
 	collector := space.processNewOutgrowth(c, nbLatest)
-
-	fmt.Println("Found", len(collector.single), "single new outgrowth,",
-		len(collector.sameEvent), "overlap outgrowth on same event,",
-		len(collector.multiEvents), "overlap on multi events.")
-
 	space.realizeAllOutgrowth(collector)
 
 	// Switch latest to old, and new to latest
@@ -106,25 +101,41 @@ func (space *Space) ForwardTime() {
 }
 
 func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
+	fmt.Println("Found", len(collector.single), "single new outgrowth,",
+		len(collector.sameEvent), "overlap outgrowth on same event,",
+		len(collector.multiEvents), "overlap on multi events.")
+
+	notRealized := 0
 	// No problem just realize all single ones that fit
 	for _, newPosEo := range collector.single {
-		newPosEo.realize()
+		if newPosEo.realize() == nil {
+			notRealized++
+		}
 	}
+	fmt.Println("Single new outgrowth not realized=", notRealized)
+
+	notRealized = 0
 	// Realize only one of conflicting same event
 	for _, newPosEoList := range collector.sameEvent {
-		if len(*newPosEoList) > 2 {
-			fmt.Println("ERROR: 3 overlap from same event",(*newPosEoList)[0].event.id,"at position",(*newPosEoList)[0].pos)
-		} else {
-			newEo := (*newPosEoList)[0].realize()
+		var newEo *EventOutgrowth
+		for _, newPosEo := range *newPosEoList {
 			if newEo == nil {
-				newEo = (*newPosEoList)[1].realize()
+				newEo = newPosEo.realize()
+				if newEo == nil {
+					notRealized++
+				}
 			} else {
-				newEo.from2 = (*newPosEoList)[1].from
+				newEo.AddFrom(newPosEo.from)
 			}
 		}
 	}
+	fmt.Println("Multi same event new outgrowth not realized=", notRealized)
+
+	notRealized = 0
 	// Realize only one per event of conflicting multi events
-	for _, newPosEoList := range collector.multiEvents {
+	// Collect all more than 3 event outgrowth
+	moreThan3 := make(map[Point][]EventID)
+	for pos, newPosEoList := range collector.multiEvents {
 		idsAlreadyDone := make(map[EventID]*EventOutgrowth, 2)
 		for _, newPosEo := range *newPosEoList {
 			doneEo, done := idsAlreadyDone[newPosEo.event.id]
@@ -132,16 +143,24 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 				newEo := newPosEo.realize()
 				if newEo != nil {
 					idsAlreadyDone[newPosEo.event.id] = newEo
+				} else {
+					notRealized++
 				}
 			} else {
-				if doneEo.HasFrom2() {
-					fmt.Println("ERROR: 3 overlap from same event",newPosEo.event.id,"at position",newPosEo.pos)
-				} else {
-					doneEo.from2 = newPosEo.from
-				}
+				doneEo.AddFrom(newPosEo.from)
 			}
 		}
+		if len(idsAlreadyDone) >= THREE {
+			ids := make([]EventID, len(idsAlreadyDone))
+			i := 0
+			for id := range idsAlreadyDone {
+				ids[i] = id
+				i++
+			}
+			moreThan3[pos] = ids
+		}
 	}
+	fmt.Println("Multi event new outgrowth not realized=", notRealized, "found", len(moreThan3), "more than 3 positions")
 }
 
 type OutgrowthCollector struct {
@@ -299,13 +318,24 @@ func (space *Space) getOrCreateNode(p Point) *Node {
 
 func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 	if !n1.HasFreeConnections(space) {
-		fmt.Println("Node 1", n1, "does not have free connections")
+		if DEBUG {
+			fmt.Println("Node 1", n1, "does not have free connections")
+		}
 		return nil
 	}
 	if !n2.HasFreeConnections(space) {
-		fmt.Println("Node 2", n2, "does not have free connections")
+		if DEBUG {
+			fmt.Println("Node 2", n2, "does not have free connections")
+		}
 		return nil
 	}
+	if n1.IsAlreadyConnected(n2) {
+		if DEBUG {
+			fmt.Println("Connection between 2 points", *(n1.Pos), *(n2.Pos), "already connected!")
+		}
+		return nil
+	}
+
 	// Flipping if needed to make sure n1 is main
 	if n2.Pos.IsMainPoint() {
 		temp := n1
@@ -314,12 +344,7 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 	}
 	d := DS(n1.Pos, n2.Pos)
 	if !(d == 1 || d == 2 || d == 3 || d == 5) {
-		fmt.Println("Connection between 2 points", *(n1.Pos), *(n2.Pos), "that are not 1, 2, 3 or 5 DS away!")
-		return nil
-	}
-	// Verify not already connected
-	if n1.IsAlreadyConnected(n2) {
-		fmt.Println("Connection between 2 points", *(n1.Pos), *(n2.Pos), "already connected!")
+		fmt.Println("ERROR: Connection between 2 points", *(n1.Pos), *(n2.Pos), "that are not 1, 2, 3 or 5 DS away!")
 		return nil
 	}
 	// All good create connection
@@ -328,7 +353,7 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 	n1done := n1.AddConnection(c, space)
 	n2done := n2.AddConnection(c, space)
 	if n1done < 0 || n2done < 0 {
-		fmt.Println("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
+		fmt.Println("ERROR: Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
 		return nil
 	}
 	return c

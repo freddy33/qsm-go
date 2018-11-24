@@ -1,6 +1,8 @@
 package m3space
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type EventID uint64
 
@@ -42,8 +44,7 @@ type Event struct {
 type EventOutgrowth struct {
 	node     *Node
 	event    *Event
-	from1    *EventOutgrowth
-	from2    *EventOutgrowth
+	fromList []*EventOutgrowth
 	distance Distance
 	state    EventOutgrowthState
 }
@@ -81,7 +82,7 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
 		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
-	e.latestOutgrowths[0] = &EventOutgrowth{n, &e, nil, nil, Distance(0), EventOutgrowthLatest}
+	e.latestOutgrowths[0] = &EventOutgrowth{n, &e, nil, Distance(0), EventOutgrowthLatest}
 	n.outgrowths = make([]*EventOutgrowth, 1)
 	n.outgrowths[0] = e.latestOutgrowths[0]
 	space.events[id] = &e
@@ -137,28 +138,51 @@ func (newPosEo *NewPossibleOutgrowth) realize() *EventOutgrowth {
 	}
 	fromNode := newPosEo.from.node
 	if !fromNode.IsAlreadyConnected(newNode) {
-		space.makeConnection(fromNode, newNode)
+		if space.makeConnection(fromNode, newNode) == nil {
+			// No more connections
+			return nil
+		}
 	}
-	newEo := &EventOutgrowth{newNode, evt, newPosEo.from, nil, newPosEo.distance, EventOutgrowthNew}
+	newEo := &EventOutgrowth{newNode, evt, []*EventOutgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew}
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(newEo)
 	return newEo
 }
 
-func (eo *EventOutgrowth) HasFrom() bool {
-	return eo.from1 != nil
+func (eo *EventOutgrowth) AddFrom(from *EventOutgrowth) {
+	if eo.fromList == nil {
+		eo.fromList = []*EventOutgrowth{from,}
+	} else {
+		eo.fromList = append(eo.fromList, from)
+	}
 }
 
-func (eo *EventOutgrowth) HasFrom2() bool {
-	return eo.from2 != nil
+func (eo *EventOutgrowth) HasFrom() bool {
+	return eo.fromList != nil && len(eo.fromList) > 0
 }
 
 func (eo *EventOutgrowth) CameFrom(node *Node) bool {
-	return (eo.HasFrom() && eo.from1.node == node) || (eo.HasFrom2() && eo.from2.node == node)
+	if !eo.HasFrom() {
+		return false
+	}
+	for _, from := range eo.fromList {
+		if from.node == node {
+			return true
+		}
+	}
+	return false
 }
 
 func (eo *EventOutgrowth) CameFromPoint(point Point) bool {
-	return (eo.HasFrom() && *(eo.from1.node.Pos) == point) || (eo.HasFrom2() && *(eo.from2.node.Pos) == point)
+	if !eo.HasFrom() {
+		return false
+	}
+	for _, from := range eo.fromList {
+		if *(from.node.Pos) == point {
+			return true
+		}
+	}
+	return false
 }
 
 func (eo *EventOutgrowth) IsRoot() bool {

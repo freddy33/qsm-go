@@ -131,19 +131,23 @@ func DisplayPlay1() {
 
 func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	if action == glfw.Press {
+		displaySettings := true
 		reCalc := false
 		reFill := false
 
 		switch key {
 		case glfw.KeyEscape:
 			win.SetShouldClose(true)
+			displaySettings = false
 
 		case glfw.KeyS:
 			world.Angle.Enabled = !world.Angle.Enabled
+			displaySettings = false
 
 		case glfw.KeyRight:
 			world.Space.ForwardTime()
 			world.CreateDrawingElements()
+			displaySettings = false
 
 		case glfw.KeyN:
 			world.Filter.DisplayEmptyNodes = !world.Filter.DisplayEmptyNodes
@@ -203,7 +207,9 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 		if reCalc {
 			recalc(reFill)
 		} else {
-			world.DisplaySettings()
+			if displaySettings {
+				world.DisplaySettings()
+			}
 		}
 	}
 }

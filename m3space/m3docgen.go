@@ -5,24 +5,31 @@ import (
 	"os"
 	"log"
 	"encoding/csv"
-	"sort"
 )
 
 func WriteAllTables() {
-	changeToDocsDir()
+	changeToDocsGeneratedDir()
 	InitConnectionDetails()
 	writeAllTrioTable()
 	writeTrioConnectionsTable()
 	writeAllConnectionDetails()
 }
 
-func changeToDocsDir() {
+func changeToDocsGeneratedDir() {
+	changeToDocsSubdir("generated")
+}
+
+func changeToDocsDataDir() {
+	changeToDocsSubdir("data")
+}
+
+func changeToDocsSubdir(subDir string) {
 	if _, err := os.Stat("docs"); !os.IsNotExist(err) {
 		os.Chdir("docs")
-		if _, err := os.Stat("generated"); os.IsNotExist(err) {
-			os.Mkdir("generated", os.ModePerm)
+		if _, err := os.Stat(subDir); os.IsNotExist(err) {
+			os.Mkdir(subDir, os.ModePerm)
 		}
-		os.Chdir("generated")
+		os.Chdir(subDir)
 	}
 }
 
@@ -271,41 +278,15 @@ func writeAllConnectionDetails() {
 	}
 }
 
-type PointState struct {
-	globalIdx    int
-	creationTime TickTime
-	main         bool
-	trioIndex    int
-	from1, from2 int
-}
-
-func (ps PointState) HasFrom1() bool {
-	return ps.from1 >= 0
-}
-
-func (ps PointState) HasFrom2() bool {
-	return ps.from2 >= 0
-}
-
-func (ps PointState) GetFromString() string {
-	if !ps.HasFrom1() {
-		return fmt.Sprintf("%3s %3s", " ", " ")
-	}
-	if ps.HasFrom2() {
-		return fmt.Sprintf("%3d %3d", ps.from1, ps.from2)
-	} else {
-		return fmt.Sprintf("%3d %3s", ps.from1, " ")
-	}
-}
 
 // Write all the points, base vector used, DS and connection details used from1 T=0 to T=X when transitioning from1 Trio Index 0 to 4 back and forth
 func Write0To4TimeFlow() {
-	changeToDocsDir()
-	InitConnectionDetails()
+	changeToDocsGeneratedDir()
+
 	// Start from1 origin with growth context type 2 index 0
 	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
-
 	untilTime := TickTime(8)
+
 	txtFile, err := os.Create(fmt.Sprintf("Center_%03d_%03d_%03d_Growth_%d_%d_Time_%03d.txt",
 		ctx.center[0], ctx.center[1], ctx.center[2],
 		ctx.permutationType, ctx.permutationIndex, untilTime))
@@ -313,81 +294,69 @@ func Write0To4TimeFlow() {
 		log.Fatal("Cannot create text file", err)
 	}
 
-	globalPointIdx := 0
-	time := TickTime(0)
-	allPoints := make(map[Point]*PointState, 100)
-	allPoints[Origin] = &PointState{globalPointIdx, time, true, ctx.GetTrioIndex(ctx.GetDivByThree(Origin)), -1, -1,}
-	globalPointIdx++
-	WriteCurrentPointsToFile(txtFile, time, &allPoints)
-
-	nbPoints := 3
-	for ; time < untilTime; {
-		currentPoints := make([]Point, 0, nbPoints)
-		for k, v := range allPoints {
-			if v.creationTime == time {
-				currentPoints = append(currentPoints, k)
-			}
-		}
-		nbPoints = len(currentPoints) * 2
-		newPoints := make([]Point, 0, nbPoints)
-		for _, p := range currentPoints {
-			currentState := allPoints[p]
-			nps := p.getNextPoints(ctx)
-			for _, np := range nps {
-				npState, ok := allPoints[np]
-				if !ok {
-					isMainPoint := np.IsMainPoint()
-					if isMainPoint {
-						allPoints[np] = &PointState{globalPointIdx, time + 1, isMainPoint, ctx.GetTrioIndex(ctx.GetDivByThree(np)), currentState.globalIdx, -1}
-					} else {
-						allPoints[np] = &PointState{globalPointIdx, time + 1, isMainPoint, -1, currentState.globalIdx, -1}
-					}
-					globalPointIdx++
-				} else if npState.creationTime == time + 1 {
-					// Created now but already populated
-					if npState.HasFrom2() {
-						fmt.Println("ERROR: Got 3 overlap for",npState)
-					} else {
-						npState.from2 = currentState.globalIdx
-					}
-				}
-			}
-		}
-		currentPoints = newPoints
-		time++
-		WriteCurrentPointsToFile(txtFile, time, &allPoints)
-	}
+	collectFlow(ctx, untilTime, func (pointMap *map[Point]*PointState, time TickTime) {
+		WriteCurrentPointsToFile(txtFile, time, pointMap)
+	})
 }
 
 func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Point]*PointState) {
-	mainPoints := make([]Point, 0, len(*allPoints)/3)
-	currentPoints := make([]Point, 0, len(*allPoints)-cap(mainPoints))
-	for k, v := range *allPoints {
-		if v.creationTime == time {
-			if k.IsMainPoint() {
-				mainPoints = append(mainPoints, k)
-			} else {
-				currentPoints = append(currentPoints, k)
-			}
-		}
-	}
-	sort.Slice(mainPoints, func (i, j int) bool { return (*allPoints)[mainPoints[i]].HasFrom2() && !(*allPoints)[mainPoints[j]].HasFrom2() })
-	sort.Slice(currentPoints, func (i, j int) bool { return (*allPoints)[currentPoints[i]].HasFrom2() && !(*allPoints)[currentPoints[j]].HasFrom2() })
-	txtFile.WriteString("\n**************************************************\n")
-	txtFile.WriteString(fmt.Sprintf("Time: %4d       %4d       %4d\n######  MAIN POINTS: %4d #######", time, time, time, len(mainPoints)))
+	mainPoints, currentPoints := extractMainAndOtherPoints(allPoints, time)
+
+	writeNextString(txtFile, "\n**************************************************\n")
+	writeNextString(txtFile, fmt.Sprintf("Time: %4d       %4d       %4d\n######  MAIN POINTS: %4d #######", time, time, time, len(mainPoints)))
 	for i, p := range mainPoints {
 		if i%4 == 0 {
-			txtFile.WriteString("\n")
+			writeNextString(txtFile, "\n")
 		}
 		pState := (*allPoints)[p]
-		txtFile.WriteString(fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
+		writeNextString(txtFile, fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
 	}
 	txtFile.WriteString(fmt.Sprintf("\n###### OTHER POINTS: %4d #######", len(currentPoints)))
 	for i, p := range currentPoints {
 		if i%6 == 0 {
-			txtFile.WriteString("\n")
+			writeNextString(txtFile, "\n")
 		}
 		pState := (*allPoints)[p]
-		txtFile.WriteString(fmt.Sprintf("%3d: %2d, %2d, %2d <= %s | ", pState.globalIdx, p[0], p[1], p[2], pState.GetFromString()))
+		writeNextString(txtFile, fmt.Sprintf("%3d: %2d, %2d, %2d <= %s | ", pState.globalIdx, p[0], p[1], p[2], pState.GetFromString()))
+	}
+}
+
+func GenerateDataTimeFlow0() {
+	changeToDocsDataDir()
+
+	// Start from1 origin with growth context type 2 index 0
+	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
+	untilTime := TickTime(30)
+
+	binFile, err := os.Create(fmt.Sprintf("Growth_%d_%d_Time_%03d.data",
+		ctx.permutationType, ctx.permutationIndex, untilTime))
+	if err != nil {
+		log.Fatal("Cannot create bin data file", err)
+	}
+
+	collectFlow(ctx, untilTime, func (pointMap *map[Point]*PointState, time TickTime) {
+		WriteCurrentPointsDataToFile(binFile, time, pointMap)
+	})
+}
+
+func WriteCurrentPointsDataToFile(file *os.File, time TickTime, allPoints *map[Point]*PointState) {
+	for _, ps := range *allPoints {
+		if ps.creationTime == time {
+			writeNextString(file, ps.ToDataString())
+		}
+	}
+}
+
+func writeNextBytes(file *os.File, bytes []byte) {
+	_, err := file.Write(bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func writeNextString(file *os.File, text string) {
+	_, err := file.WriteString(text)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
