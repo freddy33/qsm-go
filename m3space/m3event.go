@@ -129,24 +129,42 @@ func (evt *Event) LatestDistance() Distance {
 	return Distance(evt.space.currentTime - evt.created)
 }
 
-func (newPosEo *NewPossibleOutgrowth) realize() *EventOutgrowth {
+type EventAlreadyGrewThereError struct {
+	id  EventID
+	pos Point
+}
+
+func (e *EventAlreadyGrewThereError) Error() string {
+	return fmt.Sprintf("event with id %d already has outgrowth at %v", e.id, e.pos)
+}
+
+type NoMoreConnectionsError struct {
+	pos      Point
+	otherPos Point
+}
+
+func (e *NoMoreConnectionsError) Error() string {
+	return fmt.Sprintf("node at %v already has full connections and cannot connect to %v", e.pos, e.otherPos)
+}
+
+func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	evt := newPosEo.event
 	space := evt.space
 	newNode := space.getOrCreateNode(newPosEo.pos)
 	if !newNode.CanReceiveOutgrowth(newPosEo) {
-		return nil
+		return nil, &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos,}
 	}
 	fromNode := newPosEo.from.node
 	if !fromNode.IsAlreadyConnected(newNode) {
 		if space.makeConnection(fromNode, newNode) == nil {
 			// No more connections
-			return nil
+			return nil, &NoMoreConnectionsError{*(newNode.Pos), *(fromNode.Pos)}
 		}
 	}
 	newEo := &EventOutgrowth{newNode, evt, []*EventOutgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew}
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(newEo)
-	return newEo
+	return newEo, nil
 }
 
 func (eo *EventOutgrowth) AddFrom(from *EventOutgrowth) {

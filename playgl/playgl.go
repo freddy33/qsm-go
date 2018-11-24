@@ -49,6 +49,7 @@ func DisplayPlay1() {
 	//m3space.SpaceObj.CreateSingleEventCenter()
 	world.Space.CreatePyramid(12)
 	world.CreateDrawingElements()
+	world.Space.MaxConnections = 12
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)

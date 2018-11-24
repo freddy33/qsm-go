@@ -83,7 +83,7 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) ForwardTime() {
-	fmt.Println("\n**********\nStepping up time from", space.currentTime, "for", len(space.events), "events")
+	fmt.Println("\n**********\nStepping up time from", space.currentTime, "=>", space.currentTime+1, "for", len(space.events), "events")
 	nbLatest := 0
 	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
@@ -105,14 +105,21 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 		len(collector.sameEvent), "overlap outgrowth on same event,",
 		len(collector.multiEvents), "overlap on multi events.")
 
-	notRealized := 0
+	occupied := 0
+	noMoreConn := 0
 	// No problem just realize all single ones that fit
 	for _, newPosEo := range collector.single {
-		if newPosEo.realize() == nil {
-			notRealized++
+		_, err := newPosEo.realize()
+		if err != nil {
+			switch err.(type) {
+			case *EventAlreadyGrewThereError:
+				occupied++
+			case *NoMoreConnectionsError:
+				noMoreConn++
+			}
 		}
 	}
-	fmt.Println("Single new outgrowth not realized=", notRealized)
+	fmt.Printf("Single: %6d / %6d / %6d", len(collector.single), occupied, noMoreConn)
 
 	notRealized = 0
 	// Realize only one of conflicting same event
@@ -163,21 +170,30 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 	fmt.Println("Multi event new outgrowth not realized=", notRealized, "found", len(moreThan3), "more than 3 positions")
 }
 
+type OutgrowthCollectorStat struct {
+	original, occupied, noMoreConn int
+}
+
 type OutgrowthCollector struct {
-	single      map[Point]*NewPossibleOutgrowth
-	sameEvent   map[Point]*[]*NewPossibleOutgrowth
-	multiEvents map[Point]*[]*NewPossibleOutgrowth
+	single         map[Point]*NewPossibleOutgrowth
+	sameEvent      map[Point]*[]*NewPossibleOutgrowth
+	multiEvents    map[Point]*[]*NewPossibleOutgrowth
+	moreThan3      map[Point][]EventID
+	singleStat     OutgrowthCollectorStat
+	sameEventStat  OutgrowthCollectorStat
+	multiEventStat OutgrowthCollectorStat
 }
 
 func MakeOutgrowthCollector(nbLatest int) *OutgrowthCollector {
 	if nbLatest < 5 {
 		nbLatest = 5
 	}
-	return &OutgrowthCollector{
-		make(map[Point]*NewPossibleOutgrowth, 2*nbLatest),
-		make(map[Point]*[]*NewPossibleOutgrowth, nbLatest/3),
-		make(map[Point]*[]*NewPossibleOutgrowth, 100),
-	}
+	res := OutgrowthCollector{}
+	res.single = make(map[Point]*NewPossibleOutgrowth, 2*nbLatest)
+	res.sameEvent = make(map[Point]*[]*NewPossibleOutgrowth, nbLatest/3)
+	res.multiEvents = make(map[Point]*[]*NewPossibleOutgrowth, 100)
+	res.moreThan3 = make(map[Point][]EventID, 3)
+	return &res
 }
 
 func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *OutgrowthCollector {
@@ -207,35 +223,29 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 					case EventOutgrowthNew:
 						// First multiple entry, check if same event or not and move event outgrowth there
 						if fromSingle.event.id == newEo.event.id {
-							fromSameEvent, okSameEvent := collector.sameEvent[newEo.pos]
-							if !okSameEvent {
-								newSameEventList := make([]*NewPossibleOutgrowth, 2, 3)
-								newSameEventList[0] = fromSingle
-								newSameEventList[1] = newEo
-								fromSingle.state = EventOutgrowthMultipleSameEvent
-								newEo.state = EventOutgrowthMultipleSameEvent
-								collector.sameEvent[newEo.pos] = &newSameEventList
-							} else {
+							_, okSameEvent := collector.sameEvent[newEo.pos]
+							if okSameEvent {
 								fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "is state new but has an entry in the multi same event Map!!")
-								fromSingle.state = EventOutgrowthMultipleSameEvent
-								newEo.state = EventOutgrowthMultipleSameEvent
-								*fromSameEvent = append(*fromSameEvent, newEo)
 							}
+
+							newSameEventList := make([]*NewPossibleOutgrowth, 2, 3)
+							newSameEventList[0] = fromSingle
+							newSameEventList[1] = newEo
+							fromSingle.state = EventOutgrowthMultipleSameEvent
+							newEo.state = EventOutgrowthMultipleSameEvent
+							collector.sameEvent[newEo.pos] = &newSameEventList
 						} else {
-							fromMultiEvent, okMultiEvent := collector.multiEvents[newEo.pos]
-							if !okMultiEvent {
-								newMultiEventList := make([]*NewPossibleOutgrowth, 2, 3)
-								newMultiEventList[0] = fromSingle
-								newMultiEventList[1] = newEo
-								fromSingle.state = EventOutgrowthMultipleEvents
-								newEo.state = EventOutgrowthMultipleEvents
-								collector.multiEvents[newEo.pos] = &newMultiEventList
-							} else {
+							_, okMultiEvent := collector.multiEvents[newEo.pos]
+							if okMultiEvent {
 								fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "is state new but has an entry in the multi events Map!!")
-								fromSingle.state = EventOutgrowthMultipleEvents
-								newEo.state = EventOutgrowthMultipleEvents
-								*fromMultiEvent = append(*fromMultiEvent, newEo)
 							}
+
+							newMultiEventList := make([]*NewPossibleOutgrowth, 2, 3)
+							newMultiEventList[0] = fromSingle
+							newMultiEventList[1] = newEo
+							fromSingle.state = EventOutgrowthMultipleEvents
+							newEo.state = EventOutgrowthMultipleEvents
+							collector.multiEvents[newEo.pos] = &newMultiEventList
 						}
 					case EventOutgrowthMultipleSameEvent:
 						fromSameEvent, okSameEvent := collector.sameEvent[newEo.pos]
@@ -247,24 +257,21 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 								*fromSameEvent = append(*fromSameEvent, newEo)
 							} else {
 								// Move all from1 same event to multi event
-								fromMultiEvent, okMultiEvent := collector.multiEvents[newEo.pos]
-								if !okMultiEvent {
-									*fromSameEvent = append(*fromSameEvent, newEo)
-									for _, eo := range *fromSameEvent {
-										eo.state = EventOutgrowthMultipleEvents
-									}
-									// Just verify
-									if newEo.state != EventOutgrowthMultipleEvents || fromSingle.state != EventOutgrowthMultipleEvents {
-										fmt.Println("ERROR: Event outgrowth state change failed for", *fromSingle, "and", *newEo)
-									}
-									collector.multiEvents[newEo.pos] = fromSameEvent
-									delete(collector.sameEvent, newEo.pos)
-								} else {
+								_, okMultiEvent := collector.multiEvents[newEo.pos]
+								if okMultiEvent {
 									fmt.Println("ERROR: An event outgrowth in multi same event map with state", fromSingle.state, "full=", *(fromSingle), "is state same event but has an entry in the multi events Map!!")
-									fromSingle.state = EventOutgrowthMultipleEvents
-									newEo.state = EventOutgrowthMultipleEvents
-									*fromMultiEvent = append(*fromMultiEvent, newEo)
 								}
+
+								*fromSameEvent = append(*fromSameEvent, newEo)
+								for _, eo := range *fromSameEvent {
+									eo.state = EventOutgrowthMultipleEvents
+								}
+								// Just verify
+								if newEo.state != EventOutgrowthMultipleEvents || fromSingle.state != EventOutgrowthMultipleEvents {
+									fmt.Println("ERROR: Event outgrowth state change failed for", *fromSingle, "and", *newEo)
+								}
+								collector.multiEvents[newEo.pos] = fromSameEvent
+								delete(collector.sameEvent, newEo.pos)
 							}
 						}
 					case EventOutgrowthMultipleEvents:
@@ -287,7 +294,7 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 			}
 		case <-time.After(time.Duration(timeout) * time.Millisecond):
 			stop = true
-			fmt.Println("Did not manage to process", nbLatest, "latest event outgrowth from1", nbEvents, "events in", nbLatest*5, "msecs")
+			fmt.Println("ERROR: Did not manage to process", nbLatest, "latest event outgrowth from1", nbEvents, "events in", nbLatest*5, "msecs")
 			break
 		}
 		if stop {
