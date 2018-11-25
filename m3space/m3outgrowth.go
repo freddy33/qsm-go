@@ -243,7 +243,7 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 			}
 		case <-time.After(time.Duration(timeout) * time.Millisecond):
 			stop = true
-			fmt.Println("ERROR: Did not manage to process", nbLatest, "latest event outgrowth from1", nbEvents, "events in", nbLatest*5, "msecs")
+			fmt.Println("ERROR: Did not manage to process", nbLatest, "latest event outgrowth from", nbEvents, "events in", nbLatest*5, "msecs")
 			break
 		}
 		if stop {

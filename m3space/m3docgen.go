@@ -279,11 +279,11 @@ func writeAllConnectionDetails() {
 }
 
 
-// Write all the points, base vector used, DS and connection details used from1 T=0 to T=X when transitioning from1 Trio Index 0 to 4 back and forth
+// Write all the points, base vector used, DS and connection details used from1 T=0 to T=X when transitioning from Trio Index 0 to 4 back and forth
 func Write0To4TimeFlow() {
 	changeToDocsGeneratedDir()
 
-	// Start from1 origin with growth context type 2 index 0
+	// Start from origin with growth context type 2 index 0
 	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
 	untilTime := TickTime(8)
 
@@ -324,7 +324,7 @@ func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Po
 func GenerateDataTimeFlow0() {
 	changeToDocsDataDir()
 
-	// Start from1 origin with growth context type 2 index 0
+	// Start from origin with growth context type 2 index 0
 	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
 	untilTime := TickTime(30)
 
@@ -343,6 +343,7 @@ func WriteCurrentPointsDataToFile(file *os.File, time TickTime, allPoints *map[P
 	for _, ps := range *allPoints {
 		if ps.creationTime == time {
 			writeNextString(file, ps.ToDataString())
+			writeNextString(file, "\n")
 		}
 	}
 }

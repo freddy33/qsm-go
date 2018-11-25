@@ -3,3 +3,4 @@ qsm-go
 *.iml
 
 docs/generated/
+docs/data/

@@ -20,8 +20,16 @@ func (ps *PointState) ToDataString() string {
 
 func FromDataString(line string) *PointState {
 	res := PointState{}
-	fmt.Sscanf(line,"%d:%d:[%d,%d,%d]:%d:%d:%d",
+	nbRead, err := fmt.Sscanf(line, "%d:%d:[%d,%d,%d]:%d:%d:%d",
 		&(res.creationTime), &(res.globalIdx), &(res.pos[0]), &(res.pos[1]), &(res.pos[2]), &(res.trioIndex), &(res.from1), &(res.from2))
+	if err != nil {
+		fmt.Printf("parsing line %s failed with %v", line, err)
+		return nil
+	}
+	if nbRead != 8 {
+		fmt.Printf("parsing line %s dis not return 8 field but %d", line, nbRead)
+		return nil
+	}
 	return &res
 }
 
@@ -58,6 +66,7 @@ func extractMainAndOtherPoints(pointMap *map[Point]*PointState, time TickTime) (
 	}
 	sort.Slice(mainPoints, func(i, j int) bool { return (*pointMap)[mainPoints[i]].HasFrom2() && !(*pointMap)[mainPoints[j]].HasFrom2() })
 	sort.Slice(otherPoints, func(i, j int) bool { return (*pointMap)[otherPoints[i]].HasFrom2() && !(*pointMap)[otherPoints[j]].HasFrom2() })
+
 	return
 }
 

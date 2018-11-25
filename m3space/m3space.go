@@ -24,11 +24,11 @@ type Space struct {
 	connections []*Connection
 	currentId   EventID
 	currentTime TickTime
-	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from1 origin
+	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from origin
 	Max int64
 	// Max number of connections per node
 	MaxConnections int
-	// Distance from1 latest to consider event outgrowth active
+	// Distance from latest to consider event outgrowth active
 	EventOutgrowthThreshold Distance
 }
 
@@ -40,7 +40,7 @@ func MakeSpace(max int64) Space {
 	space.currentId = 0
 	space.currentTime = 0
 	space.Max = max
-	space.MaxConnections = 6
+	space.MaxConnections = 3
 	space.EventOutgrowthThreshold = Distance(1)
 	return space
 }
