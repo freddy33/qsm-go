@@ -6,8 +6,11 @@ import (
 )
 
 type OutgrowthCollectorStat struct {
-	name string
-	original, occupied, noMoreConn int
+	name                                 string
+	originalPoints, originalPossible     int
+	occupiedPoints, occupiedPossible     int
+	noMoreConnPoints, noMoreConnPossible int
+	newPoint                             bool
 }
 
 type OutgrowthCollector struct {
@@ -40,9 +43,17 @@ func (colStat *OutgrowthCollectorStat) realizeAndStat(newPosEo *NewPossibleOutgr
 	if err != nil {
 		switch err.(type) {
 		case *EventAlreadyGrewThereError:
-			colStat.occupied++
+			colStat.occupiedPossible++
+			if colStat.newPoint {
+				colStat.occupiedPoints++
+				colStat.newPoint = false
+			}
 		case *NoMoreConnectionsError:
-			colStat.noMoreConn++
+			colStat.noMoreConnPossible++
+			if colStat.newPoint {
+				colStat.noMoreConnPoints++
+				colStat.newPoint = false
+			}
 		}
 		return nil
 	}
@@ -50,13 +61,30 @@ func (colStat *OutgrowthCollectorStat) realizeAndStat(newPosEo *NewPossibleOutgr
 }
 
 func (colStat *OutgrowthCollectorStat) displayStat() {
-	fmt.Printf("%12s: %6d / %6d / %6d\n", colStat.name, colStat.original, colStat.occupied, colStat.noMoreConn)
+	fmt.Printf("%12s: %6d / %6d / %6d | %6d / %6d / %6d\n", colStat.name,
+		colStat.originalPoints, colStat.occupiedPoints, colStat.noMoreConnPoints,
+		colStat.originalPossible, colStat.occupiedPossible, colStat.noMoreConnPossible)
 }
 
 func (collector *OutgrowthCollector) beginRealize() {
-	collector.singleStat.original = len(collector.single)
-	collector.sameEventStat.original = len(collector.sameEvent)
-	collector.multiEventStat.original = len(collector.multiEvents)
+	// For single points and possible are the same
+	collector.singleStat.originalPoints = len(collector.single)
+	collector.singleStat.originalPossible = len(collector.single)
+
+	// The map is per points
+	collector.sameEventStat.originalPoints = len(collector.sameEvent)
+	origPos := 0
+	for _, l := range collector.sameEvent {
+		origPos += len(*l)
+	}
+	collector.sameEventStat.originalPossible = origPos
+
+	collector.multiEventStat.originalPoints = len(collector.multiEvents)
+	origPos = 0
+	for _, l := range collector.multiEvents {
+		origPos += len(*l)
+	}
+	collector.multiEventStat.originalPossible = origPos
 }
 
 func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
@@ -64,12 +92,14 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 
 	// No problem just realize all single ones that fit
 	for _, newPosEo := range collector.single {
+		collector.singleStat.newPoint = true
 		collector.singleStat.realizeAndStat(newPosEo)
 	}
 	collector.singleStat.displayStat()
 
 	// Realize only one of conflicting same event
 	for _, newPosEoList := range collector.sameEvent {
+		collector.sameEventStat.newPoint = true
 		var newEo *EventOutgrowth
 		for _, newPosEo := range *newPosEoList {
 			if newEo == nil {
@@ -84,6 +114,7 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 	// Realize only one per event of conflicting multi events
 	// Collect all more than 3 event outgrowth
 	for pos, newPosEoList := range collector.multiEvents {
+		collector.multiEventStat.newPoint = true
 		idsAlreadyDone := make(map[EventID]*EventOutgrowth, 2)
 		for _, newPosEo := range *newPosEoList {
 			doneEo, done := idsAlreadyDone[newPosEo.event.id]
@@ -109,7 +140,7 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 	collector.multiEventStat.displayStat()
 	if len(collector.moreThan3) > 0 {
 		fmt.Println("###############################################")
-		fmt.Println("Finally got triple sync at:",collector.moreThan3)
+		fmt.Println("Finally got triple sync at:", collector.moreThan3)
 		fmt.Println("###############################################")
 	}
 }
