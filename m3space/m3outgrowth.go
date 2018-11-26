@@ -2,28 +2,53 @@ package m3space
 
 import (
 	"fmt"
+	"sort"
 	"time"
 )
 
-type OutgrowthCollectorStat struct {
-	name                                 string
-	originalPoints, originalPossible     int
-	originalHistogram                    []int
-	occupiedPoints, occupiedPossible     int
-	occupiedHistogram                    []int
-	noMoreConnPoints, noMoreConnPossible int
-	noMoreConnHistogram                  []int
-	newPoint                             bool
+type OutgrowthCollectorStatSingle struct {
+	name             string
+	originalPoints   int
+	occupiedPoints   int
+	noMoreConnPoints int
 }
 
-type OutgrowthCollector struct {
-	single         map[Point]*NewPossibleOutgrowth
-	sameEvent      map[Point]*[]*NewPossibleOutgrowth
-	multiEvents    map[Point]*[]*NewPossibleOutgrowth
-	moreThan3      map[Point][]EventID
-	singleStat     OutgrowthCollectorStat
-	sameEventStat  OutgrowthCollectorStat
-	multiEventStat OutgrowthCollectorStat
+type OutgrowthCollectorStatSameEvent struct {
+	OutgrowthCollectorStatSingle
+	originalPossible    int
+	originalHistogram   []int
+	occupiedPossible    int
+	occupiedHistogram   []int
+	noMoreConnPossible  int
+	noMoreConnHistogram []int
+	newPoint            bool
+}
+
+type OutgrowthCollectorStatMultiEvent struct {
+	OutgrowthCollectorStatSameEvent
+	perEvent       map[EventID]*OutgrowthCollectorStatSingle
+	eventsPerPoint map[Point][]EventID
+}
+
+type OutgrowthCollectorSingle struct {
+	OutgrowthCollectorStatSingle
+	data map[Point]*NewPossibleOutgrowth
+}
+
+type OutgrowthCollectorSameEvent struct {
+	OutgrowthCollectorStatSameEvent
+	data map[Point]*[]*NewPossibleOutgrowth
+}
+
+type OutgrowthCollectorMultiEvent struct {
+	OutgrowthCollectorStatMultiEvent
+	data map[Point]*map[EventID]*[]*NewPossibleOutgrowth
+}
+
+type FullOutgrowthCollector struct {
+	single      OutgrowthCollectorSingle
+	sameEvent   OutgrowthCollectorSameEvent
+	multiEvents OutgrowthCollectorMultiEvent
 }
 
 func (space *Space) ForwardTime() {
@@ -92,50 +117,90 @@ func (evt *Event) moveNewOutgrowthsToLatest() {
 	evt.latestOutgrowths = finalLatest
 }
 
-func MakeOutgrowthCollector(nbLatest int) *OutgrowthCollector {
+func MakeOutgrowthCollector(nbLatest int) *FullOutgrowthCollector {
 	if nbLatest < 5 {
 		nbLatest = 5
 	}
-	res := OutgrowthCollector{}
-	res.single = make(map[Point]*NewPossibleOutgrowth, 2*nbLatest)
-	res.sameEvent = make(map[Point]*[]*NewPossibleOutgrowth, nbLatest/3)
-	res.multiEvents = make(map[Point]*[]*NewPossibleOutgrowth, 100)
-	res.moreThan3 = make(map[Point][]EventID, 3)
-	res.singleStat.name = "Single"
-	res.sameEventStat.name = "Same Event"
-	res.multiEventStat.name = "Multi Events"
+	res := FullOutgrowthCollector{}
+	res.single.data = make(map[Point]*NewPossibleOutgrowth, 2*nbLatest)
+	res.sameEvent.data = make(map[Point]*[]*NewPossibleOutgrowth, nbLatest/3)
+	res.multiEvents.data = make(map[Point]*map[EventID]*[]*NewPossibleOutgrowth, 10)
+	res.multiEvents.eventsPerPoint = make(map[Point][]EventID, 3)
+	res.single.name = "Single"
+	res.sameEvent.name = "Same Event"
+	res.multiEvents.name = "Multi Events"
 	return &res
 }
 
-func (colStat *OutgrowthCollectorStat) realizeAndStat(newPosEo *NewPossibleOutgrowth, size int) *EventOutgrowth {
+func (colStat *OutgrowthCollectorStatSingle) processRealizeError(err error) {
+	switch err.(type) {
+	case *EventAlreadyGrewThereError:
+		colStat.occupiedPoints++
+	case *NoMoreConnectionsError:
+		colStat.noMoreConnPoints++
+	}
+}
+
+func (colStat *OutgrowthCollectorStatSingle) realize(newPosEo *NewPossibleOutgrowth) *EventOutgrowth {
 	newEo, err := newPosEo.realize()
 	if err != nil {
-		switch err.(type) {
-		case *EventAlreadyGrewThereError:
-			colStat.occupiedPossible++
-			if size > 1 {
-				colStat.occupiedHistogram[size-HistogramDelta]++
-			}
-			if colStat.newPoint {
-				colStat.occupiedPoints++
-				colStat.newPoint = false
-			}
-		case *NoMoreConnectionsError:
-			colStat.noMoreConnPossible++
-			if size > 1 {
-				colStat.noMoreConnHistogram[size-HistogramDelta]++
-			}
-			if colStat.newPoint {
-				colStat.noMoreConnPoints++
-				colStat.newPoint = false
-			}
-		}
+		colStat.processRealizeError(err)
 		return nil
 	}
 	return newEo
 }
 
-func (colStat *OutgrowthCollectorStat) displayStat() {
+func (colStat *OutgrowthCollectorStatSameEvent) processRealizeError(err error, size int) {
+	switch err.(type) {
+	case *EventAlreadyGrewThereError:
+		colStat.occupiedPossible++
+		if size > 1 {
+			colStat.occupiedHistogram[size-HistogramDelta]++
+		}
+		if colStat.newPoint {
+			colStat.occupiedPoints++
+			colStat.newPoint = false
+		}
+	case *NoMoreConnectionsError:
+		colStat.noMoreConnPossible++
+		if size > 1 {
+			colStat.noMoreConnHistogram[size-HistogramDelta]++
+		}
+		if colStat.newPoint {
+			colStat.noMoreConnPoints++
+			colStat.newPoint = false
+		}
+	}
+}
+
+func (colStat *OutgrowthCollectorStatSameEvent) realizeSameEvent(newPosEo *NewPossibleOutgrowth, size int) (*EventOutgrowth, error) {
+	newEo, err := newPosEo.realize()
+	if err != nil {
+		colStat.processRealizeError(err, size)
+		return nil, err
+	}
+	return newEo, nil
+}
+
+func (colStat *OutgrowthCollectorStatMultiEvent) realizeMultiEvent(newPosEo *NewPossibleOutgrowth, size int) *EventOutgrowth {
+	newEo, err := (*colStat).OutgrowthCollectorStatSameEvent.realizeSameEvent(newPosEo, size)
+	if err != nil {
+		colStat.perEvent[newPosEo.event.id].processRealizeError(err)
+		return nil
+	}
+	return newEo
+}
+
+func (colStat *OutgrowthCollectorStatSingle) displayStat() {
+	if colStat.originalPoints == 0 {
+		// nothing to show skip
+		return
+	}
+	fmt.Printf("%12s  : %6d / %6d / %6d\n", colStat.name,
+		colStat.originalPoints, colStat.occupiedPoints, colStat.noMoreConnPoints)
+}
+
+func (colStat *OutgrowthCollectorStatSameEvent) displayStat() {
 	if colStat.originalPoints == 0 {
 		// nothing to show skip
 		return
@@ -151,16 +216,30 @@ func (colStat *OutgrowthCollectorStat) displayStat() {
 	}
 }
 
-func (colStat *OutgrowthCollectorStat) displayDebug(data map[Point]*[]*NewPossibleOutgrowth) {
-	dataLength := len(data)
+func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
+	(*colStat).OutgrowthCollectorStatSameEvent.displayStat()
+	for _, se := range colStat.perEvent {
+		se.displayStat()
+	}
+	for pos, ePerPos := range colStat.eventsPerPoint {
+		if len(ePerPos) >= THREE {
+			fmt.Println("###############################################")
+			fmt.Println("Finally got triple sync at:", pos, "for", ePerPos)
+			fmt.Println("###############################################")
+		}
+	}
+}
+
+func (col *OutgrowthCollectorSameEvent) displayDebug() {
+	dataLength := len(col.data)
 	if dataLength == 0 {
 		// nothing to show skip
 		return
 	}
-	fmt.Printf("%s %d:", colStat.name, dataLength)
+	fmt.Printf("%s %d:", col.name, dataLength)
 	i := 0
 	onExistingNodes := make([]string, 0)
-	for p, l := range data {
+	for p, l := range col.data {
 		if i%6 == 0 {
 			fmt.Println("")
 		}
@@ -177,97 +256,162 @@ func (colStat *OutgrowthCollectorStat) displayDebug(data map[Point]*[]*NewPossib
 	}
 }
 
-func (collector *OutgrowthCollector) displayDebug() {
-	collector.sameEventStat.displayDebug(collector.sameEvent)
-	collector.multiEventStat.displayDebug(collector.multiEvents)
+func (col *OutgrowthCollectorMultiEvent) displayDebug() {
+	dataLength := len(col.data)
+	if dataLength == 0 {
+		// nothing to show skip
+		return
+	}
+	fmt.Printf("%s %d\n", col.name, dataLength)
+	for pos, idToList := range col.data {
+		fmt.Printf("%v=%d", pos, len(*idToList))
+		onExistingNodes := make([]string, 0)
+		i := 0
+		for id, l := range *idToList {
+			if i%6 == 0 {
+				fmt.Println("")
+			}
+			fmt.Printf("%d=%d  ", id, len(*l))
+			node := (*l)[0].event.space.GetNode(pos)
+			if node != nil {
+				onExistingNodes = append(onExistingNodes, fmt.Sprintf("%v:%s", pos, node.GetStateString()))
+			}
+			i++
+		}
+		fmt.Println("")
+		for _, s := range onExistingNodes {
+			fmt.Println(s)
+		}
+	}
+}
+
+func (collector *FullOutgrowthCollector) displayDebug() {
+	collector.sameEvent.displayDebug()
+	collector.multiEvents.displayDebug()
 }
 
 const (
 	HistogramDelta = 2
 )
 
-func (colStat *OutgrowthCollectorStat) beginRealize(data map[Point]*[]*NewPossibleOutgrowth) {
-	colStat.originalPoints = len(data)
-	colStat.originalHistogram = make([]int, 1)
+func (col *OutgrowthCollectorSingle) beginRealize() {
+	// Remove all single that don't have new state (usually same event or multi event)
+	for p, e := range col.data {
+		if e.state != EventOutgrowthNew {
+			delete(col.data, p)
+		}
+	}
+
+	// For single points and possible are the same
+	col.originalPoints = len(col.data)
+}
+
+func (col *OutgrowthCollectorSameEvent) beginRealize() {
+	col.originalPoints = len(col.data)
+	col.originalHistogram = make([]int, 1)
 	origPos := 0
-	for _, l := range data {
+	for _, l := range col.data {
 		size := len(*l)
 		origPos += size
-		currentSize := len(colStat.originalHistogram)
+		currentSize := len(col.originalHistogram)
 		currentPos := size - HistogramDelta
 		if currentPos >= currentSize {
 			newHistogram := make([]int, currentPos+1)
-			for i, v := range colStat.originalHistogram {
+			for i, v := range col.originalHistogram {
 				newHistogram[i] = v
 			}
-			colStat.originalHistogram = newHistogram
+			col.originalHistogram = newHistogram
 		}
-		colStat.originalHistogram[currentPos]++
+		col.originalHistogram[currentPos]++
 	}
-	colStat.occupiedHistogram = make([]int, len(colStat.originalHistogram))
-	colStat.noMoreConnHistogram = make([]int, len(colStat.originalHistogram))
-	colStat.originalPossible = origPos
+	col.occupiedHistogram = make([]int, len(col.originalHistogram))
+	col.noMoreConnHistogram = make([]int, len(col.originalHistogram))
+	col.originalPossible = origPos
 }
 
-func (collector *OutgrowthCollector) beginRealize() {
-	// Remove all single that don't have new state (usually same event or multi event)
-	newSingleMap := make(map[Point]*NewPossibleOutgrowth, len(collector.single)-len(collector.sameEvent)-len(collector.multiEvents))
-	for p, e := range collector.single {
-		if e.state == EventOutgrowthNew {
-			newSingleMap[p] = e
+func (col *OutgrowthCollectorMultiEvent) beginRealize() {
+	col.originalPoints = len(col.data)
+	col.originalHistogram = make([]int, 1)
+	col.perEvent = make(map[EventID]*OutgrowthCollectorStatSingle, 3)
+	origPos := 0
+	for _, evtMapList := range col.data {
+		size := len(*evtMapList)
+		origPos += size
+		currentSize := len(col.originalHistogram)
+		currentPos := size - HistogramDelta
+		if currentPos >= currentSize {
+			newHistogram := make([]int, currentPos+1)
+			for i, v := range col.originalHistogram {
+				newHistogram[i] = v
+			}
+			col.originalHistogram = newHistogram
+		}
+		col.originalHistogram[currentPos]++
+		for id, l := range *evtMapList {
+			stat, ok := col.perEvent[id]
+			if !ok {
+				stat = &OutgrowthCollectorStatSingle{}
+				stat.name = fmt.Sprintf("Evt %d", id)
+				col.perEvent[id] = stat
+			}
+			stat.originalPoints += len(*l)
+			origPos += len(*l)
 		}
 	}
-	collector.single = newSingleMap
-
-	// For single points and possible are the same
-	collector.singleStat.originalPoints = len(collector.single)
-	collector.singleStat.originalPossible = len(collector.single)
-
-	collector.sameEventStat.beginRealize(collector.sameEvent)
-	collector.multiEventStat.beginRealize(collector.multiEvents)
+	col.occupiedHistogram = make([]int, len(col.originalHistogram))
+	col.noMoreConnHistogram = make([]int, len(col.originalHistogram))
+	col.originalPossible = origPos
 }
 
-func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
+func (collector *FullOutgrowthCollector) beginRealize() {
+	collector.single.beginRealize()
+	collector.sameEvent.beginRealize()
+	collector.multiEvents.beginRealize()
+}
+
+func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 	collector.beginRealize()
 	if DEBUG {
 		collector.displayDebug()
 	}
 
 	// No problem just realize all single ones that fit
-	for _, newPosEo := range collector.single {
-		collector.singleStat.newPoint = true
-		collector.singleStat.realizeAndStat(newPosEo, 1)
+	for _, newPosEo := range collector.single.data {
+		collector.single.realize(newPosEo)
 	}
-	collector.singleStat.displayStat()
+	collector.single.displayStat()
 
 	// Realize only one of conflicting same event
-	for _, newPosEoList := range collector.sameEvent {
-		collector.sameEventStat.newPoint = true
+	for _, newPosEoList := range collector.sameEvent.data {
+		collector.sameEvent.newPoint = true
 		var newEo *EventOutgrowth
 		for _, newPosEo := range *newPosEoList {
 			if newEo == nil {
-				newEo = collector.sameEventStat.realizeAndStat(newPosEo, len(*newPosEoList))
+				newEo, _ = collector.sameEvent.realizeSameEvent(newPosEo, len(*newPosEoList))
 			} else {
 				newEo.AddFrom(newPosEo.from)
 			}
 		}
 	}
-	collector.sameEventStat.displayStat()
+	collector.sameEvent.displayStat()
 
 	// Realize only one per event of conflicting multi events
 	// Collect all more than 3 event outgrowth
-	for pos, newPosEoList := range collector.multiEvents {
-		collector.multiEventStat.newPoint = true
-		idsAlreadyDone := make(map[EventID]*EventOutgrowth, 2)
-		for _, newPosEo := range *newPosEoList {
-			doneEo, done := idsAlreadyDone[newPosEo.event.id]
-			if !done {
-				newEo := collector.multiEventStat.realizeAndStat(newPosEo, len(*newPosEoList))
-				if newEo != nil {
-					idsAlreadyDone[newPosEo.event.id] = newEo
+	for pos, evtMapList := range collector.multiEvents.data {
+		collector.multiEvents.newPoint = true
+
+		idsAlreadyDone := make(map[EventID]*EventOutgrowth, len(*evtMapList))
+		for id, newPosEoList := range *evtMapList {
+			for _, newPosEo := range *newPosEoList {
+				doneEo, done := idsAlreadyDone[id]
+				if !done {
+					newEo := collector.multiEvents.realizeMultiEvent(newPosEo, len(*newPosEoList))
+					if newEo != nil {
+						idsAlreadyDone[id] = newEo
+					}
+				} else {
+					doneEo.AddFrom(newPosEo.from)
 				}
-			} else {
-				doneEo.AddFrom(newPosEo.from)
 			}
 		}
 		if len(idsAlreadyDone) >= THREE {
@@ -277,18 +421,16 @@ func (space *Space) realizeAllOutgrowth(collector *OutgrowthCollector) {
 				ids[i] = id
 				i++
 			}
-			collector.moreThan3[pos] = ids
+			sort.Slice(ids, func(i, j int) bool {
+				return ids[i] < ids[j]
+			})
+			collector.multiEvents.eventsPerPoint[pos] = ids
 		}
 	}
-	collector.multiEventStat.displayStat()
-	if len(collector.moreThan3) > 0 {
-		fmt.Println("###############################################")
-		fmt.Println("Finally got triple sync at:", collector.moreThan3)
-		fmt.Println("###############################################")
-	}
+	collector.multiEvents.displayStat()
 }
 
-func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *OutgrowthCollector {
+func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *FullOutgrowthCollector {
 	// Protect full calculation timeout with 5 milliseconds per latest outgrowth
 	timeout := int64(5 * nbLatest)
 	if timeout < 1000 {
@@ -306,16 +448,15 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 			case EventOutgrowthEnd:
 				nbEventsDone++
 			case EventOutgrowthNew:
-
-				fromSingle, ok := collector.single[newEo.pos]
+				fromSingle, ok := collector.single.data[newEo.pos]
 				if !ok {
-					collector.single[newEo.pos] = newEo
+					collector.single.data[newEo.pos] = newEo
 				} else {
 					switch fromSingle.state {
 					case EventOutgrowthNew:
 						// First multiple entry, check if same event or not and move event outgrowth there
 						if fromSingle.event.id == newEo.event.id {
-							_, okSameEvent := collector.sameEvent[newEo.pos]
+							_, okSameEvent := collector.sameEvent.data[newEo.pos]
 							if okSameEvent {
 								fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "is state new but has an entry in the multi same event Map!!")
 							}
@@ -325,22 +466,26 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 							newSameEventList[1] = newEo
 							fromSingle.state = EventOutgrowthMultipleSameEvent
 							newEo.state = EventOutgrowthMultipleSameEvent
-							collector.sameEvent[newEo.pos] = &newSameEventList
+							collector.sameEvent.data[newEo.pos] = &newSameEventList
 						} else {
-							_, okMultiEvent := collector.multiEvents[newEo.pos]
+							_, okMultiEvent := collector.multiEvents.data[newEo.pos]
 							if okMultiEvent {
 								fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "is state new but has an entry in the multi events Map!!")
 							}
 
-							newMultiEventList := make([]*NewPossibleOutgrowth, 2, 3)
-							newMultiEventList[0] = fromSingle
-							newMultiEventList[1] = newEo
+							newMultiEventMap := make(map[EventID]*[]*NewPossibleOutgrowth, 2)
+							newMultiEventList1 := make([]*NewPossibleOutgrowth, 1)
+							newMultiEventList2 := make([]*NewPossibleOutgrowth, 1)
+							newMultiEventList1[0] = fromSingle
+							newMultiEventList2[0] = newEo
 							fromSingle.state = EventOutgrowthMultipleEvents
 							newEo.state = EventOutgrowthMultipleEvents
-							collector.multiEvents[newEo.pos] = &newMultiEventList
+							newMultiEventMap[fromSingle.event.id] = &newMultiEventList1
+							newMultiEventMap[newEo.event.id] = &newMultiEventList2
+							collector.multiEvents.data[newEo.pos] = &newMultiEventMap
 						}
 					case EventOutgrowthMultipleSameEvent:
-						fromSameEvent, okSameEvent := collector.sameEvent[newEo.pos]
+						fromSameEvent, okSameEvent := collector.sameEvent.data[newEo.pos]
 						if !okSameEvent {
 							fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "does not have an entry in the multi same event Map!!")
 						} else {
@@ -349,12 +494,12 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 								*fromSameEvent = append(*fromSameEvent, newEo)
 							} else {
 								// Move all from1 same event to multi event
-								_, okMultiEvent := collector.multiEvents[newEo.pos]
+								_, okMultiEvent := collector.multiEvents.data[newEo.pos]
 								if okMultiEvent {
 									fmt.Println("ERROR: An event outgrowth in multi same event map with state", fromSingle.state, "full=", *(fromSingle), "is state same event but has an entry in the multi events Map!!")
 								}
 
-								*fromSameEvent = append(*fromSameEvent, newEo)
+								newEo.state = EventOutgrowthMultipleEvents
 								for _, eo := range *fromSameEvent {
 									eo.state = EventOutgrowthMultipleEvents
 								}
@@ -362,17 +507,31 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 								if newEo.state != EventOutgrowthMultipleEvents || fromSingle.state != EventOutgrowthMultipleEvents {
 									fmt.Println("ERROR: Event outgrowth state change failed for", *fromSingle, "and", *newEo)
 								}
-								collector.multiEvents[newEo.pos] = fromSameEvent
-								delete(collector.sameEvent, newEo.pos)
+
+								delete(collector.sameEvent.data, newEo.pos)
+
+								newMultiEventMap := make(map[EventID]*[]*NewPossibleOutgrowth, 2)
+								newMultiEventList2 := make([]*NewPossibleOutgrowth, 1)
+								newMultiEventList2[0] = newEo
+								newMultiEventMap[fromSingle.event.id] = fromSameEvent
+								newMultiEventMap[newEo.event.id] = &newMultiEventList2
+								collector.multiEvents.data[newEo.pos] = &newMultiEventMap
 							}
 						}
 					case EventOutgrowthMultipleEvents:
-						fromMultiEvent, okMultiEvent := collector.multiEvents[newEo.pos]
-						if !okMultiEvent {
+						multiEventsMap, okMultiEventsMap := collector.multiEvents.data[newEo.pos]
+						if !okMultiEventsMap {
 							fmt.Println("ERROR: An event outgrowth in single map with state", fromSingle.state, "full=", *(fromSingle), "does not have an entry in the multi events Map!!")
 						} else {
 							newEo.state = EventOutgrowthMultipleEvents
-							*fromMultiEvent = append(*fromMultiEvent, newEo)
+							fromMultiEvents, okMultiEvent := (*multiEventsMap)[newEo.event.id]
+							if !okMultiEvent {
+								newMultiEventList2 := make([]*NewPossibleOutgrowth, 1)
+								newMultiEventList2[0] = newEo
+								(*multiEventsMap)[newEo.event.id] = &newMultiEventList2
+							} else {
+								*fromMultiEvents = append(*fromMultiEvents, newEo)
+							}
 						}
 					}
 				}
