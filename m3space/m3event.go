@@ -1,9 +1,5 @@
 package m3space
 
-import (
-	"fmt"
-)
-
 type EventID uint64
 
 type Distance uint64
@@ -88,40 +84,6 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	space.events[id] = &e
 	ctx.center = n.Pos
 	return &e
-}
-
-func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
-	for _, eg := range evt.latestOutgrowths {
-		if eg.state != EventOutgrowthLatest {
-			panic(fmt.Sprintf("wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, *(eg.node.Pos)))
-		}
-
-		nextPoints := eg.node.Pos.getNextPoints(&(evt.growthContext))
-		for _, nextPoint := range nextPoints {
-			if !eg.CameFromPoint(nextPoint) {
-				if DEBUG {
-					fmt.Println("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
-				}
-				c <- &NewPossibleOutgrowth{nextPoint, evt, eg, eg.distance + 1, EventOutgrowthNew}
-			}
-		}
-	}
-	c <- &NewPossibleOutgrowth{*(evt.node.Pos), evt, nil, Distance(0), EventOutgrowthEnd}
-}
-
-func (evt *Event) moveNewOutgrowthsToLatest() {
-	finalLatest := evt.latestOutgrowths[:0]
-	for _, eg := range evt.latestOutgrowths {
-		switch eg.state {
-		case EventOutgrowthLatest:
-			eg.state = EventOutgrowthOld
-			evt.oldOutgrowths = append(evt.oldOutgrowths, eg)
-		case EventOutgrowthNew:
-			eg.state = EventOutgrowthLatest
-			finalLatest = append(finalLatest, eg)
-		}
-	}
-	evt.latestOutgrowths = finalLatest
 }
 
 func (evt *Event) LatestDistance() Distance {

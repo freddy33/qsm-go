@@ -1,10 +1,10 @@
 package m3space
 
 import (
-	"fmt"
-	"os"
-	"log"
 	"encoding/csv"
+	"fmt"
+	"log"
+	"os"
 )
 
 func WriteAllTables() {
@@ -13,24 +13,6 @@ func WriteAllTables() {
 	writeAllTrioTable()
 	writeTrioConnectionsTable()
 	writeAllConnectionDetails()
-}
-
-func changeToDocsGeneratedDir() {
-	changeToDocsSubdir("generated")
-}
-
-func changeToDocsDataDir() {
-	changeToDocsSubdir("data")
-}
-
-func changeToDocsSubdir(subDir string) {
-	if _, err := os.Stat("docs"); !os.IsNotExist(err) {
-		os.Chdir("docs")
-		if _, err := os.Stat(subDir); os.IsNotExist(err) {
-			os.Mkdir(subDir, os.ModePerm)
-		}
-		os.Chdir(subDir)
-	}
 }
 
 type Int2 struct {
@@ -179,35 +161,36 @@ func writeTrioConnectionsTable() {
 	if err != nil {
 		log.Fatal("Cannot create csv file", err)
 	}
-	defer txtFile.Close()
-	defer csvFile.Close()
+	defer closeFile(txtFile)
+	defer closeFile(csvFile)
 
 	csvWriter := csv.NewWriter(csvFile)
-	csvWriter.WriteAll(GetTrioTransitionTableCsv())
+	writeAll(csvWriter, GetTrioTransitionTableCsv())
+	csvWriter.Flush()
 
 	txtOutputs := GetTrioTransitionTableTxt()
 	for a := 0; a < 8; a++ {
 		for b := 0; b < 8; b++ {
 			out := txtOutputs[Int2{a, b}]
 			if b == 7 {
-				txtFile.WriteString(fmt.Sprintf("%d, %d %s", a, b, out[0]))
+				writeNextString(txtFile, fmt.Sprintf("%d, %d %s", a, b, out[0]))
 			} else {
-				txtFile.WriteString(fmt.Sprintf("%d, %d %s            ", a, b, out[0]))
+				writeNextString(txtFile, fmt.Sprintf("%d, %d %s            ", a, b, out[0]))
 			}
 		}
-		txtFile.WriteString("\n")
+		writeNextString(txtFile, "\n")
 		for i := 0; i < 6; i++ {
 			for b := 0; b < 8; b++ {
 				out := txtOutputs[Int2{a, b}]
 				// this is 18 chars
-				txtFile.WriteString(out[i+1])
+				writeNextString(txtFile, out[i+1])
 				if b != 7 {
-					txtFile.WriteString("  ")
+					writeNextString(txtFile, "  ")
 				}
 			}
-			txtFile.WriteString("\n")
+			writeNextString(txtFile, "\n")
 		}
-		txtFile.WriteString("\n")
+		writeNextString(txtFile, "\n")
 	}
 }
 
@@ -221,16 +204,16 @@ func writeAllTrioTable() {
 	if err != nil {
 		log.Fatal("Cannot create csv file", err)
 	}
-	defer txtFile.Close()
-	defer csvFile.Close()
+	defer closeFile(txtFile)
+	defer closeFile(csvFile)
 
 	csvWriter := csv.NewWriter(csvFile)
-	csvWriter.WriteAll(GetTrioTableCsv())
+	writeAll(csvWriter, GetTrioTableCsv())
 	for a, trio := range AllBaseTrio {
-		txtFile.WriteString(fmt.Sprintf("T%d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
-		txtFile.WriteString(fmt.Sprintf("\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
-		txtFile.WriteString(fmt.Sprintf("\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
-		txtFile.WriteString("\n")
+		writeNextString(txtFile, fmt.Sprintf("T%d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
+		writeNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
+		writeNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
+		writeNextString(txtFile, "\n")
 	}
 }
 
@@ -244,8 +227,8 @@ func writeAllConnectionDetails() {
 	if err != nil {
 		log.Fatal("Cannot create csv file", err)
 	}
-	defer txtFile.Close()
-	defer csvFile.Close()
+	defer closeFile(txtFile)
+	defer closeFile(csvFile)
 
 	nbConnDetails := uint8(len(AllConnectionsPossible) / 2)
 	csvWriter := csv.NewWriter(csvFile)
@@ -255,29 +238,28 @@ func writeAllConnectionDetails() {
 				ds := v.ConnDS
 				posVec := v.Vector
 				negVec := v.Vector.Neg()
-				csvWriter.Write([]string{
+				write(csvWriter, []string{
 					fmt.Sprintf(" %d", cdNb),
 					fmt.Sprintf("% d", posVec[0]),
 					fmt.Sprintf("% d", posVec[1]),
 					fmt.Sprintf("% d", posVec[2]),
 					fmt.Sprintf("% d", ds),
 				})
-				csvWriter.Write([]string{
+				write(csvWriter, []string{
 					fmt.Sprintf("-%d", cdNb),
 					fmt.Sprintf("% d", negVec[0]),
 					fmt.Sprintf("% d", negVec[1]),
 					fmt.Sprintf("% d", negVec[2]),
 					fmt.Sprintf("% d", ds),
 				})
-				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n", v.GetName(), posVec, ds))
+				writeNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", v.GetName(), posVec, ds))
 				negCD := AllConnectionsPossible[negVec]
-				txtFile.WriteString(fmt.Sprintf("%s: %v = %d\n", negCD.GetName(), negVec, ds))
+				writeNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", negCD.GetName(), negVec, ds))
 				break
 			}
 		}
 	}
 }
-
 
 // Write all the points, base vector used, DS and connection details used from1 T=0 to T=X when transitioning from Trio Index 0 to 4 back and forth
 func Write0To4TimeFlow() {
@@ -294,7 +276,7 @@ func Write0To4TimeFlow() {
 		log.Fatal("Cannot create text file", err)
 	}
 
-	collectFlow(ctx, untilTime, func (pointMap *map[Point]*PointState, time TickTime) {
+	collectFlow(ctx, untilTime, func(pointMap *map[Point]*PointState, time TickTime) {
 		WriteCurrentPointsToFile(txtFile, time, pointMap)
 	})
 }
@@ -311,7 +293,7 @@ func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Po
 		pState := (*allPoints)[p]
 		writeNextString(txtFile, fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
 	}
-	txtFile.WriteString(fmt.Sprintf("\n###### OTHER POINTS: %4d #######", len(currentPoints)))
+	writeNextString(txtFile, fmt.Sprintf("\n###### OTHER POINTS: %4d #######", len(currentPoints)))
 	for i, p := range currentPoints {
 		if i%6 == 0 {
 			writeNextString(txtFile, "\n")
@@ -334,7 +316,7 @@ func GenerateDataTimeFlow0() {
 		log.Fatal("Cannot create bin data file", err)
 	}
 
-	collectFlow(ctx, untilTime, func (pointMap *map[Point]*PointState, time TickTime) {
+	collectFlow(ctx, untilTime, func(pointMap *map[Point]*PointState, time TickTime) {
 		WriteCurrentPointsDataToFile(binFile, time, pointMap)
 	})
 }
@@ -345,19 +327,5 @@ func WriteCurrentPointsDataToFile(file *os.File, time TickTime, allPoints *map[P
 			writeNextString(file, ps.ToDataString())
 			writeNextString(file, "\n")
 		}
-	}
-}
-
-func writeNextBytes(file *os.File, bytes []byte) {
-	_, err := file.Write(bytes)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func writeNextString(file *os.File, text string) {
-	_, err := file.WriteString(text)
-	if err != nil {
-		log.Fatal(err)
 	}
 }

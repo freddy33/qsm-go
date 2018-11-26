@@ -81,25 +81,6 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 	space.CreateEvent(Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
-func (space *Space) ForwardTime() {
-	fmt.Println("\n**********\nStepping up time from", space.currentTime, "=>", space.currentTime+1, "for", len(space.events), "events")
-	nbLatest := 0
-	c := make(chan *NewPossibleOutgrowth, 100)
-	for _, evt := range space.events {
-		go evt.createNewPossibleOutgrowths(c)
-		nbLatest += len(evt.latestOutgrowths)
-	}
-	collector := space.processNewOutgrowth(c, nbLatest)
-	space.realizeAllOutgrowth(collector)
-
-	// Switch latest to old, and new to latest
-	for _, evt := range space.events {
-		evt.moveNewOutgrowthsToLatest()
-	}
-	space.currentTime++
-}
-
-
 func (space *Space) GetNode(p Point) *Node {
 	n, ok := space.nodesMap[p]
 	if ok {

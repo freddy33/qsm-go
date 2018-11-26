@@ -165,7 +165,7 @@ func (t Trio) getMinusZVector() Point {
 
 func InitConnectionDetails() uint8 {
 	connMap := make(map[Point]*ConnectionDetails)
-	// All Trio and all combi of Trio
+	// Going through all Trio and all combination of Trio, to aggregate connection details
 	for _, tr := range AllBaseTrio {
 		for _, vec := range tr {
 			addConnDetail(&connMap, vec)
@@ -179,8 +179,9 @@ func InitConnectionDetails() uint8 {
 	}
 	nbConnDetails := len(connMap) / 2
 	fmt.Println("Number of connection details created ", nbConnDetails)
-	newOrderedMap := make(map[Point]ConnectionDetails)
+
 	// Reordering connection details number by size, and x, y, z
+	newOrderedMap := make(map[Point]ConnectionDetails)
 	for currentConnNumber := uint8(0); currentConnNumber < uint8(nbConnDetails); currentConnNumber++ {
 		var smallestCD *ConnectionDetails
 		for _, cd := range connMap {
@@ -208,6 +209,7 @@ func InitConnectionDetails() uint8 {
 		newOrderedMap[negVec] = *negSmallestCD
 	}
 	AllConnectionsPossible = newOrderedMap
+
 	return uint8(nbConnDetails)
 }
 

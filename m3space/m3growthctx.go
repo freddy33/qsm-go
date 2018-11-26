@@ -2,6 +2,8 @@ package m3space
 
 import "fmt"
 
+// TODO: Create trio index for non main points base on growth context
+
 type GrowthContext struct {
 	center             *Point
 	permutationType    uint8 // 1,2,4, or 8

@@ -1,5 +1,6 @@
 package m3space
 
+import "fmt"
 
 type Node struct {
 	Pos          *Point
@@ -77,8 +78,18 @@ func (node *Node) GetColorMask(threshold Distance) uint8 {
 }
 
 func (node *Node) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
+	if !node.CanReceiveEvent(newPosEo.event.id) {
+		return false
+	}
+	return true
+}
+
+func (node *Node) CanReceiveEvent(id EventID) bool {
+	if node.outgrowths == nil || len(node.outgrowths) == 0 {
+		return true
+	}
 	for _, eo := range node.outgrowths {
-		if eo.event.id == newPosEo.event.id {
+		if eo.event.id == id {
 			return false
 		}
 	}
@@ -92,6 +103,31 @@ func (node *Node) AddOutgrowth(eo *EventOutgrowth) {
 	} else {
 		node.outgrowths = append(node.outgrowths, eo)
 	}
+}
+
+
+func (node *Node) String() string {
+	return fmt.Sprintf("%v:%d:%d", *(node.Pos), len(node.connections), len(node.outgrowths))
+}
+
+func (node *Node) GetStateString() string {
+	evtIds := make([]EventID, len(node.outgrowths))
+	for i, eo := range node.outgrowths {
+		evtIds[i] = eo.event.id
+	}
+	connIds := make([]string, len(node.connections))
+	for i, conn := range node.connections {
+		var connVect Point
+		if conn.N1 == node {
+			connVect = conn.N2.Pos.Sub(*node.Pos)
+		} else if conn.N2 == node {
+			connVect = conn.N1.Pos.Sub(*node.Pos)
+		} else {
+			fmt.Println("ERROR: Connection",conn,"in list of node",node,"but not part of it?")
+		}
+		connIds[i] = AllConnectionsPossible[connVect].GetName()
+	}
+	return fmt.Sprintf("%v: %v, %v", *(node.Pos), evtIds, connIds)
 }
 
 /***************************************************************/
