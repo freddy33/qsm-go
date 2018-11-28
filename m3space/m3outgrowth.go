@@ -28,8 +28,8 @@ func (e *NoMoreConnectionsError) Error() string {
 	return fmt.Sprintf("node at %v already has full connections and cannot connect to %v", e.pos, e.otherPos)
 }
 
-func (eo *NewPossibleOutgrowth) String() string {
-	return fmt.Sprintf("NP %v %d: %s, %d", eo.pos, eo.event.id, eo.state.String(), eo.distance)
+func (newPosEo *NewPossibleOutgrowth) String() string {
+	return fmt.Sprintf("NP %v %d: %s, %d", newPosEo.pos, newPosEo.event.id, newPosEo.state.String(), newPosEo.distance)
 }
 
 func (eo *EventOutgrowth) String() string {

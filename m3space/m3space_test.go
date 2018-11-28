@@ -168,12 +168,9 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 		if ok {
 			if expect.newNodes <= 0 {
 				newNodes *= 2
-				// Connections are still done even on overlap
-				nbConnections += newNodes
 				newNodes += expect.newNodes
 			} else {
 				newNodes = expect.newNodes
-				nbConnections += newNodes
 			}
 			activeNodes = newNodes + expect.oldActiveNodes + baseNodes
 			if expectedTime == 5 && expect.newNodes == -10 {
@@ -185,9 +182,9 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 			}
 		} else {
 			newNodes *= 2
-			nbConnections += newNodes
 			activeNodes = newNodes + baseNodes
 		}
+		nbConnections += newNodes
 		nbNodes += newNodes
 	}
 }

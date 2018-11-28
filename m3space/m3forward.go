@@ -27,9 +27,16 @@ type OutgrowthCollectorStatSameEvent struct {
 }
 
 type OutgrowthCollectorStatMultiEvent struct {
-	OutgrowthCollectorStatSameEvent
-	perEvent       map[EventID]*OutgrowthCollectorStatSingle
-	eventsPerPoint map[Point][]EventID
+	OutgrowthCollectorStatSingle
+	totalOriginalPossible       int
+	nbEventsOriginalHistogram   []int
+	totalOccupiedPossible       int
+	nbEventsOccupiedHistogram   []int
+	totalNoMoreConnPossible     int
+	nbEventsNoMoreConnHistogram []int
+	newPoint                    bool
+	perEvent                    map[EventID]*OutgrowthCollectorStatSameEvent
+	moreThan3EventsPerPoint     map[Point][]EventID
 }
 
 type OutgrowthCollectorSingle struct {
@@ -99,19 +106,103 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 	c <- &NewPossibleOutgrowth{*(evt.node.Pos), evt, nil, Distance(0), EventOutgrowthEnd}
 }
 
-func (evt *Event) moveNewOutgrowthsToLatest() {
-	finalLatest := evt.latestOutgrowths[:0]
-	for _, eg := range evt.latestOutgrowths {
-		switch eg.state {
-		case EventOutgrowthLatest:
-			eg.state = EventOutgrowthOld
-			evt.oldOutgrowths = append(evt.oldOutgrowths, eg)
-		case EventOutgrowthNew:
-			eg.state = EventOutgrowthLatest
-			finalLatest = append(finalLatest, eg)
+func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *FullOutgrowthCollector {
+	// Protect full calculation timeout with 5 milliseconds per latest outgrowth
+	timeout := int64(5 * nbLatest)
+	if timeout < 1000 {
+		timeout = 1000
+	}
+	nbEvents := len(space.events)
+	nbEventsDone := 0
+	collector := MakeOutgrowthCollector(nbLatest)
+	for {
+		stop := false
+		select {
+		case newEo := <-c:
+
+			switch newEo.state {
+			case EventOutgrowthEnd:
+				nbEventsDone++
+			case EventOutgrowthNew:
+				collector.addNewEo(newEo)
+			default:
+				Log.Error("Receive an event on channel with wrong state", newEo.state, "full=", *(newEo))
+			}
+
+			if nbEventsDone == nbEvents {
+				stop = true
+				break
+			}
+		case <-time.After(time.Duration(timeout) * time.Millisecond):
+			stop = true
+			Log.Error("Did not manage to process", nbLatest, "latest event outgrowth from", nbEvents, "events in", nbLatest*5, "msecs")
+			break
+		}
+		if stop {
+			break
 		}
 	}
-	evt.latestOutgrowths = finalLatest
+
+	return collector
+}
+
+func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
+	collector.beginRealize()
+	collector.displayTrace()
+
+	// No problem just realize all single ones that fit
+	for _, newPosEo := range collector.single.data {
+		collector.single.realize(newPosEo)
+	}
+	collector.single.displayStat()
+
+	// Realize only one of conflicting same event
+	for _, newPosEoList := range collector.sameEvent.data {
+		collector.sameEvent.setNewPoint()
+		var newEo *EventOutgrowth
+		for _, newPosEo := range *newPosEoList {
+			if newEo == nil {
+				newEo, _ = collector.sameEvent.realizeSameEvent(newPosEo, len(*newPosEoList))
+			} else {
+				newEo.AddFrom(newPosEo.from)
+			}
+		}
+	}
+	collector.sameEvent.displayStat()
+
+	// Realize only one per event of conflicting multi events
+	// Collect all more than 3 event outgrowth
+	for pos, evtMapList := range collector.multiEvents.data {
+		collector.multiEvents.setNewPoint()
+
+		idsAlreadyDone := make(map[EventID]*EventOutgrowth, len(*evtMapList))
+		for id, newPosEoList := range *evtMapList {
+			for _, newPosEo := range *newPosEoList {
+				doneEo, done := idsAlreadyDone[id]
+				if !done {
+					newEo := collector.multiEvents.realizeMultiEvent(newPosEo, len(*evtMapList), len(*newPosEoList))
+					if newEo != nil {
+						idsAlreadyDone[id] = newEo
+					}
+				} else {
+					doneEo.AddFrom(newPosEo.from)
+				}
+			}
+		}
+		if len(idsAlreadyDone) >= THREE {
+			ids := make([]EventID, len(idsAlreadyDone))
+			i := 0
+			for id := range idsAlreadyDone {
+				ids[i] = id
+				i++
+			}
+			sort.Slice(ids, func(i, j int) bool {
+				return ids[i] < ids[j]
+			})
+			collector.multiEvents.moreThan3EventsPerPoint[pos] = ids
+		}
+	}
+	collector.multiEvents.displayStat()
 }
 
 func MakeOutgrowthCollector(nbLatest int) *FullOutgrowthCollector {
@@ -122,11 +213,102 @@ func MakeOutgrowthCollector(nbLatest int) *FullOutgrowthCollector {
 	res.single.data = make(map[Point]*NewPossibleOutgrowth, 2*nbLatest)
 	res.sameEvent.data = make(map[Point]*[]*NewPossibleOutgrowth, nbLatest/3)
 	res.multiEvents.data = make(map[Point]*map[EventID]*[]*NewPossibleOutgrowth, 10)
-	res.multiEvents.eventsPerPoint = make(map[Point][]EventID, 3)
 	res.single.name = "Single"
 	res.sameEvent.name = "Same Event"
 	res.multiEvents.name = "Multi Events"
 	return &res
+}
+
+const (
+	StartWithOneHistoDelta = 1
+	StartWithTwoHistoDelta = 2
+)
+
+func (collector *FullOutgrowthCollector) beginRealize() {
+	collector.single.beginRealize()
+	collector.sameEvent.beginRealize()
+	collector.multiEvents.beginRealize()
+}
+
+func (col *OutgrowthCollectorSingle) beginRealize() {
+	// Remove all single that don't have new state (usually same event or multi event)
+	for p, e := range col.data {
+		if e.state != EventOutgrowthNew {
+			delete(col.data, p)
+		}
+	}
+
+	// For single points and possible are the same
+	col.originalPoints = len(col.data)
+}
+
+func (colStat *OutgrowthCollectorStatSameEvent) beginRealizeLine(l *[]*NewPossibleOutgrowth, histoDelta int) {
+	size := len(*l)
+	colStat.originalPossible += size
+	currentSize := len(colStat.originalHistogram)
+	currentPos := size - histoDelta
+	if currentPos >= currentSize {
+		newHistogram := make([]int, currentPos+1)
+		for i, v := range colStat.originalHistogram {
+			newHistogram[i] = v
+		}
+		colStat.originalHistogram = newHistogram
+	}
+	colStat.originalHistogram[currentPos]++
+}
+
+func (col *OutgrowthCollectorSameEvent) beginRealize() {
+	col.originalPoints = len(col.data)
+	if col.originalPoints == 0 {
+		return
+	}
+	col.originalHistogram = make([]int, 1)
+	col.originalPossible = 0
+	for _, l := range col.data {
+		col.beginRealizeLine(l, StartWithTwoHistoDelta)
+	}
+	col.occupiedHistogram = make([]int, len(col.originalHistogram))
+	col.noMoreConnHistogram = make([]int, len(col.originalHistogram))
+}
+
+func (col *OutgrowthCollectorMultiEvent) beginRealize() {
+	col.originalPoints = len(col.data)
+	if col.originalPoints == 0 {
+		return
+	}
+	col.totalOriginalPossible = 0
+	col.moreThan3EventsPerPoint = make(map[Point][]EventID, 1+col.originalPoints/10)
+	col.nbEventsOriginalHistogram = make([]int, 2)
+	col.perEvent = make(map[EventID]*OutgrowthCollectorStatSameEvent, 3)
+	for _, evtMapList := range col.data {
+		size := len(*evtMapList)
+		currentSize := len(col.nbEventsOriginalHistogram)
+		currentPos := size - StartWithTwoHistoDelta
+		if currentPos >= currentSize {
+			newHistogram := make([]int, currentPos+1)
+			for i, v := range col.nbEventsOriginalHistogram {
+				newHistogram[i] = v
+			}
+			col.nbEventsOriginalHistogram = newHistogram
+		}
+		col.nbEventsOriginalHistogram[currentPos]++
+		for id, l := range *evtMapList {
+			stat, ok := col.perEvent[id]
+			if !ok {
+				stat = &OutgrowthCollectorStatSameEvent{}
+				stat.name = fmt.Sprintf("Evt %d", id)
+				stat.originalHistogram = make([]int, 1)
+				stat.originalPossible = 0
+				col.perEvent[id] = stat
+			}
+			stat.beginRealizeLine(l, StartWithOneHistoDelta)
+			col.totalOriginalPossible += len(*l)
+		}
+	}
+	for _, stat := range col.perEvent {
+		stat.occupiedHistogram = make([]int, len(stat.originalHistogram))
+		stat.noMoreConnHistogram = make([]int, len(stat.originalHistogram))
+	}
 }
 
 func (colStat *OutgrowthCollectorStatSingle) processRealizeError(err error) {
@@ -147,12 +329,16 @@ func (colStat *OutgrowthCollectorStatSingle) realize(newPosEo *NewPossibleOutgro
 	return newEo
 }
 
-func (colStat *OutgrowthCollectorStatSameEvent) processRealizeError(err error, size int) {
+func (colStat *OutgrowthCollectorStatSameEvent) setNewPoint() {
+	colStat.newPoint = true
+}
+
+func (colStat *OutgrowthCollectorStatSameEvent) processRealizeError(err error, size int, histoDelta int) {
 	switch err.(type) {
 	case *EventAlreadyGrewThereError:
 		colStat.occupiedPossible++
 		if size > 1 {
-			colStat.occupiedHistogram[size-HistogramDelta]++
+			colStat.occupiedHistogram[size-histoDelta]++
 		}
 		if colStat.newPoint {
 			colStat.occupiedPoints++
@@ -161,7 +347,7 @@ func (colStat *OutgrowthCollectorStatSameEvent) processRealizeError(err error, s
 	case *NoMoreConnectionsError:
 		colStat.noMoreConnPossible++
 		if size > 1 {
-			colStat.noMoreConnHistogram[size-HistogramDelta]++
+			colStat.noMoreConnHistogram[size-histoDelta]++
 		}
 		if colStat.newPoint {
 			colStat.noMoreConnPoints++
@@ -173,16 +359,48 @@ func (colStat *OutgrowthCollectorStatSameEvent) processRealizeError(err error, s
 func (colStat *OutgrowthCollectorStatSameEvent) realizeSameEvent(newPosEo *NewPossibleOutgrowth, size int) (*EventOutgrowth, error) {
 	newEo, err := newPosEo.realize()
 	if err != nil {
-		colStat.processRealizeError(err, size)
+		colStat.processRealizeError(err, size, StartWithTwoHistoDelta)
 		return nil, err
 	}
 	return newEo, nil
 }
 
-func (colStat *OutgrowthCollectorStatMultiEvent) realizeMultiEvent(newPosEo *NewPossibleOutgrowth, size int) *EventOutgrowth {
-	newEo, err := (*colStat).OutgrowthCollectorStatSameEvent.realizeSameEvent(newPosEo, size)
+func (colStat *OutgrowthCollectorStatMultiEvent) setNewPoint() {
+	colStat.newPoint = true
+	for _, stat := range colStat.perEvent {
+		stat.setNewPoint()
+	}
+}
+
+func (colStat *OutgrowthCollectorStatMultiEvent) processRealizeError(err error, eventId EventID, nbEvents, size int) {
+	stat := colStat.perEvent[eventId]
+	stat.processRealizeError(err, size, StartWithOneHistoDelta)
+	switch err.(type) {
+	case *EventAlreadyGrewThereError:
+		colStat.totalOccupiedPossible++
+		if nbEvents > 1 {
+			colStat.nbEventsOccupiedHistogram[nbEvents-StartWithTwoHistoDelta]++
+		}
+		if colStat.newPoint {
+			colStat.occupiedPoints++
+			colStat.newPoint = false
+		}
+	case *NoMoreConnectionsError:
+		colStat.totalNoMoreConnPossible++
+		if nbEvents > 1 {
+			colStat.nbEventsNoMoreConnHistogram[nbEvents-StartWithTwoHistoDelta]++
+		}
+		if colStat.newPoint {
+			colStat.noMoreConnPoints++
+			colStat.newPoint = false
+		}
+	}
+}
+
+func (colStat *OutgrowthCollectorStatMultiEvent) realizeMultiEvent(newPosEo *NewPossibleOutgrowth, nbEvents, size int) *EventOutgrowth {
+	newEo, err := newPosEo.realize()
 	if err != nil {
-		colStat.perEvent[newPosEo.event.id].processRealizeError(err)
+		colStat.processRealizeError(err, newPosEo.event.id, nbEvents, size)
 		return nil
 	}
 	return newEo
@@ -216,7 +434,7 @@ func (colStat *OutgrowthCollectorStatSameEvent) displayStat() {
 		colStat.originalPossible, colStat.occupiedPossible, colStat.noMoreConnPossible)
 	if len(colStat.originalHistogram) > 1 {
 		for i, j := range colStat.originalHistogram {
-			fmt.Fprintf(buf, "\n%12s %d: %6d / %6d / %6d", colStat.name, i+HistogramDelta, j,
+			fmt.Fprintf(buf, "\n%12s %d: %6d / %6d / %6d", colStat.name, i+StartWithTwoHistoDelta, j,
 				colStat.occupiedHistogram[i], colStat.noMoreConnHistogram[i])
 		}
 	}
@@ -224,30 +442,38 @@ func (colStat *OutgrowthCollectorStatSameEvent) displayStat() {
 }
 
 func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
+	if colStat.originalPoints == 0 {
+		// nothing to show skip
+		return
+	}
 	// Only debug
 	if Log.Level > m3util.DEBUG {
 		return
 	}
-	(*colStat).OutgrowthCollectorStatSameEvent.displayStat()
+	buf := bytes.NewBufferString("")
+	fmt.Fprintf(buf, "%12s  : %6d / %6d / %6d | %6d / %6d / %6d", colStat.name,
+		colStat.originalPoints, colStat.occupiedPoints, colStat.noMoreConnPoints,
+		colStat.totalOriginalPossible, colStat.totalOccupiedPossible, colStat.totalNoMoreConnPossible)
+	if len(colStat.nbEventsOriginalHistogram) > 1 {
+		for i, j := range colStat.nbEventsOriginalHistogram {
+			fmt.Fprintf(buf, "\n%12s %d: %6d / %6d / %6d", colStat.name, i+StartWithTwoHistoDelta, j,
+				colStat.nbEventsOccupiedHistogram[i], colStat.nbEventsNoMoreConnHistogram[i])
+		}
+	}
+	Log.Debug(buf.String())
 	for _, se := range colStat.perEvent {
 		se.displayStat()
 	}
-	nbEventsPerPoints := len(colStat.eventsPerPoint)
+	nbEventsPerPoints := len(colStat.moreThan3EventsPerPoint)
 	if nbEventsPerPoints == 0 {
 		// Nothing left
 		return
 	}
-	buf := bytes.NewBufferString("")
-	fmt.Fprintf(buf, "Points with multi events %d \n", nbEventsPerPoints)
-	doubleSync := 0
-	for pos, ePerPos := range colStat.eventsPerPoint {
-		if len(ePerPos) >= THREE {
-			fmt.Fprintln(buf, "*********** Triple sync at:", pos, "for", ePerPos)
-		} else {
-			doubleSync++
-		}
+	buf = bytes.NewBufferString("")
+	fmt.Fprintf(buf, "Points with more than 3 events %d \n", nbEventsPerPoints)
+	for pos, ePerPos := range colStat.moreThan3EventsPerPoint {
+		fmt.Fprintln(buf, "Triple sync at:", pos, "for", ePerPos)
 	}
-	fmt.Fprintln(buf, "Number of double sync", doubleSync)
 	Log.Debug(buf.String())
 }
 
@@ -313,144 +539,6 @@ func (collector *FullOutgrowthCollector) displayTrace() {
 		collector.sameEvent.displayTrace()
 		collector.multiEvents.displayTrace()
 	}
-}
-
-const (
-	HistogramDelta = 2
-)
-
-func (col *OutgrowthCollectorSingle) beginRealize() {
-	// Remove all single that don't have new state (usually same event or multi event)
-	for p, e := range col.data {
-		if e.state != EventOutgrowthNew {
-			delete(col.data, p)
-		}
-	}
-
-	// For single points and possible are the same
-	col.originalPoints = len(col.data)
-}
-
-func (col *OutgrowthCollectorSameEvent) beginRealize() {
-	col.originalPoints = len(col.data)
-	col.originalHistogram = make([]int, 1)
-	origPos := 0
-	for _, l := range col.data {
-		size := len(*l)
-		origPos += size
-		currentSize := len(col.originalHistogram)
-		currentPos := size - HistogramDelta
-		if currentPos >= currentSize {
-			newHistogram := make([]int, currentPos+1)
-			for i, v := range col.originalHistogram {
-				newHistogram[i] = v
-			}
-			col.originalHistogram = newHistogram
-		}
-		col.originalHistogram[currentPos]++
-	}
-	col.occupiedHistogram = make([]int, len(col.originalHistogram))
-	col.noMoreConnHistogram = make([]int, len(col.originalHistogram))
-	col.originalPossible = origPos
-}
-
-func (col *OutgrowthCollectorMultiEvent) beginRealize() {
-	col.originalPoints = len(col.data)
-	col.originalHistogram = make([]int, 1)
-	col.perEvent = make(map[EventID]*OutgrowthCollectorStatSingle, 3)
-	origPos := 0
-	for _, evtMapList := range col.data {
-		size := len(*evtMapList)
-		origPos += size
-		currentSize := len(col.originalHistogram)
-		currentPos := size - HistogramDelta
-		if currentPos >= currentSize {
-			newHistogram := make([]int, currentPos+1)
-			for i, v := range col.originalHistogram {
-				newHistogram[i] = v
-			}
-			col.originalHistogram = newHistogram
-		}
-		col.originalHistogram[currentPos]++
-		for id, l := range *evtMapList {
-			stat, ok := col.perEvent[id]
-			if !ok {
-				stat = &OutgrowthCollectorStatSingle{}
-				stat.name = fmt.Sprintf("Evt %d", id)
-				col.perEvent[id] = stat
-			}
-			stat.originalPoints += len(*l)
-			origPos += len(*l)
-		}
-	}
-	col.occupiedHistogram = make([]int, len(col.originalHistogram))
-	col.noMoreConnHistogram = make([]int, len(col.originalHistogram))
-	col.originalPossible = origPos
-}
-
-func (collector *FullOutgrowthCollector) beginRealize() {
-	collector.single.beginRealize()
-	collector.sameEvent.beginRealize()
-	collector.multiEvents.beginRealize()
-}
-
-func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
-	collector.beginRealize()
-	collector.displayTrace()
-
-	// No problem just realize all single ones that fit
-	for _, newPosEo := range collector.single.data {
-		collector.single.realize(newPosEo)
-	}
-	collector.single.displayStat()
-
-	// Realize only one of conflicting same event
-	for _, newPosEoList := range collector.sameEvent.data {
-		collector.sameEvent.newPoint = true
-		var newEo *EventOutgrowth
-		for _, newPosEo := range *newPosEoList {
-			if newEo == nil {
-				newEo, _ = collector.sameEvent.realizeSameEvent(newPosEo, len(*newPosEoList))
-			} else {
-				newEo.AddFrom(newPosEo.from)
-			}
-		}
-	}
-	collector.sameEvent.displayStat()
-
-	// Realize only one per event of conflicting multi events
-	// Collect all more than 3 event outgrowth
-	for pos, evtMapList := range collector.multiEvents.data {
-		collector.multiEvents.newPoint = true
-
-		idsAlreadyDone := make(map[EventID]*EventOutgrowth, len(*evtMapList))
-		for id, newPosEoList := range *evtMapList {
-			for _, newPosEo := range *newPosEoList {
-				doneEo, done := idsAlreadyDone[id]
-				if !done {
-					newEo := collector.multiEvents.realizeMultiEvent(newPosEo, len(*newPosEoList))
-					if newEo != nil {
-						idsAlreadyDone[id] = newEo
-					}
-				} else {
-					doneEo.AddFrom(newPosEo.from)
-				}
-			}
-		}
-		if len(idsAlreadyDone) >= THREE {
-			ids := make([]EventID, len(idsAlreadyDone))
-			i := 0
-			for id := range idsAlreadyDone {
-				ids[i] = id
-				i++
-			}
-			sort.Slice(ids, func(i, j int) bool {
-				return ids[i] < ids[j]
-			})
-			collector.multiEvents.eventsPerPoint[pos] = ids
-		}
-	}
-	collector.multiEvents.displayStat()
 }
 
 func (col *OutgrowthCollectorSameEvent) addNewEoFromSingle(newEo *NewPossibleOutgrowth, fromSingle *NewPossibleOutgrowth) {
@@ -555,46 +643,6 @@ func (collector *FullOutgrowthCollector) addNewEo(newEo *NewPossibleOutgrowth) {
 	}
 }
 
-func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *FullOutgrowthCollector {
-	// Protect full calculation timeout with 5 milliseconds per latest outgrowth
-	timeout := int64(5 * nbLatest)
-	if timeout < 1000 {
-		timeout = 1000
-	}
-	nbEvents := len(space.events)
-	nbEventsDone := 0
-	collector := MakeOutgrowthCollector(nbLatest)
-	for {
-		stop := false
-		select {
-		case newEo := <-c:
-
-			switch newEo.state {
-			case EventOutgrowthEnd:
-				nbEventsDone++
-			case EventOutgrowthNew:
-				collector.addNewEo(newEo)
-			default:
-				Log.Error("Receive an event on channel with wrong state", newEo.state, "full=", *(newEo))
-			}
-
-			if nbEventsDone == nbEvents {
-				stop = true
-				break
-			}
-		case <-time.After(time.Duration(timeout) * time.Millisecond):
-			stop = true
-			Log.Error("Did not manage to process", nbLatest, "latest event outgrowth from", nbEvents, "events in", nbLatest*5, "msecs")
-			break
-		}
-		if stop {
-			break
-		}
-	}
-
-	return collector
-}
-
 func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	evt := newPosEo.event
 	space := evt.space
@@ -618,4 +666,19 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	newNode.AddOutgrowth(newEo)
 	Log.Trace("Created new outgrowth", newEo.String())
 	return newEo, nil
+}
+
+func (evt *Event) moveNewOutgrowthsToLatest() {
+	finalLatest := evt.latestOutgrowths[:0]
+	for _, eg := range evt.latestOutgrowths {
+		switch eg.state {
+		case EventOutgrowthLatest:
+			eg.state = EventOutgrowthOld
+			evt.oldOutgrowths = append(evt.oldOutgrowths, eg)
+		case EventOutgrowthNew:
+			eg.state = EventOutgrowthLatest
+			finalLatest = append(finalLatest, eg)
+		}
+	}
+	evt.latestOutgrowths = finalLatest
 }
