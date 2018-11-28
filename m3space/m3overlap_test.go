@@ -1,12 +1,13 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3util"
 	"testing"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOverlapSameEvent(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.TRACE
 	space := MakeSpace(3 * 9)
 
 	InitConnectionDetails()

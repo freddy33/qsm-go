@@ -2,6 +2,7 @@ package playgl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"runtime"
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -15,6 +16,7 @@ const windowWidth = 800
 const windowHeight = 600
 
 var world m3gl.DisplayWorld
+var Log = m3util.NewLogger("playgl", m3util.INFO)
 
 func DisplayPlay1() {
 	runtime.LockOSThread()
@@ -38,8 +40,8 @@ func DisplayPlay1() {
 		panic(err)
 	}
 
-	fmt.Println("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
-	fmt.Println("OpenGL version suppported::", gl.GoStr(gl.GetString(gl.VERSION)))
+	Log.Info("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
+	Log.Info("OpenGL version supported:", gl.GoStr(gl.GetString(gl.VERSION)))
 
 	// ******************************************************************
 	//    HERE CHANGE THE SIZE
@@ -76,7 +78,7 @@ func DisplayPlay1() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	fmt.Println("Nb vertices", world.NbVertices, ", total size", len(world.OpenGLBuffer))
+	Log.Info("Nb vertices", world.NbVertices, ", total size", len(world.OpenGLBuffer))
 	gl.BufferData(gl.ARRAY_BUFFER, world.NbVertices*m3gl.FloatPerVertices*m3gl.FloatSize, gl.Ptr(world.OpenGLBuffer), gl.STATIC_DRAW)
 
 	vertAttrib := uint32(gl.GetAttribLocation(prog, gl.Str("vert\x00")))

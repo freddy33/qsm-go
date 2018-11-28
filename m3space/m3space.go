@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 )
 
 const (
@@ -9,7 +10,7 @@ const (
 	THREE = 3
 )
 
-var DEBUG = false
+var Log = m3util.NewLogger("m3space", m3util.INFO)
 
 type TickTime uint64
 
@@ -101,21 +102,15 @@ func (space *Space) getOrCreateNode(p Point) *Node {
 
 func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 	if !n1.HasFreeConnections(space) {
-		if DEBUG {
-			fmt.Println("Node 1", n1, "does not have free connections")
-		}
+		Log.Trace("Node 1", n1, "does not have free connections")
 		return nil
 	}
 	if !n2.HasFreeConnections(space) {
-		if DEBUG {
-			fmt.Println("Node 2", n2, "does not have free connections")
-		}
+		Log.Trace("Node 2", n2, "does not have free connections")
 		return nil
 	}
 	if n1.IsAlreadyConnected(n2) {
-		if DEBUG {
-			fmt.Println("Connection between 2 points", *(n1.Pos), *(n2.Pos), "already connected!")
-		}
+		Log.Trace("Connection between 2 points", *(n1.Pos), *(n2.Pos), "already connected!")
 		return nil
 	}
 
@@ -127,7 +122,7 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 	}
 	d := DS(n1.Pos, n2.Pos)
 	if !(d == 1 || d == 2 || d == 3 || d == 5) {
-		fmt.Println("ERROR: Connection between 2 points", *(n1.Pos), *(n2.Pos), "that are not 1, 2, 3 or 5 DS away!")
+		Log.Error("Connection between 2 points", *(n1.Pos), *(n2.Pos), "that are not 1, 2, 3 or 5 DS away!")
 		return nil
 	}
 	// All good create connection
@@ -136,14 +131,14 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 	n1done := n1.AddConnection(c, space)
 	n2done := n2.AddConnection(c, space)
 	if n1done < 0 || n2done < 0 {
-		fmt.Println("ERROR: Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
+		Log.Error("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
 		return nil
 	}
 	return c
 }
 
-func (space *Space) DisplaySettings() {
-	fmt.Println("========= Space Settings =========")
+func (space *Space) DisplayState() {
+	fmt.Println("========= Space State =========")
 	fmt.Println("Current Time", space.currentTime)
 	fmt.Println("Nb Nodes", len(space.nodesMap), ", Nb Connections", len(space.connections), ", Nb Events", len(space.events))
 }

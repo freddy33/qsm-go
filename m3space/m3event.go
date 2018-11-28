@@ -9,18 +9,18 @@ type EventColor uint8
 type EventOutgrowthState uint8
 
 const (
-	RedEvent    EventColor = 1 << iota
+	RedEvent EventColor = 1 << iota
 	GreenEvent
 	BlueEvent
 	YellowEvent
 )
 
 const (
-	EventOutgrowthLatest            EventOutgrowthState = iota
+	EventOutgrowthLatest EventOutgrowthState = iota
 	EventOutgrowthNew
 	EventOutgrowthOld
 	EventOutgrowthEnd
-	EventOutgrowthMultipleSameEvent
+	EventOutgrowthManySameEvent
 	EventOutgrowthMultipleEvents
 )
 
@@ -45,12 +45,24 @@ type EventOutgrowth struct {
 	state    EventOutgrowthState
 }
 
-type NewPossibleOutgrowth struct {
-	pos      Point
-	event    *Event
-	from     *EventOutgrowth
-	distance Distance
-	state    EventOutgrowthState
+func (eos EventOutgrowthState) String() string {
+	switch eos {
+	case EventOutgrowthLatest:
+		return "Latest"
+	case EventOutgrowthNew:
+		return "New"
+	case EventOutgrowthOld:
+		return "Old"
+	case EventOutgrowthEnd:
+		return "End"
+	case EventOutgrowthManySameEvent:
+		return "SameEvent"
+	case EventOutgrowthMultipleEvents:
+		return "MultiEvents"
+	default:
+		Log.Error("Got an event outgrowth state unknown:", int(eos))
+	}
+	return "unknown"
 }
 
 func (space *Space) CreateEvent(p Point, k EventColor) *Event {
@@ -74,6 +86,7 @@ func (space *Space) CreateEvent(p Point, k EventColor) *Event {
 func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx GrowthContext) *Event {
 	n := space.getOrCreateNode(p)
 	id := space.currentId
+	Log.Info("Creating new event", id, "at node", n.GetStateString())
 	space.currentId++
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
@@ -90,4 +103,3 @@ func (evt *Event) LatestDistance() Distance {
 	// Distance and time are the same...
 	return Distance(evt.space.currentTime - evt.created)
 }
-

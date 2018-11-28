@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3util"
 	"testing"
 	"github.com/stretchr/testify/assert"
 	"fmt"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestPosMod4(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 	assert.Equal(t, uint64(1), PosMod4(5))
 	assert.Equal(t, uint64(0), PosMod4(4))
 	assert.Equal(t, uint64(3), PosMod4(3))
@@ -18,7 +19,7 @@ func TestPosMod4(t *testing.T) {
 }
 
 func TestPoint(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 
 	Orig := Point{0, 0, 0}
 	OneTwoThree := Point{1, 2, 3}
@@ -112,7 +113,7 @@ func TestPoint(t *testing.T) {
 }
 
 func TestInitialTrioConnectingVectors(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 	assert.Equal(t, AllBaseTrio[0][0], Point{1, 1, 0})
 	assert.Equal(t, AllBaseTrio[0][1], Point{-1, 0, -1})
 	assert.Equal(t, AllBaseTrio[0][1], AllBaseTrio[0][0].PlusX().PlusY().PlusY())
@@ -129,8 +130,7 @@ var Full5NextTrio = [4][2]int{
 }
 
 func TestAllTrio(t *testing.T) {
-	DEBUG = true
-	outTable := false
+	Log.Level = m3util.DEBUG
 	for i, tr := range AllBaseTrio {
 		assert.Equal(t, int64(0), tr[0][2], "Failed on Trio %d", i)
 		assert.Equal(t, int64(0), tr[1][1], "Failed on Trio %d", i)
@@ -147,16 +147,13 @@ func TestAllTrio(t *testing.T) {
 		}
 		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of Trio %d %v", i, tr)
 		for j, tB := range AllBaseTrio {
-			if outTable {
-				fmt.Println(i, ",", j)
-			}
-			assertIsGenericNonBaseConnectingVector(t, GetNonBaseConnections(tr, tB), i, j, outTable)
+			assertIsGenericNonBaseConnectingVector(t, GetNonBaseConnections(tr, tB), i, j)
 		}
 	}
 }
 
 func TestAllFull5Trio(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 	idxMap := createAll8IndexMap()
 	for i, nextTrio := range Full5NextTrio {
 		assertValidNextTrio(t, nextTrio, i)
@@ -258,15 +255,12 @@ func assertAllIndexUsed(t *testing.T, idxMap map[int]int, expectedTimes int, msg
 	}
 }
 
-func assertIsGenericNonBaseConnectingVector(t *testing.T, conns [6]Point, i, j int, print bool) {
+func assertIsGenericNonBaseConnectingVector(t *testing.T, conns [6]Point, i, j int) {
 	for _, conn := range conns {
 		assert.True(t, conn.IsConnectionVector(), "Found wrong connection %v at %d %d", conn, i, j)
 		assert.False(t, conn.IsBaseConnectingVector(), "Found wrong connection %v at %d %d", conn, i, j)
 		ds := conn.DistanceSquared()
 		assert.True(t, ds == 1 || ds == 3 || ds == 5, "Found wrong connection %v at %d %d", conn, i, j)
-		if print {
-			fmt.Println("\t", conn, "\t", ds)
-		}
 	}
 }
 

@@ -1,6 +1,7 @@
 package m3gl
 
 import (
+	"github.com/freddy33/qsm-go/m3util"
 	"testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/freddy33/qsm-go/m3space"
@@ -12,7 +13,8 @@ type ExpectedSpaceState struct {
 }
 
 func TestSingleRedEvent(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.INFO
+	m3space.Log.Level = m3util.INFO
 	world := MakeWorld(3*9, 0.0)
 
 	assertEmptyWorld(t, &world, 3*9)

@@ -123,7 +123,7 @@ func (node *Node) GetStateString() string {
 		} else if conn.N2 == node {
 			connVect = conn.N1.Pos.Sub(*node.Pos)
 		} else {
-			fmt.Println("ERROR: Connection",conn,"in list of node",node,"but not part of it?")
+			Log.Error("Connection",conn,"in list of node",node,"but not part of it?")
 		}
 		connIds[i] = AllConnectionsPossible[connVect].GetName()
 	}

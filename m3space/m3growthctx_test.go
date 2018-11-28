@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3util"
 	"testing"
 	"github.com/stretchr/testify/assert"
 	"fmt"
@@ -33,7 +34,7 @@ func getAllContexts() map[uint8][]GrowthContext {
 }
 
 func TestDivByThree(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 	someCenter1 := Point{3, -6, 9}
 	ctx := GrowthContext{&someCenter1, 1, 1, false, 0,}
 	assert.Equal(t, someCenter1, *(ctx.center))
@@ -59,7 +60,7 @@ func TestDivByThree(t *testing.T) {
 }
 
 func TestGrowthContext1(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 	ctx := GrowthContext{&Origin, 1, 3, false, 0,}
 	assert.Equal(t, uint8(1), ctx.permutationType)
 	assert.Equal(t, 3, ctx.permutationIndex)
@@ -81,7 +82,7 @@ func TestGrowthContext1(t *testing.T) {
 }
 
 func TestGrowthContext3(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 	ctx := GrowthContext{&Origin, 3, 0, false, 0,}
 	assert.Equal(t, uint8(3), ctx.permutationType)
 	assert.Equal(t, 0, ctx.permutationIndex)
@@ -98,7 +99,7 @@ func TestGrowthContext3(t *testing.T) {
 }
 
 func TestGrowthContextsExpectType3(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 
 	growthContexts := getAllContexts()
 	for _, ctx := range growthContexts[1] {
@@ -183,7 +184,7 @@ func TestGrowthContextsExpectType3(t *testing.T) {
 }
 
 func TestConnectionDetails(t *testing.T) {
-	DEBUG = true
+	Log.Level = m3util.DEBUG
 	InitConnectionDetails()
 	for k, v := range AllConnectionsPossible {
 		assert.Equal(t, k, v.Vector)
@@ -226,8 +227,8 @@ func TestConnectionDetails(t *testing.T) {
 	for _, contextList := range allCtx {
 		nbCtx += len(contextList)
 	}
-	fmt.Println("Created", nbCtx, "contexts")
-	fmt.Println("Using", len(allCtx[8]), " contexts from the 8 context")
+	Log.Info("Created", nbCtx, "contexts")
+	Log.Info("Using", len(allCtx[8]), " contexts from the 8 context")
 	// For all trioIndex rotations, any 2 close main points there should be a connection details
 	min := int64(-2) // -5
 	max := int64(2)  // 5

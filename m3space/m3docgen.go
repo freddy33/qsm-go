@@ -3,12 +3,13 @@ package m3space
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 	"log"
 	"os"
 )
 
 func WriteAllTables() {
-	changeToDocsGeneratedDir()
+	m3util.ChangeToDocsGeneratedDir()
 	InitConnectionDetails()
 	writeAllTrioTable()
 	writeTrioConnectionsTable()
@@ -161,11 +162,11 @@ func writeTrioConnectionsTable() {
 	if err != nil {
 		log.Fatal("Cannot create csv file", err)
 	}
-	defer closeFile(txtFile)
-	defer closeFile(csvFile)
+	defer m3util.CloseFile(txtFile)
+	defer m3util.CloseFile(csvFile)
 
 	csvWriter := csv.NewWriter(csvFile)
-	writeAll(csvWriter, GetTrioTransitionTableCsv())
+	m3util.WriteAll(csvWriter, GetTrioTransitionTableCsv())
 	csvWriter.Flush()
 
 	txtOutputs := GetTrioTransitionTableTxt()
@@ -173,24 +174,24 @@ func writeTrioConnectionsTable() {
 		for b := 0; b < 8; b++ {
 			out := txtOutputs[Int2{a, b}]
 			if b == 7 {
-				writeNextString(txtFile, fmt.Sprintf("%d, %d %s", a, b, out[0]))
+				m3util.WriteNextString(txtFile, fmt.Sprintf("%d, %d %s", a, b, out[0]))
 			} else {
-				writeNextString(txtFile, fmt.Sprintf("%d, %d %s            ", a, b, out[0]))
+				m3util.WriteNextString(txtFile, fmt.Sprintf("%d, %d %s            ", a, b, out[0]))
 			}
 		}
-		writeNextString(txtFile, "\n")
+		m3util.WriteNextString(txtFile, "\n")
 		for i := 0; i < 6; i++ {
 			for b := 0; b < 8; b++ {
 				out := txtOutputs[Int2{a, b}]
 				// this is 18 chars
-				writeNextString(txtFile, out[i+1])
+				m3util.WriteNextString(txtFile, out[i+1])
 				if b != 7 {
-					writeNextString(txtFile, "  ")
+					m3util.WriteNextString(txtFile, "  ")
 				}
 			}
-			writeNextString(txtFile, "\n")
+			m3util.WriteNextString(txtFile, "\n")
 		}
-		writeNextString(txtFile, "\n")
+		m3util.WriteNextString(txtFile, "\n")
 	}
 }
 
@@ -204,16 +205,16 @@ func writeAllTrioTable() {
 	if err != nil {
 		log.Fatal("Cannot create csv file", err)
 	}
-	defer closeFile(txtFile)
-	defer closeFile(csvFile)
+	defer m3util.CloseFile(txtFile)
+	defer m3util.CloseFile(csvFile)
 
 	csvWriter := csv.NewWriter(csvFile)
-	writeAll(csvWriter, GetTrioTableCsv())
+	m3util.WriteAll(csvWriter, GetTrioTableCsv())
 	for a, trio := range AllBaseTrio {
-		writeNextString(txtFile, fmt.Sprintf("T%d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
-		writeNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
-		writeNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
-		writeNextString(txtFile, "\n")
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
+		m3util.WriteNextString(txtFile, "\n")
 	}
 }
 
@@ -227,8 +228,8 @@ func writeAllConnectionDetails() {
 	if err != nil {
 		log.Fatal("Cannot create csv file", err)
 	}
-	defer closeFile(txtFile)
-	defer closeFile(csvFile)
+	defer m3util.CloseFile(txtFile)
+	defer m3util.CloseFile(csvFile)
 
 	nbConnDetails := uint8(len(AllConnectionsPossible) / 2)
 	csvWriter := csv.NewWriter(csvFile)
@@ -238,23 +239,23 @@ func writeAllConnectionDetails() {
 				ds := v.ConnDS
 				posVec := v.Vector
 				negVec := v.Vector.Neg()
-				write(csvWriter, []string{
+				m3util.Write(csvWriter, []string{
 					fmt.Sprintf(" %d", cdNb),
 					fmt.Sprintf("% d", posVec[0]),
 					fmt.Sprintf("% d", posVec[1]),
 					fmt.Sprintf("% d", posVec[2]),
 					fmt.Sprintf("% d", ds),
 				})
-				write(csvWriter, []string{
+				m3util.Write(csvWriter, []string{
 					fmt.Sprintf("-%d", cdNb),
 					fmt.Sprintf("% d", negVec[0]),
 					fmt.Sprintf("% d", negVec[1]),
 					fmt.Sprintf("% d", negVec[2]),
 					fmt.Sprintf("% d", ds),
 				})
-				writeNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", v.GetName(), posVec, ds))
+				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", v.GetName(), posVec, ds))
 				negCD := AllConnectionsPossible[negVec]
-				writeNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", negCD.GetName(), negVec, ds))
+				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", negCD.GetName(), negVec, ds))
 				break
 			}
 		}
@@ -263,7 +264,7 @@ func writeAllConnectionDetails() {
 
 // Write all the points, base vector used, DS and connection details used from1 T=0 to T=X when transitioning from Trio Index 0 to 4 back and forth
 func Write0To4TimeFlow() {
-	changeToDocsGeneratedDir()
+	m3util.ChangeToDocsGeneratedDir()
 
 	// Start from origin with growth context type 2 index 0
 	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
@@ -284,27 +285,27 @@ func Write0To4TimeFlow() {
 func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Point]*PointState) {
 	mainPoints, currentPoints := extractMainAndOtherPoints(allPoints, time)
 
-	writeNextString(txtFile, "\n**************************************************\n")
-	writeNextString(txtFile, fmt.Sprintf("Time: %4d       %4d       %4d\n######  MAIN POINTS: %4d #######", time, time, time, len(mainPoints)))
+	m3util.WriteNextString(txtFile, "\n**************************************************\n")
+	m3util.WriteNextString(txtFile, fmt.Sprintf("Time: %4d       %4d       %4d\n######  MAIN POINTS: %4d #######", time, time, time, len(mainPoints)))
 	for i, p := range mainPoints {
 		if i%4 == 0 {
-			writeNextString(txtFile, "\n")
+			m3util.WriteNextString(txtFile, "\n")
 		}
 		pState := (*allPoints)[p]
-		writeNextString(txtFile, fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
 	}
-	writeNextString(txtFile, fmt.Sprintf("\n###### OTHER POINTS: %4d #######", len(currentPoints)))
+	m3util.WriteNextString(txtFile, fmt.Sprintf("\n###### OTHER POINTS: %4d #######", len(currentPoints)))
 	for i, p := range currentPoints {
 		if i%6 == 0 {
-			writeNextString(txtFile, "\n")
+			m3util.WriteNextString(txtFile, "\n")
 		}
 		pState := (*allPoints)[p]
-		writeNextString(txtFile, fmt.Sprintf("%3d: %2d, %2d, %2d <= %s | ", pState.globalIdx, p[0], p[1], p[2], pState.GetFromString()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%3d: %2d, %2d, %2d <= %s | ", pState.globalIdx, p[0], p[1], p[2], pState.GetFromString()))
 	}
 }
 
 func GenerateDataTimeFlow0() {
-	changeToDocsDataDir()
+	m3util.ChangeToDocsDataDir()
 
 	// Start from origin with growth context type 2 index 0
 	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
@@ -324,8 +325,8 @@ func GenerateDataTimeFlow0() {
 func WriteCurrentPointsDataToFile(file *os.File, time TickTime, allPoints *map[Point]*PointState) {
 	for _, ps := range *allPoints {
 		if ps.creationTime == time {
-			writeNextString(file, ps.ToDataString())
-			writeNextString(file, "\n")
+			m3util.WriteNextString(file, ps.ToDataString())
+			m3util.WriteNextString(file, "\n")
 		}
 	}
 }

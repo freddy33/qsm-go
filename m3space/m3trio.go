@@ -45,7 +45,7 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	// All points should be a connecting vector
 	for _, p := range points {
 		if !p.IsBaseConnectingVector() {
-			fmt.Println("Trying to create a base trio out of non base vector!", p)
+			Log.Error("Trying to create a base trio out of non base vector!", p)
 			return res
 		}
 	}
@@ -109,7 +109,7 @@ func (t Trio) getPlusXVector() Point {
 			return vec
 		}
 	}
-	fmt.Println("Impossible! For all trio there should be a +X vector")
+	Log.Error("Impossible! For all trio there should be a +X vector")
 	return Origin
 }
 
@@ -119,7 +119,7 @@ func (t Trio) getMinusXVector() Point {
 			return vec
 		}
 	}
-	fmt.Println("Impossible! For all trio there should be a -X vector")
+	Log.Error("Impossible! For all trio there should be a -X vector")
 	return Origin
 }
 
@@ -129,7 +129,7 @@ func (t Trio) getPlusYVector() Point {
 			return vec
 		}
 	}
-	fmt.Println("Impossible! For all trio there should be a +Y vector")
+	Log.Error("Impossible! For all trio there should be a +Y vector")
 	return Origin
 }
 
@@ -139,7 +139,7 @@ func (t Trio) getMinusYVector() Point {
 			return vec
 		}
 	}
-	fmt.Println("Impossible! For all trio there should be a -Y vector")
+	Log.Error("Impossible! For all trio there should be a -Y vector")
 	return Origin
 }
 
@@ -149,7 +149,7 @@ func (t Trio) getPlusZVector() Point {
 			return vec
 		}
 	}
-	fmt.Println("Impossible! For all trio there should be a +Z vector")
+	Log.Error("Impossible! For all trio there should be a +Z vector")
 	return Origin
 }
 
@@ -159,7 +159,7 @@ func (t Trio) getMinusZVector() Point {
 			return vec
 		}
 	}
-	fmt.Println("Impossible! For all trio there should be a -Z vector")
+	Log.Error("Impossible! For all trio there should be a -Z vector")
 	return Origin
 }
 
@@ -178,7 +178,7 @@ func InitConnectionDetails() uint8 {
 		}
 	}
 	nbConnDetails := len(connMap) / 2
-	fmt.Println("Number of connection details created ", nbConnDetails)
+	Log.Info("Number of connection details created ", nbConnDetails)
 
 	// Reordering connection details number by size, and x, y, z
 	newOrderedMap := make(map[Point]ConnectionDetails)
@@ -254,7 +254,7 @@ func GetConnectionDetails(p1, p2 Point) ConnectionDetails {
 	vector := p2.Sub(p1)
 	cd, ok := AllConnectionsPossible[vector]
 	if !ok {
-		fmt.Println("Trying to connect to Pos", p1, p2, "that cannot be connected with any known connection details")
+		Log.Error("Trying to connect to Pos", p1, p2, "that cannot be connected with any known connection details")
 		return EmptyConnDetails
 	}
 	return cd

@@ -69,7 +69,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 	case -1:
 		nextMain = mainPoint.Sub(XFirst)
 	default:
-		fmt.Printf("There should not be a connecting vector with x value %d\n", cVec.X())
+		Log.Errorf("There should not be a connecting vector with x value %d\n", cVec.X())
 		return result
 	}
 	if nextMain != mainPoint {
@@ -92,7 +92,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 	case -1:
 		nextMain = mainPoint.Sub(YFirst)
 	default:
-		fmt.Printf("There should not be a connecting vector with y value %d\n", cVec.Y())
+		Log.Errorf("There should not be a connecting vector with y value %d\n", cVec.Y())
 	}
 	if nextMain != mainPoint {
 		// Find the base Pos on the other side ( the opposite 1 or -1 on Y() )
@@ -114,7 +114,7 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 	case -1:
 		nextMain = mainPoint.Sub(ZFirst)
 	default:
-		fmt.Printf("There should not be a connecting vector with z value %d\n", cVec.Z())
+		Log.Errorf("There should not be a connecting vector with z value %d\n", cVec.Z())
 	}
 	if nextMain != mainPoint {
 		// Find the base Pos on the other side ( the opposite 1 or -1 on Z() )

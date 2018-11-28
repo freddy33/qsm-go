@@ -23,11 +23,11 @@ func FromDataString(line string) *PointState {
 	nbRead, err := fmt.Sscanf(line, "%d:%d:[%d,%d,%d]:%d:%d:%d",
 		&(res.creationTime), &(res.globalIdx), &(res.pos[0]), &(res.pos[1]), &(res.pos[2]), &(res.trioIndex), &(res.from1), &(res.from2))
 	if err != nil {
-		fmt.Printf("parsing line %s failed with %v", line, err)
+		Log.Warnf("parsing line %s failed with %v", line, err)
 		return nil
 	}
 	if nbRead != 8 {
-		fmt.Printf("parsing line %s dis not return 8 field but %d", line, nbRead)
+		Log.Warnf("parsing line %s dis not return 8 field but %d", line, nbRead)
 		return nil
 	}
 	return &res
@@ -105,7 +105,7 @@ func collectFlow(ctx *GrowthContext, untilTime TickTime, writeAllPoints func(poi
 				} else if npState.creationTime == time+1 {
 					// Created now but already populated
 					if npState.HasFrom2() {
-						fmt.Println("ERROR: Got 3 overlap for", npState)
+						Log.Error("Got 3 overlap for", npState)
 					} else {
 						npState.from2 = currentState.globalIdx
 					}

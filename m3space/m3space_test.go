@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3util"
 	"testing"
 	"github.com/stretchr/testify/assert"
 	"fmt"
@@ -13,11 +14,11 @@ type ExpectedSpaceState struct {
 }
 
 func TestSingleRedEventD0(t *testing.T) {
-	DEBUG = false
+	Log.Level = m3util.INFO
+	InitConnectionDetails()
 	for trioIdx := 0; trioIdx < 12; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
-		InitConnectionDetails()
 		assertEmptySpace(t, &space, 3*9)
 
 		// Force to only 3
@@ -63,11 +64,11 @@ func getContextString(ctx GrowthContext) string {
 }
 
 func TestSingleSimpleContextD0(t *testing.T) {
-	DEBUG = false
+	Log.Level = m3util.INFO
+	InitConnectionDetails()
 	for trioIdx := 0; trioIdx < 8; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
-		InitConnectionDetails()
 		assertEmptySpace(t, &space, 3*9)
 
 		// Force to only 3
@@ -99,10 +100,11 @@ func TestSingleSimpleContextD0(t *testing.T) {
 }
 
 func TestSingleRedEventD1(t *testing.T) {
-	DEBUG = false
+	Log.Level = m3util.INFO
+	InitConnectionDetails()
+
 	space := MakeSpace(3 * 9)
 
-	InitConnectionDetails()
 	assertEmptySpace(t, &space, 3*9)
 
 	// Only latest and before counting

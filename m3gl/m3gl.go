@@ -1,11 +1,12 @@
 package m3gl
 
 import (
-	"github.com/go-gl/mathgl/mgl32"
-	"github.com/freddy33/qsm-go/m3space"
 	"fmt"
-	"math"
+	"github.com/freddy33/qsm-go/m3space"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
+	"math"
 )
 
 // OpenGL const
@@ -30,8 +31,6 @@ const (
 	connections    = 25
 	axes           = 3
 )
-
-var DEBUG = false
 
 type DisplayWorld struct {
 	Space    *m3space.Space
@@ -69,6 +68,8 @@ type OpenGLDrawingElement struct {
 	OpenGLOffset int32
 	NbVertices   int32
 }
+
+var Log = m3util.NewLogger("m3gl", m3util.INFO)
 
 func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 	if Max%m3space.THREE != 0 {
@@ -139,7 +140,7 @@ func (world DisplayWorld) DisplaySettings() {
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
 	fmt.Println("FOV Angle [Z,X]", world.FovAngle.Val)
 	fmt.Println("Eye Dist [Q,W]", world.EyeDist.Val)
-	world.Space.DisplaySettings()
+	world.Space.DisplayState()
 	world.Filter.DisplaySettings()
 }
 
@@ -193,9 +194,7 @@ func (world *DisplayWorld) CreateDrawingElements() {
 		fmt.Println("Created", dec.offset, "elements, but it should be", dec.nbElements)
 		return
 	}
-	if DEBUG {
-		fmt.Println("Created", dec.nbElements, "drawing elements.")
-	}
+	Log.Debug("Created", dec.nbElements, "drawing elements.")
 	world.Elements = dec.elements
 }
 
