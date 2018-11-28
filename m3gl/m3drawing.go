@@ -56,14 +56,14 @@ func (filter *SpaceDrawingFilter) DisplaySettings() {
 }
 
 func (world *DisplayWorld) EventOutgrowthThresholdIncrease() {
-	world.Space.EventOutgrowthThreshold++
+	world.WorldSpace.EventOutgrowthThreshold++
 	world.CreateDrawingElements()
 }
 
 func (world *DisplayWorld) EventOutgrowthThresholdDecrease() {
-	world.Space.EventOutgrowthThreshold--
-	if world.Space.EventOutgrowthThreshold < 0 {
-		world.Space.EventOutgrowthThreshold = 0
+	world.WorldSpace.EventOutgrowthThreshold--
+	if world.WorldSpace.EventOutgrowthThreshold < 0 {
+		world.WorldSpace.EventOutgrowthThreshold = 0
 	}
 	world.CreateDrawingElements()
 }

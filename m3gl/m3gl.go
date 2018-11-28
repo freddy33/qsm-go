@@ -33,9 +33,10 @@ const (
 )
 
 type DisplayWorld struct {
-	Space    *m3space.Space
-	Filter   SpaceDrawingFilter
-	Elements []SpaceDrawingElement
+	Max        int64
+	WorldSpace *m3space.Space
+	Filter     SpaceDrawingFilter
+	Elements   []SpaceDrawingElement
 
 	NbVertices         int
 	OpenGLBuffer       []float32
@@ -76,33 +77,52 @@ func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
 	}
 	verifyData()
-	TopCornerDist := math.Sqrt(float64(3.0*Max*Max)) + 1.1
-	w := DisplayWorld{
-		nil,
-		SpaceDrawingFilter{false, false, uint8(0xFF), 0, nil,},
-		make([]SpaceDrawingElement, 0, 500),
-		0,
-		make([]float32, 0),
-		make(map[ObjectType]OpenGLDrawingElement),
-		TopCornerDist,
-		800, 600,
-		SizeVar{float64(Max), TopCornerDist * 4.0, TopCornerDist * 1.5},
-		SizeVar{10.0, 75.0, 30.0},
-		mgl32.Vec3{-1.0, 1.0, 1.0}.Normalize(),
-		mgl32.Vec3{1.0, 1.0, 1.0},
-		mgl32.Ident4(),
-		mgl32.Ident4(),
-		mgl32.Ident4(),
-		0,
-		TimeAutoVar{false, 0.01, 0.3, glfwTime, 0.0,},
-		TimeAutoVar{true, 0.5, 2.0, glfwTime, 0.0,},
-	}
 	space := m3space.MakeSpace(Max)
-	w.Space = &space
-	w.Filter.Space = &space
-	w.SetMatrices()
-	w.CreateDrawingElementsMap()
-	return w
+	world := DisplayWorld{}
+	world.initialized(&space, glfwTime)
+	world.CheckMax()
+
+	return world
+}
+
+func (world *DisplayWorld) initialized(space *m3space.Space, glfwTime float64) {
+	world.Max = 0
+	world.WorldSpace = space
+	world.Filter = SpaceDrawingFilter{false, false, uint8(0xFF), 0, space,}
+	world.Elements = make([]SpaceDrawingElement, 0, 500)
+	world.NbVertices = 0
+	world.OpenGLBuffer = make([]float32, 0)
+	world.DrawingElementsMap = make(map[ObjectType]OpenGLDrawingElement)
+	world.Width = 800
+	world.Height = 600
+	world.FovAngle = SizeVar{10.0, 75.0, 30.0}
+	world.LightDirection = mgl32.Vec3{-1.0, 1.0, 1.0}.Normalize()
+	world.LightColor = mgl32.Vec3{1.0, 1.0, 1.0}
+	world.Projection = mgl32.Ident4()
+	world.Camera = mgl32.Ident4()
+	world.Model = mgl32.Ident4()
+	world.previousArea = 0
+	world.Angle = TimeAutoVar{false, 0.01, 0.3, glfwTime, 0.0,}
+	world.Blinker = TimeAutoVar{true, 0.5, 2.0, glfwTime, 0.0,}
+}
+
+func (world *DisplayWorld) CheckMax() {
+	if world.WorldSpace.Max > world.Max {
+		max := world.WorldSpace.Max
+		world.TopCornerDist = math.Sqrt(float64(3.0*max*max)) + 1.1
+		//previousVal := world.EyeDist.Val
+		world.EyeDist = SizeVar{float64(max), world.TopCornerDist * 2.0, world.TopCornerDist * 1.5}
+/*		if previousVal < world.EyeDist.Max && previousVal > world.EyeDist.Min {
+			world.EyeDist.Val = previousVal
+		}
+*/		world.Max = max
+		world.SetMatrices()
+		if world.NbVertices == 0 {
+			world.CreateDrawingElementsMap()
+		} else {
+			world.RedrawAxesElementsMap()
+		}
+	}
 }
 
 var LineWidth = SizeVar{0.05, 0.5, 0.18}
@@ -140,7 +160,7 @@ func (world DisplayWorld) DisplaySettings() {
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
 	fmt.Println("FOV Angle [Z,X]", world.FovAngle.Val)
 	fmt.Println("Eye Dist [Q,W]", world.EyeDist.Val)
-	world.Space.DisplayState()
+	world.WorldSpace.DisplayState()
 	world.Filter.DisplaySettings()
 }
 
@@ -178,17 +198,17 @@ func (creator *DrawingElementsCreator) VisitConnection(space *m3space.Space, con
 }
 
 func (world *DisplayWorld) ForwardTime() {
-	world.Space.ForwardTime()
+	world.WorldSpace.ForwardTime()
 	world.CreateDrawingElements()
 }
 
 func (world *DisplayWorld) CreateDrawingElements() {
-	space := world.Space
+	space := world.WorldSpace
 	dec := DrawingElementsCreator{}
 	dec.nbElements = 6 + space.GetNbNodes() + space.GetNbConnections()
 	dec.elements = make([]SpaceDrawingElement, dec.nbElements)
 	dec.offset = 0
-	dec.createAxes(space.Max)
+	dec.createAxes(world.Max)
 	space.VisitAll(&dec)
 	if dec.offset != dec.nbElements {
 		fmt.Println("Created", dec.offset, "elements, but it should be", dec.nbElements)
@@ -207,25 +227,31 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
 	triangleFiller := TriangleFiller{make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
-	for axe := int16(0); axe < axes; axe++ {
-		p := m3space.Point{}
-		p[axe] = world.Space.Max + AxeExtraLength
-		triangleFiller.fill(MakeSegment(m3space.Origin, p, ObjectType(axe)))
-	}
-	triangleFiller.fill(MakeSphere(NodeEmpty))
-	triangleFiller.fill(MakeSphere(NodeActive))
-	connDone := make(map[uint8]bool)
-	for _, cd := range m3space.AllConnectionsPossible {
-		if !cd.ConnNeg && !connDone[cd.ConnNumber] {
-			triangleFiller.fill(MakeSegment(m3space.Origin, cd.Vector, ObjectType(uint8(Connection00)+cd.ConnNumber)))
-			connDone[cd.ConnNumber] = true
-		}
-	}
-
+	triangleFiller.drawAxes(world.Max)
+	triangleFiller.drawNodes()
+	triangleFiller.drawConnections()
 	world.DrawingElementsMap = triangleFiller.objMap
 	fmt.Println("Saved", len(world.DrawingElementsMap), "objects in world map.")
 
 	return nbTriangles
+}
+
+func (world *DisplayWorld) RedrawAxesElementsMap() {
+	triangleFiller := TriangleFiller{world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller.drawAxes(world.Max)
+	world.DrawingElementsMap = triangleFiller.objMap
+}
+
+func (world *DisplayWorld) RedrawNodesElementsMap() {
+	triangleFiller := TriangleFiller{world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller.drawNodes()
+	world.DrawingElementsMap = triangleFiller.objMap
+}
+
+func (world *DisplayWorld) RedrawConnectionsElementsMap() {
+	triangleFiller := TriangleFiller{world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller.drawConnections()
+	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 type Triangle struct {
@@ -284,13 +310,42 @@ type TriangleFiller struct {
 	buffer         *[]float32
 }
 
-func (t *TriangleFiller) fill(o GLObject) {
-	wo := OpenGLDrawingElement{
-		o.Key(),
-		t.verticesOffset,
-		int32(o.NumberOfVertices()),
+func (t *TriangleFiller) drawAxes(max int64) {
+	for axe := int16(0); axe < axes; axe++ {
+		p := m3space.Point{}
+		p[axe] = max + AxeExtraLength
+		t.fill(MakeSegment(m3space.Origin, p, ObjectType(axe)))
 	}
-	t.objMap[wo.k] = wo
+}
+
+func (t *TriangleFiller) drawNodes() {
+	t.fill(MakeSphere(NodeEmpty))
+	t.fill(MakeSphere(NodeActive))
+}
+
+func (t *TriangleFiller) drawConnections() {
+	connDone := make(map[uint8]bool)
+	for _, cd := range m3space.AllConnectionsPossible {
+		if !cd.ConnNeg && !connDone[cd.ConnNumber] {
+			t.fill(MakeSegment(m3space.Origin, cd.Vector, ObjectType(uint8(Connection00)+cd.ConnNumber)))
+			connDone[cd.ConnNumber] = true
+		}
+	}
+}
+
+func (t *TriangleFiller) fill(o GLObject) {
+	key := o.Key()
+	wo, ok := t.objMap[key]
+	if !ok {
+		wo = OpenGLDrawingElement{
+			key,
+			t.verticesOffset,
+			int32(o.NumberOfVertices()),
+		}
+		t.objMap[key] = wo
+	} else {
+		t.bufferOffset = int(wo.OpenGLOffset) * FloatPerVertices
+	}
 	triangles := o.ExtractTriangles()
 	for _, tr := range triangles {
 		for _, point := range tr.vertices {

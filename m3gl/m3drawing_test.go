@@ -20,9 +20,9 @@ func TestSingleRedEvent(t *testing.T) {
 	assertEmptyWorld(t, &world, 3*9)
 
 	// Only latest counting
-	world.Space.EventOutgrowthThreshold = m3space.Distance(0)
+	world.WorldSpace.EventOutgrowthThreshold = m3space.Distance(0)
 
-	world.Space.CreateSingleEventCenter()
+	world.WorldSpace.CreateSingleEventCenter()
 	world.CreateDrawingElements()
 
 	expectedState := map[m3space.TickTime]ExpectedSpaceState{
@@ -35,10 +35,10 @@ func TestSingleRedEvent(t *testing.T) {
 }
 
 func assertEmptyWorld(t *testing.T, world *DisplayWorld, max int64) {
-	assert.Equal(t, max, world.Space.Max)
-	assert.Equal(t, 0, world.Space.GetNbNodes())
-	assert.Equal(t, 0, world.Space.GetNbConnections())
-	assert.Equal(t, 0, world.Space.GetNbEvents())
+	assert.Equal(t, max, world.WorldSpace.Max)
+	assert.Equal(t, 0, world.WorldSpace.GetNbNodes())
+	assert.Equal(t, 0, world.WorldSpace.GetNbConnections())
+	assert.Equal(t, 0, world.WorldSpace.GetNbEvents())
 	assert.Equal(t, 0, len(world.Elements))
 }
 
@@ -76,10 +76,10 @@ func assertSpaceStates(t *testing.T, world *DisplayWorld, expectMap map[m3space.
 }
 
 func assertSpaceSingleEvent(t *testing.T, world *DisplayWorld, time m3space.TickTime, nbNodes, nbConnections int, nbActive int) {
-	assert.Equal(t, time, world.Space.GetCurrentTime(), "failed at %d", time)
-	assert.Equal(t, nbNodes, world.Space.GetNbNodes(), "failed at %d", time)
-	assert.Equal(t, nbConnections, world.Space.GetNbConnections(), "failed at %d", time)
-	assert.Equal(t, 1, world.Space.GetNbEvents(), "failed at %d", time)
+	assert.Equal(t, time, world.WorldSpace.GetCurrentTime(), "failed at %d", time)
+	assert.Equal(t, nbNodes, world.WorldSpace.GetNbNodes(), "failed at %d", time)
+	assert.Equal(t, nbConnections, world.WorldSpace.GetNbConnections(), "failed at %d", time)
+	assert.Equal(t, 1, world.WorldSpace.GetNbEvents(), "failed at %d", time)
 	assert.Equal(t, nbNodes+nbConnections+6, len(world.Elements), "failed at %d", time)
 	nbDisplay := 0
 	collectActiveElements := make([]*NodeDrawingElement, 0, 20)

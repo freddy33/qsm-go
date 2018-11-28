@@ -46,12 +46,12 @@ func DisplayPlay1() {
 	// ******************************************************************
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
-	max := int64(40 * m3space.THREE)
+	max := int64(20 * m3space.THREE)
 	world = m3gl.MakeWorld(max, glfw.GetTime())
 	//m3space.SpaceObj.CreateSingleEventCenter()
-	world.Space.CreatePyramid(12)
+	world.WorldSpace.CreatePyramid(12)
 	world.CreateDrawingElements()
-	world.Space.MaxConnections = 3
+	world.WorldSpace.MaxConnections = 3
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
@@ -148,7 +148,8 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 			displaySettings = false
 
 		case glfw.KeyRight:
-			world.Space.ForwardTime()
+			world.WorldSpace.ForwardTime()
+			world.CheckMax()
 			world.CreateDrawingElements()
 			displaySettings = false
 

@@ -305,6 +305,8 @@ func (col *OutgrowthCollectorMultiEvent) beginRealize() {
 			col.totalOriginalPossible += len(*l)
 		}
 	}
+	col.nbEventsOccupiedHistogram = make([]int, len(col.nbEventsOriginalHistogram))
+	col.nbEventsNoMoreConnHistogram = make([]int, len(col.nbEventsOriginalHistogram))
 	for _, stat := range col.perEvent {
 		stat.occupiedHistogram = make([]int, len(stat.originalHistogram))
 		stat.noMoreConnHistogram = make([]int, len(stat.originalHistogram))
@@ -446,8 +448,8 @@ func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
 		// nothing to show skip
 		return
 	}
-	// Only debug
-	if Log.Level > m3util.DEBUG {
+	// Only info
+	if Log.Level > m3util.INFO {
 		return
 	}
 	buf := bytes.NewBufferString("")
@@ -460,7 +462,7 @@ func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
 				colStat.nbEventsOccupiedHistogram[i], colStat.nbEventsNoMoreConnHistogram[i])
 		}
 	}
-	Log.Debug(buf.String())
+	Log.Info(buf.String())
 	for _, se := range colStat.perEvent {
 		se.displayStat()
 	}
@@ -474,7 +476,7 @@ func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
 	for pos, ePerPos := range colStat.moreThan3EventsPerPoint {
 		fmt.Fprintln(buf, "Triple sync at:", pos, "for", ePerPos)
 	}
-	Log.Debug(buf.String())
+	Log.Info(buf.String())
 }
 
 func (col *OutgrowthCollectorSameEvent) displayTrace() {

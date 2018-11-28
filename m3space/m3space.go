@@ -97,6 +97,14 @@ func (space *Space) getOrCreateNode(p Point) *Node {
 	}
 	n = &Node{&p, nil, nil,}
 	space.nodesMap[p] = n
+	for _, c := range p {
+		if c > 0 && space.Max < c {
+			space.Max = c
+		}
+		if c < 0 && space.Max < -c {
+			space.Max = -c
+		}
+	}
 	return n
 }
 
