@@ -14,7 +14,7 @@ func TestOverlapSameEvent(t *testing.T) {
 	assertEmptySpace(t, &space, 3*9)
 
 	// Only latest counting
-	space.EventOutgrowthThreshold = Distance(0)
+	space.SetEventOutgrowthThreshold(Distance(0))
 	ctx := GrowthContext{&Origin, 1, 0, false, 0}
 	space.CreateEventWithGrowthContext(Origin, RedEvent, ctx)
 
@@ -44,13 +44,17 @@ func TestOverlapSameEvent(t *testing.T) {
 }
 
 // Retrieve all nodes having outgrowth at exact distance d from the event
-func getAllNodeWithOutgrowthAtD(t *testing.T, space *Space, atD Distance) []*Node {
-	res := make([]*Node, 0, 25)
-	for _, node := range space.nodesMap {
-		for _, eo := range node.outgrowths {
+func getAllNodeWithOutgrowthAtD(t *testing.T, space *Space, atD Distance) map[Point]*Node {
+	res := make(map[Point]*Node, 25)
+	for _, evt := range space.events {
+		for _, eo := range evt.latestOutgrowths {
 			if eo.distance == atD {
-				res = append(res, node)
-				break
+				res[*eo.pos] = space.GetNode(*eo.pos)
+			}
+		}
+		for _, eo := range evt.currentOutgrowths {
+			if eo.distance == atD {
+				res[*eo.pos] = space.GetNode(*eo.pos)
 			}
 		}
 	}

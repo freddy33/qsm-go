@@ -149,7 +149,9 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 
 		case glfw.KeyRight:
 			world.WorldSpace.ForwardTime()
-			world.CheckMax()
+			if world.CheckMax() {
+				gl.BufferData(gl.ARRAY_BUFFER, world.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(world.OpenGLBuffer), gl.STATIC_DRAW)
+			}
 			world.CreateDrawingElements()
 			displaySettings = false
 

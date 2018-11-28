@@ -20,42 +20,64 @@ type SpaceVisitor interface {
 }
 
 type Space struct {
-	events      map[EventID]*Event
-	nodesMap    map[Point]*Node
-	connections []*Connection
-	currentId   EventID
-	currentTime TickTime
+	events            map[EventID]*Event
+	activeNodesMap    map[Point]*Node
+	oldNodesMap       map[Point]*Node
+	activeConnections []*Connection
+	oldConnections []*Connection
+	currentId         EventID
+	currentTime       TickTime
 	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from origin
 	Max int64
 	// Max number of connections per node
 	MaxConnections int
-	// Distance from latest to consider event outgrowth active
+	// Distance from latest below which to consider event outgrowth active
 	EventOutgrowthThreshold Distance
+	// Distance from latest above which to consider event outgrowth old
+	EventOutgrowthOldThreshold Distance
 }
 
 func MakeSpace(max int64) Space {
 	space := Space{}
 	space.events = make(map[EventID]*Event)
-	space.nodesMap = make(map[Point]*Node)
-	space.connections = make([]*Connection, 0, 500)
+	space.activeNodesMap = make(map[Point]*Node)
+	space.oldNodesMap = make(map[Point]*Node)
+	space.activeConnections = make([]*Connection, 0, 500)
 	space.currentId = 0
 	space.currentTime = 0
 	space.Max = max
 	space.MaxConnections = 3
-	space.EventOutgrowthThreshold = Distance(1)
+	space.SetEventOutgrowthThreshold(Distance(1))
 	return space
+}
+
+func (space *Space) SetEventOutgrowthThreshold(threshold Distance) {
+	if threshold > 2^50 {
+		threshold = 0
+	}
+	space.EventOutgrowthThreshold = threshold
+	// Everything more than 3 above threshold move to dead => old
+	space.EventOutgrowthOldThreshold = threshold + 3
 }
 
 func (space *Space) GetCurrentTime() TickTime {
 	return space.currentTime
 }
 
+func (space *Space) GetNbActiveNodes() int {
+	return len(space.activeNodesMap)
+}
+
 func (space *Space) GetNbNodes() int {
-	return len(space.nodesMap)
+	return len(space.activeNodesMap) + len(space.oldNodesMap)
+}
+
+func (space *Space) GetNbActiveConnections() int {
+	return len(space.activeConnections)
 }
 
 func (space *Space) GetNbConnections() int {
-	return len(space.connections)
+	return len(space.activeConnections) + len(space.oldConnections)
 }
 
 func (space *Space) GetNbEvents() int {
@@ -63,10 +85,10 @@ func (space *Space) GetNbEvents() int {
 }
 
 func (space *Space) VisitAll(visitor SpaceVisitor) {
-	for _, node := range space.nodesMap {
+	for _, node := range space.activeNodesMap {
 		visitor.VisitNode(space, node)
 	}
-	for _, conn := range space.connections {
+	for _, conn := range space.activeConnections {
 		visitor.VisitConnection(space, conn)
 	}
 }
@@ -83,20 +105,41 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) GetNode(p Point) *Node {
-	n, ok := space.nodesMap[p]
+	n, ok := space.activeNodesMap[p]
+	if ok {
+		return n
+	}
+	n, ok = space.oldNodesMap[p]
 	if ok {
 		return n
 	}
 	return nil
 }
 
+func (space *Space) getAndActivateNode(p Point) *Node {
+	n, ok := space.activeNodesMap[p]
+	if ok {
+		return n
+	}
+	n, ok = space.oldNodesMap[p]
+	if ok {
+		if !n.IsOld(space) {
+			// becomes active
+			delete(space.oldNodesMap, p)
+			space.activeNodesMap[p] = n
+		}
+		return n
+	}
+	return nil
+}
+
 func (space *Space) getOrCreateNode(p Point) *Node {
-	n := space.GetNode(p)
+	n := space.getAndActivateNode(p)
 	if n != nil {
 		return n
 	}
-	n = &Node{&p, nil, nil,}
-	space.nodesMap[p] = n
+	n = NewNode(&p)
+	space.activeNodesMap[p] = n
 	for _, c := range p {
 		if c > 0 && space.Max < c {
 			space.Max = c
@@ -135,7 +178,7 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 	}
 	// All good create connection
 	c := &Connection{n1, n2}
-	space.connections = append(space.connections, c)
+	space.activeConnections = append(space.activeConnections, c)
 	n1done := n1.AddConnection(c, space)
 	n2done := n2.AddConnection(c, space)
 	if n1done < 0 || n2done < 0 {
@@ -148,5 +191,5 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 func (space *Space) DisplayState() {
 	fmt.Println("========= Space State =========")
 	fmt.Println("Current Time", space.currentTime)
-	fmt.Println("Nb Nodes", len(space.nodesMap), ", Nb Connections", len(space.connections), ", Nb Events", len(space.events))
+	fmt.Println("Nb Active Nodes", len(space.activeNodesMap),"Nb Old Nodes", len(space.oldNodesMap), ", Nb Connections", len(space.activeConnections), ", Nb Events", len(space.events))
 }

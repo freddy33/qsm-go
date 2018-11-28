@@ -65,28 +65,32 @@ func (space *Space) ForwardTime() {
 	for _, evt := range space.events {
 		nbLatest += len(evt.latestOutgrowths)
 	}
-	Log.Infof("Stepping up time from %d => %d for %d events and %d latest outgrowths", space.currentTime, space.currentTime+1, len(space.events), nbLatest)
+	Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn",
+		space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
+		len(space.oldNodesMap), len(space.oldConnections))
 	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
 		go evt.createNewPossibleOutgrowths(c)
 	}
 	collector := space.processNewOutgrowth(c, nbLatest)
-	space.realizeAllOutgrowth(collector)
 
+	space.currentTime++
+
+	space.realizeAllOutgrowth(collector)
 	// Switch latest to old, and new to latest
 	for _, evt := range space.events {
 		evt.moveNewOutgrowthsToLatest()
 	}
-	space.currentTime++
+	space.moveOldToOldMaps()
 }
 
 func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 	for _, eg := range evt.latestOutgrowths {
 		if eg.state != EventOutgrowthLatest {
-			Log.Fatalf("Wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, *(eg.node.Pos))
+			Log.Fatalf("Wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, *(eg.pos))
 		}
 
-		nextPoints := eg.node.Pos.getNextPoints(&(evt.growthContext))
+		nextPoints := eg.pos.getNextPoints(&(evt.growthContext))
 		for _, nextPoint := range nextPoints {
 			if !eg.CameFromPoint(nextPoint) {
 				sendOutgrowth := true
@@ -152,7 +156,7 @@ func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 
 	// No problem just realize all single ones that fit
 	for _, newPosEo := range collector.single.data {
-		collector.single.realize(newPosEo)
+		collector.single.realizeSingle(newPosEo)
 	}
 	collector.single.displayStat()
 
@@ -322,7 +326,7 @@ func (colStat *OutgrowthCollectorStatSingle) processRealizeError(err error) {
 	}
 }
 
-func (colStat *OutgrowthCollectorStatSingle) realize(newPosEo *NewPossibleOutgrowth) *EventOutgrowth {
+func (colStat *OutgrowthCollectorStatSingle) realizeSingle(newPosEo *NewPossibleOutgrowth) *EventOutgrowth {
 	newEo, err := newPosEo.realize()
 	if err != nil {
 		colStat.processRealizeError(err)
@@ -654,18 +658,19 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 		Log.Warn("Event", newPosEo.event.id, "already occupy node", newNode.GetStateString())
 		return nil, &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos,}
 	}
-	fromNode := newPosEo.from.node
+	fromPoint := newPosEo.from.pos
+	fromNode := space.GetNode(*fromPoint)
 	if !fromNode.IsAlreadyConnected(newNode) {
 		Log.Trace("Need to connect the two nodes", fromNode.GetStateString(), newNode.GetStateString())
 		if space.makeConnection(fromNode, newNode) == nil {
 			// No more connections
 			Log.Debug("Two nodes", fromNode.GetStateString(), newNode.GetStateString(), "cannot be connected without exceeding", newPosEo.event.space.MaxConnections, "connections")
-			return nil, &NoMoreConnectionsError{*(newNode.Pos), *(fromNode.Pos)}
+			return nil, &NoMoreConnectionsError{*(newNode.Pos), *(fromPoint)}
 		}
 	}
-	newEo := &EventOutgrowth{newNode, evt, []*EventOutgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew}
+	newEo := &EventOutgrowth{newNode.Pos, []*EventOutgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew}
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
-	newNode.AddOutgrowth(newEo)
+	newNode.AddOutgrowth(evt.id, space.currentTime)
 	Log.Trace("Created new outgrowth", newEo.String())
 	return newEo, nil
 }
@@ -675,12 +680,41 @@ func (evt *Event) moveNewOutgrowthsToLatest() {
 	for _, eg := range evt.latestOutgrowths {
 		switch eg.state {
 		case EventOutgrowthLatest:
-			eg.state = EventOutgrowthOld
-			evt.oldOutgrowths = append(evt.oldOutgrowths, eg)
+			eg.state = EventOutgrowthCurrent
+			evt.currentOutgrowths = append(evt.currentOutgrowths, eg)
 		case EventOutgrowthNew:
 			eg.state = EventOutgrowthLatest
 			finalLatest = append(finalLatest, eg)
 		}
 	}
 	evt.latestOutgrowths = finalLatest
+
+	finalCurrent := evt.currentOutgrowths[:0]
+	for _, eg := range evt.currentOutgrowths {
+		if eg.state == EventOutgrowthCurrent && eg.IsOld(evt) {
+			eg.state = EventOutgrowthOld
+			evt.oldOutgrowths = append(evt.oldOutgrowths, eg)
+		} else {
+			finalCurrent = append(finalCurrent, eg)
+		}
+	}
+	evt.currentOutgrowths = finalCurrent
+}
+
+func (space *Space) moveOldToOldMaps() {
+	for p, node := range space.activeNodesMap {
+		if node.IsOld(space) {
+			delete(space.activeNodesMap, p)
+			space.oldNodesMap[p] = node
+		}
+	}
+	finalActive := space.activeConnections[:0]
+	for _, conn := range space.activeConnections {
+		if conn.IsOld(space) {
+			space.oldConnections = append(space.oldConnections, conn)
+		} else {
+			finalActive = append(finalActive, conn)
+		}
+	}
+	space.activeConnections = finalActive
 }

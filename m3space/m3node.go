@@ -2,10 +2,16 @@ package m3space
 
 import "fmt"
 
+type AccessedEventID struct {
+	id     EventID
+	access TickTime
+}
+
 type Node struct {
-	Pos          *Point
-	outgrowths   []*EventOutgrowth
-	connections  []*Connection
+	Pos              *Point
+	root             bool
+	accessedEventIDS []AccessedEventID
+	connections      []*Connection
 }
 
 type Connection struct {
@@ -16,6 +22,18 @@ type Connection struct {
 // Node Functions
 /***************************************************************/
 
+func NewNode(p *Point) *Node {
+	n := Node{}
+	n.Pos = p
+	return &n
+}
+
+func (node *Node) SetRoot(id EventID, time TickTime) {
+	node.root = true
+	node.accessedEventIDS = make([]AccessedEventID, 1)
+	node.accessedEventIDS[0] = AccessedEventID{id, time,}
+}
+
 func (node *Node) HasFreeConnections(space *Space) bool {
 	return node.connections == nil || len(node.connections) < space.MaxConnections
 }
@@ -25,7 +43,7 @@ func (node *Node) AddConnection(conn *Connection, space *Space) int {
 		return -1
 	}
 	if node.connections == nil {
-		node.connections = make ([]*Connection, 0, 3)
+		node.connections = make([]*Connection, 0, 3)
 	}
 	index := len(node.connections)
 	node.connections = append(node.connections, conn)
@@ -42,36 +60,51 @@ func (node *Node) IsAlreadyConnected(otherNode *Node) bool {
 }
 
 func (node *Node) IsRoot() bool {
-	for _, eo := range node.outgrowths {
-		if eo.IsRoot() {
+	return node.root
+}
+
+func (node *Node) GetLastAccessed() TickTime {
+	bestTime := TickTime(0)
+	for _, ae := range node.accessedEventIDS {
+		if ae.access > bestTime {
+			bestTime = ae.access
+		}
+	}
+	return bestTime
+}
+
+func (ae AccessedEventID) IsActive(space *Space) bool {
+	return Distance(space.currentTime-ae.access) <= space.EventOutgrowthThreshold
+}
+
+func (node *Node) IsActive(space *Space) bool {
+	if node.IsRoot() {
+		return true
+	}
+	for _, ae := range node.accessedEventIDS {
+		if ae.IsActive(space) {
 			return true
 		}
 	}
 	return false
 }
 
-func (node *Node) IsActive(threshold Distance) bool {
-	for _, eo := range node.outgrowths {
-		if eo.IsActive(threshold) {
-			return true
-		}
-	}
-	return false
-}
-
-func (node *Node) HowManyColors(threshold Distance) uint8 {
-	return countOnes(node.GetColorMask(threshold))
+func (node *Node) HowManyColors(space *Space) uint8 {
+	return countOnes(node.GetColorMask(space))
 }
 
 func countOnes(m uint8) uint8 {
-	return ((m>>7)&1) + ((m>>6)&1) + ((m>>5)&1) + ((m>>4)&1) + ((m>>3)&1) + ((m>>2)&1) + ((m>>1)&1) + (m&1)
+	return ((m >> 7) & 1) + ((m >> 6) & 1) + ((m >> 5) & 1) + ((m >> 4) & 1) + ((m >> 3) & 1) + ((m >> 2) & 1) + ((m >> 1) & 1) + (m & 1)
 }
 
-func (node *Node) GetColorMask(threshold Distance) uint8 {
+func (node *Node) GetColorMask(space *Space) uint8 {
+	if node.root {
+		return uint8(space.events[node.accessedEventIDS[0].id].color)
+	}
 	m := uint8(0)
-	for _, eo := range node.outgrowths {
-		if eo.IsActive(threshold) {
-			m |= uint8(eo.event.color)
+	for _, ae := range node.accessedEventIDS {
+		if ae.IsActive(space) {
+			m |= uint8(space.events[ae.id].color)
 		}
 	}
 	return m
@@ -85,36 +118,30 @@ func (node *Node) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
 }
 
 func (node *Node) CanReceiveEvent(id EventID) bool {
-	if node.outgrowths == nil || len(node.outgrowths) == 0 {
-		return true
-	}
-	for _, eo := range node.outgrowths {
-		if eo.event.id == id {
+	for _, ae := range node.accessedEventIDS {
+		if ae.id == id {
 			return false
 		}
 	}
 	return true
 }
 
-func (node *Node) AddOutgrowth(eo *EventOutgrowth) {
-	if node.outgrowths == nil {
-		node.outgrowths = make([]*EventOutgrowth,1,3)
-		node.outgrowths[0] = eo
-	} else {
-		node.outgrowths = append(node.outgrowths, eo)
-	}
+func (node *Node) AddOutgrowth(id EventID, time TickTime) {
+	node.accessedEventIDS = append(node.accessedEventIDS, AccessedEventID{id, time,})
 }
 
+func (node *Node) IsOld(space *Space) bool {
+	if node.IsRoot() {
+		return false
+	}
+	return Distance(space.currentTime-node.GetLastAccessed()) >= space.EventOutgrowthOldThreshold
+}
 
 func (node *Node) String() string {
-	return fmt.Sprintf("%v:%d:%d", *(node.Pos), len(node.connections), len(node.outgrowths))
+	return fmt.Sprintf("%v:%d:%d", *(node.Pos), len(node.connections), len(node.accessedEventIDS))
 }
 
 func (node *Node) GetStateString() string {
-	evtIds := make([]EventID, len(node.outgrowths))
-	for i, eo := range node.outgrowths {
-		evtIds[i] = eo.event.id
-	}
 	connIds := make([]string, len(node.connections))
 	for i, conn := range node.connections {
 		var connVect Point
@@ -123,11 +150,15 @@ func (node *Node) GetStateString() string {
 		} else if conn.N2 == node {
 			connVect = conn.N1.Pos.Sub(*node.Pos)
 		} else {
-			Log.Error("Connection",conn,"in list of node",node,"but not part of it?")
+			Log.Error("Connection", conn, "in list of node", node, "but not part of it?")
 		}
 		connIds[i] = AllConnectionsPossible[connVect].GetName()
 	}
-	return fmt.Sprintf("%v: %v, %v", *(node.Pos), evtIds, connIds)
+
+	if node.root {
+		return fmt.Sprintf("%v: root %v, %v", *(node.Pos), node.accessedEventIDS, connIds)
+	}
+	return fmt.Sprintf("%v: %v, %v", *(node.Pos), node.accessedEventIDS, connIds)
 }
 
 /***************************************************************/
@@ -138,46 +169,18 @@ func (conn *Connection) IsConnectedTo(node *Node) bool {
 	return conn.N1 == node || conn.N2 == node
 }
 
-func (conn *Connection) GetColorMask(threshold Distance) uint8 {
+func (conn *Connection) GetColorMask(space *Space) uint8 {
 	// Connection color mask of all event outgrowth that match
-	m := uint8(0)
 	if conn.N1 != nil && conn.N2 != nil {
-		for _, eo1 := range conn.N1.outgrowths {
-			if eo1.CameFrom(conn.N2) && eo1.IsActive(threshold) {
-				m |= uint8(eo1.event.color)
-			}
-		}
-		for _, eo2 := range conn.N2.outgrowths {
-			if eo2.CameFrom(conn.N1) && eo2.IsActive(threshold) {
-				m |= uint8(eo2.event.color)
-			}
-		}
+		return conn.N1.GetColorMask(space) & conn.N2.GetColorMask(space)
 	}
-	return m
+	return uint8(0)
 }
 
-func (conn *Connection) IsActive(threshold Distance) bool {
-	// 0 threshold cannot have active connections
-	if threshold == 0 {
-		return false
-	}
-	// Connection is active if event outgrowth latest match
-	if conn.N1 != nil && conn.N2 != nil {
-		for _, eo1 := range conn.N1.outgrowths {
-			if eo1.CameFrom(conn.N2) && eo1.IsActive(threshold) {
-				return true
-			}
-		}
-		for _, eo2 := range conn.N2.outgrowths {
-			if eo2.CameFrom(conn.N1) && eo2.IsActive(threshold) {
-				return true
-			}
-		}
-	}
-	return false
+func (conn *Connection) HowManyColors(space *Space) uint8 {
+	return countOnes(conn.GetColorMask(space))
 }
 
-func (conn *Connection) HowManyColors(threshold Distance) uint8 {
-	return countOnes(conn.GetColorMask(threshold))
+func (conn *Connection) IsOld(space *Space) bool {
+	return conn.N1.IsOld(space) && conn.N2.IsOld(space)
 }
-

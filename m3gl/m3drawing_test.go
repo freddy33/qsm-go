@@ -13,14 +13,14 @@ type ExpectedSpaceState struct {
 }
 
 func TestSingleRedEvent(t *testing.T) {
-	Log.Level = m3util.INFO
-	m3space.Log.Level = m3util.INFO
+	Log.Level = m3util.DEBUG
+	m3space.Log.Level = m3util.DEBUG
 	world := MakeWorld(3*9, 0.0)
 
 	assertEmptyWorld(t, &world, 3*9)
 
 	// Only latest counting
-	world.WorldSpace.EventOutgrowthThreshold = m3space.Distance(0)
+	world.WorldSpace.SetEventOutgrowthThreshold(m3space.Distance(0))
 
 	world.WorldSpace.CreateSingleEventCenter()
 	world.CreateDrawingElements()

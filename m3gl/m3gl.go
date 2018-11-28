@@ -106,23 +106,25 @@ func (world *DisplayWorld) initialized(space *m3space.Space, glfwTime float64) {
 	world.Blinker = TimeAutoVar{true, 0.5, 2.0, glfwTime, 0.0,}
 }
 
-func (world *DisplayWorld) CheckMax() {
+func (world *DisplayWorld) CheckMax() bool {
 	if world.WorldSpace.Max > world.Max {
 		max := world.WorldSpace.Max
 		world.TopCornerDist = math.Sqrt(float64(3.0*max*max)) + 1.1
 		//previousVal := world.EyeDist.Val
 		world.EyeDist = SizeVar{float64(max), world.TopCornerDist * 2.0, world.TopCornerDist * 1.5}
-/*		if previousVal < world.EyeDist.Max && previousVal > world.EyeDist.Min {
-			world.EyeDist.Val = previousVal
-		}
-*/		world.Max = max
+		/*		if previousVal < world.EyeDist.Max && previousVal > world.EyeDist.Min {
+					world.EyeDist.Val = previousVal
+				}
+		*/world.Max = max
 		world.SetMatrices()
 		if world.NbVertices == 0 {
 			world.CreateDrawingElementsMap()
 		} else {
 			world.RedrawAxesElementsMap()
 		}
+		return true
 	}
+	return false
 }
 
 var LineWidth = SizeVar{0.05, 0.5, 0.18}
@@ -205,7 +207,7 @@ func (world *DisplayWorld) ForwardTime() {
 func (world *DisplayWorld) CreateDrawingElements() {
 	space := world.WorldSpace
 	dec := DrawingElementsCreator{}
-	dec.nbElements = 6 + space.GetNbNodes() + space.GetNbConnections()
+	dec.nbElements = 6 + space.GetNbActiveNodes() + space.GetNbActiveConnections()
 	dec.elements = make([]SpaceDrawingElement, dec.nbElements)
 	dec.offset = 0
 	dec.createAxes(world.Max)

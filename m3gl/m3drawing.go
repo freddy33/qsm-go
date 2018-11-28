@@ -56,15 +56,12 @@ func (filter *SpaceDrawingFilter) DisplaySettings() {
 }
 
 func (world *DisplayWorld) EventOutgrowthThresholdIncrease() {
-	world.WorldSpace.EventOutgrowthThreshold++
+	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold+1)
 	world.CreateDrawingElements()
 }
 
 func (world *DisplayWorld) EventOutgrowthThresholdDecrease() {
-	world.WorldSpace.EventOutgrowthThreshold--
-	if world.WorldSpace.EventOutgrowthThreshold < 0 {
-		world.WorldSpace.EventOutgrowthThreshold = 0
-	}
+	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold-1)
 	world.CreateDrawingElements()
 }
 
@@ -250,7 +247,7 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 func MakeNodeDrawingElement(space *m3space.Space, node *m3space.Node) *NodeDrawingElement {
 	// Collect all the colors of event outgrowth of this node. Dim if not latest
 	sdc := SpaceDrawingColor{}
-	sdc.objColors = node.GetColorMask(space.EventOutgrowthThreshold)
+	sdc.objColors = node.GetColorMask(space)
 	// TODO: Another threshold for dim?
 	//if eo.state != EventOutgrowthLatest && !eo.IsRoot() {
 	//	sdc.dimColors |= 1 << uint8(eo.event.color)
@@ -273,7 +270,7 @@ func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection
 	n2 := conn.N2
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
-	sdc.objColors = conn.GetColorMask(space.EventOutgrowthThreshold)
+	sdc.objColors = conn.GetColorMask(space)
 	p1 := n1.Pos
 	p2 := n2.Pos
 	cd := m3space.GetConnectionDetails(*p1, *p2)

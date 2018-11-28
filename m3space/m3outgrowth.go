@@ -33,7 +33,7 @@ func (newPosEo *NewPossibleOutgrowth) String() string {
 }
 
 func (eo *EventOutgrowth) String() string {
-	return fmt.Sprintf("%v %d: %s, %d, %d", *(eo.node.Pos), eo.event.id, eo.state.String(), eo.distance, len(eo.fromList))
+	return fmt.Sprintf("%v: %s, %d, %d", *(eo.pos), eo.state.String(), eo.distance, len(eo.fromList))
 }
 
 func (eo *EventOutgrowth) AddFrom(from *EventOutgrowth) {
@@ -48,24 +48,12 @@ func (eo *EventOutgrowth) HasFrom() bool {
 	return eo.fromList != nil && len(eo.fromList) > 0
 }
 
-func (eo *EventOutgrowth) CameFrom(node *Node) bool {
-	if !eo.HasFrom() {
-		return false
-	}
-	for _, from := range eo.fromList {
-		if from.node == node {
-			return true
-		}
-	}
-	return false
-}
-
 func (eo *EventOutgrowth) CameFromPoint(point Point) bool {
 	if !eo.HasFrom() {
 		return false
 	}
 	for _, from := range eo.fromList {
-		if *(from.node.Pos) == point {
+		if *(from.pos) == point {
 			return true
 		}
 	}
@@ -76,22 +64,23 @@ func (eo *EventOutgrowth) IsRoot() bool {
 	return !eo.HasFrom()
 }
 
-func (eo *EventOutgrowth) LatestDistance() Distance {
-	if eo.state == EventOutgrowthLatest {
-		return eo.distance
+func (eo *EventOutgrowth) DistanceFromLatest(evt *Event) Distance {
+	space := evt.space
+	return Distance(space.currentTime - evt.created) - eo.distance
+}
+
+func (eo *EventOutgrowth) IsOld(evt *Event) bool {
+	if eo.IsRoot() {
+		// Root event always active
+		return false
 	}
-	return eo.event.LatestDistance()
+	return eo.DistanceFromLatest(evt) >= evt.space.EventOutgrowthOldThreshold
 }
 
-func (eo *EventOutgrowth) DistanceFromLatest() Distance {
-	latestDistance := eo.LatestDistance()
-	return latestDistance - eo.distance
-}
-
-func (eo *EventOutgrowth) IsActive(threshold Distance) bool {
+func (eo *EventOutgrowth) IsActive(evt *Event) bool {
 	if eo.IsRoot() {
 		// Root event always active
 		return true
 	}
-	return eo.DistanceFromLatest() <= threshold
+	return eo.DistanceFromLatest(evt) <= evt.space.EventOutgrowthThreshold
 }
