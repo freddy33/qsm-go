@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var LogStat = m3util.NewLogger("m3stat ", m3util.INFO)
+
 type OutgrowthCollectorStatSingle struct {
 	name             string
 	originalPoints   int
@@ -60,13 +62,16 @@ type FullOutgrowthCollector struct {
 	multiEvents OutgrowthCollectorMultiEvent
 }
 
-func (space *Space) ForwardTime() {
+func (space *Space) ForwardTime() *FullOutgrowthCollector {
 	nbLatest := 0
 	for _, evt := range space.events {
 		nbLatest += len(evt.latestOutgrowths)
 	}
 	Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn",
 		space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
+		len(space.oldNodesMap), len(space.oldConnections))
+	LogStat.Infof("%d: %d, %d, %d, %d, %d, %d",
+		space.currentTime, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
 		len(space.oldNodesMap), len(space.oldConnections))
 	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
@@ -82,6 +87,7 @@ func (space *Space) ForwardTime() {
 		evt.moveNewOutgrowthsToLatest()
 	}
 	space.moveOldToOldMaps()
+	return collector
 }
 
 func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
@@ -200,13 +206,17 @@ func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 				ids[i] = id
 				i++
 			}
-			sort.Slice(ids, func(i, j int) bool {
-				return ids[i] < ids[j]
-			})
+			SortEventIDs(&ids)
 			collector.multiEvents.moreThan3EventsPerPoint[pos] = ids
 		}
 	}
 	collector.multiEvents.displayStat()
+}
+
+func SortEventIDs(ids *[]EventID) {
+	sort.Slice(*ids, func(i, j int) bool {
+		return (*ids)[i] < (*ids)[j]
+	})
 }
 
 func MakeOutgrowthCollector(nbLatest int) *FullOutgrowthCollector {
@@ -418,10 +428,10 @@ func (colStat *OutgrowthCollectorStatSingle) displayStat() {
 		return
 	}
 	// Only debug
-	if Log.Level > m3util.DEBUG {
+	if LogStat.Level > m3util.DEBUG {
 		return
 	}
-	Log.Debugf("%12s  : %6d / %6d / %6d", colStat.name,
+	LogStat.Debugf("%12s  : %6d / %6d / %6d", colStat.name,
 		colStat.originalPoints, colStat.occupiedPoints, colStat.noMoreConnPoints)
 }
 
@@ -431,7 +441,7 @@ func (colStat *OutgrowthCollectorStatSameEvent) displayStat() {
 		return
 	}
 	// Only debug
-	if Log.Level > m3util.DEBUG {
+	if LogStat.Level > m3util.DEBUG {
 		return
 	}
 	buf := bytes.NewBufferString("")
@@ -444,7 +454,7 @@ func (colStat *OutgrowthCollectorStatSameEvent) displayStat() {
 				colStat.occupiedHistogram[i], colStat.noMoreConnHistogram[i])
 		}
 	}
-	Log.Debug(buf.String())
+	LogStat.Debug(buf.String())
 }
 
 func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
@@ -452,35 +462,37 @@ func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
 		// nothing to show skip
 		return
 	}
-	// Only info
-	if Log.Level > m3util.INFO {
-		return
-	}
-	buf := bytes.NewBufferString("")
-	fmt.Fprintf(buf, "%12s  : %6d / %6d / %6d | %6d / %6d / %6d", colStat.name,
-		colStat.originalPoints, colStat.occupiedPoints, colStat.noMoreConnPoints,
-		colStat.totalOriginalPossible, colStat.totalOccupiedPossible, colStat.totalNoMoreConnPossible)
-	if len(colStat.nbEventsOriginalHistogram) > 1 {
-		for i, j := range colStat.nbEventsOriginalHistogram {
-			fmt.Fprintf(buf, "\n%12s %d: %6d / %6d / %6d", colStat.name, i+StartWithTwoHistoDelta, j,
-				colStat.nbEventsOccupiedHistogram[i], colStat.nbEventsNoMoreConnHistogram[i])
+
+	// Only debug
+	if LogStat.Level <= m3util.DEBUG {
+		buf := bytes.NewBufferString("")
+		fmt.Fprintf(buf, "%12s  : %6d / %6d / %6d | %6d / %6d / %6d", colStat.name,
+			colStat.originalPoints, colStat.occupiedPoints, colStat.noMoreConnPoints,
+			colStat.totalOriginalPossible, colStat.totalOccupiedPossible, colStat.totalNoMoreConnPossible)
+		if len(colStat.nbEventsOriginalHistogram) > 1 {
+			for i, j := range colStat.nbEventsOriginalHistogram {
+				fmt.Fprintf(buf, "\n%12s %d: %6d / %6d / %6d", colStat.name, i+StartWithTwoHistoDelta, j,
+					colStat.nbEventsOccupiedHistogram[i], colStat.nbEventsNoMoreConnHistogram[i])
+			}
+		}
+		LogStat.Debug(buf.String())
+		for _, se := range colStat.perEvent {
+			se.displayStat()
 		}
 	}
-	Log.Info(buf.String())
-	for _, se := range colStat.perEvent {
-		se.displayStat()
-	}
+
 	nbEventsPerPoints := len(colStat.moreThan3EventsPerPoint)
 	if nbEventsPerPoints == 0 {
 		// Nothing left
 		return
 	}
-	buf = bytes.NewBufferString("")
+	buf := bytes.NewBufferString("")
 	fmt.Fprintf(buf, "Points with more than 3 events %d \n", nbEventsPerPoints)
 	for pos, ePerPos := range colStat.moreThan3EventsPerPoint {
 		fmt.Fprintln(buf, "Triple sync at:", pos, "for", ePerPos)
 	}
 	Log.Info(buf.String())
+	LogStat.Info(buf.String())
 }
 
 func (col *OutgrowthCollectorSameEvent) displayTrace() {

@@ -5,12 +5,12 @@ import (
 	"github.com/freddy33/qsm-go/m3util"
 )
 
+var Log = m3util.NewLogger("m3space", m3util.INFO)
+
 const (
 	// Where the number matters and appear. Remember that 3 is the number!
 	THREE = 3
 )
-
-var Log = m3util.NewLogger("m3space", m3util.INFO)
 
 type TickTime uint64
 

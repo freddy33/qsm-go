@@ -2,21 +2,22 @@ package playgl
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/m3util"
-	"github.com/go-gl/glfw/v3.2/glfw"
-	"runtime"
-	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/freddy33/qsm-go/m3gl"
-	"strings"
 	"github.com/freddy33/qsm-go/m3space"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/go-gl/mathgl/mgl32"
+	"runtime"
+	"strings"
 )
+
+var Log = m3util.NewLogger("playgl ", m3util.INFO)
 
 const windowWidth = 800
 const windowHeight = 600
 
 var world m3gl.DisplayWorld
-var Log = m3util.NewLogger("playgl", m3util.INFO)
 
 func DisplayPlay1() {
 	runtime.LockOSThread()

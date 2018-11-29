@@ -9,6 +9,8 @@ import (
 	"math"
 )
 
+var Log = m3util.NewLogger("m3gl", m3util.INFO)
+
 // OpenGL const
 const (
 	FloatSize          = 4
@@ -69,8 +71,6 @@ type OpenGLDrawingElement struct {
 	OpenGLOffset int32
 	NbVertices   int32
 }
-
-var Log = m3util.NewLogger("m3gl", m3util.INFO)
 
 func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 	if Max%m3space.THREE != 0 {

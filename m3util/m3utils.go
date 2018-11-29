@@ -21,10 +21,12 @@ type Logger struct {
 	Level LogLevel
 }
 
-var Log = NewLogger("m3util", INFO)
-
 func NewLogger(prefix string, level LogLevel) *Logger {
 	return &Logger{log.New(os.Stdout, prefix + " ", log.LstdFlags|log.Lshortfile), level}
+}
+
+func NewDataLogger(prefix string, level LogLevel) *Logger {
+	return &Logger{log.New(os.Stdout, prefix + " ", 0), level}
 }
 
 func (l *Logger) Trace(a ...interface{}) {
@@ -41,7 +43,10 @@ func (l *Logger) Tracef(format string, v ...interface{}) {
 
 func (l *Logger) Debug(a ...interface{}) {
 	if l.Level <= DEBUG {
-		l.log.Print("DEBUG ", fmt.Sprintln(a...))
+		err := l.log.Output(2, fmt.Sprintln(append([]interface{}{"DEBUG"}, a...)))
+		if err != nil {
+			log.Print(err)
+		}
 	}
 }
 
