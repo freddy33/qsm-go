@@ -39,11 +39,40 @@ type Event struct {
 	latestOutgrowths  []*EventOutgrowth
 }
 
+type SavedEvent struct {
+	id                   EventID
+	node                 SavedNode
+	created              TickTime
+	color                EventColor
+	growthContext        GrowthContext
+	savedLatestOutgrowth []SavedEventOutgrowth
+}
+
 type EventOutgrowth struct {
 	pos      *Point
 	fromList []*EventOutgrowth
 	distance Distance
 	state    EventOutgrowthState
+}
+
+type SavedEventOutgrowth struct {
+	pos             Point
+	fromConnections []int8
+	distance        Distance
+}
+
+type Outgrowth interface {
+	GetPoint() *Point
+	GetFromList() []*Outgrowth
+	GetDistance() Distance
+	GetState() EventOutgrowthState
+	AddFromToList(from *Outgrowth)
+	CameFromPoint(point Point) bool
+	HasFrom() bool
+	IsRoot() bool
+	DistanceFromLatest(evt *Event) Distance
+	IsActive(evt *Event) bool
+	IsOld(evt *Event) bool
 }
 
 func (eos EventOutgrowthState) String() string {

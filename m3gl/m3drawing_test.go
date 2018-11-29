@@ -80,7 +80,7 @@ func assertSpaceSingleEvent(t *testing.T, world *DisplayWorld, time m3space.Tick
 	assert.Equal(t, nbNodes, world.WorldSpace.GetNbNodes(), "failed at %d", time)
 	assert.Equal(t, nbConnections, world.WorldSpace.GetNbConnections(), "failed at %d", time)
 	assert.Equal(t, 1, world.WorldSpace.GetNbEvents(), "failed at %d", time)
-	assert.Equal(t, nbNodes+nbConnections+6, len(world.Elements), "failed at %d", time)
+	assert.Equal(t, world.WorldSpace.GetNbActiveNodes()+world.WorldSpace.GetNbActiveConnections()+6, len(world.Elements), "failed at %d", time)
 	nbDisplay := 0
 	collectActiveElements := make([]*NodeDrawingElement, 0, 20)
 	for _, draw := range world.Elements {

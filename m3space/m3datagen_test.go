@@ -58,15 +58,17 @@ func TestStatPack(t *testing.T) {
 	space.blockOnSameEvent = 2
 	InitConnectionDetails()
 	space.SetEventOutgrowthThreshold(Distance(0))
-	space.CreatePyramid(10)
+	space.CreatePyramid(20)
+	/*
 	i:=0
 	for _, evt := range space.events {
-		evt.growthContext.permutationType = 4
-		evt.growthContext.permutationIndex = i*3
-		evt.growthContext.permutationOffset = i
+		evt.growthContext.permutationType = 1
+		evt.growthContext.permutationIndex = i*2
+		evt.growthContext.permutationOffset = 0
 		evt.growthContext.permutationNegFlow = false
 		i++
 	}
+	*/
 
 	pyramidPoints := [4]Point{}
 	idx := 0
@@ -77,7 +79,7 @@ func TestStatPack(t *testing.T) {
 	LogDatagen.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := TickTime(0)
-	for expectedTime < 200 {
+	for expectedTime < 100 {
 		assert.Equal(t, expectedTime, space.currentTime)
 		col := space.ForwardTime()
 		expectedTime++

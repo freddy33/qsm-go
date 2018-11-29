@@ -7,6 +7,7 @@ type Trio [3]Point
 var AllBaseTrio [8]Trio
 
 var AllConnectionsPossible map[Point]ConnectionDetails
+var connectionsIds map[int8]ConnectionDetails
 
 type ConnectionDetails struct {
 	Vector     Point
@@ -28,11 +29,19 @@ func init() {
 	}
 }
 
+func (cd ConnectionDetails) GetIntId() int8 {
+	if cd.ConnNeg {
+		return -int8(cd.ConnNumber)
+	} else {
+		return int8(cd.ConnNumber)
+	}
+}
+
 func (cd ConnectionDetails) GetName() string {
 	if cd.ConnNeg {
-		return fmt.Sprintf("CN%02d",cd.ConnNumber)
+		return fmt.Sprintf("CN%02d", cd.ConnNumber)
 	} else {
-		return fmt.Sprintf("CP%02d",cd.ConnNumber)
+		return fmt.Sprintf("CP%02d", cd.ConnNumber)
 	}
 }
 
@@ -182,6 +191,7 @@ func InitConnectionDetails() uint8 {
 
 	// Reordering connection details number by size, and x, y, z
 	newOrderedMap := make(map[Point]ConnectionDetails)
+	connectionsIds = make(map[int8]ConnectionDetails)
 	for currentConnNumber := uint8(0); currentConnNumber < uint8(nbConnDetails); currentConnNumber++ {
 		var smallestCD *ConnectionDetails
 		for _, cd := range connMap {
@@ -207,6 +217,8 @@ func InitConnectionDetails() uint8 {
 		negSmallestCD := connMap[negVec]
 		negSmallestCD.ConnNumber = currentConnNumber
 		newOrderedMap[negVec] = *negSmallestCD
+		connectionsIds[smallestCD.GetIntId()] = *smallestCD
+		connectionsIds[negSmallestCD.GetIntId()] = *negSmallestCD
 	}
 	AllConnectionsPossible = newOrderedMap
 

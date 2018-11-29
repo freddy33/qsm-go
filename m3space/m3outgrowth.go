@@ -10,6 +10,10 @@ type NewPossibleOutgrowth struct {
 	state    EventOutgrowthState
 }
 
+/***************************************************************/
+// Realize Errors
+/***************************************************************/
+
 type EventAlreadyGrewThereError struct {
 	id  EventID
 	pos Point
@@ -28,8 +32,45 @@ func (e *NoMoreConnectionsError) Error() string {
 	return fmt.Sprintf("node at %v already has full connections and cannot connect to %v", e.pos, e.otherPos)
 }
 
+/***************************************************************/
+// NewPossibleOutgrowth Functions
+/***************************************************************/
+
 func (newPosEo *NewPossibleOutgrowth) String() string {
 	return fmt.Sprintf("NP %v %d: %s, %d", newPosEo.pos, newPosEo.event.id, newPosEo.state.String(), newPosEo.distance)
+}
+
+/***************************************************************/
+// EventOutgrowth Functions
+/***************************************************************/
+
+func (eo *EventOutgrowth) GetPoint() *Point {
+	return eo.pos
+}
+
+func (eo *EventOutgrowth) GetFromList() []*Outgrowth {
+	res := make([]*Outgrowth, len(eo.fromList))
+	for i, from := range eo.fromList {
+		ifc := Outgrowth(from)
+		res[i] = &ifc
+	}
+	return res
+}
+
+func (eo *EventOutgrowth) GetDistance() Distance {
+	return eo.distance
+}
+
+func (eo *EventOutgrowth) GetState() EventOutgrowthState {
+	return eo.state
+}
+
+func (eo *EventOutgrowth) AddFromToList(from *Outgrowth) {
+	res, ok := (*from).(*EventOutgrowth)
+	if !ok {
+		Log.Fatalf("type issue on %v", from)
+	}
+	eo.AddFrom(res)
 }
 
 func (eo *EventOutgrowth) String() string {

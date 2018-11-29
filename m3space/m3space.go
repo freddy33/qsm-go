@@ -49,6 +49,7 @@ func MakeSpace(max int64) Space {
 	space.currentTime = 0
 	space.Max = max
 	space.MaxConnections = 3
+	space.blockOnSameEvent = 6
 	space.SetEventOutgrowthThreshold(Distance(1))
 	return space
 }

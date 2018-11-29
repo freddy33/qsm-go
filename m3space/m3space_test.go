@@ -14,7 +14,8 @@ type ExpectedSpaceState struct {
 }
 
 func TestSingleRedEventD0(t *testing.T) {
-	Log.Level = m3util.INFO
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
 	InitConnectionDetails()
 	for trioIdx := 0; trioIdx < 12; trioIdx++ {
 		space := MakeSpace(3 * 9)
@@ -190,8 +191,8 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 
 func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, nbConnections, nbActive, nbMainPoints, nbActiveMainPoints int, contextMsg string) {
 	assert.Equal(t, time, space.currentTime, contextMsg)
-	assert.Equal(t, nbNodes, len(space.activeNodesMap), "%s: nbNodes failed at %d", contextMsg, time)
-	assert.Equal(t, nbConnections, len(space.activeConnections), "%s: nbConnections failed at %d", contextMsg, time)
+	assert.Equal(t, nbNodes, space.GetNbNodes(), "%s: nbNodes failed at %d", contextMsg, time)
+	assert.Equal(t, nbConnections, space.GetNbConnections(), "%s: nbConnections failed at %d", contextMsg, time)
 	assert.Equal(t, 1, len(space.events), "%s: nbEvents failed at %d", contextMsg, time)
 	totalNodeActive := 0
 	totalMainPoints := 0

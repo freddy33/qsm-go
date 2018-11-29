@@ -14,6 +14,12 @@ type Node struct {
 	connections      []*Connection
 }
 
+type SavedNode struct {
+	root             bool
+	accessedEventIDS []AccessedEventID
+	connections      []int8
+}
+
 type Connection struct {
 	N1, N2 *Node
 }
