@@ -55,7 +55,7 @@ func TestStatPack(t *testing.T) {
 	fmt.Println(stat.StdDev([]float64{1.3, 1.5, 1.7, 1.1}, nil))
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
-	space.blockOnSameEvent = 3
+	space.blockOnSameEvent = 2
 	InitConnectionDetails()
 	space.SetEventOutgrowthThreshold(Distance(0))
 	space.CreatePyramid(10)
