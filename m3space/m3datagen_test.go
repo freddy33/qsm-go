@@ -10,7 +10,7 @@ import (
 
 type ThreeIds [3]EventID
 
-var LogDatagen = m3util.NewLogger("datagen ", m3util.DEBUG)
+var LogDatagen = m3util.NewDataLogger("datagen", m3util.DEBUG)
 
 func MakeThreeIds(ids []EventID) []ThreeIds {
 	SortEventIDs(&ids)
@@ -54,9 +54,19 @@ func TestStatPack(t *testing.T) {
 	LogStat.Level = m3util.INFO
 	fmt.Println(stat.StdDev([]float64{1.3, 1.5, 1.7, 1.1}, nil))
 	space := MakeSpace(3 * 30)
+	space.MaxConnections = 3
+	space.blockOnSameEvent = 3
 	InitConnectionDetails()
 	space.SetEventOutgrowthThreshold(Distance(0))
-	space.CreatePyramid(18)
+	space.CreatePyramid(10)
+	i:=0
+	for _, evt := range space.events {
+		evt.growthContext.permutationType = 4
+		evt.growthContext.permutationIndex = i*3
+		evt.growthContext.permutationOffset = i
+		evt.growthContext.permutationNegFlow = false
+		i++
+	}
 
 	pyramidPoints := [4]Point{}
 	idx := 0
@@ -64,7 +74,7 @@ func TestStatPack(t *testing.T) {
 		pyramidPoints[idx] = p
 		idx++
 	}
-	LogDatagen.Info("Starting with pyramid size of ", GetPyramidSize(pyramidPoints))
+	LogDatagen.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := TickTime(0)
 	for expectedTime < 200 {
@@ -73,7 +83,7 @@ func TestStatPack(t *testing.T) {
 		expectedTime++
 		// This collection contains all the points activated by 3 separate events at the same time
 		if len(col.multiEvents.moreThan3EventsPerPoint) >= 3 {
-			LogDatagen.Debugf("Analyzing match with %d elements in %v", len(col.multiEvents.moreThan3EventsPerPoint), col.multiEvents.moreThan3EventsPerPoint)
+			LogDatagen.Infof("Analyzing match with %d elements", len(col.multiEvents.moreThan3EventsPerPoint))
 			// Reorganizing the map into maps of block of three ids
 			eventsPerPoints := make(map[Point]map[ThreeIds]int, 4)
 			allThreeIds := make(map[ThreeIds]int, 4)
@@ -101,12 +111,12 @@ func TestStatPack(t *testing.T) {
 				}
 				eventsPerPoints[p] = threeIds
 			}
-			LogDatagen.Debugf("Reorganization of map size %d elements in %v", len(eventsPerPoints), eventsPerPoints)
-			LogDatagen.Debugf("All three ids size %d in %v", len(allThreeIds), allThreeIds)
-			LogDatagen.Debugf("Points per events size is %d in %v filtering less than three points", len(pointsPerEvent), pointsPerEvent)
+			LogDatagen.Debugf("Reorganization of maps points=%d, events=%d, threeIds=%d, full=%v", len(eventsPerPoints), len(pointsPerEvent), len(allThreeIds), allThreeIds)
 			validEventIds := make([]EventID, 0, 3)
+			maxPoints := 0
 			for id, points := range pointsPerEvent {
-				if len(points) < 3 {
+				nbPoints := len(points)
+				if nbPoints < 3 {
 					LogDatagen.Debug("Event id", id, "does not have enough points. Removing it!")
 					delete(pointsPerEvent, id)
 					for p, threeIds := range eventsPerPoints {
@@ -124,6 +134,9 @@ func TestStatPack(t *testing.T) {
 					}
 				} else {
 					validEventIds = append(validEventIds, id)
+					if nbPoints > maxPoints {
+						maxPoints = nbPoints
+					}
 				}
 			}
 			SortEventIDs(&validEventIds)
@@ -132,27 +145,70 @@ func TestStatPack(t *testing.T) {
 					delete(eventsPerPoints, p)
 				}
 			}
-			LogDatagen.Debugf("After filter: validIds=%d events=%d points=%d", len(validEventIds), len(pointsPerEvent), len(eventsPerPoints))
+			LogDatagen.Debugf("After filter: validIds=%d events=%d points=%d vslidIds=%v", len(validEventIds), len(pointsPerEvent), len(eventsPerPoints), validEventIds)
 
 			if len(pointsPerEvent) >= 3 && len(validEventIds) >= 3 && len(eventsPerPoints) >= 3 {
 				LogDatagen.Info("Found a 3 match")
 				if len(pointsPerEvent) >= 4 && len(validEventIds) >= 4 && len(eventsPerPoints) >= 4 {
-					idx = 0
-					for p := range eventsPerPoints {
-						pyramidPoints[idx] = p
-						idx++
-						if idx == 4 {
-							break
+					LogDatagen.Info("Found a 4 match")
+					builder := PyramidBuilder{pointsPerEvent, validEventIds, make([][4]Point, 0),}
+					builder.processEventId(validEventIds[0], [4]Point{})
+					allPyramids := builder.allPyramids
+					LogDatagen.Infof("AllPyramids %d", len(allPyramids))
+					assert.True(t, len(allPyramids) > 0)
+					if len(allPyramids) > 1 {
+						bestSize := int64(0)
+						var bestPyramid [4]Point
+						for _, pyramid := range allPyramids {
+							size := GetPyramidSize(pyramid)
+							LogDatagen.Debugf("%v : %d", pyramid, size)
+							if size > bestSize {
+								bestSize = size
+								bestPyramid = pyramid
+							}
 						}
+						LogDatagen.Infof("We have a winner %v at size %d", bestPyramid, bestSize)
+						break
 					}
-					LogDatagen.Info("We have a winner at size", GetPyramidSize(pyramidPoints))
-					break
 				}
 			}
 		}
 	}
 }
 
-type ThreeEventsCollector struct {
-	points []Point
+type PyramidBuilder struct {
+	pointsPerEvent map[EventID][]Point
+	validEventIds  []EventID
+	allPyramids    [][4]Point
+}
+
+func (b *PyramidBuilder) processEventId(evtId EventID, pyramid [4]Point) {
+	evtIdIdx := -1
+	for i, validId := range b.validEventIds {
+		if validId == evtId {
+			evtIdIdx = i
+			break
+		}
+	}
+	if evtIdIdx < 0 {
+		LogDatagen.Fatalf("did not find event id %d in valid list %v", evtId, b.validEventIds)
+	}
+	for _, p := range b.pointsPerEvent[evtId] {
+		pointAlreadyThere := false
+		if evtIdIdx > 0 {
+			for j := 0; j < evtIdIdx; j++ {
+				if pyramid[j] == p {
+					pointAlreadyThere = true
+				}
+			}
+		}
+		if !pointAlreadyThere {
+			pyramid[evtIdIdx] = p
+			if evtIdIdx+1 < len(b.validEventIds) {
+				b.processEventId(b.validEventIds[evtIdIdx+1], pyramid)
+			} else {
+				b.allPyramids = append(b.allPyramids, pyramid)
+			}
+		}
+	}
 }

@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-var Log = m3util.NewLogger("playgl ", m3util.INFO)
+var Log = m3util.NewLogger("playgl", m3util.INFO)
 
 const windowWidth = 800
 const windowHeight = 600

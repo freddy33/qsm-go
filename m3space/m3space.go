@@ -27,10 +27,12 @@ type Space struct {
 	oldConnections []*Connection
 	currentId         EventID
 	currentTime       TickTime
-	// Max size of all CurrentSpace. TODO: Make it variable using the furthest node from origin
+	// Max absolute coordinate in all nodes
 	Max int64
 	// Max number of connections per node
 	MaxConnections int
+	// Cancel on same event conflict
+	blockOnSameEvent int
 	// Distance from latest below which to consider event outgrowth active
 	EventOutgrowthThreshold Distance
 	// Distance from latest above which to consider event outgrowth old

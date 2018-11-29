@@ -29,6 +29,10 @@ func NewDataLogger(prefix string, level LogLevel) *Logger {
 	return &Logger{log.New(os.Stdout, prefix + " ", 0), level}
 }
 
+func NewStatLogger(prefix string, level LogLevel) *Logger {
+	return &Logger{log.New(os.Stdout, prefix + " ", log.Ltime|log.Lmicroseconds), level}
+}
+
 func (l *Logger) Trace(a ...interface{}) {
 	if l.Level <= TRACE {
 		l.log.Print("TRACE ", fmt.Sprintln(a...))

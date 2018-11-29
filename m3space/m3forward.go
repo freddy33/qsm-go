@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var LogStat = m3util.NewLogger("m3stat ", m3util.INFO)
+var LogStat = m3util.NewStatLogger("m3stat", m3util.INFO)
 
 type OutgrowthCollectorStatSingle struct {
 	name             string
@@ -373,12 +373,18 @@ func (colStat *OutgrowthCollectorStatSameEvent) processRealizeError(err error, s
 }
 
 func (colStat *OutgrowthCollectorStatSameEvent) realizeSameEvent(newPosEo *NewPossibleOutgrowth, size int) (*EventOutgrowth, error) {
-	newEo, err := newPosEo.realize()
-	if err != nil {
+	if size >= newPosEo.event.space.blockOnSameEvent {
+		err := &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos,}
 		colStat.processRealizeError(err, size, StartWithTwoHistoDelta)
 		return nil, err
+	} else {
+		newEo, err := newPosEo.realize()
+		if err != nil {
+			colStat.processRealizeError(err, size, StartWithTwoHistoDelta)
+			return nil, err
+		}
+		return newEo, nil
 	}
-	return newEo, nil
 }
 
 func (colStat *OutgrowthCollectorStatMultiEvent) setNewPoint() {
