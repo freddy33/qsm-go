@@ -711,7 +711,7 @@ func (evt *Event) moveNewOutgrowthsToLatest() {
 	for _, eg := range evt.currentOutgrowths {
 		if eg.state == EventOutgrowthCurrent && eg.IsOld(evt) {
 			eg.state = EventOutgrowthOld
-			evt.oldOutgrowths = append(evt.oldOutgrowths, eg)
+
 		} else {
 			finalCurrent = append(finalCurrent, eg)
 		}

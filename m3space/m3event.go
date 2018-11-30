@@ -34,7 +34,6 @@ type Event struct {
 	created           TickTime
 	color             EventColor
 	growthContext     GrowthContext
-	oldOutgrowths     []*EventOutgrowth
 	currentOutgrowths []*EventOutgrowth
 	latestOutgrowths  []*EventOutgrowth
 }
@@ -122,7 +121,7 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	space.currentId++
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
-		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
+		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
 	e.latestOutgrowths[0] = &EventOutgrowth{n.Pos, nil, Distance(0), EventOutgrowthLatest}
 	space.events[id] = &e
 	ctx.center = n.Pos

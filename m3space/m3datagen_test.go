@@ -5,6 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"gonum.org/v1/gonum/stat"
+	"sort"
 	"testing"
 )
 
@@ -49,13 +50,46 @@ func GetPyramidSize(points [4]Point) int64 {
 	return totalSize
 }
 
+type Pyramid [4]Point
+
+func (pyramid Pyramid) ordered() Pyramid {
+	slice := make([]Point, 4)
+	for i, p := range pyramid {
+		slice[i] = p
+	}
+	sort.Slice(slice, func(i, j int) bool {
+		iP := slice[i]
+		jP := slice[j]
+		if iP.X() < jP.X() {
+			return true
+		}
+		if iP.X() > jP.X() {
+			return false
+		}
+		if iP.Y() < jP.Y() {
+			return true
+		}
+		if iP.Y() > jP.Y() {
+			return false
+		}
+		if iP.Z() < jP.Z() {
+			return true
+		}
+		if iP.Z() > jP.Z() {
+			return false
+		}
+		return false
+	})
+	return Pyramid{slice[0], slice[1], slice[2], slice[3],}
+}
+
 func TestStatPack(t *testing.T) {
 	Log.Level = m3util.WARN
 	LogStat.Level = m3util.INFO
 	fmt.Println(stat.StdDev([]float64{1.3, 1.5, 1.7, 1.1}, nil))
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
-	space.blockOnSameEvent = 2
+	space.blockOnSameEvent = 3
 	InitConnectionDetails()
 	space.SetEventOutgrowthThreshold(Distance(0))
 	space.CreatePyramid(20)
@@ -70,7 +104,7 @@ func TestStatPack(t *testing.T) {
 	}
 	*/
 
-	pyramidPoints := [4]Point{}
+	pyramidPoints := Pyramid{}
 	idx := 0
 	for p := range space.activeNodesMap {
 		pyramidPoints[idx] = p
@@ -79,7 +113,7 @@ func TestStatPack(t *testing.T) {
 	LogDatagen.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := TickTime(0)
-	for expectedTime < 100 {
+	for expectedTime < 200 {
 		assert.Equal(t, expectedTime, space.currentTime)
 		col := space.ForwardTime()
 		expectedTime++
@@ -153,16 +187,15 @@ func TestStatPack(t *testing.T) {
 				LogDatagen.Info("Found a 3 match")
 				if len(pointsPerEvent) >= 4 && len(validEventIds) >= 4 && len(eventsPerPoints) >= 4 {
 					LogDatagen.Info("Found a 4 match")
-					builder := PyramidBuilder{pointsPerEvent, validEventIds, make([][4]Point, 0),}
-					builder.processEventId(validEventIds[0], [4]Point{})
+					builder := PyramidBuilder{pointsPerEvent, validEventIds, make(map[Pyramid]int64, 1),}
+					builder.processEventId(validEventIds[0], Pyramid{})
 					allPyramids := builder.allPyramids
 					LogDatagen.Infof("AllPyramids %d", len(allPyramids))
 					assert.True(t, len(allPyramids) > 0)
 					if len(allPyramids) > 1 {
 						bestSize := int64(0)
 						var bestPyramid [4]Point
-						for _, pyramid := range allPyramids {
-							size := GetPyramidSize(pyramid)
+						for pyramid, size := range allPyramids {
 							LogDatagen.Debugf("%v : %d", pyramid, size)
 							if size > bestSize {
 								bestSize = size
@@ -181,10 +214,10 @@ func TestStatPack(t *testing.T) {
 type PyramidBuilder struct {
 	pointsPerEvent map[EventID][]Point
 	validEventIds  []EventID
-	allPyramids    [][4]Point
+	allPyramids    map[Pyramid]int64
 }
 
-func (b *PyramidBuilder) processEventId(evtId EventID, pyramid [4]Point) {
+func (b *PyramidBuilder) processEventId(evtId EventID, pyramid Pyramid) {
 	evtIdIdx := -1
 	for i, validId := range b.validEventIds {
 		if validId == evtId {
@@ -209,7 +242,8 @@ func (b *PyramidBuilder) processEventId(evtId EventID, pyramid [4]Point) {
 			if evtIdIdx+1 < len(b.validEventIds) {
 				b.processEventId(b.validEventIds[evtIdIdx+1], pyramid)
 			} else {
-				b.allPyramids = append(b.allPyramids, pyramid)
+				orderedPyramid := pyramid.ordered()
+				b.allPyramids[orderedPyramid] = GetPyramidSize(orderedPyramid)
 			}
 		}
 	}
