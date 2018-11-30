@@ -686,7 +686,7 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 			return nil, &NoMoreConnectionsError{*(newNode.Pos), *(fromPoint)}
 		}
 	}
-	newEo := &EventOutgrowth{newNode.Pos, []Outgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew}
+	newEo := &EventOutgrowth{newNode.Pos, []Outgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew, nil,}
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(evt.id, space.currentTime)
 	Log.Trace("Created new outgrowth", newEo.String())

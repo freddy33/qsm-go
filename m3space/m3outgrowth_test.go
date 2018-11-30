@@ -58,6 +58,7 @@ func TestOverlapSameEvent(t *testing.T) {
 	}
 	assert.Equal(t, nbLatestNodes-13, len(latestOutgrowths))
 	Log.Info("From size histo", fromSizeHisto)
+
 }
 
 // Retrieve all nodes having outgrowth at exact distance d from the event

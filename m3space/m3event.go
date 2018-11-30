@@ -6,23 +6,11 @@ type Distance uint64
 
 type EventColor uint8
 
-type EventOutgrowthState uint8
-
 const (
 	RedEvent EventColor = 1 << iota
 	GreenEvent
 	BlueEvent
 	YellowEvent
-)
-
-const (
-	EventOutgrowthLatest EventOutgrowthState = iota
-	EventOutgrowthNew
-	EventOutgrowthCurrent
-	EventOutgrowthOld
-	EventOutgrowthEnd
-	EventOutgrowthManySameEvent
-	EventOutgrowthMultipleEvents
 )
 
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
@@ -45,55 +33,6 @@ type SavedEvent struct {
 	color                EventColor
 	growthContext        GrowthContext
 	savedLatestOutgrowth []SavedEventOutgrowth
-}
-
-type EventOutgrowth struct {
-	pos      *Point
-	fromList []Outgrowth
-	distance Distance
-	state    EventOutgrowthState
-}
-
-type SavedEventOutgrowth struct {
-	pos             Point
-	fromConnections []int8
-	distance        Distance
-}
-
-type Outgrowth interface {
-	GetPoint() *Point
-	GetDistance() Distance
-	GetState() EventOutgrowthState
-	AddFrom(from Outgrowth)
-	CameFromPoint(point Point) bool
-	FromLength() int
-	HasFrom() bool
-	IsRoot() bool
-	DistanceFromLatest(evt *Event) Distance
-	IsActive(evt *Event) bool
-	IsOld(evt *Event) bool
-}
-
-func (eos EventOutgrowthState) String() string {
-	switch eos {
-	case EventOutgrowthLatest:
-		return "Latest"
-	case EventOutgrowthNew:
-		return "New"
-	case EventOutgrowthCurrent:
-		return "Current"
-	case EventOutgrowthOld:
-		return "Old"
-	case EventOutgrowthEnd:
-		return "End"
-	case EventOutgrowthManySameEvent:
-		return "SameEvent"
-	case EventOutgrowthMultipleEvents:
-		return "MultiEvents"
-	default:
-		Log.Error("Got an event outgrowth state unknown:", int(eos))
-	}
-	return "unknown"
 }
 
 func (space *Space) CreateEvent(p Point, k EventColor) *Event {
@@ -123,7 +62,7 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
 		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
-	e.latestOutgrowths[0] = &EventOutgrowth{n.Pos, nil, Distance(0), EventOutgrowthLatest}
+	e.latestOutgrowths[0] = &EventOutgrowth{n.Pos, nil, Distance(0), EventOutgrowthLatest, nil,}
 	space.events[id] = &e
 	ctx.center = n.Pos
 	return &e
