@@ -138,7 +138,7 @@ func TestAllTrio(t *testing.T) {
 		BackToOrig := Origin
 		for j, vec := range tr {
 			for c := 0; c < 3; c++ {
-				abs := Abs(vec[c])
+				abs := Abs64(vec[c])
 				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of connecting vector %d %d %d = %v", i, j, c, vec)
 			}
 			assert.Equal(t, int64(2), vec.DistanceSquared(), "Failed vec at %d %d", i, j)

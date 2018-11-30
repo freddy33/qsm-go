@@ -11,6 +11,10 @@ var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
 
+func MakeVector(p1,p2 Point) Point {
+	return p2.Sub(p1)
+}
+
 func (p Point) String() string {
 	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
 }
@@ -129,7 +133,14 @@ func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthCon
 	return result
 }
 
-func Abs(i int64) int64 {
+func Abs64(i int64) int64 {
+	if i < 0 {
+		return -i
+	}
+	return i
+}
+
+func Abs8(i int8) int8 {
 	if i < 0 {
 		return -i
 	}

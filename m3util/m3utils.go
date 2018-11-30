@@ -62,7 +62,10 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 
 func (l *Logger) Info(a ...interface{}) {
 	if l.Level <= INFO {
-		l.log.Print("INFO  ", fmt.Sprintln(a...))
+		err := l.log.Output(2, fmt.Sprintln(append([]interface{}{"INFO"}, a...)))
+		if err != nil {
+			log.Print(err)
+		}
 	}
 }
 

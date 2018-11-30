@@ -11,12 +11,12 @@ type ExpectedSpaceState struct {
 	baseNodes      int
 	newNodes       int
 	oldActiveNodes int
+	mainPoints     int
 }
 
-func TestSingleRedEventD0(t *testing.T) {
+func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 	Log.Level = m3util.WARN
 	LogStat.Level = m3util.INFO
-	InitConnectionDetails()
 	for trioIdx := 0; trioIdx < 12; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
@@ -26,6 +26,9 @@ func TestSingleRedEventD0(t *testing.T) {
 		space.MaxConnections = 3
 		// Only latest counting
 		space.SetEventOutgrowthThreshold(Distance(0))
+		space.blockOnSameEvent = 4
+		// No test of the old mechanism
+		space.EventOutgrowthOldThreshold = Distance(20)
 
 		evt := space.CreateSingleEventCenter()
 		evt.growthContext.permutationIndex = trioIdx
@@ -42,17 +45,18 @@ func TestSingleRedEventD0(t *testing.T) {
 		}
 
 		expectedState := map[TickTime]ExpectedSpaceState{
-			0: {1, 0, 0},
-			1: {1, 3, 0},
-			4: {1, -2, 0},
-			5: {1, -10, 0},
-			6: {1, -19, 0},
-			7: {1, -25, 0},
+			0: {1, 0, 0, 0},
+			1: {1, 3, 0, 0},
+			3: {1, 0, 0, 6},
+			4: {1, -2, 0, 6},
+			5: {1, -10, 0, 4},
+			6: {1, -19, 0, -1},
+			7: {1, -25, 0, -1},
 
-			8:  {1, -51 + deltaT8FromIdx0, 0},
-			9:  {1, -69 + deltaT9FromIdx0, 0},
-			10: {1, -79 + deltaT10FromIdx0, 0},
-			11: {1, -131 + deltaT11FromIdx0, 0},
+			8:  {1, -51 + deltaT8FromIdx0, 0, -1},
+			9:  {1, -69 + deltaT9FromIdx0, 0, -1},
+			10: {1, -79 + deltaT10FromIdx0, 0, -1},
+			11: {1, -131 + deltaT11FromIdx0, 0, -1},
 		}
 		assertSpaceStates(t, &space, expectedState, 10, getContextString(evt.growthContext))
 
@@ -60,13 +64,9 @@ func TestSingleRedEventD0(t *testing.T) {
 	}
 }
 
-func getContextString(ctx GrowthContext) string {
-	return fmt.Sprintf("Type %d, Idx %d", ctx.permutationType, ctx.permutationIndex)
-}
-
-func TestSingleSimpleContextD0(t *testing.T) {
-	Log.Level = m3util.INFO
-	InitConnectionDetails()
+func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
 	for trioIdx := 0; trioIdx < 8; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
@@ -76,23 +76,144 @@ func TestSingleSimpleContextD0(t *testing.T) {
 		space.MaxConnections = 3
 		// Only latest counting
 		space.SetEventOutgrowthThreshold(Distance(0))
+		space.blockOnSameEvent = 2
+		// No test of the old mechanism
+		space.EventOutgrowthOldThreshold = Distance(20)
+
+		evt := space.CreateSingleEventCenter()
+		evt.growthContext.permutationIndex = trioIdx
+
+		deltaT8FromIdx0 := 0
+		deltaT9FromIdx0 := 0
+		deltaT10FromIdx0 := 0
+		deltaT11FromIdx0 := 0
+		if AllMod8Permutations[trioIdx][3] != 5 {
+			deltaT8FromIdx0 = 5
+			deltaT9FromIdx0 = -11
+			deltaT10FromIdx0 = -13
+			deltaT11FromIdx0 = -22
+		}
+		if AllMod8Permutations[trioIdx][5] == 5 {
+			deltaT8FromIdx0 += 2
+			deltaT9FromIdx0 -= 10
+			deltaT10FromIdx0 += 24
+			deltaT11FromIdx0 += 37
+		}
+
+		expectedState := map[TickTime]ExpectedSpaceState{
+			0: {1, 0, 0, 0},
+			1: {1, 3, 0, 0},
+			3: {1, 0, 0, 6},
+			4: {1, -4, 0, 6},
+			5: {1, -16, 0, 4},
+			6: {1, -17, 0, -1},
+			7: {1, -16, 0, -1},
+
+			8:  {1, -31 + deltaT8FromIdx0, 0, -1},
+			9:  {1, -31 + deltaT9FromIdx0, 0, -1},
+			10: {1, -61 + deltaT10FromIdx0, 0, -1},
+			11: {1, -102 + deltaT11FromIdx0, 0, -1},
+		}
+		assertSpaceStates(t, &space, expectedState, 11, getContextString(evt.growthContext))
+
+		assertNearMainPoints(t, &space)
+	}
+}
+
+func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
+	for trioIdx := 0; trioIdx < 8; trioIdx++ {
+		space := MakeSpace(3 * 9)
+
+		assertEmptySpace(t, &space, 3*9)
+
+		// Force to only 3
+		space.MaxConnections = 3
+		// Only latest counting
+		space.SetEventOutgrowthThreshold(Distance(0))
+		space.blockOnSameEvent = 3
+		// No test of the old mechanism
+		space.EventOutgrowthOldThreshold = Distance(20)
+
+		evt := space.CreateSingleEventCenter()
+		evt.growthContext.permutationIndex = trioIdx
+
+		deltaT8FromIdx0 := 0
+		deltaT9FromIdx0 := 0
+		deltaT10FromIdx0 := 0
+		deltaT11FromIdx0 := 0
+		if AllMod8Permutations[trioIdx][3] != 5 {
+			deltaT8FromIdx0 = 5
+			deltaT9FromIdx0 = -11
+			deltaT10FromIdx0 = -13
+			deltaT11FromIdx0 = -22
+		}
+		if AllMod8Permutations[trioIdx][5] == 5 {
+			deltaT9FromIdx0 -= 4
+			deltaT10FromIdx0 += 11
+			deltaT11FromIdx0 += 44
+		}
+
+
+		expectedState := map[TickTime]ExpectedSpaceState{
+			0: {1, 0, 0, 0},
+			1: {1, 3, 0, 0},
+			3: {1, 0, 0, 6},
+			4: {1, -2, 0, 6},
+			5: {1, -10, 0, 4},
+			6: {1, -20, 0, -1},
+			7: {1, -23, 0, -1},
+
+			8:  {1, -54 + deltaT8FromIdx0, 0, -1},
+			9:  {1, -65 + deltaT9FromIdx0, 0, -1},
+			10: {1, -80 + deltaT10FromIdx0, 0, -1},
+			11: {1, -133 + deltaT11FromIdx0, 0, -1},
+		}
+		assertSpaceStates(t, &space, expectedState, 11, getContextString(evt.growthContext))
+
+		assertNearMainPoints(t, &space)
+	}
+}
+
+func getContextString(ctx GrowthContext) string {
+	return fmt.Sprintf("Type %d, Idx %d", ctx.permutationType, ctx.permutationIndex)
+}
+
+func Test_Evt1_Type1_D0_Old3_Same4(t *testing.T) {
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
+	for trioIdx := 0; trioIdx < 8; trioIdx++ {
+		space := MakeSpace(3 * 9)
+
+		assertEmptySpace(t, &space, 3*9)
+
+		// Force to only 3
+		space.MaxConnections = 3
+		space.blockOnSameEvent = 4
+		// Only latest counting
+		space.SetEventOutgrowthThreshold(Distance(0))
+
 		ctx := GrowthContext{&Origin, 1, trioIdx, false, 0}
 		space.CreateEventWithGrowthContext(Origin, RedEvent, ctx)
 
+		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
+
 		expectedState := map[TickTime]ExpectedSpaceState{
-			0:  {1, 0, 0},
-			1:  {1, 3, 0},
-			4:  {1, 0, 0},
-			5:  {1, -13, 0},
-			6:  {1, -22, 0},
-			7:  {1, -27, 0},
-			8:  {1, -52, 0},
-			9:  {1, -64, 0},
-			10: {1, -78, 0},
-			11: {1, -115, 0},
-			12: {1, -130, 0},
-			13: {1, -153, 0},
-			14: {1, -202, 0},
+			0:  {1, 0, 0, 0},
+			1:  {1, 3, 0, 0},
+			3:  {1, 0, 0, 6},
+			4:  {1, 0, 0, 6},
+			5:  {1, -13, 0, 2},
+			6:  {1, -22, 0, -1},
+			7:  {1, -27, 0, -1},
+			8:  {1, -52, 0, -1},
+			9:  {1, -64, 0, -1},
+			10: {1, -78, 0, -1},
+			11: {1, -115, 0, -1},
+			12: {1, -130, 0, -1},
+			13: {1, -153, 0, -1},
+			14: {1, -202, 0, -1},
 		}
 		assertSpaceStates(t, &space, expectedState, 14, getContextString(ctx))
 
@@ -100,25 +221,31 @@ func TestSingleSimpleContextD0(t *testing.T) {
 	}
 }
 
-func TestSingleRedEventD1(t *testing.T) {
+func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 	Log.Level = m3util.INFO
-	InitConnectionDetails()
 
 	space := MakeSpace(3 * 9)
 
 	assertEmptySpace(t, &space, 3*9)
 
 	space.SetEventOutgrowthThreshold(Distance(1))
+	assert.Equal(t, Distance(1), space.EventOutgrowthThreshold)
+	assert.Equal(t, Distance(4), space.EventOutgrowthOldThreshold)
 
 	evt := space.CreateSingleEventCenter()
+	assert.Equal(t, uint8(8), evt.growthContext.permutationType)
+	assert.Equal(t, 0, evt.growthContext.permutationIndex)
+	assert.Equal(t, 0, evt.growthContext.permutationOffset)
+	assert.Equal(t, false, evt.growthContext.permutationNegFlow)
+	assert.Equal(t, Origin, *(evt.growthContext.center))
 
 	expectedState := map[TickTime]ExpectedSpaceState{
-		0: {1, 0, 0},
-		1: {1, 3, 0},
-		2: {1, 6, 3},
-		3: {1, 12, 6},
-		4: {1, -2, 12},
-		5: {1, -10, 22},
+		0: {1, 0, 0, 0},
+		1: {1, 3, 0, 0},
+		2: {1, 6, 3, 0},
+		3: {1, 12, 6, 6},
+		4: {1, -2, 12, 6},
+		5: {1, -10, 22, 4},
 	}
 	assertSpaceStates(t, &space, expectedState, 5, getContextString(evt.growthContext))
 }
@@ -140,7 +267,7 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 	nbNodes := baseNodes
 	nbConnections := 0
 	nbMainPoints := baseNodes
-	nbActiveMainPoints := baseNodes
+	nbActiveMainPoints := nbMainPoints
 	for {
 		assertSpaceSingleEvent(t, space, expectedTime, nbNodes, nbConnections, activeNodes, nbMainPoints, nbActiveMainPoints, contextMsg)
 		if expectedTime == finalTime {
@@ -148,21 +275,6 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 		}
 		space.ForwardTime()
 		expectedTime++
-		if expectedTime == 3 {
-			// Should reach all center face
-			nbMainPoints = baseNodes + 6
-			nbActiveMainPoints = baseNodes + 6
-		} else if expectedTime == 4 {
-			nbMainPoints = nbMainPoints + 6
-			nbActiveMainPoints = baseNodes + 6
-		} else if expectedTime == 5 {
-			nbMainPoints = nbMainPoints + 2
-			nbActiveMainPoints = baseNodes + 2
-		} else if expectedTime == 6 {
-			// Stop testing main points
-			nbMainPoints = -1
-			nbActiveMainPoints = -1
-		}
 
 		expect, ok = expectMap[expectedTime]
 		if ok {
@@ -173,12 +285,19 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 				newNodes = expect.newNodes
 			}
 			activeNodes = newNodes + expect.oldActiveNodes + baseNodes
-			if expectedTime == 5 && expect.newNodes == -10 {
-				nbMainPoints += 2
-				nbActiveMainPoints += 2
-			}
-			if (expectedTime == 4 || expectedTime == 5) && expect.oldActiveNodes > 0 {
-				nbActiveMainPoints += 6
+			if expect.mainPoints >= 0 {
+				nbMainPoints += expect.mainPoints
+				nbActiveMainPoints = baseNodes + expect.mainPoints
+				if expect.oldActiveNodes > 0 {
+					oldExpect, ok := expectMap[expectedTime-1]
+					if ok {
+						nbActiveMainPoints += oldExpect.mainPoints
+					}
+				}
+			} else {
+				// Stop testing main points
+				nbMainPoints = -1
+				nbActiveMainPoints = -1
 			}
 		} else {
 			newNodes *= 2

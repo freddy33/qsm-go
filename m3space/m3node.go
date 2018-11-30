@@ -174,6 +174,10 @@ func (node *ActiveNode) GetStateString() string {
 // Connection Functions
 /***************************************************************/
 
+func (conn *Connection) GetConnId() int8 {
+	return conn.Id
+}
+
 func (conn *Connection) GetConnectionDetails() ConnectionDetails {
 	return AllConnectionsIds[conn.Id]
 }

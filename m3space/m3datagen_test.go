@@ -41,12 +41,12 @@ func (tIds ThreeIds) contains(id EventID) bool {
 func GetPyramidSize(points [4]Point) int64 {
 	// Sum all the edges
 	totalSize := int64(0)
-	totalSize += points[0].Sub(points[1]).DistanceSquared()
-	totalSize += points[0].Sub(points[2]).DistanceSquared()
-	totalSize += points[0].Sub(points[3]).DistanceSquared()
-	totalSize += points[1].Sub(points[2]).DistanceSquared()
-	totalSize += points[1].Sub(points[3]).DistanceSquared()
-	totalSize += points[2].Sub(points[3]).DistanceSquared()
+	totalSize += MakeVector(points[0],points[1]).DistanceSquared()
+	totalSize += MakeVector(points[0],points[2]).DistanceSquared()
+	totalSize += MakeVector(points[0],points[3]).DistanceSquared()
+	totalSize += MakeVector(points[1],points[2]).DistanceSquared()
+	totalSize += MakeVector(points[1],points[3]).DistanceSquared()
+	totalSize += MakeVector(points[2],points[3]).DistanceSquared()
 	return totalSize
 }
 
@@ -90,7 +90,6 @@ func TestStatPack(t *testing.T) {
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3
-	InitConnectionDetails()
 	space.SetEventOutgrowthThreshold(Distance(0))
 	space.CreatePyramid(20)
 	/*

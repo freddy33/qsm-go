@@ -1,10 +1,10 @@
 package m3space
 
 import (
-	"github.com/freddy33/qsm-go/m3util"
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func getAllContexts() map[uint8][]GrowthContext {
@@ -185,25 +185,23 @@ func TestGrowthContextsExpectType3(t *testing.T) {
 
 func TestConnectionDetails(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	InitConnectionDetails()
 	for k, v := range AllConnectionsPossible {
 		assert.Equal(t, k, v.Vector)
-		currentNumber := v.ConnNumber
+		currentNumber := Abs8(v.GetIntId())
 		sameNumber := 0
 		for _, nv := range AllConnectionsPossible {
-			if nv.ConnNumber == currentNumber {
+			if Abs8(nv.GetIntId()) == currentNumber {
 				sameNumber++
 				if nv.Vector != v.Vector {
+					assert.Equal(t, nv.GetIntId(), -v.GetIntId(), "Should have opposite id")
 					assert.Equal(t, nv.Vector.Neg(), v.Vector, "Should have neg vector")
-					assert.Equal(t, !nv.ConnNeg, v.ConnNeg, "Should have opposite connNeg flag")
 				}
 			}
 		}
 		assert.Equal(t, 2, sameNumber, "Should have 2 with same conn number for %d", currentNumber)
 	}
 
-	countPosConnNumbers := make(map[uint8]int)
-	countNegConnNumbers := make(map[uint8]int)
+	countConnId := make(map[int8]int)
 	for i, tA := range AllBaseTrio {
 		for j, tB := range AllBaseTrio {
 			connVectors := GetNonBaseConnections(tA, tB)
@@ -211,14 +209,11 @@ func TestConnectionDetails(t *testing.T) {
 				connDetails, ok := AllConnectionsPossible[connVector]
 				assert.True(t, ok, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
 				assert.Equal(t, connVector, connDetails.Vector, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
-				if connDetails.ConnNeg {
-					countNegConnNumbers[connDetails.ConnNumber]++
-				} else {
-					countPosConnNumbers[connDetails.ConnNumber]++
-				}
+				countConnId[connDetails.GetIntId()]++
 			}
 		}
 	}
+	Log.Info("ConnId usage:",countConnId)
 
 	allCtx := getAllContexts()
 	assert.Equal(t, 5, len(allCtx))
@@ -321,9 +316,9 @@ func TestConnectionDetails(t *testing.T) {
 func assertValidConnDetails(t *testing.T, p1, p2 Point, msg string) {
 	connDetails1 := GetConnectionDetails(p1, p2)
 	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
-	assert.Equal(t, p2.Sub(p1), connDetails1.Vector, msg)
+	assert.Equal(t, MakeVector(p1, p2), connDetails1.Vector, msg)
 
 	connDetails2 := GetConnectionDetails(p2, p1)
 	assert.NotEqual(t, EmptyConnDetails, connDetails2, msg)
-	assert.Equal(t, p1.Sub(p2), connDetails2.Vector, msg)
+	assert.Equal(t, MakeVector(p2, p1), connDetails2.Vector, msg)
 }

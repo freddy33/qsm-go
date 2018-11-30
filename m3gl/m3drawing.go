@@ -14,7 +14,7 @@ const (
 type ObjectType uint8
 
 const (
-	AxeX         ObjectType = iota
+	AxeX ObjectType = iota
 	AxeY
 	AxeZ
 	NodeEmpty
@@ -56,12 +56,12 @@ func (filter *SpaceDrawingFilter) DisplaySettings() {
 }
 
 func (world *DisplayWorld) EventOutgrowthThresholdIncrease() {
-	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold+1)
+	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold + 1)
 	world.CreateDrawingElements()
 }
 
 func (world *DisplayWorld) EventOutgrowthThresholdDecrease() {
-	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold-1)
+	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold - 1)
 	world.CreateDrawingElements()
 }
 
@@ -99,7 +99,7 @@ type NodeDrawingElement struct {
 type ConnectionDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	p1, p2     *m3space.Point
+	pos        *m3space.Point
 }
 
 type AxeDrawingElement struct {
@@ -269,11 +269,17 @@ func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
 	sdc.objColors = conn.GetColorMask(space)
-	cd := m3space.AllConnectionsIds[conn.Id]
-	if cd.ConnNeg {
-		return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, conn.P2, conn.P1,}
+	cd := conn.GetConnectionDetails()
+	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, conn.P1,}
+}
+
+func getConnectionObjectType(cd m3space.ConnectionDetails) ObjectType {
+	cdId := cd.GetIntId()
+	if cdId > 0 {
+		return ObjectType(int8(Connection00) + cdId*2)
+	} else {
+		return ObjectType(int8(Connection00) + 1 - cdId*2)
 	}
-	return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, conn.P1, conn.P2,}
 }
 
 // NodeDrawingElement functions
@@ -325,7 +331,7 @@ func (c ConnectionDrawingElement) Dimmer(blinkValue float64) float32 {
 }
 
 func (c ConnectionDrawingElement) Pos() *m3space.Point {
-	return c.p1
+	return c.pos
 }
 
 // AxeDrawingElement functions

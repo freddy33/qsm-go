@@ -30,7 +30,7 @@ const (
 const (
 	AxeExtraLength = 3
 	nodes          = 2
-	connections    = 25
+	connections    = 25*2
 	axes           = 3
 )
 
@@ -221,7 +221,6 @@ func (world *DisplayWorld) CreateDrawingElements() {
 }
 
 func (world *DisplayWorld) CreateDrawingElementsMap() int {
-	m3space.InitConnectionDetails()
 	nbTriangles := (axes+connections)*trianglesPerLine + (nodes * trianglesPerSphere)
 	if world.NbVertices != nbTriangles*3 {
 		world.NbVertices = nbTriangles * 3
@@ -326,11 +325,12 @@ func (t *TriangleFiller) drawNodes() {
 }
 
 func (t *TriangleFiller) drawConnections() {
-	connDone := make(map[uint8]bool)
+	connDone := make(map[int8]bool)
 	for _, cd := range m3space.AllConnectionsPossible {
-		if !cd.ConnNeg && !connDone[cd.ConnNumber] {
-			t.fill(MakeSegment(m3space.Origin, cd.Vector, ObjectType(uint8(Connection00)+cd.ConnNumber)))
-			connDone[cd.ConnNumber] = true
+		cdId := cd.GetIntId()
+		if !connDone[cdId] {
+			t.fill(MakeSegment(m3space.Origin, cd.Vector, getConnectionObjectType(cd)))
+			connDone[cdId] = true
 		}
 	}
 }

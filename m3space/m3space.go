@@ -50,7 +50,7 @@ func MakeSpace(max int64) Space {
 	space.currentTime = 0
 	space.Max = max
 	space.MaxConnections = 3
-	space.blockOnSameEvent = 6
+	space.blockOnSameEvent = 3
 	space.SetEventOutgrowthThreshold(Distance(1))
 	return space
 }
@@ -137,7 +137,7 @@ func (space *Space) getAndActivateNode(p Point) *ActiveNode {
 		for i, connId := range sn.connections {
 			cd := AllConnectionsIds[connId]
 			p2 := n.Pos.Add(cd.Vector)
-			n.connections[i] = &Connection{connId, n.Pos, &p2, }
+			n.connections[i] = &Connection{connId, n.Pos, &p2,}
 		}
 		space.activeNodesMap[p] = n
 		return n
@@ -177,19 +177,13 @@ func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 		return nil
 	}
 
-	// Flipping if needed to make sure n1 is main
-	if n2.Pos.IsMainPoint() {
-		temp := n1
-		n1 = n2
-		n2 = temp
-	}
 	d := DS(n1.Pos, n2.Pos)
 	if !(d == 1 || d == 2 || d == 3 || d == 5) {
 		Log.Error("Connection between 2 points", *(n1.Pos), *(n2.Pos), "that are not 1, 2, 3 or 5 DS away!")
 		return nil
 	}
 	// All good create connection
-	bv := n2.Pos.Sub(*n1.Pos)
+	bv := MakeVector(*n1.Pos, *n2.Pos)
 	cd := AllConnectionsPossible[bv]
 	c1 := &Connection{cd.GetIntId(), n1.Pos, n2.Pos}
 	space.activeConnections = append(space.activeConnections, c1)

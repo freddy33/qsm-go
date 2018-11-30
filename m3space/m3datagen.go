@@ -71,8 +71,6 @@ func extractMainAndOtherPoints(pointMap *map[Point]*PointState, time TickTime) (
 }
 
 func collectFlow(ctx *GrowthContext, untilTime TickTime, writeAllPoints func(pointMap *map[Point]*PointState, time TickTime)) {
-	InitConnectionDetails()
-
 	globalPointIdx := 0
 	time := TickTime(0)
 	allPoints := make(map[Point]*PointState, 100)

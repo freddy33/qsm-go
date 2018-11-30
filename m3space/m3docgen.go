@@ -10,7 +10,6 @@ import (
 
 func WriteAllTables() {
 	m3util.ChangeToDocsGeneratedDir()
-	InitConnectionDetails()
 	writeAllTrioTable()
 	writeTrioConnectionsTable()
 	writeAllConnectionDetails()
@@ -231,11 +230,11 @@ func writeAllConnectionDetails() {
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
-	nbConnDetails := uint8(len(AllConnectionsPossible) / 2)
+	nbConnDetails := int8(len(AllConnectionsPossible) / 2)
 	csvWriter := csv.NewWriter(csvFile)
-	for cdNb := uint8(0); cdNb < nbConnDetails; cdNb++ {
+	for cdNb := int8(1); cdNb <= nbConnDetails; cdNb++ {
 		for _, v := range AllConnectionsPossible {
-			if v.ConnNumber == cdNb && !v.ConnNeg {
+			if v.GetIntId() == cdNb {
 				ds := v.ConnDS
 				posVec := v.Vector
 				negVec := v.Vector.Neg()

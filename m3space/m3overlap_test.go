@@ -10,11 +10,11 @@ func TestOverlapSameEvent(t *testing.T) {
 	Log.Level = m3util.TRACE
 	space := MakeSpace(3 * 9)
 
-	InitConnectionDetails()
 	assertEmptySpace(t, &space, 3*9)
 
 	// Only latest counting
 	space.SetEventOutgrowthThreshold(Distance(0))
+	space.blockOnSameEvent = 4
 	ctx := GrowthContext{&Origin, 1, 0, false, 0}
 	space.CreateEventWithGrowthContext(Origin, RedEvent, ctx)
 
