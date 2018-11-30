@@ -69,7 +69,11 @@ func (eo *EventOutgrowth) AddFrom(from Outgrowth) {
 }
 
 func (eo *EventOutgrowth) HasFrom() bool {
-	return eo.fromList != nil && len(eo.fromList) > 0
+	return eo.FromLength() > 0
+}
+
+func (eo *EventOutgrowth) FromLength() int {
+	return len(eo.fromList)
 }
 
 func (eo *EventOutgrowth) CameFromPoint(point Point) bool {
@@ -134,7 +138,11 @@ func (seo *SavedEventOutgrowth) AddFrom(from Outgrowth) {
 }
 
 func (seo *SavedEventOutgrowth) HasFrom() bool {
-	return seo.fromConnections != nil && len(seo.fromConnections) > 0
+	return seo.FromLength() > 0
+}
+
+func (seo *SavedEventOutgrowth) FromLength() int {
+	return len(seo.fromConnections)
 }
 
 func (seo *SavedEventOutgrowth) CameFromPoint(point Point) bool {

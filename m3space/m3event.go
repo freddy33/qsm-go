@@ -66,6 +66,7 @@ type Outgrowth interface {
 	GetState() EventOutgrowthState
 	AddFrom(from Outgrowth)
 	CameFromPoint(point Point) bool
+	FromLength() int
 	HasFrom() bool
 	IsRoot() bool
 	DistanceFromLatest(evt *Event) Distance

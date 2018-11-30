@@ -7,6 +7,7 @@ import (
 )
 
 func TestOverlapSameEvent(t *testing.T) {
+	LogStat.Level = m3util.WARN
 	Log.Level = m3util.TRACE
 	space := MakeSpace(3 * 9)
 
@@ -41,6 +42,22 @@ func TestOverlapSameEvent(t *testing.T) {
 	latestNodes := getAllNodeWithOutgrowthAtD(&space, Distance(expectedTime))
 
 	assert.Equal(t, nbLatestNodes-13, len(latestNodes))
+	// Single vent means only one latest outgrowth per active point
+	latestOutgrowths := make(map[Point]Outgrowth, len(latestNodes))
+	fromSizeHisto := make(map[int]int, 3)
+	for _, evt := range space.events {
+		for _, eo := range evt.latestOutgrowths {
+			fromSizeHisto[eo.FromLength()]++
+			lo, ok := latestOutgrowths[*eo.pos]
+			if ok {
+				assert.Fail(t, "Should not have an outgrowth at %v for %v <= %v", *eo.pos, eo.String(), lo)
+			} else {
+				latestOutgrowths[*eo.pos] = eo
+			}
+		}
+	}
+	assert.Equal(t, nbLatestNodes-13, len(latestOutgrowths))
+	Log.Info("From size histo", fromSizeHisto)
 }
 
 // Retrieve all nodes having outgrowth at exact distance d from the event
