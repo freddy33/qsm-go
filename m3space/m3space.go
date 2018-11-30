@@ -15,16 +15,16 @@ const (
 type TickTime uint64
 
 type SpaceVisitor interface {
-	VisitNode(space *Space, node *Node)
+	VisitNode(space *Space, node *ActiveNode)
 	VisitConnection(space *Space, conn *Connection)
 }
 
 type Space struct {
 	events            map[EventID]*Event
-	activeNodesMap    map[Point]*Node
-	oldNodesMap       map[Point]*Node
+	activeNodesMap    map[Point]*ActiveNode
+	oldNodesMap       map[Point]*SavedNode
 	activeConnections []*Connection
-	oldConnections []*Connection
+	nbOldConnections  int
 	currentId         EventID
 	currentTime       TickTime
 	// Max absolute coordinate in all nodes
@@ -42,9 +42,10 @@ type Space struct {
 func MakeSpace(max int64) Space {
 	space := Space{}
 	space.events = make(map[EventID]*Event)
-	space.activeNodesMap = make(map[Point]*Node)
-	space.oldNodesMap = make(map[Point]*Node)
+	space.activeNodesMap = make(map[Point]*ActiveNode)
+	space.oldNodesMap = make(map[Point]*SavedNode)
 	space.activeConnections = make([]*Connection, 0, 500)
+	space.nbOldConnections = 0
 	space.currentId = 0
 	space.currentTime = 0
 	space.Max = max
@@ -80,7 +81,7 @@ func (space *Space) GetNbActiveConnections() int {
 }
 
 func (space *Space) GetNbConnections() int {
-	return len(space.activeConnections) + len(space.oldConnections)
+	return len(space.activeConnections) + space.nbOldConnections
 }
 
 func (space *Space) GetNbEvents() int {
@@ -107,36 +108,44 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 	space.CreateEvent(Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
-func (space *Space) GetNode(p Point) *Node {
+func (space *Space) GetNode(p Point) Node {
 	n, ok := space.activeNodesMap[p]
 	if ok {
 		return n
 	}
-	n, ok = space.oldNodesMap[p]
+	sn, ok := space.oldNodesMap[p]
 	if ok {
-		return n
+		return sn
 	}
 	return nil
 }
 
-func (space *Space) getAndActivateNode(p Point) *Node {
+func (space *Space) getAndActivateNode(p Point) *ActiveNode {
 	n, ok := space.activeNodesMap[p]
 	if ok {
 		return n
 	}
-	n, ok = space.oldNodesMap[p]
+	sn, ok := space.oldNodesMap[p]
 	if ok {
-		if !n.IsOld(space) {
-			// becomes active
-			delete(space.oldNodesMap, p)
-			space.activeNodesMap[p] = n
+		Log.Debugf("Recovering node %s from storage to active", sn.GetStateString())
+		// becomes active
+		delete(space.oldNodesMap, p)
+		n = NewNode(&p)
+		n.root = sn.IsRoot()
+		n.accessedEventIDS = sn.accessedEventIDS
+		n.connections = make([]*Connection, len(sn.connections))
+		for i, connId := range sn.connections {
+			cd := AllConnectionsIds[connId]
+			p2 := n.Pos.Add(cd.Vector)
+			n.connections[i] = &Connection{connId, n.Pos, &p2, }
 		}
+		space.activeNodesMap[p] = n
 		return n
 	}
 	return nil
 }
 
-func (space *Space) getOrCreateNode(p Point) *Node {
+func (space *Space) getOrCreateNode(p Point) *ActiveNode {
 	n := space.getAndActivateNode(p)
 	if n != nil {
 		return n
@@ -154,7 +163,7 @@ func (space *Space) getOrCreateNode(p Point) *Node {
 	return n
 }
 
-func (space *Space) makeConnection(n1, n2 *Node) *Connection {
+func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 	if !n1.HasFreeConnections(space) {
 		Log.Trace("Node 1", n1, "does not have free connections")
 		return nil
@@ -180,19 +189,22 @@ func (space *Space) makeConnection(n1, n2 *Node) *Connection {
 		return nil
 	}
 	// All good create connection
-	c := &Connection{n1, n2}
-	space.activeConnections = append(space.activeConnections, c)
-	n1done := n1.AddConnection(c, space)
-	n2done := n2.AddConnection(c, space)
+	bv := n2.Pos.Sub(*n1.Pos)
+	cd := AllConnectionsPossible[bv]
+	c1 := &Connection{cd.GetIntId(), n1.Pos, n2.Pos}
+	space.activeConnections = append(space.activeConnections, c1)
+	n1done := n1.AddConnection(c1, space)
+	c2 := &Connection{-cd.GetIntId(), n2.Pos, n1.Pos}
+	n2done := n2.AddConnection(c2, space)
 	if n1done < 0 || n2done < 0 {
 		Log.Error("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
 		return nil
 	}
-	return c
+	return c1
 }
 
 func (space *Space) DisplayState() {
 	fmt.Println("========= Space State =========")
 	fmt.Println("Current Time", space.currentTime)
-	fmt.Println("Nb Active Nodes", len(space.activeNodesMap),"Nb Old Nodes", len(space.oldNodesMap), ", Nb Connections", len(space.activeConnections), ", Nb Events", len(space.events))
+	fmt.Println("Nb Active Nodes", len(space.activeNodesMap), "Nb Old Nodes", len(space.oldNodesMap), ", Nb Connections", len(space.activeConnections), ", Nb Events", len(space.events))
 }

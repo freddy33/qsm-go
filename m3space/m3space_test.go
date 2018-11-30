@@ -222,18 +222,18 @@ func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, 
 func assertNearMainPoints(t *testing.T, space *Space) {
 	for _, node := range space.activeNodesMap {
 		// Find main Pos attached to node
-		var mainPointNode *Node
+		var mainPointNode *ActiveNode
 		if node.Pos.IsMainPoint() {
 			mainPointNode = node
 		} else {
 			for _, conn := range node.connections {
 				if conn != nil {
-					if conn.N1.Pos.IsMainPoint() {
-						mainPointNode = conn.N1
+					if conn.P1.IsMainPoint() {
+						mainPointNode = space.getAndActivateNode(*conn.P1)
 						break
 					}
-					if conn.N2.Pos.IsMainPoint() {
-						mainPointNode = conn.N2
+					if conn.P2.IsMainPoint() {
+						mainPointNode = space.getAndActivateNode(*conn.P2)
 						break
 					}
 				}

@@ -2,8 +2,8 @@ package m3space
 
 import (
 	"github.com/freddy33/qsm-go/m3util"
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestOverlapSameEvent(t *testing.T) {
@@ -23,7 +23,7 @@ func TestOverlapSameEvent(t *testing.T) {
 	// No overlap until time 5
 	for expectedTime < 5 {
 		assert.Equal(t, expectedTime, space.currentTime)
-		latestNodes := getAllNodeWithOutgrowthAtD(t, &space, Distance(expectedTime))
+		latestNodes := getAllNodeWithOutgrowthAtD(&space, Distance(expectedTime))
 		assert.Equal(t, nbLatestNodes, len(latestNodes), "nbLatestNodes failed at %d", expectedTime)
 		space.ForwardTime()
 		expectedTime++
@@ -38,14 +38,14 @@ func TestOverlapSameEvent(t *testing.T) {
 	assert.Equal(t, expectedTime, space.currentTime)
 	assert.Equal(t, 3*2*2*2*2, nbLatestNodes)
 
-	latestNodes := getAllNodeWithOutgrowthAtD(t, &space, Distance(expectedTime))
+	latestNodes := getAllNodeWithOutgrowthAtD(&space, Distance(expectedTime))
 
 	assert.Equal(t, nbLatestNodes-13, len(latestNodes))
 }
 
 // Retrieve all nodes having outgrowth at exact distance d from the event
-func getAllNodeWithOutgrowthAtD(t *testing.T, space *Space, atD Distance) map[Point]*Node {
-	res := make(map[Point]*Node, 25)
+func getAllNodeWithOutgrowthAtD(space *Space, atD Distance) map[Point]Node {
+	res := make(map[Point]Node, 25)
 	for _, evt := range space.events {
 		for _, eo := range evt.latestOutgrowths {
 			if eo.distance == atD {

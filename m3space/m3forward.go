@@ -69,10 +69,10 @@ func (space *Space) ForwardTime() *FullOutgrowthCollector {
 	}
 	Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn",
 		space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
-		len(space.oldNodesMap), len(space.oldConnections))
+		len(space.oldNodesMap), space.nbOldConnections)
 	LogStat.Infof("%d: %d, %d, %d, %d, %d, %d",
 		space.currentTime, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
-		len(space.oldNodesMap), len(space.oldConnections))
+		len(space.oldNodesMap), space.nbOldConnections)
 	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
 		go evt.createNewPossibleOutgrowths(c)
@@ -102,7 +102,7 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 				sendOutgrowth := true
 				nodeThere := evt.space.GetNode(nextPoint)
 				if nodeThere != nil {
-					sendOutgrowth = nodeThere.CanReceiveEvent(evt.id)
+					sendOutgrowth = nodeThere.IsEventAlreadyPresent(evt.id)
 					Log.Trace("New EO on existing node", nodeThere.GetStateString(), "can receive=", sendOutgrowth)
 				}
 				if sendOutgrowth {
@@ -677,7 +677,7 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 		return nil, &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos,}
 	}
 	fromPoint := newPosEo.from.pos
-	fromNode := space.GetNode(*fromPoint)
+	fromNode := space.getOrCreateNode(*fromPoint)
 	if !fromNode.IsAlreadyConnected(newNode) {
 		Log.Trace("Need to connect the two nodes", fromNode.GetStateString(), newNode.GetStateString())
 		if space.makeConnection(fromNode, newNode) == nil {
@@ -686,7 +686,7 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 			return nil, &NoMoreConnectionsError{*(newNode.Pos), *(fromPoint)}
 		}
 	}
-	newEo := &EventOutgrowth{newNode.Pos, []*EventOutgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew}
+	newEo := &EventOutgrowth{newNode.Pos, []Outgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew}
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(evt.id, space.currentTime)
 	Log.Trace("Created new outgrowth", newEo.String())
@@ -723,13 +723,17 @@ func (space *Space) moveOldToOldMaps() {
 	for p, node := range space.activeNodesMap {
 		if node.IsOld(space) {
 			delete(space.activeNodesMap, p)
-			space.oldNodesMap[p] = node
+			connIds := make([]int8, len(node.connections))
+			for i, conn := range node.connections {
+				connIds[i] = conn.Id
+			}
+			space.oldNodesMap[p] = &SavedNode{node.root, node.accessedEventIDS, connIds, }
 		}
 	}
 	finalActive := space.activeConnections[:0]
 	for _, conn := range space.activeConnections {
 		if conn.IsOld(space) {
-			space.oldConnections = append(space.oldConnections, conn)
+			space.nbOldConnections++
 		} else {
 			finalActive = append(finalActive, conn)
 		}

@@ -44,17 +44,12 @@ func (newPosEo *NewPossibleOutgrowth) String() string {
 // EventOutgrowth Functions
 /***************************************************************/
 
-func (eo *EventOutgrowth) GetPoint() *Point {
-	return eo.pos
+func (eo *EventOutgrowth) String() string {
+	return fmt.Sprintf("%v: %s, %d, %d", *(eo.pos), eo.state.String(), eo.distance, len(eo.fromList))
 }
 
-func (eo *EventOutgrowth) GetFromList() []*Outgrowth {
-	res := make([]*Outgrowth, len(eo.fromList))
-	for i, from := range eo.fromList {
-		ifc := Outgrowth(from)
-		res[i] = &ifc
-	}
-	return res
+func (eo *EventOutgrowth) GetPoint() *Point {
+	return eo.pos
 }
 
 func (eo *EventOutgrowth) GetDistance() Distance {
@@ -65,21 +60,9 @@ func (eo *EventOutgrowth) GetState() EventOutgrowthState {
 	return eo.state
 }
 
-func (eo *EventOutgrowth) AddFromToList(from *Outgrowth) {
-	res, ok := (*from).(*EventOutgrowth)
-	if !ok {
-		Log.Fatalf("type issue on %v", from)
-	}
-	eo.AddFrom(res)
-}
-
-func (eo *EventOutgrowth) String() string {
-	return fmt.Sprintf("%v: %s, %d, %d", *(eo.pos), eo.state.String(), eo.distance, len(eo.fromList))
-}
-
-func (eo *EventOutgrowth) AddFrom(from *EventOutgrowth) {
+func (eo *EventOutgrowth) AddFrom(from Outgrowth) {
 	if eo.fromList == nil {
-		eo.fromList = []*EventOutgrowth{from,}
+		eo.fromList = []Outgrowth{from,}
 	} else {
 		eo.fromList = append(eo.fromList, from)
 	}
@@ -94,7 +77,7 @@ func (eo *EventOutgrowth) CameFromPoint(point Point) bool {
 		return false
 	}
 	for _, from := range eo.fromList {
-		if *(from.pos) == point {
+		if *(from.GetPoint()) == point {
 			return true
 		}
 	}
@@ -124,4 +107,70 @@ func (eo *EventOutgrowth) IsActive(evt *Event) bool {
 		return true
 	}
 	return eo.DistanceFromLatest(evt) <= evt.space.EventOutgrowthThreshold
+}
+
+/***************************************************************/
+// EventOutgrowth Functions
+/***************************************************************/
+
+func (seo *SavedEventOutgrowth) String() string {
+	return fmt.Sprintf("%v: %s, %d, %d", seo.pos, EventOutgrowthOld.String(), seo.distance, len(seo.fromConnections))
+}
+
+func (seo *SavedEventOutgrowth) GetPoint() *Point {
+	return &seo.pos
+}
+
+func (seo *SavedEventOutgrowth) GetDistance() Distance {
+	return seo.distance
+}
+
+func (seo *SavedEventOutgrowth) GetState() EventOutgrowthState {
+	return EventOutgrowthOld
+}
+
+func (seo *SavedEventOutgrowth) AddFrom(from Outgrowth) {
+	Log.Errorf("Cannot add to from list on saved outgrowth %v <- %v", seo, from)
+}
+
+func (seo *SavedEventOutgrowth) HasFrom() bool {
+	return seo.fromConnections != nil && len(seo.fromConnections) > 0
+}
+
+func (seo *SavedEventOutgrowth) CameFromPoint(point Point) bool {
+	if !seo.HasFrom() {
+		return false
+	}
+	for _, fromConnId := range seo.fromConnections {
+		cd := AllConnectionsIds[fromConnId]
+		if seo.pos.Add(cd.Vector) == point {
+			return true
+		}
+	}
+	return false
+}
+
+func (seo *SavedEventOutgrowth) IsRoot() bool {
+	return !seo.HasFrom()
+}
+
+func (seo *SavedEventOutgrowth) DistanceFromLatest(evt *Event) Distance {
+	space := evt.space
+	return Distance(space.currentTime - evt.created) - seo.distance
+}
+
+func (seo *SavedEventOutgrowth) IsOld(evt *Event) bool {
+	if seo.IsRoot() {
+		// Root event always active
+		return false
+	}
+	return seo.DistanceFromLatest(evt) >= evt.space.EventOutgrowthOldThreshold
+}
+
+func (seo *SavedEventOutgrowth) IsActive(evt *Event) bool {
+	if seo.IsRoot() {
+		// Root event always active
+		return true
+	}
+	return seo.DistanceFromLatest(evt) <= evt.space.EventOutgrowthThreshold
 }

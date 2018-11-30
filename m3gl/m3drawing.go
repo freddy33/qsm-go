@@ -93,7 +93,7 @@ type SpaceDrawingColor struct {
 type NodeDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	node       *m3space.Node
+	node       *m3space.ActiveNode
 }
 
 type ConnectionDrawingElement struct {
@@ -244,7 +244,7 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 	return defaultGreyDimmer
 }
 
-func MakeNodeDrawingElement(space *m3space.Space, node *m3space.Node) *NodeDrawingElement {
+func MakeNodeDrawingElement(space *m3space.Space, node *m3space.ActiveNode) *NodeDrawingElement {
 	// Collect all the colors of event outgrowth of this node. Dim if not latest
 	sdc := SpaceDrawingColor{}
 	sdc.objColors = node.GetColorMask(space)
@@ -266,18 +266,14 @@ func MakeNodeDrawingElement(space *m3space.Space, node *m3space.Node) *NodeDrawi
 }
 
 func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection) *ConnectionDrawingElement {
-	n1 := conn.N1
-	n2 := conn.N2
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
 	sdc.objColors = conn.GetColorMask(space)
-	p1 := n1.Pos
-	p2 := n2.Pos
-	cd := m3space.GetConnectionDetails(*p1, *p2)
+	cd := m3space.AllConnectionsIds[conn.Id]
 	if cd.ConnNeg {
-		return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, p2, p1,}
+		return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, conn.P2, conn.P1,}
 	}
-	return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, p1, p2,}
+	return &ConnectionDrawingElement{ObjectType(uint8(Connection00) + cd.ConnNumber), sdc, conn.P1, conn.P2,}
 }
 
 // NodeDrawingElement functions

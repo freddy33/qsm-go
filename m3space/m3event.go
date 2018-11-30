@@ -30,7 +30,7 @@ var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 type Event struct {
 	space             *Space
 	id                EventID
-	node              *Node
+	node              *ActiveNode
 	created           TickTime
 	color             EventColor
 	growthContext     GrowthContext
@@ -50,7 +50,7 @@ type SavedEvent struct {
 
 type EventOutgrowth struct {
 	pos      *Point
-	fromList []*EventOutgrowth
+	fromList []Outgrowth
 	distance Distance
 	state    EventOutgrowthState
 }
@@ -63,10 +63,9 @@ type SavedEventOutgrowth struct {
 
 type Outgrowth interface {
 	GetPoint() *Point
-	GetFromList() []*Outgrowth
 	GetDistance() Distance
 	GetState() EventOutgrowthState
-	AddFromToList(from *Outgrowth)
+	AddFrom(from Outgrowth)
 	CameFromPoint(point Point) bool
 	HasFrom() bool
 	IsRoot() bool

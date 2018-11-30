@@ -189,7 +189,7 @@ func (creator *DrawingElementsCreator) createAxes(max int64) {
 	}
 }
 
-func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node *m3space.Node) {
+func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node *m3space.ActiveNode) {
 	creator.elements[creator.offset] = MakeNodeDrawingElement(space, node)
 	creator.offset++
 }
