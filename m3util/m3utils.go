@@ -94,8 +94,11 @@ func (l *Logger) Error(a ...interface{}) {
 }
 
 func (l *Logger) Errorf(format string, v ...interface{}) {
-	msg := fmt.Sprintf(format, v...)
-	l.log.Println("ERROR", msg)
+	msg := fmt.Sprintf("ERROR "+format, v...)
+	err := l.log.Output(2, msg)
+	if err != nil {
+		log.Print(err)
+	}
 	log.Println(msg)
 }
 
