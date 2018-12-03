@@ -25,11 +25,11 @@ type NewPossibleOutgrowth struct {
 }
 
 type EventOutgrowth struct {
-	pos      *Point
-	fromList []Outgrowth
-	distance Distance
-	state    EventOutgrowthState
-	rootPath PathElement
+	pos             Point
+	fromConnections []int8
+	distance        Distance
+	state           EventOutgrowthState
+	rootPath        PathElement
 }
 
 type SavedEventOutgrowth struct {
@@ -40,19 +40,24 @@ type SavedEventOutgrowth struct {
 }
 
 type Outgrowth interface {
-	GetPoint() *Point
+	GetPoint() Point
 	GetDistance() Distance
 	GetState() EventOutgrowthState
-	AddFrom(from Outgrowth)
-	GetFromConnIds() []int8
-	BuildPath(path PathElement) PathElement
-	CameFromPoint(point Point) bool
-	FromLength() int
-	HasFrom() bool
 	IsRoot() bool
+
 	DistanceFromLatest(evt *Event) Distance
 	IsActive(evt *Event) bool
 	IsOld(evt *Event) bool
+
+	HasFrom() bool
+	FromLength() int
+
+	GetFromConnIds() []int8
+	CameFromPoint(point Point) bool
+
+	GetRootPathElement(evt *Event) PathElement
+	BuildPath(path PathElement) PathElement
+	AddFrom(point Point)
 }
 
 func (eos EventOutgrowthState) String() string {
@@ -111,11 +116,15 @@ func (newPosEo *NewPossibleOutgrowth) String() string {
 // EventOutgrowth Functions
 /***************************************************************/
 
-func (eo *EventOutgrowth) String() string {
-	return fmt.Sprintf("%v: %s, %d, %d", *(eo.pos), eo.state.String(), eo.distance, len(eo.fromList))
+func MakeActiveOutgrowth(pos Point, d Distance, state EventOutgrowthState) *EventOutgrowth {
+	return &EventOutgrowth{pos, nil, d, state, nil,}
 }
 
-func (eo *EventOutgrowth) GetPoint() *Point {
+func (eo *EventOutgrowth) String() string {
+	return fmt.Sprintf("%v: %s, %d, %v", eo.pos, eo.state.String(), eo.distance, eo.fromConnections)
+}
+
+func (eo *EventOutgrowth) GetPoint() Point {
 	return eo.pos
 }
 
@@ -127,11 +136,13 @@ func (eo *EventOutgrowth) GetState() EventOutgrowthState {
 	return eo.state
 }
 
-func (eo *EventOutgrowth) AddFrom(from Outgrowth) {
-	if eo.fromList == nil {
-		eo.fromList = []Outgrowth{from,}
+func (eo *EventOutgrowth) AddFrom(point Point) {
+	bv := MakeVector(eo.pos, point)
+	connId := AllConnectionsPossible[bv].Id
+	if eo.fromConnections == nil {
+		eo.fromConnections = []int8{connId}
 	} else {
-		eo.fromList = append(eo.fromList, from)
+		eo.fromConnections = append(eo.fromConnections, connId)
 	}
 }
 
@@ -140,27 +151,20 @@ func (eo *EventOutgrowth) HasFrom() bool {
 }
 
 func (eo *EventOutgrowth) FromLength() int {
-	return len(eo.fromList)
+	return len(eo.fromConnections)
 }
 
 func (eo *EventOutgrowth) GetFromConnIds() []int8 {
-	res := make([]int8, len(eo.fromList))
-	if len(res) == 0 {
-		return res
-	}
-	for i, from := range eo.fromList {
-		bv := MakeVector(*eo.pos, *from.GetPoint())
-		res[i] = AllConnectionsPossible[bv].Id
-	}
-	return res
+	return eo.fromConnections
 }
 
 func (eo *EventOutgrowth) CameFromPoint(point Point) bool {
 	if !eo.HasFrom() {
 		return false
 	}
-	for _, from := range eo.fromList {
-		if *(from.GetPoint()) == point {
+	for _, fromConnId := range eo.fromConnections {
+		cd := AllConnectionsIds[fromConnId]
+		if eo.pos.Add(cd.Vector) == point {
 			return true
 		}
 	}
@@ -172,6 +176,9 @@ func (eo *EventOutgrowth) IsRoot() bool {
 }
 
 func (eo *EventOutgrowth) DistanceFromLatest(evt *Event) Distance {
+	if eo.state == EventOutgrowthLatest {
+		return Distance(0)
+	}
 	space := evt.space
 	return Distance(space.currentTime-evt.created) - eo.distance
 }
@@ -193,15 +200,15 @@ func (eo *EventOutgrowth) IsActive(evt *Event) bool {
 }
 
 /***************************************************************/
-// EventOutgrowth Functions
+// SavedEventOutgrowth Functions
 /***************************************************************/
 
 func (seo *SavedEventOutgrowth) String() string {
 	return fmt.Sprintf("%v: %s, %d, %d", seo.pos, EventOutgrowthOld.String(), seo.distance, len(seo.fromConnections))
 }
 
-func (seo *SavedEventOutgrowth) GetPoint() *Point {
-	return &seo.pos
+func (seo *SavedEventOutgrowth) GetPoint() Point {
+	return seo.pos
 }
 
 func (seo *SavedEventOutgrowth) GetDistance() Distance {
@@ -212,8 +219,8 @@ func (seo *SavedEventOutgrowth) GetState() EventOutgrowthState {
 	return EventOutgrowthOld
 }
 
-func (seo *SavedEventOutgrowth) AddFrom(from Outgrowth) {
-	Log.Errorf("Cannot add to from list on saved outgrowth %v <- %v", seo, from)
+func (seo *SavedEventOutgrowth) AddFrom(point Point) {
+	Log.Errorf("Cannot add to from list on saved outgrowth %v <- %v", seo, point)
 }
 
 func (seo *SavedEventOutgrowth) HasFrom() bool {
@@ -224,7 +231,7 @@ func (seo *SavedEventOutgrowth) FromLength() int {
 	return len(seo.fromConnections)
 }
 
-func (seo *SavedEventOutgrowth) GetFromConnIds(point Point) []int8 {
+func (seo *SavedEventOutgrowth) GetFromConnIds() []int8 {
 	return seo.fromConnections
 }
 

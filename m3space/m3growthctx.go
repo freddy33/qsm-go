@@ -5,7 +5,7 @@ import "fmt"
 // TODO: Create trio index for non main points base on growth context
 
 type GrowthContext struct {
-	center             *Point
+	center             Point
 	permutationType    uint8 // 1,2,4, or 8
 	permutationIndex   int   // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
 	permutationNegFlow bool  // true for backward flow in permutation
@@ -16,43 +16,6 @@ var reverse2Map = [2]int{1,0}
 var reverse3Map = [3]int{2,1,0}
 var reverse4Map = [4]int{3,2,1,0}
 var reverse8Map = [8]int{7,6,5,4,3,2,1,0}
-
-var ValidNextTrio = [12][2]int{
-	{0,4},{0,6},{0,7},
-	{1,4},{1,5},{1,7},
-	{2,4},{2,5},{2,6},
-	{3,5},{3,6},{3,7},
-}
-
-var AllMod4Permutations = [12][4]int{
-	{0,4,1,7},
-	{0,4,2,6},
-	{0,6,2,4},
-	{0,6,3,7},
-	{0,7,1,4},
-	{0,7,3,6},
-	{1,4,2,5},
-	{1,5,2,4},
-	{1,5,3,7},
-	{1,7,3,5},
-	{2,5,3,6},
-	{2,6,3,5},
-}
-
-var AllMod8Permutations = [12][8]int{
-	{0,4,1,5,2,6,3,7},
-	{0,4,1,7,3,5,2,6},
-	{0,4,2,5,1,7,3,6},
-	{0,4,2,6,3,5,1,7},
-	{0,6,2,4,1,5,3,7},
-	{0,6,2,5,3,7,1,4},
-	{0,6,3,5,2,4,1,7},
-	{0,6,3,7,1,5,2,4},
-	{0,7,1,4,2,5,3,6},
-	{0,7,1,5,3,6,2,4},
-	{0,7,3,5,1,4,2,6},
-	{0,7,3,6,2,5,1,4},
-}
 
 func PosMod2(i uint64) uint64 {
 	return i & 0x0000000000000001

@@ -112,7 +112,7 @@ func TestStatPack(t *testing.T) {
 	LogDatagen.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := TickTime(0)
-	for expectedTime < 200 {
+	for expectedTime < 20 {
 		assert.Equal(t, expectedTime, space.currentTime)
 		col := space.ForwardTime()
 		expectedTime++

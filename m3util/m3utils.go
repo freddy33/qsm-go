@@ -88,8 +88,11 @@ func (l *Logger) Warnf(format string, v ...interface{}) {
 }
 
 func (l *Logger) Error(a ...interface{}) {
-	msg := fmt.Sprintln(a...)
-	l.log.Print("ERROR ", msg)
+	msg := fmt.Sprintln(append([]interface{}{"INFO"}, a...))
+	err := l.log.Output(2, msg)
+	if err != nil {
+		log.Print(err)
+	}
 	log.Print(msg)
 }
 

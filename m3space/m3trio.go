@@ -6,6 +6,43 @@ type Trio [3]Point
 
 var AllBaseTrio [8]Trio
 
+var ValidNextTrio = [12][2]int{
+	{0,4},{0,6},{0,7},
+	{1,4},{1,5},{1,7},
+	{2,4},{2,5},{2,6},
+	{3,5},{3,6},{3,7},
+}
+
+var AllMod4Permutations = [12][4]int{
+	{0,4,1,7},
+	{0,4,2,6},
+	{0,6,2,4},
+	{0,6,3,7},
+	{0,7,1,4},
+	{0,7,3,6},
+	{1,4,2,5},
+	{1,5,2,4},
+	{1,5,3,7},
+	{1,7,3,5},
+	{2,5,3,6},
+	{2,6,3,5},
+}
+
+var AllMod8Permutations = [12][8]int{
+	{0,4,1,5,2,6,3,7},
+	{0,4,1,7,3,5,2,6},
+	{0,4,2,5,1,7,3,6},
+	{0,4,2,6,3,5,1,7},
+	{0,6,2,4,1,5,3,7},
+	{0,6,2,5,3,7,1,4},
+	{0,6,3,5,2,4,1,7},
+	{0,6,3,7,1,5,2,4},
+	{0,7,1,4,2,5,3,6},
+	{0,7,1,5,3,6,2,4},
+	{0,7,3,5,1,4,2,6},
+	{0,7,3,6,2,5,1,4},
+}
+
 var AllConnectionsPossible map[Point]ConnectionDetails
 var AllConnectionsIds map[int8]ConnectionDetails
 
@@ -169,7 +206,7 @@ func (t Trio) getMinusZVector() Point {
 }
 
 func initConnectionDetails() uint8 {
-	connMap := make(map[Point]*ConnectionDetails)
+	connMap := make(map[Point]ConnectionDetails)
 	// Going through all Trio and all combination of Trio, to aggregate connection details
 	for _, tr := range AllBaseTrio {
 		for _, vec := range tr {
@@ -182,17 +219,16 @@ func initConnectionDetails() uint8 {
 			}
 		}
 	}
-	Log.Info("Number of connection details created ", len(connMap))
+	Log.Info("Number of connection details created", len(connMap))
 	nbConnDetails := int8(len(connMap) / 2)
 
 	// Reordering connection details number by size, and x, y, z
-	newOrderedMap := make(map[Point]ConnectionDetails)
 	AllConnectionsIds = make(map[int8]ConnectionDetails)
 	for currentConnNumber := int8(1); currentConnNumber <= nbConnDetails; currentConnNumber++ {
-		var smallestCD *ConnectionDetails
+		smallestCD := ConnectionDetails{0,Origin, 0}
 		for _, cd := range connMap {
 			if cd.Id == int8(0) {
-				if smallestCD == nil {
+				if smallestCD.Vector == Origin {
 					smallestCD = cd
 				} else if smallestCD.ConnDS > cd.ConnDS {
 					smallestCD = cd
@@ -208,20 +244,20 @@ func initConnectionDetails() uint8 {
 			}
 		}
 		smallestCD.Id = currentConnNumber
-		newOrderedMap[smallestCD.Vector] = *smallestCD
+		connMap[smallestCD.Vector] = smallestCD
 		negVec := smallestCD.Vector.Neg()
 		negSmallestCD := connMap[negVec]
 		negSmallestCD.Id = -currentConnNumber
-		newOrderedMap[negVec] = *negSmallestCD
-		AllConnectionsIds[smallestCD.GetIntId()] = *smallestCD
-		AllConnectionsIds[negSmallestCD.GetIntId()] = *negSmallestCD
+		connMap[negVec] = negSmallestCD
+		AllConnectionsIds[smallestCD.GetIntId()] = smallestCD
+		AllConnectionsIds[negSmallestCD.GetIntId()] = negSmallestCD
 	}
-	AllConnectionsPossible = newOrderedMap
+	AllConnectionsPossible = connMap
 
 	return uint8(nbConnDetails)
 }
 
-func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
+func addConnDetail(connMap *map[Point]ConnectionDetails, connVector Point) {
 	ds := connVector.DistanceSquared()
 	if ds == 0 {
 		panic("zero vector cannot be a connection")
@@ -252,8 +288,8 @@ func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
 				}
 			}
 		}
-		posConnDetails := &ConnectionDetails{0, posVec, ds,}
-		negConnDetails := &ConnectionDetails{0, negVec, ds,}
+		posConnDetails := ConnectionDetails{0, posVec, ds,}
+		negConnDetails := ConnectionDetails{0, negVec, ds,}
 		(*connMap)[posVec] = posConnDetails
 		(*connMap)[negVec] = negConnDetails
 	}

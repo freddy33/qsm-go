@@ -93,10 +93,10 @@ func (space *Space) ForwardTime() *FullOutgrowthCollector {
 func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 	for _, eg := range evt.latestOutgrowths {
 		if eg.state != EventOutgrowthLatest {
-			Log.Fatalf("Wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, *(eg.pos))
+			Log.Fatalf("Wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, eg.pos)
 		}
 
-		nextPoints := eg.pos.getNextPoints(&(evt.growthContext))
+		nextPoints := eg.pos.getNextPoints(evt.growthContext)
 		for _, nextPoint := range nextPoints {
 			if !eg.CameFromPoint(nextPoint) {
 				sendOutgrowth := true
@@ -113,7 +113,7 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 		}
 	}
 	Log.Debug("Finished with event outgrowth for", evt.id, "sending End state possible outgrowth")
-	c <- &NewPossibleOutgrowth{*(evt.node.Pos), evt, nil, Distance(0), EventOutgrowthEnd}
+	c <- &NewPossibleOutgrowth{evt.node.Pos, evt, nil, Distance(0), EventOutgrowthEnd}
 }
 
 func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *FullOutgrowthCollector {
@@ -174,7 +174,7 @@ func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 			if newEo == nil {
 				newEo, _ = collector.sameEvent.realizeSameEvent(newPosEo, len(*newPosEoList))
 			} else {
-				newEo.AddFrom(newPosEo.from)
+				newEo.AddFrom(newPosEo.from.pos)
 			}
 		}
 	}
@@ -195,7 +195,7 @@ func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 						idsAlreadyDone[id] = newEo
 					}
 				} else {
-					doneEo.AddFrom(newPosEo.from)
+					doneEo.AddFrom(newPosEo.from.pos)
 				}
 			}
 		}
@@ -677,16 +677,17 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 		return nil, &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos,}
 	}
 	fromPoint := newPosEo.from.pos
-	fromNode := space.getOrCreateNode(*fromPoint)
+	fromNode := space.getOrCreateNode(fromPoint)
 	if !fromNode.IsAlreadyConnected(newNode) {
 		Log.Trace("Need to connect the two nodes", fromNode.GetStateString(), newNode.GetStateString())
 		if space.makeConnection(fromNode, newNode) == nil {
 			// No more connections
 			Log.Debug("Two nodes", fromNode.GetStateString(), newNode.GetStateString(), "cannot be connected without exceeding", newPosEo.event.space.MaxConnections, "connections")
-			return nil, &NoMoreConnectionsError{*(newNode.Pos), *(fromPoint)}
+			return nil, &NoMoreConnectionsError{newNode.Pos, fromPoint}
 		}
 	}
-	newEo := &EventOutgrowth{newNode.Pos, []Outgrowth{newPosEo.from,}, newPosEo.distance, EventOutgrowthNew, nil,}
+	newEo := MakeActiveOutgrowth(newNode.Pos, newPosEo.distance, EventOutgrowthNew)
+	newEo.AddFrom(newPosEo.from.pos)
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(evt.id, space.currentTime)
 	Log.Trace("Created new outgrowth", newEo.String())

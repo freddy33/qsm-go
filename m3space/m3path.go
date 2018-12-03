@@ -165,35 +165,8 @@ func (fpe *ForkPathElement) GetLength() int {
 }
 
 /***************************************************************/
-// Path building Functions
+// Merge Path Functions
 /***************************************************************/
-
-func (eo *EventOutgrowth) GetRootPathElement() PathElement {
-	if eo.rootPath == nil {
-		eo.rootPath = eo.BuildPath(nil)
-	}
-	return eo.rootPath
-}
-
-func (seo *SavedEventOutgrowth) GetRootPathElement() PathElement {
-	return seo.rootPath
-}
-
-func (eo *EventOutgrowth) BuildPath(path PathElement) PathElement {
-	if eo.IsRoot() {
-		return path
-	}
-	fromConnIds := eo.GetFromConnIds()
-	firstPath := eo.fromList[0].BuildPath(&SimplePathElement{-fromConnIds[0], path,})
-	if len(eo.fromList) == 1 {
-		return firstPath
-	}
-	for i := 1; i < len(eo.fromList); i++ {
-		newPath := eo.fromList[i].BuildPath(&SimplePathElement{-fromConnIds[i], path,})
-		firstPath = MergePath(firstPath, newPath)
-	}
-	return firstPath
-}
 
 func MergePath(path1, path2 PathElement) PathElement {
 	if path1 == nil && path2 == nil {
@@ -268,7 +241,47 @@ func addCopyToMap(path PathElement, idx int, pathsPerConnId *map[int8][]*SimpleP
 	(*pathsPerConnId)[connId] = paths
 }
 
+/***************************************************************/
+// Path building Functions
+/***************************************************************/
+
+func (eo *EventOutgrowth) GetRootPathElement(evt *Event) PathElement {
+	if eo.rootPath == nil {
+		eo.rootPath = eo.BuildPath(TheEnd)
+	}
+	return eo.rootPath
+}
+
+func (seo *SavedEventOutgrowth) GetRootPathElement(evt *Event) PathElement {
+	if seo.rootPath == nil {
+		seo.rootPath = seo.BuildPath(TheEnd)
+	}
+	return seo.rootPath
+}
+
+func (eo *EventOutgrowth) BuildPath(path PathElement) PathElement {
+	if eo.IsRoot() {
+		return path
+	}
+	return path
+	/* TODO
+	fromConnIds := eo.GetFromConnIds()
+	firstPath := eo.fromList[0].BuildPath(&SimplePathElement{-fromConnIds[0], path,})
+	if len(eo.fromList) == 1 {
+		return firstPath
+	}
+	for i := 1; i < len(eo.fromList); i++ {
+		newPath := eo.fromList[i].BuildPath(&SimplePathElement{-fromConnIds[i], path,})
+		firstPath = MergePath(firstPath, newPath)
+	}
+	return firstPath
+	*/
+}
+
 func (seo *SavedEventOutgrowth) BuildPath(path PathElement) PathElement {
+	if seo.IsRoot() {
+		return path
+	}
 	newPath := seo.rootPath.Copy()
 	newPath.SetLastNext(path)
 	return newPath

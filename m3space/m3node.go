@@ -19,7 +19,7 @@ type Node interface {
 }
 
 type ActiveNode struct {
-	Pos              *Point
+	Pos              Point
 	root             bool
 	accessedEventIDS []AccessedEventID
 	connections      []*Connection
@@ -33,14 +33,14 @@ type SavedNode struct {
 
 type Connection struct {
 	Id     int8
-	P1, P2 *Point
+	P1, P2 Point
 }
 
 /***************************************************************/
 // Node Functions
 /***************************************************************/
 
-func NewNode(p *Point) *ActiveNode {
+func NewNode(p Point) *ActiveNode {
 	n := ActiveNode{}
 	n.Pos = p
 	return &n
@@ -156,7 +156,7 @@ func (node *ActiveNode) IsOld(space *Space) bool {
 }
 
 func (node *ActiveNode) String() string {
-	return fmt.Sprintf("%v:%d:%d", *(node.Pos), len(node.connections), len(node.accessedEventIDS))
+	return fmt.Sprintf("%v:%d:%d", node.Pos, len(node.connections), len(node.accessedEventIDS))
 }
 
 func (node *ActiveNode) GetStateString() string {
@@ -165,9 +165,9 @@ func (node *ActiveNode) GetStateString() string {
 		connIds[i] = AllConnectionsIds[conn.Id].GetName()
 	}
 	if node.root {
-		return fmt.Sprintf("%v: root %v, %v", *(node.Pos), node.accessedEventIDS, connIds)
+		return fmt.Sprintf("%v: root %v, %v", node.Pos, node.accessedEventIDS, connIds)
 	}
-	return fmt.Sprintf("%v: %v, %v", *(node.Pos), node.accessedEventIDS, connIds)
+	return fmt.Sprintf("%v: %v, %v", node.Pos, node.accessedEventIDS, connIds)
 }
 
 /***************************************************************/
@@ -182,15 +182,15 @@ func (conn *Connection) GetConnectionDetails() ConnectionDetails {
 	return AllConnectionsIds[conn.Id]
 }
 
-func (conn *Connection) IsConnectedTo(point *Point) bool {
-	return *(conn.P1) == *point || *(conn.P2) == *point
+func (conn *Connection) IsConnectedTo(point Point) bool {
+	return conn.P1 == point || conn.P2 == point
 }
 
 func (conn *Connection) GetColorMask(space *Space) uint8 {
+	n1 := space.GetNode(conn.P1)
+	n2 := space.GetNode(conn.P2)
 	// Connection color mask of all event outgrowth that match
-	if conn.P1 != nil && conn.P2 != nil {
-		n1 := space.GetNode(*conn.P1)
-		n2 := space.GetNode(*conn.P2)
+	if n1 != nil && n2 != nil {
 		return n1.GetColorMask(space) & n2.GetColorMask(space)
 	}
 	return uint8(0)
@@ -201,12 +201,46 @@ func (conn *Connection) HowManyColors(space *Space) uint8 {
 }
 
 func (conn *Connection) IsOld(space *Space) bool {
-	if conn.P1 != nil && conn.P2 != nil {
-		n1 := space.GetNode(*conn.P1)
-		n2 := space.GetNode(*conn.P2)
+	n1 := space.GetNode(conn.P1)
+	n2 := space.GetNode(conn.P2)
+	if n1 != nil && n2 != nil {
 		return n1.IsOld(space) && n2.IsOld(space)
 	}
 	return false
+}
+
+func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
+	if !n1.HasFreeConnections(space) {
+		Log.Trace("Node 1", n1, "does not have free connections")
+		return nil
+	}
+	if !n2.HasFreeConnections(space) {
+		Log.Trace("Node 2", n2, "does not have free connections")
+		return nil
+	}
+	if n1.IsAlreadyConnected(n2) {
+		Log.Trace("Connection between 2 points", n1.Pos, n2.Pos, "already connected!")
+		return nil
+	}
+
+	d := DS(n1.Pos, n2.Pos)
+	if !(d == 1 || d == 2 || d == 3 || d == 5) {
+		Log.Error("Connection between 2 points", n1.Pos, n2.Pos, "that are not 1, 2, 3 or 5 DS away!")
+		return nil
+	}
+	// All good create connection
+	bv := MakeVector(n1.Pos, n2.Pos)
+	cd := AllConnectionsPossible[bv]
+	c1 := &Connection{cd.GetIntId(), n1.Pos, n2.Pos}
+	space.activeConnections = append(space.activeConnections, c1)
+	n1done := n1.AddConnection(c1, space)
+	c2 := &Connection{-cd.GetIntId(), n2.Pos, n1.Pos}
+	n2done := n2.AddConnection(c2, space)
+	if n1done < 0 || n2done < 0 {
+		Log.Error("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
+		return nil
+	}
+	return c1
 }
 
 /***************************************************************/

@@ -6,6 +6,173 @@ import (
 	"testing"
 )
 
+func TestActiveEventOutgrowth(t *testing.T) {
+	Log.Level = m3util.TRACE
+	var o Outgrowth
+	aeo := MakeActiveOutgrowth(Point{1, 2, 3}, Distance(0), EventOutgrowthLatest)
+	o = aeo
+
+	assert.Equal(t, Point{1, 2, 3}, o.GetPoint())
+	assert.Equal(t, Distance(0), o.GetDistance())
+	assert.Equal(t, EventOutgrowthLatest, o.GetState())
+	assert.Equal(t, true, o.IsRoot())
+
+	assert.Equal(t, Distance(0), o.DistanceFromLatest(nil))
+	assert.Equal(t, true, o.IsActive(nil))
+	assert.Equal(t, false, o.IsOld(nil))
+
+	assert.Equal(t, false, o.HasFrom())
+	assert.Equal(t, 0, o.FromLength())
+
+	assert.Equal(t, 0, len(o.GetFromConnIds()))
+	assert.Equal(t, false, o.CameFromPoint(Origin))
+	assert.Equal(t, TheEnd, o.GetRootPathElement(nil))
+
+	o.AddFrom(Point{2, 2, 3})
+	aeo.rootPath = nil
+
+	assert.Equal(t, Point{1, 2, 3}, o.GetPoint())
+	assert.Equal(t, Distance(0), o.GetDistance())
+	assert.Equal(t, EventOutgrowthLatest, o.GetState())
+	assert.Equal(t, false, o.IsRoot())
+
+	assert.Equal(t, true, o.HasFrom())
+	assert.Equal(t, 1, o.FromLength())
+
+	assert.Equal(t, 1, len(o.GetFromConnIds()))
+	assert.Equal(t, false, o.CameFromPoint(Origin))
+	assert.Equal(t, true, o.CameFromPoint(Point{2, 2, 3}))
+	p := o.GetRootPathElement(nil)
+	assert.Equal(t, 1, p.GetLength())
+}
+
+func TestSavedEventOutgrowth(t *testing.T) {
+	Log.Level = m3util.TRACE
+	var o Outgrowth
+	o = &SavedEventOutgrowth{Point{1, 2, 3}, nil, Distance(0), TheEnd}
+
+	assert.Equal(t, Point{1, 2, 3}, o.GetPoint())
+	assert.Equal(t, Distance(0), o.GetDistance())
+	assert.Equal(t, EventOutgrowthOld, o.GetState())
+	assert.Equal(t, true, o.IsRoot())
+
+	//assert.Equal(t, Distance(0), o.DistanceFromLatest(nil))
+	assert.Equal(t, true, o.IsActive(nil))
+	assert.Equal(t, false, o.IsOld(nil))
+
+	assert.Equal(t, false, o.HasFrom())
+	assert.Equal(t, 0, o.FromLength())
+
+	assert.Equal(t, 0, len(o.GetFromConnIds()))
+	assert.Equal(t, false, o.CameFromPoint(Origin))
+	assert.Equal(t, TheEnd, o.GetRootPathElement(nil))
+}
+
+func TestActiveEventOutgrowthPath(t *testing.T) {
+	Log.Level = m3util.TRACE
+	space := MakeSpace(3 * 9)
+	assertEmptySpace(t, &space, 3*9)
+	space.SetEventOutgrowthThreshold(Distance(0))
+	//space.blockOnSameEvent = 4
+	assert.Equal(t, Distance(0), space.EventOutgrowthThreshold)
+	assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
+	assert.Equal(t, 3, space.blockOnSameEvent)
+
+	// Test center is overridden
+	ctx := GrowthContext{Point{5,6,7}, 1, 0, false, 0}
+	evt := space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
+
+	assert.Equal(t, Origin, ctx.center)
+
+	assert.Equal(t, 1, len(evt.latestOutgrowths))
+	assert.Equal(t, 0, len(evt.currentOutgrowths))
+	assert.Equal(t, TickTime(0), evt.created)
+	eo := evt.latestOutgrowths[0]
+
+	var o Outgrowth
+	o = eo
+
+	assert.Equal(t, Point{0, 0, 0}, o.GetPoint())
+	assert.Equal(t, Distance(0), o.GetDistance())
+	assert.Equal(t, EventOutgrowthLatest, o.GetState())
+	assert.Equal(t, true, o.IsRoot())
+
+	assert.Equal(t, Distance(0), o.DistanceFromLatest(evt))
+	assert.Equal(t, true, o.IsActive(evt))
+	assert.Equal(t, false, o.IsOld(evt))
+
+	assert.Equal(t, false, o.HasFrom())
+	assert.Equal(t, 0, o.FromLength())
+
+	assert.Equal(t, 0, len(o.GetFromConnIds()))
+	assert.Equal(t, false, o.CameFromPoint(Origin))
+	assert.Equal(t, TheEnd, o.GetRootPathElement(evt))
+
+	nextPoint := Point{1, 1, 0}
+	nextPoints := o.GetPoint().getNextPoints(evt.growthContext)
+	assert.Equal(t, 3, len(nextPoints))
+	assert.Equal(t, nextPoint, nextPoints[0])
+	assert.Equal(t, false, o.CameFromPoint(nextPoint))
+
+	c := make(chan *NewPossibleOutgrowth, 10)
+	c <- &NewPossibleOutgrowth{nextPoint, evt, eo, eo.distance + 1, EventOutgrowthNew}
+	c <- &NewPossibleOutgrowth{evt.node.Pos, evt, nil, Distance(0), EventOutgrowthEnd}
+
+	collector := space.processNewOutgrowth(c, 1)
+
+	assert.Equal(t, 1, len(collector.single.data))
+	assert.Equal(t, 0, len(collector.sameEvent.data))
+	assert.Equal(t, 0, len(collector.multiEvents.data))
+
+	space.currentTime++
+
+	space.realizeAllOutgrowth(collector)
+
+	assert.Equal(t, 1, collector.single.originalPoints)
+	assert.Equal(t, 0, collector.single.occupiedPoints)
+	assert.Equal(t, 0, collector.single.noMoreConnPoints)
+	assert.Equal(t, 0, collector.sameEvent.originalPoints)
+	assert.Equal(t, 0, collector.multiEvents.originalPoints)
+
+	// Switch latest to old, and new to latest
+	for _, evt := range space.events {
+		evt.moveNewOutgrowthsToLatest()
+	}
+	//space.moveOldToOldMaps()
+
+	assert.Equal(t, 1, len(evt.latestOutgrowths))
+	assert.Equal(t, 1, len(evt.currentOutgrowths))
+
+	eo1 := evt.latestOutgrowths[0]
+	var o1 Outgrowth
+	o1 = eo1
+
+	assert.Equal(t, nextPoint, o1.GetPoint())
+	assert.Equal(t, Distance(1), o1.GetDistance())
+	assert.Equal(t, EventOutgrowthLatest, o1.GetState())
+	assert.Equal(t, EventOutgrowthCurrent, o.GetState())
+	assert.Equal(t, false, o1.IsRoot())
+	assert.Equal(t, true, o.IsRoot())
+
+	assert.Equal(t, Distance(0), o1.DistanceFromLatest(evt))
+	assert.Equal(t, Distance(1), o.DistanceFromLatest(evt))
+	assert.Equal(t, true, o1.IsActive(evt))
+	assert.Equal(t, false, o1.IsOld(evt))
+
+	assert.Equal(t, true, o1.HasFrom())
+	assert.Equal(t, 1, o1.FromLength())
+
+	ids := o1.GetFromConnIds()
+	LogDatagen.Infof("from conn list %v",ids)
+	assert.Equal(t, 1, len(ids))
+	assert.Equal(t, int8(-4), ids[0])
+	assert.Equal(t, true, o1.CameFromPoint(Origin))
+	p := o1.GetRootPathElement(evt)
+	assert.Equal(t, 1, p.GetLength())
+	assert.Equal(t, 1, p.NbForwardElements())
+	assert.Equal(t, int8(4), p.GetForwardConnId(0))
+}
+
 func TestOverlapSameEvent(t *testing.T) {
 	LogStat.Level = m3util.WARN
 	Log.Level = m3util.TRACE
@@ -16,8 +183,8 @@ func TestOverlapSameEvent(t *testing.T) {
 	// Only latest counting
 	space.SetEventOutgrowthThreshold(Distance(0))
 	space.blockOnSameEvent = 4
-	ctx := GrowthContext{&Origin, 1, 0, false, 0}
-	space.CreateEventWithGrowthContext(Origin, RedEvent, ctx)
+	ctx := GrowthContext{Origin, 1, 0, false, 0}
+	space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
 
 	expectedTime := TickTime(0)
 	nbLatestNodes := 1
@@ -48,11 +215,11 @@ func TestOverlapSameEvent(t *testing.T) {
 	for _, evt := range space.events {
 		for _, eo := range evt.latestOutgrowths {
 			fromSizeHisto[eo.FromLength()]++
-			lo, ok := latestOutgrowths[*eo.pos]
+			lo, ok := latestOutgrowths[eo.pos]
 			if ok {
-				assert.Fail(t, "Should not have an outgrowth at %v for %v <= %v", *eo.pos, eo.String(), lo)
+				assert.Fail(t, "Should not have an outgrowth at %v for %v <= %v", eo.pos, eo.String(), lo)
 			} else {
-				latestOutgrowths[*eo.pos] = eo
+				latestOutgrowths[eo.pos] = eo
 			}
 		}
 	}
@@ -67,12 +234,12 @@ func getAllNodeWithOutgrowthAtD(space *Space, atD Distance) map[Point]Node {
 	for _, evt := range space.events {
 		for _, eo := range evt.latestOutgrowths {
 			if eo.distance == atD {
-				res[*eo.pos] = space.GetNode(*eo.pos)
+				res[eo.pos] = space.GetNode(eo.pos)
 			}
 		}
 		for _, eo := range evt.currentOutgrowths {
 			if eo.distance == atD {
-				res[*eo.pos] = space.GetNode(*eo.pos)
+				res[eo.pos] = space.GetNode(eo.pos)
 			}
 		}
 	}

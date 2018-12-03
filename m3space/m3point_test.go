@@ -1,11 +1,11 @@
 package m3space
 
 import (
-	"github.com/freddy33/qsm-go/m3util"
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
+	"testing"
 )
 
 func TestPosMod4(t *testing.T) {
@@ -31,13 +31,13 @@ func TestPoint(t *testing.T) {
 	assert.Equal(t, Point{17, 11, 13}, P)
 
 	// Test DS
-	assert.Equal(t, int64(3), DS(&OneTwoThree, &Point{0, 1, 2}))
+	assert.Equal(t, int64(3), DS(OneTwoThree, Point{0, 1, 2}))
 	// Make sure OneTwoThree did not change
 	assert.Equal(t, Point{1, 2, 3}, OneTwoThree)
 
-	assert.Equal(t, int64(4), DS(&OneTwoThree, &Point{-1, 2, 3}))
-	assert.Equal(t, int64(16), DS(&OneTwoThree, &Point{1, -2, 3}))
-	assert.Equal(t, int64(36), DS(&OneTwoThree, &Point{1, 2, -3}))
+	assert.Equal(t, int64(4), DS(OneTwoThree, Point{-1, 2, 3}))
+	assert.Equal(t, int64(16), DS(OneTwoThree, Point{1, -2, 3}))
+	assert.Equal(t, int64(36), DS(OneTwoThree, Point{1, 2, -3}))
 
 	// Test Add
 	assert.Equal(t, Point{3, 0, 0}, Orig.Add(XFirst))

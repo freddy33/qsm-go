@@ -176,7 +176,7 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 	}
 }
 
-func getContextString(ctx GrowthContext) string {
+func getContextString(ctx *GrowthContext) string {
 	return fmt.Sprintf("Type %d, Idx %d", ctx.permutationType, ctx.permutationIndex)
 }
 
@@ -194,8 +194,8 @@ func Test_Evt1_Type1_D0_Old3_Same4(t *testing.T) {
 		// Only latest counting
 		space.SetEventOutgrowthThreshold(Distance(0))
 
-		ctx := GrowthContext{&Origin, 1, trioIdx, false, 0}
-		space.CreateEventWithGrowthContext(Origin, RedEvent, ctx)
+		ctx := GrowthContext{Origin, 1, trioIdx, false, 0}
+		space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
 
 		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
 
@@ -215,7 +215,7 @@ func Test_Evt1_Type1_D0_Old3_Same4(t *testing.T) {
 			13: {1, -153, 0, -1},
 			14: {1, -202, 0, -1},
 		}
-		assertSpaceStates(t, &space, expectedState, 14, getContextString(ctx))
+		assertSpaceStates(t, &space, expectedState, 14, getContextString(&ctx))
 
 		assertNearMainPoints(t, &space)
 	}
@@ -237,7 +237,7 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 	assert.Equal(t, 0, evt.growthContext.permutationIndex)
 	assert.Equal(t, 0, evt.growthContext.permutationOffset)
 	assert.Equal(t, false, evt.growthContext.permutationNegFlow)
-	assert.Equal(t, Origin, *(evt.growthContext.center))
+	assert.Equal(t, Origin, evt.growthContext.center)
 
 	expectedState := map[TickTime]ExpectedSpaceState{
 		0: {1, 0, 0, 0},
@@ -348,18 +348,18 @@ func assertNearMainPoints(t *testing.T, space *Space) {
 			for _, conn := range node.connections {
 				if conn != nil {
 					if conn.P1.IsMainPoint() {
-						mainPointNode = space.getAndActivateNode(*conn.P1)
+						mainPointNode = space.getAndActivateNode(conn.P1)
 						break
 					}
 					if conn.P2.IsMainPoint() {
-						mainPointNode = space.getAndActivateNode(*conn.P2)
+						mainPointNode = space.getAndActivateNode(conn.P2)
 						break
 					}
 				}
 			}
 		}
 		if mainPointNode != nil {
-			assert.Equal(t, node.Pos.getNearMainPoint(), *(mainPointNode.Pos))
+			assert.Equal(t, node.Pos.getNearMainPoint(), mainPointNode.Pos)
 		}
 	}
 }

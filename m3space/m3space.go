@@ -130,14 +130,14 @@ func (space *Space) getAndActivateNode(p Point) *ActiveNode {
 		Log.Debugf("Recovering node %s from storage to active", sn.GetStateString())
 		// becomes active
 		delete(space.oldNodesMap, p)
-		n = NewNode(&p)
+		n = NewNode(p)
 		n.root = sn.IsRoot()
 		n.accessedEventIDS = sn.accessedEventIDS
 		n.connections = make([]*Connection, len(sn.connections))
 		for i, connId := range sn.connections {
 			cd := AllConnectionsIds[connId]
 			p2 := n.Pos.Add(cd.Vector)
-			n.connections[i] = &Connection{connId, n.Pos, &p2,}
+			n.connections[i] = &Connection{connId, n.Pos, p2,}
 		}
 		space.activeNodesMap[p] = n
 		return n
@@ -150,7 +150,7 @@ func (space *Space) getOrCreateNode(p Point) *ActiveNode {
 	if n != nil {
 		return n
 	}
-	n = NewNode(&p)
+	n = NewNode(p)
 	space.activeNodesMap[p] = n
 	for _, c := range p {
 		if c > 0 && space.Max < c {
@@ -161,40 +161,6 @@ func (space *Space) getOrCreateNode(p Point) *ActiveNode {
 		}
 	}
 	return n
-}
-
-func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
-	if !n1.HasFreeConnections(space) {
-		Log.Trace("Node 1", n1, "does not have free connections")
-		return nil
-	}
-	if !n2.HasFreeConnections(space) {
-		Log.Trace("Node 2", n2, "does not have free connections")
-		return nil
-	}
-	if n1.IsAlreadyConnected(n2) {
-		Log.Trace("Connection between 2 points", *(n1.Pos), *(n2.Pos), "already connected!")
-		return nil
-	}
-
-	d := DS(n1.Pos, n2.Pos)
-	if !(d == 1 || d == 2 || d == 3 || d == 5) {
-		Log.Error("Connection between 2 points", *(n1.Pos), *(n2.Pos), "that are not 1, 2, 3 or 5 DS away!")
-		return nil
-	}
-	// All good create connection
-	bv := MakeVector(*n1.Pos, *n2.Pos)
-	cd := AllConnectionsPossible[bv]
-	c1 := &Connection{cd.GetIntId(), n1.Pos, n2.Pos}
-	space.activeConnections = append(space.activeConnections, c1)
-	n1done := n1.AddConnection(c1, space)
-	c2 := &Connection{-cd.GetIntId(), n2.Pos, n1.Pos}
-	n2done := n2.AddConnection(c2, space)
-	if n1done < 0 || n2done < 0 {
-		Log.Error("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
-		return nil
-	}
-	return c1
 }
 
 func (space *Space) DisplayState() {

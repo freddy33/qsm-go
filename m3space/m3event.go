@@ -21,7 +21,7 @@ type Event struct {
 	node              *ActiveNode
 	created           TickTime
 	color             EventColor
-	growthContext     GrowthContext
+	growthContext     *GrowthContext
 	currentOutgrowths []*EventOutgrowth
 	latestOutgrowths  []*EventOutgrowth
 }
@@ -36,7 +36,7 @@ type SavedEvent struct {
 }
 
 func (space *Space) CreateEvent(p Point, k EventColor) *Event {
-	ctx := GrowthContext{&Origin, 8, 0, false, 0}
+	ctx := GrowthContext{Origin, 8, 0, false, 0}
 	switch k {
 	case RedEvent:
 		// No change
@@ -50,10 +50,10 @@ func (space *Space) CreateEvent(p Point, k EventColor) *Event {
 		ctx.permutationIndex = 10
 		ctx.permutationOffset = 4
 	}
-	return space.CreateEventWithGrowthContext(p, k, ctx)
+	return space.CreateEventWithGrowthContext(p, k, &ctx)
 }
 
-func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx GrowthContext) *Event {
+func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx *GrowthContext) *Event {
 	n := space.getOrCreateNode(p)
 	id := space.currentId
 	n.SetRoot(id, space.currentTime)
@@ -62,7 +62,7 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx Grow
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
 		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
-	e.latestOutgrowths[0] = &EventOutgrowth{n.Pos, nil, Distance(0), EventOutgrowthLatest, nil,}
+	e.latestOutgrowths[0] = MakeActiveOutgrowth(n.Pos, Distance(0), EventOutgrowthLatest)
 	space.events[id] = &e
 	ctx.center = n.Pos
 	return &e

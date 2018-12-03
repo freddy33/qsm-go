@@ -270,7 +270,7 @@ func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection
 	sdc := SpaceDrawingColor{}
 	sdc.objColors = conn.GetColorMask(space)
 	cd := conn.GetConnectionDetails()
-	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, conn.P1,}
+	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, &conn.P1,}
 }
 
 func getConnectionObjectType(cd m3space.ConnectionDetails) ObjectType {
@@ -306,7 +306,7 @@ func (n NodeDrawingElement) Dimmer(blinkValue float64) float32 {
 }
 
 func (n NodeDrawingElement) Pos() *m3space.Point {
-	return n.node.Pos
+	return &n.node.Pos
 }
 
 // ConnectionDrawingElement functions

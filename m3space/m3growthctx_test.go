@@ -16,17 +16,17 @@ func getAllContexts() map[uint8][]GrowthContext {
 	res[8] = make([]GrowthContext, 0, 12*8*2)
 
 	for pIdx := 0; pIdx < 8; pIdx++ {
-		res[1] = append(res[1], GrowthContext{&Origin, 1, pIdx, false, 0,})
+		res[1] = append(res[1], GrowthContext{Origin, 1, pIdx, false, 0,})
 		for offset := 0; offset < 3; offset++ {
-			res[3] = append(res[3], GrowthContext{&Origin, 3, pIdx, false, offset,})
+			res[3] = append(res[3], GrowthContext{Origin, 3, pIdx, false, offset,})
 		}
 	}
 
 	for _, pType := range [4]uint8{2, 4, 8} {
 		for pIdx := 0; pIdx < 12; pIdx++ {
 			for offset := 0; offset < int(pType); offset++ {
-				res[pType] = append(res[pType], GrowthContext{&Origin, pType, pIdx, false, offset,})
-				res[pType] = append(res[pType], GrowthContext{&Origin, pType, pIdx, true, offset,})
+				res[pType] = append(res[pType], GrowthContext{Origin, pType, pIdx, false, offset,})
+				res[pType] = append(res[pType], GrowthContext{Origin, pType, pIdx, true, offset,})
 			}
 		}
 	}
@@ -36,8 +36,8 @@ func getAllContexts() map[uint8][]GrowthContext {
 func TestDivByThree(t *testing.T) {
 	Log.Level = m3util.DEBUG
 	someCenter1 := Point{3, -6, 9}
-	ctx := GrowthContext{&someCenter1, 1, 1, false, 0,}
-	assert.Equal(t, someCenter1, *(ctx.center))
+	ctx := GrowthContext{someCenter1, 1, 1, false, 0,}
+	assert.Equal(t, someCenter1, ctx.center)
 	assert.Equal(t, uint8(1), ctx.permutationType)
 	assert.Equal(t, 1, ctx.permutationIndex)
 	assert.Equal(t, false, ctx.permutationNegFlow)
@@ -61,7 +61,7 @@ func TestDivByThree(t *testing.T) {
 
 func TestGrowthContext1(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	ctx := GrowthContext{&Origin, 1, 3, false, 0,}
+	ctx := GrowthContext{Origin, 1, 3, false, 0,}
 	assert.Equal(t, uint8(1), ctx.permutationType)
 	assert.Equal(t, 3, ctx.permutationIndex)
 	assert.Equal(t, false, ctx.permutationNegFlow)
@@ -83,7 +83,7 @@ func TestGrowthContext1(t *testing.T) {
 
 func TestGrowthContext3(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	ctx := GrowthContext{&Origin, 3, 0, false, 0,}
+	ctx := GrowthContext{Origin, 3, 0, false, 0,}
 	assert.Equal(t, uint8(3), ctx.permutationType)
 	assert.Equal(t, 0, ctx.permutationIndex)
 	assert.Equal(t, false, ctx.permutationNegFlow)

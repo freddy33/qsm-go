@@ -266,7 +266,7 @@ func Write0To4TimeFlow() {
 	m3util.ChangeToDocsGeneratedDir()
 
 	// Start from origin with growth context type 2 index 0
-	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
+	ctx := &GrowthContext{Origin, 2, 0, false, 0}
 	untilTime := TickTime(8)
 
 	txtFile, err := os.Create(fmt.Sprintf("Center_%03d_%03d_%03d_Growth_%d_%d_Time_%03d.txt",
@@ -307,7 +307,7 @@ func GenerateDataTimeFlow0() {
 	m3util.ChangeToDocsDataDir()
 
 	// Start from origin with growth context type 2 index 0
-	ctx := &GrowthContext{&Origin, 2, 0, false, 0}
+	ctx := &GrowthContext{Origin, 2, 0, false, 0}
 	untilTime := TickTime(30)
 
 	binFile, err := os.Create(fmt.Sprintf("Growth_%d_%d_Time_%03d.data",
