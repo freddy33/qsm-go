@@ -10,6 +10,8 @@ import (
 
 var LogStat = m3util.NewStatLogger("m3stat", m3util.INFO)
 
+type ThreeIds [3]EventID
+
 type OutgrowthCollectorStatSingle struct {
 	name             string
 	originalPoints   int
@@ -38,7 +40,6 @@ type OutgrowthCollectorStatMultiEvent struct {
 	nbEventsNoMoreConnHistogram []int
 	newPoint                    bool
 	perEvent                    map[EventID]*OutgrowthCollectorStatSameEvent
-	moreThan3EventsPerPoint     map[Point][]EventID
 }
 
 type OutgrowthCollectorSingle struct {
@@ -53,7 +54,8 @@ type OutgrowthCollectorSameEvent struct {
 
 type OutgrowthCollectorMultiEvent struct {
 	OutgrowthCollectorStatMultiEvent
-	data map[Point]*map[EventID]*[]*NewPossibleOutgrowth
+	data              map[Point]*map[EventID]*[]*NewPossibleOutgrowth
+	pointsPerThreeIds map[ThreeIds]*[]Point
 }
 
 type FullOutgrowthCollector struct {
@@ -206,8 +208,17 @@ func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 				ids[i] = id
 				i++
 			}
-			SortEventIDs(&ids)
-			collector.multiEvents.moreThan3EventsPerPoint[pos] = ids
+			for _, threeId := range MakeThreeIds(ids) {
+				points, ok := collector.multiEvents.pointsPerThreeIds[threeId]
+				if !ok {
+					pointsList := make([]Point, 1)
+					pointsList[0] = pos
+					points = &pointsList
+					collector.multiEvents.pointsPerThreeIds[threeId] = points
+				} else {
+					*points = append(*points, pos)
+				}
+			}
 		}
 	}
 	collector.multiEvents.displayStat()
@@ -291,7 +302,7 @@ func (col *OutgrowthCollectorMultiEvent) beginRealize() {
 		return
 	}
 	col.totalOriginalPossible = 0
-	col.moreThan3EventsPerPoint = make(map[Point][]EventID, 1+col.originalPoints/10)
+	col.pointsPerThreeIds = make(map[ThreeIds]*[]Point, 3)
 	col.nbEventsOriginalHistogram = make([]int, 2)
 	col.perEvent = make(map[EventID]*OutgrowthCollectorStatSameEvent, 3)
 	for _, evtMapList := range col.data {
@@ -463,8 +474,8 @@ func (colStat *OutgrowthCollectorStatSameEvent) displayStat() {
 	LogStat.Debug(buf.String())
 }
 
-func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
-	if colStat.originalPoints == 0 {
+func (col *OutgrowthCollectorMultiEvent) displayStat() {
+	if col.originalPoints == 0 {
 		// nothing to show skip
 		return
 	}
@@ -472,30 +483,34 @@ func (colStat *OutgrowthCollectorStatMultiEvent) displayStat() {
 	// Only debug
 	if LogStat.Level <= m3util.DEBUG {
 		buf := bytes.NewBufferString("")
-		fmt.Fprintf(buf, "%12s  : %6d / %6d / %6d | %6d / %6d / %6d", colStat.name,
-			colStat.originalPoints, colStat.occupiedPoints, colStat.noMoreConnPoints,
-			colStat.totalOriginalPossible, colStat.totalOccupiedPossible, colStat.totalNoMoreConnPossible)
-		if len(colStat.nbEventsOriginalHistogram) > 1 {
-			for i, j := range colStat.nbEventsOriginalHistogram {
-				fmt.Fprintf(buf, "\n%12s %d: %6d / %6d / %6d", colStat.name, i+StartWithTwoHistoDelta, j,
-					colStat.nbEventsOccupiedHistogram[i], colStat.nbEventsNoMoreConnHistogram[i])
+		fmt.Fprintf(buf, "%12s  : %6d / %6d / %6d | %6d / %6d / %6d", col.name,
+			col.originalPoints, col.occupiedPoints, col.noMoreConnPoints,
+			col.totalOriginalPossible, col.totalOccupiedPossible, col.totalNoMoreConnPossible)
+		if len(col.nbEventsOriginalHistogram) > 1 {
+			for i, j := range col.nbEventsOriginalHistogram {
+				fmt.Fprintf(buf, "\n%12s %d: %6d / %6d / %6d", col.name, i+StartWithTwoHistoDelta, j,
+					col.nbEventsOccupiedHistogram[i], col.nbEventsNoMoreConnHistogram[i])
 			}
 		}
 		LogStat.Debug(buf.String())
-		for _, se := range colStat.perEvent {
+		for _, se := range col.perEvent {
 			se.displayStat()
 		}
 	}
 
-	nbEventsPerPoints := len(colStat.moreThan3EventsPerPoint)
-	if nbEventsPerPoints == 0 {
+	nbActiveThreeIds := len(col.pointsPerThreeIds)
+	if nbActiveThreeIds == 0 {
 		// Nothing left
 		return
 	}
 	buf := bytes.NewBufferString("")
-	fmt.Fprintf(buf, "Points with more than 3 events %d \n", nbEventsPerPoints)
-	for pos, ePerPos := range colStat.moreThan3EventsPerPoint {
-		fmt.Fprintln(buf, "Triple sync at:", pos, "for", ePerPos)
+	fmt.Fprintf(buf, "3 events blocks with same outgrowth point %d \n", nbActiveThreeIds)
+	for threeIds, points := range col.pointsPerThreeIds {
+		fmt.Fprintf(buf, "For block %v :", threeIds)
+		for _, p := range *points {
+			fmt.Fprintf(buf, "%v, ", p)
+		}
+		fmt.Fprint(buf, "\n")
 	}
 	Log.Info(buf.String())
 	LogStat.Info(buf.String())
@@ -728,7 +743,7 @@ func (space *Space) moveOldToOldMaps() {
 			for i, conn := range node.connections {
 				connIds[i] = conn.Id
 			}
-			space.oldNodesMap[p] = &SavedNode{node.root, node.accessedEventIDS, connIds, }
+			space.oldNodesMap[p] = &SavedNode{node.root, node.accessedEventIDS, connIds,}
 		}
 	}
 	finalActive := space.activeConnections[:0]
@@ -741,3 +756,29 @@ func (space *Space) moveOldToOldMaps() {
 	}
 	space.activeConnections = finalActive
 }
+
+func MakeThreeIds(ids []EventID) []ThreeIds {
+	SortEventIDs(&ids)
+	if len(ids) == 3 {
+		return []ThreeIds{{ids[0], ids[1], ids[2]},}
+	} else if len(ids) == 4 {
+		return []ThreeIds{
+			{ids[0], ids[1], ids[2]},
+			{ids[0], ids[2], ids[3]},
+			{ids[0], ids[1], ids[3]},
+			{ids[1], ids[2], ids[3]},
+		}
+	}
+	Log.Fatal("WHAT!")
+	return nil
+}
+
+func (tIds ThreeIds) contains(id EventID) bool {
+	for _, tid := range tIds {
+		if tid == id {
+			return true
+		}
+	}
+	return false
+}
+

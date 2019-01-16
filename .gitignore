@@ -2,6 +2,7 @@
 space
 qsm-go
 *.iml
+.DS_Store
 
 docs/generated/
 docs/data/

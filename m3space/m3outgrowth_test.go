@@ -163,7 +163,7 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 1, o1.FromLength())
 
 	ids := o1.GetFromConnIds()
-	LogDatagen.Infof("from conn list %v",ids)
+	LogTest.Infof("from conn list %v",ids)
 	assert.Equal(t, 1, len(ids))
 	assert.Equal(t, int8(-4), ids[0])
 	assert.Equal(t, true, o1.CameFromPoint(Origin))
