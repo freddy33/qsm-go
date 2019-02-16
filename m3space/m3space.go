@@ -46,7 +46,7 @@ func MakeSpace(max int64) Space {
 	space.oldNodesMap = make(map[Point]*SavedNode)
 	space.activeConnections = make([]*Connection, 0, 500)
 	space.nbOldConnections = 0
-	space.currentId = 0
+	space.currentId = 1
 	space.currentTime = 0
 	space.Max = max
 	space.MaxConnections = 3
@@ -137,7 +137,7 @@ func (space *Space) getAndActivateNode(p Point) *ActiveNode {
 		for i, connId := range sn.connections {
 			cd := AllConnectionsIds[connId]
 			p2 := n.Pos.Add(cd.Vector)
-			n.connections[i] = &Connection{connId, n.Pos, p2,}
+			n.connections[i] = &Connection{connId, n.Pos, p2}
 		}
 		space.activeNodesMap[p] = n
 		return n

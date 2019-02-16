@@ -3,8 +3,10 @@ package m3space
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/gonum/stat"
 	"github.com/stretchr/testify/assert"
-	"gonum.org/v1/gonum/stat"
+	"log"
+	"math"
 	"sort"
 	"testing"
 )
@@ -14,12 +16,12 @@ var LogTest = m3util.NewDataLogger("m3test", m3util.DEBUG)
 func GetPyramidSize(points [4]Point) int64 {
 	// Sum all the edges
 	totalSize := int64(0)
-	totalSize += MakeVector(points[0],points[1]).DistanceSquared()
-	totalSize += MakeVector(points[0],points[2]).DistanceSquared()
-	totalSize += MakeVector(points[0],points[3]).DistanceSquared()
-	totalSize += MakeVector(points[1],points[2]).DistanceSquared()
-	totalSize += MakeVector(points[1],points[3]).DistanceSquared()
-	totalSize += MakeVector(points[2],points[3]).DistanceSquared()
+	totalSize += MakeVector(points[0], points[1]).DistanceSquared()
+	totalSize += MakeVector(points[0], points[2]).DistanceSquared()
+	totalSize += MakeVector(points[0], points[3]).DistanceSquared()
+	totalSize += MakeVector(points[1], points[2]).DistanceSquared()
+	totalSize += MakeVector(points[1], points[3]).DistanceSquared()
+	totalSize += MakeVector(points[2], points[3]).DistanceSquared()
 	return totalSize
 }
 
@@ -53,7 +55,7 @@ func (pyramid Pyramid) ordered() Pyramid {
 		}
 		return false
 	})
-	return Pyramid{slice[0], slice[1], slice[2], slice[3],}
+	return Pyramid{slice[0], slice[1], slice[2], slice[3]}
 }
 
 func TestStatPack(t *testing.T) {
@@ -64,16 +66,16 @@ func TestStatPack(t *testing.T) {
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3
 	space.SetEventOutgrowthThreshold(Distance(0))
-	space.CreatePyramid(20)
+	space.CreatePyramid(50)
 	/*
-	i:=0
-	for _, evt := range space.events {
-		evt.growthContext.permutationType = 1
-		evt.growthContext.permutationIndex = i*2
-		evt.growthContext.permutationOffset = 0
-		evt.growthContext.permutationNegFlow = false
-		i++
-	}
+		i:=0
+		for _, evt := range space.events {
+			evt.growthContext.permutationType = 1
+			evt.growthContext.permutationIndex = i*2
+			evt.growthContext.permutationOffset = 0
+			evt.growthContext.permutationNegFlow = false
+			i++
+		}
 	*/
 
 	pyramidPoints := Pyramid{}
@@ -85,18 +87,19 @@ func TestStatPack(t *testing.T) {
 	LogTest.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := TickTime(0)
-	for expectedTime < 50 {
+	for expectedTime < 250 {
 		assert.Equal(t, expectedTime, space.currentTime)
 		col := space.ForwardTime()
 		expectedTime++
 		// This collection contains all the blocks of three events that have points activated at the same time
-		nbThreeIdsActive := len(col.multiEvents.pointsPerThreeIds)
+		pointsPer3Ids := col.multiEvents.pointsPerThreeIds
+		nbThreeIdsActive := len(pointsPer3Ids)
 		if nbThreeIdsActive >= 3 {
 			LogTest.Infof("Found a 3 match with %d elements", nbThreeIdsActive)
 			if nbThreeIdsActive >= 4 {
 				LogTest.Info("Found a 4 match")
-				builder := PyramidBuilder{pointsPerEvent, validEventIds, make(map[Pyramid]int64, 1),}
-				builder.processEventId(validEventIds[0], Pyramid{})
+				builder := PyramidBuilder{make(map[Pyramid]int64, 1)}
+				builder.createPyramids(pointsPer3Ids, &Pyramid{}, 0, nbThreeIdsActive-4)
 				allPyramids := builder.allPyramids
 				LogTest.Infof("AllPyramids %d", len(allPyramids))
 				assert.True(t, len(allPyramids) > 0)
@@ -113,133 +116,92 @@ func TestStatPack(t *testing.T) {
 					LogTest.Infof("We have a winner %v at size %d", bestPyramid, bestSize)
 					break
 				}
-
-			}
-
-			// Reorganizing the map into maps of block of three ids
-			eventsPerPoints := make(map[Point]map[ThreeIds]int, 4)
-			allThreeIds := make(map[ThreeIds]int, 4)
-			// Let's collect for every event involved in the collection all the ones which have 3 separate points in it
-			pointsPerEvent := make(map[EventID][]Point, 4)
-			for p, ids := range col.multiEvents.moreThan3EventsPerPoint {
-				for _, id := range ids {
-					points, ok := pointsPerEvent[id]
-					if !ok {
-						points = make([]Point, 1)
-						points[0] = p
-					} else {
-						points = append(points, p)
-					}
-					pointsPerEvent[id] = points
-				}
-				currentThreeIds := MakeThreeIds(ids)
-				threeIds, ok := eventsPerPoints[p]
-				if !ok {
-					threeIds = make(map[ThreeIds]int, 1)
-				}
-				for _, tid := range currentThreeIds {
-					threeIds[tid]++
-					allThreeIds[tid]++
-				}
-				eventsPerPoints[p] = threeIds
-			}
-			LogTest.Debugf("Reorganization of maps points=%d, events=%d, threeIds=%d, full=%v", len(eventsPerPoints), len(pointsPerEvent), len(allThreeIds), allThreeIds)
-			validEventIds := make([]EventID, 0, 3)
-			maxPoints := 0
-			for id, points := range pointsPerEvent {
-				nbPoints := len(points)
-				if nbPoints < 3 {
-					LogTest.Debug("Event id", id, "does not have enough points. Removing it!")
-					delete(pointsPerEvent, id)
-					for p, threeIds := range eventsPerPoints {
-						for tIds := range threeIds {
-							if tIds.contains(id) {
-								delete(threeIds, tIds)
-								eventsPerPoints[p] = threeIds
-							}
-						}
-					}
-					for tIds := range allThreeIds {
-						if tIds.contains(id) {
-							delete(allThreeIds, tIds)
-						}
-					}
-				} else {
-					validEventIds = append(validEventIds, id)
-					if nbPoints > maxPoints {
-						maxPoints = nbPoints
-					}
-				}
-			}
-			SortEventIDs(&validEventIds)
-			for p, threeIds := range eventsPerPoints {
-				if len(threeIds) == 0 {
-					delete(eventsPerPoints, p)
-				}
-			}
-			LogTest.Debugf("After filter: validIds=%d events=%d points=%d vslidIds=%v", len(validEventIds), len(pointsPerEvent), len(eventsPerPoints), validEventIds)
-
-			if len(pointsPerEvent) >= 3 && len(validEventIds) >= 3 && len(eventsPerPoints) >= 3 {
-				if len(pointsPerEvent) >= 4 && len(validEventIds) >= 4 && len(eventsPerPoints) >= 4 {
-					LogTest.Info("Found a 4 match")
-					builder := PyramidBuilder{pointsPerEvent, validEventIds, make(map[Pyramid]int64, 1),}
-					builder.processEventId(validEventIds[0], Pyramid{})
-					allPyramids := builder.allPyramids
-					LogTest.Infof("AllPyramids %d", len(allPyramids))
-					assert.True(t, len(allPyramids) > 0)
-					if len(allPyramids) > 1 {
-						bestSize := int64(0)
-						var bestPyramid [4]Point
-						for pyramid, size := range allPyramids {
-							LogTest.Debugf("%v : %d", pyramid, size)
-							if size > bestSize {
-								bestSize = size
-								bestPyramid = pyramid
-							}
-						}
-						LogTest.Infof("We have a winner %v at size %d", bestPyramid, bestSize)
-						break
-					}
-				}
 			}
 		}
 	}
 }
 
+// Builder to extract possible pyramids out of a list of ThreeIds that have common points
 type PyramidBuilder struct {
-	pointsPerEvent map[EventID][]Point
-	validEventIds  []EventID
-	allPyramids    map[Pyramid]int64
+	// All the possible pyramids built out
+	allPyramids map[Pyramid]int64
 }
 
-func (b *PyramidBuilder) processEventId(evtId EventID, pyramid Pyramid) {
-	evtIdIdx := -1
-	for i, validId := range b.validEventIds {
-		if validId == evtId {
-			evtIdIdx = i
-			break
+func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]Point, currentPyramid *Pyramid, currentPos int, possibleSkip int) {
+	// Recursive Algorithm:
+	// Find threeIds with smallest list of points (small3Ids),
+	// Iterate though each point in the list of points for this small3Ids -> pickedPoint,
+	//   Stop Condition: If currentPos is 3:
+	//     - Create all the pyramids with the currentPos point being pickedPoint
+	//   Logic for next call:
+	//     - Recreate the map of pointsPerThreeIds removing the small3Ids and the pickedPoint from all the lists
+	//     - Recurse to createPyramids with params:
+	//       - the new maps filtered above
+	//       - new pyramid with the currentPos point being pickedPoint
+	//       - currentPos + 1
+	curLength := len(currentPointsPer3Ids)
+	if curLength == 0 {
+		log.Fatal("Should never reach here with an empty map")
+	}
+	if curLength == 1 && currentPos != 3 {
+		log.Fatal("Reached the end of the map but not the ned of the pyramid building for:", currentPos, currentPointsPer3Ids)
+	}
+
+	// Last points in pyramid
+	// TODO: May be allowed bigger structure
+	if currentPos == 3 {
+		for _, points := range currentPointsPer3Ids {
+			for _, pickedPoint := range *(points) {
+				// Dereference creates a copy
+				newPyramid := *(currentPyramid)
+				newPyramid[currentPos] = pickedPoint
+				b.allPyramids[newPyramid.ordered()] = GetPyramidSize(newPyramid)
+			}
+		}
+		return
+	}
+
+	small3Ids := NilThreeIds
+	minLength := int(math.MaxInt32)
+	for tIds, points := range currentPointsPer3Ids {
+		l := len(*points)
+		if l < minLength {
+			minLength = l
+			small3Ids = tIds
 		}
 	}
-	if evtIdIdx < 0 {
-		LogTest.Fatalf("did not find event id %d in valid list %v", evtId, b.validEventIds)
+	if small3Ids == NilThreeIds {
+		log.Fatal("Did not find any smallest in", currentPointsPer3Ids)
 	}
-	for _, p := range b.pointsPerEvent[evtId] {
-		pointAlreadyThere := false
-		if evtIdIdx > 0 {
-			for j := 0; j < evtIdIdx; j++ {
-				if pyramid[j] == p {
-					pointAlreadyThere = true
+
+	// If there are some possible skips do a skip of this ThreeIds
+	if possibleSkip > 0 {
+		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]Point, curLength-1)
+		for tIds, points := range currentPointsPer3Ids {
+			if tIds != small3Ids {
+				newCurrentPointsPer3Ids[tIds] = points
+			}
+		}
+		b.createPyramids(newCurrentPointsPer3Ids, currentPyramid, currentPos, possibleSkip-1)
+	}
+
+	// Do the full logic
+	for _, pickedPoint := range *(currentPointsPer3Ids[small3Ids]) {
+		// Dereference creates a copy
+		newPyramid := *(currentPyramid)
+		newPyramid[currentPos] = pickedPoint
+		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]Point, curLength-1)
+		for tIds, points := range currentPointsPer3Ids {
+			if tIds != small3Ids {
+				newList := make([]Point, 0, len(*points))
+				for _, p := range *points {
+					if p != pickedPoint {
+						newList = append(newList, p)
+					}
 				}
+				newCurrentPointsPer3Ids[tIds] = &newList
 			}
 		}
-		if !pointAlreadyThere {
-			pyramid[evtIdIdx] = p
-			if evtIdIdx+1 < len(b.validEventIds) {
-				b.processEventId(b.validEventIds[evtIdIdx+1], pyramid)
-			} else {
-				orderedPyramid := pyramid.ordered()
-				b.allPyramids[orderedPyramid] = GetPyramidSize(orderedPyramid)
-			}
-		}
+		b.createPyramids(newCurrentPointsPer3Ids, &newPyramid, currentPos+1, possibleSkip)
 	}
 }

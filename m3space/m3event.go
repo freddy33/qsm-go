@@ -2,6 +2,10 @@ package m3space
 
 type EventID uint64
 
+const (
+	NilEvent = EventID(0)
+)
+
 type Distance uint64
 
 type EventColor uint8
@@ -61,7 +65,7 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx *Gro
 	space.currentId++
 	e := Event{space, id, n, space.currentTime, k,
 		ctx,
-		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100),}
+		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100)}
 	e.latestOutgrowths[0] = MakeActiveOutgrowth(n.Pos, Distance(0), EventOutgrowthLatest)
 	space.events[id] = &e
 	ctx.center = n.Pos

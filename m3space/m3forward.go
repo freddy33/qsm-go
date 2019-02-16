@@ -12,6 +12,8 @@ var LogStat = m3util.NewStatLogger("m3stat", m3util.INFO)
 
 type ThreeIds [3]EventID
 
+var NilThreeIds = ThreeIds{NilEvent, NilEvent, NilEvent}
+
 type OutgrowthCollectorStatSingle struct {
 	name             string
 	originalPoints   int
@@ -385,7 +387,7 @@ func (colStat *OutgrowthCollectorStatSameEvent) processRealizeError(err error, s
 
 func (colStat *OutgrowthCollectorStatSameEvent) realizeSameEvent(newPosEo *NewPossibleOutgrowth, size int) (*EventOutgrowth, error) {
 	if size >= newPosEo.event.space.blockOnSameEvent {
-		err := &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos,}
+		err := &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos}
 		colStat.processRealizeError(err, size, StartWithTwoHistoDelta)
 		return nil, err
 	} else {
@@ -689,7 +691,7 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	if !newNode.CanReceiveOutgrowth(newPosEo) {
 		// Should have been filtered at new outgrowth creation
 		Log.Warn("Event", newPosEo.event.id, "already occupy node", newNode.GetStateString())
-		return nil, &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos,}
+		return nil, &EventAlreadyGrewThereError{newPosEo.event.id, newPosEo.pos}
 	}
 	fromPoint := newPosEo.from.pos
 	fromNode := space.getOrCreateNode(fromPoint)
@@ -743,7 +745,7 @@ func (space *Space) moveOldToOldMaps() {
 			for i, conn := range node.connections {
 				connIds[i] = conn.Id
 			}
-			space.oldNodesMap[p] = &SavedNode{node.root, node.accessedEventIDS, connIds,}
+			space.oldNodesMap[p] = &SavedNode{node.root, node.accessedEventIDS, connIds}
 		}
 	}
 	finalActive := space.activeConnections[:0]
@@ -760,7 +762,7 @@ func (space *Space) moveOldToOldMaps() {
 func MakeThreeIds(ids []EventID) []ThreeIds {
 	SortEventIDs(&ids)
 	if len(ids) == 3 {
-		return []ThreeIds{{ids[0], ids[1], ids[2]},}
+		return []ThreeIds{{ids[0], ids[1], ids[2]}}
 	} else if len(ids) == 4 {
 		return []ThreeIds{
 			{ids[0], ids[1], ids[2]},
@@ -781,4 +783,3 @@ func (tIds ThreeIds) contains(id EventID) bool {
 	}
 	return false
 }
-
