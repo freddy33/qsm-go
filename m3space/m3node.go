@@ -15,14 +15,8 @@ type Node interface {
 	GetColorMask(space *Space) uint8
 	IsEventAlreadyPresent(id EventID) bool
 	IsOld(space *Space) bool
+	IsDead(space *Space) bool
 	GetStateString() string
-}
-
-type ActiveNode struct {
-	Pos              Point
-	root             bool
-	accessedEventIDS []AccessedEventID
-	connections      []*Connection
 }
 
 type SavedNode struct {
@@ -31,9 +25,22 @@ type SavedNode struct {
 	connections      []int8
 }
 
+type ActiveNode struct {
+	Pos Point
+	SavedNode
+}
+
 type Connection struct {
 	Id     int8
 	P1, P2 Point
+}
+
+func countOnes(m uint8) uint8 {
+	return ((m >> 7) & 1) + ((m >> 6) & 1) + ((m >> 5) & 1) + ((m >> 4) & 1) + ((m >> 3) & 1) + ((m >> 2) & 1) + ((m >> 1) & 1) + (m & 1)
+}
+
+func (ae AccessedEventID) IsActive(space *Space) bool {
+	return Distance(space.currentTime-ae.access) <= space.EventOutgrowthThreshold
 }
 
 /***************************************************************/
@@ -46,10 +53,27 @@ func NewNode(p Point) *ActiveNode {
 	return &n
 }
 
+func (s *SavedNode) ConvertToActive(p Point) *ActiveNode {
+	n := ActiveNode{}
+	n.Pos = p
+	n.root = s.root
+	n.accessedEventIDS = s.accessedEventIDS
+	n.connections = s.connections
+	return &n
+}
+
+func (a *ActiveNode) ConvertToSaved() *SavedNode {
+	s := SavedNode{}
+	s.root = a.root
+	s.accessedEventIDS = a.accessedEventIDS
+	s.connections = a.connections
+	return &s
+}
+
 func (node *ActiveNode) SetRoot(id EventID, time TickTime) {
 	node.root = true
 	node.accessedEventIDS = make([]AccessedEventID, 1)
-	node.accessedEventIDS[0] = AccessedEventID{id, time,}
+	node.accessedEventIDS[0] = AccessedEventID{id, time}
 }
 
 func (node *ActiveNode) HasFreeConnections(space *Space) bool {
@@ -61,71 +85,34 @@ func (node *ActiveNode) AddConnection(conn *Connection, space *Space) int {
 		return -1
 	}
 	if node.connections == nil {
-		node.connections = make([]*Connection, 0, 3)
+		node.connections = make([]int8, 0, 3)
 	}
 	index := len(node.connections)
-	node.connections = append(node.connections, conn)
+	if node.Pos == conn.P1 {
+		node.connections = append(node.connections, conn.Id)
+	} else if node.Pos == conn.P2 {
+		node.connections = append(node.connections, -conn.Id)
+	} else {
+		Log.Errorf("Trying to add connection %v that does connect to node %v", *conn, *node)
+		return -1
+	}
 	return index
 }
 
 func (node *ActiveNode) IsAlreadyConnected(otherNode *ActiveNode) bool {
+	bv := MakeVector(node.Pos, otherNode.Pos)
+	cd, ok := AllConnectionsPossible[bv]
+	if !ok {
+		Log.Errorf("Cannot determine an already connected nodes P1=%v P2=%v that is not reachable by a base connection %v",
+			node.Pos, otherNode.Pos, bv)
+		return false
+	}
 	for _, conn := range node.connections {
-		if conn.IsConnectedTo(otherNode.Pos) {
+		if conn == cd.Id {
 			return true
 		}
 	}
 	return false
-}
-
-func (node *ActiveNode) IsRoot() bool {
-	return node.root
-}
-
-func (node *ActiveNode) GetLastAccessed() TickTime {
-	bestTime := TickTime(0)
-	for _, ae := range node.accessedEventIDS {
-		if ae.access > bestTime {
-			bestTime = ae.access
-		}
-	}
-	return bestTime
-}
-
-func (ae AccessedEventID) IsActive(space *Space) bool {
-	return Distance(space.currentTime-ae.access) <= space.EventOutgrowthThreshold
-}
-
-func (node *ActiveNode) IsActive(space *Space) bool {
-	if node.IsRoot() {
-		return true
-	}
-	for _, ae := range node.accessedEventIDS {
-		if ae.IsActive(space) {
-			return true
-		}
-	}
-	return false
-}
-
-func (node *ActiveNode) HowManyColors(space *Space) uint8 {
-	return countOnes(node.GetColorMask(space))
-}
-
-func countOnes(m uint8) uint8 {
-	return ((m >> 7) & 1) + ((m >> 6) & 1) + ((m >> 5) & 1) + ((m >> 4) & 1) + ((m >> 3) & 1) + ((m >> 2) & 1) + ((m >> 1) & 1) + (m & 1)
-}
-
-func (node *ActiveNode) GetColorMask(space *Space) uint8 {
-	if node.root {
-		return uint8(space.events[node.accessedEventIDS[0].id].color)
-	}
-	m := uint8(0)
-	for _, ae := range node.accessedEventIDS {
-		if ae.IsActive(space) {
-			m |= uint8(space.events[ae.id].color)
-		}
-	}
-	return m
 }
 
 func (node *ActiveNode) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
@@ -135,39 +122,8 @@ func (node *ActiveNode) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool
 	return true
 }
 
-func (node *ActiveNode) IsEventAlreadyPresent(id EventID) bool {
-	for _, ae := range node.accessedEventIDS {
-		if ae.id == id {
-			return false
-		}
-	}
-	return true
-}
-
 func (node *ActiveNode) AddOutgrowth(id EventID, time TickTime) {
-	node.accessedEventIDS = append(node.accessedEventIDS, AccessedEventID{id, time,})
-}
-
-func (node *ActiveNode) IsOld(space *Space) bool {
-	if node.IsRoot() {
-		return false
-	}
-	return Distance(space.currentTime-node.GetLastAccessed()) >= space.EventOutgrowthOldThreshold
-}
-
-func (node *ActiveNode) String() string {
-	return fmt.Sprintf("%v:%d:%d", node.Pos, len(node.connections), len(node.accessedEventIDS))
-}
-
-func (node *ActiveNode) GetStateString() string {
-	connIds := make([]string, len(node.connections))
-	for i, conn := range node.connections {
-		connIds[i] = AllConnectionsIds[conn.Id].GetName()
-	}
-	if node.root {
-		return fmt.Sprintf("%v: root %v, %v", node.Pos, node.accessedEventIDS, connIds)
-	}
-	return fmt.Sprintf("%v: %v, %v", node.Pos, node.accessedEventIDS, connIds)
+	node.accessedEventIDS = append(node.accessedEventIDS, AccessedEventID{id, time})
 }
 
 /***************************************************************/
@@ -304,6 +260,13 @@ func (node *SavedNode) IsOld(space *Space) bool {
 		return false
 	}
 	return Distance(space.currentTime-node.GetLastAccessed()) >= space.EventOutgrowthOldThreshold
+}
+
+func (node *SavedNode) IsDead(space *Space) bool {
+	if node.IsRoot() {
+		return false
+	}
+	return Distance(space.currentTime-node.GetLastAccessed()) >= space.EventOutgrowthDeadThreshold
 }
 
 func (node *SavedNode) String() string {

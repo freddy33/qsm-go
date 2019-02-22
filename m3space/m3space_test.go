@@ -155,7 +155,6 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 			deltaT11FromIdx0 += 44
 		}
 
-
 		expectedState := map[TickTime]ExpectedSpaceState{
 			0: {1, 0, 0, 0},
 			1: {1, 3, 0, 0},
@@ -193,6 +192,7 @@ func Test_Evt1_Type1_D0_Old3_Same4(t *testing.T) {
 		space.blockOnSameEvent = 4
 		// Only latest counting
 		space.SetEventOutgrowthThreshold(Distance(0))
+		space.EventOutgrowthDeadThreshold = Distance(20)
 
 		ctx := GrowthContext{Origin, 1, trioIdx, false, 0}
 		space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
@@ -346,15 +346,12 @@ func assertNearMainPoints(t *testing.T, space *Space) {
 			mainPointNode = node
 		} else {
 			for _, conn := range node.connections {
-				if conn != nil {
-					if conn.P1.IsMainPoint() {
-						mainPointNode = space.getAndActivateNode(conn.P1)
-						break
-					}
-					if conn.P2.IsMainPoint() {
-						mainPointNode = space.getAndActivateNode(conn.P2)
-						break
-					}
+				bv, ok := AllConnectionsIds[conn]
+				assert.True(t, ok, "Failed finding for %d", conn)
+				P := node.Pos.Add(bv.Vector)
+				if P.IsMainPoint() {
+					mainPointNode = space.getAndActivateNode(P)
+					break
 				}
 			}
 		}

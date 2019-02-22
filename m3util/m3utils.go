@@ -3,6 +3,8 @@ package m3util
 import (
 	"encoding/csv"
 	"fmt"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"log"
 	"os"
 )
@@ -21,33 +23,35 @@ type Logger struct {
 	Level LogLevel
 }
 
+var p = message.NewPrinter(language.English)
+
 func NewLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix + " ", log.LstdFlags|log.Lshortfile), level}
+	return &Logger{log.New(os.Stdout, prefix+" ", log.LstdFlags|log.Lshortfile), level}
 }
 
 func NewDataLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix + " ", 0), level}
+	return &Logger{log.New(os.Stdout, prefix+" ", 0), level}
 }
 
 func NewStatLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix + " ", log.Ltime|log.Lmicroseconds), level}
+	return &Logger{log.New(os.Stdout, prefix+" ", log.Ltime|log.Lmicroseconds), level}
 }
 
 func (l *Logger) Trace(a ...interface{}) {
 	if l.Level <= TRACE {
-		l.log.Print("TRACE ", fmt.Sprintln(a...))
+		l.log.Print("TRACE ", p.Sprintln(a...))
 	}
 }
 
 func (l *Logger) Tracef(format string, v ...interface{}) {
 	if l.Level <= TRACE {
-		l.log.Println("TRACE", fmt.Sprintf(format, v...))
+		l.log.Println("TRACE", p.Sprintf(format, v...))
 	}
 }
 
 func (l *Logger) Debug(a ...interface{}) {
 	if l.Level <= DEBUG {
-		err := l.log.Output(2, fmt.Sprintln(append([]interface{}{"DEBUG"}, a...)))
+		err := l.log.Output(2, p.Sprintln(append([]interface{}{"DEBUG"}, a...)))
 		if err != nil {
 			log.Print(err)
 		}
@@ -56,13 +60,13 @@ func (l *Logger) Debug(a ...interface{}) {
 
 func (l *Logger) Debugf(format string, v ...interface{}) {
 	if l.Level <= DEBUG {
-		l.log.Println("DEBUG", fmt.Sprintf(format, v...))
+		l.log.Println("DEBUG", p.Sprintf(format, v...))
 	}
 }
 
 func (l *Logger) Info(a ...interface{}) {
 	if l.Level <= INFO {
-		err := l.log.Output(2, fmt.Sprintln(append([]interface{}{"INFO"}, a...)))
+		err := l.log.Output(2, p.Sprintln(append([]interface{}{"INFO"}, a...)))
 		if err != nil {
 			log.Print(err)
 		}
@@ -71,7 +75,7 @@ func (l *Logger) Info(a ...interface{}) {
 
 func (l *Logger) Infof(format string, v ...interface{}) {
 	if l.Level <= INFO {
-		l.log.Println("INFO ", fmt.Sprintf(format, v...))
+		l.log.Println("INFO ", p.Sprintf(format, v...))
 	}
 }
 

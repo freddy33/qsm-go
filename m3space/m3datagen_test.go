@@ -66,7 +66,7 @@ func TestStatPack(t *testing.T) {
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3
 	space.SetEventOutgrowthThreshold(Distance(0))
-	space.CreatePyramid(50)
+	space.CreatePyramid(10)
 	/*
 		i:=0
 		for _, evt := range space.events {
@@ -87,7 +87,7 @@ func TestStatPack(t *testing.T) {
 	LogTest.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := TickTime(0)
-	for expectedTime < 250 {
+	for expectedTime < 50 {
 		assert.Equal(t, expectedTime, space.currentTime)
 		col := space.ForwardTime()
 		expectedTime++

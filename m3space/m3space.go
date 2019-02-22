@@ -20,13 +20,15 @@ type SpaceVisitor interface {
 }
 
 type Space struct {
-	events            map[EventID]*Event
-	activeNodesMap    map[Point]*ActiveNode
-	oldNodesMap       map[Point]*SavedNode
-	activeConnections []*Connection
-	nbOldConnections  int
-	currentId         EventID
-	currentTime       TickTime
+	events                map[EventID]*Event
+	activeNodesMap        map[Point]*ActiveNode
+	oldNodesMap           map[Point]*SavedNode
+	activeConnections     []*Connection
+	nbOldConnections      int
+	nbOldNodesReactivated int
+	nbDeadNodes           int
+	currentId             EventID
+	currentTime           TickTime
 	// Max absolute coordinate in all nodes
 	Max int64
 	// Max number of connections per node
@@ -37,6 +39,8 @@ type Space struct {
 	EventOutgrowthThreshold Distance
 	// Distance from latest above which to consider event outgrowth old
 	EventOutgrowthOldThreshold Distance
+	// Distance from latest above which to consider event outgrowth dead
+	EventOutgrowthDeadThreshold Distance
 }
 
 func MakeSpace(max int64) Space {
@@ -46,6 +50,8 @@ func MakeSpace(max int64) Space {
 	space.oldNodesMap = make(map[Point]*SavedNode)
 	space.activeConnections = make([]*Connection, 0, 500)
 	space.nbOldConnections = 0
+	space.nbOldNodesReactivated = 0
+	space.nbDeadNodes = 0
 	space.currentId = 1
 	space.currentTime = 0
 	space.Max = max
@@ -60,8 +66,10 @@ func (space *Space) SetEventOutgrowthThreshold(threshold Distance) {
 		threshold = 0
 	}
 	space.EventOutgrowthThreshold = threshold
-	// Everything more than 3 above threshold move to dead => old
+	// Everything more than 3*3 above threshold move to active => old
 	space.EventOutgrowthOldThreshold = threshold + 3
+	// Everything more than 3*3*3 above threshold move to old => dead
+	space.EventOutgrowthDeadThreshold = threshold + 3*3
 }
 
 func (space *Space) GetCurrentTime() TickTime {
@@ -128,17 +136,10 @@ func (space *Space) getAndActivateNode(p Point) *ActiveNode {
 	sn, ok := space.oldNodesMap[p]
 	if ok {
 		Log.Debugf("Recovering node %s from storage to active", sn.GetStateString())
+		space.nbOldNodesReactivated++
 		// becomes active
 		delete(space.oldNodesMap, p)
-		n = NewNode(p)
-		n.root = sn.IsRoot()
-		n.accessedEventIDS = sn.accessedEventIDS
-		n.connections = make([]*Connection, len(sn.connections))
-		for i, connId := range sn.connections {
-			cd := AllConnectionsIds[connId]
-			p2 := n.Pos.Add(cd.Vector)
-			n.connections[i] = &Connection{connId, n.Pos, p2}
-		}
+		n = sn.ConvertToActive(p)
 		space.activeNodesMap[p] = n
 		return n
 	}

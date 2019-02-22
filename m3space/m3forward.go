@@ -71,12 +71,12 @@ func (space *Space) ForwardTime() *FullOutgrowthCollector {
 	for _, evt := range space.events {
 		nbLatest += len(evt.latestOutgrowths)
 	}
-	Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn",
+	Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn, %d reactivated, %d died",
 		space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
-		len(space.oldNodesMap), space.nbOldConnections)
-	LogStat.Infof("%d: %d, %d, %d, %d, %d, %d",
+		len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
+	LogStat.Infof("%4d: LIVE( %d: %d: %d: %d: %d ) REMOVED( %d: %d: %d )",
 		space.currentTime, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
-		len(space.oldNodesMap), space.nbOldConnections)
+		len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
 	c := make(chan *NewPossibleOutgrowth, 100)
 	for _, evt := range space.events {
 		go evt.createNewPossibleOutgrowths(c)
@@ -728,8 +728,8 @@ func (evt *Event) moveNewOutgrowthsToLatest() {
 	finalCurrent := evt.currentOutgrowths[:0]
 	for _, eg := range evt.currentOutgrowths {
 		if eg.state == EventOutgrowthCurrent && eg.IsOld(evt) {
+			// Just cvhange state and removed from list
 			eg.state = EventOutgrowthOld
-
 		} else {
 			finalCurrent = append(finalCurrent, eg)
 		}
@@ -741,11 +741,13 @@ func (space *Space) moveOldToOldMaps() {
 	for p, node := range space.activeNodesMap {
 		if node.IsOld(space) {
 			delete(space.activeNodesMap, p)
-			connIds := make([]int8, len(node.connections))
-			for i, conn := range node.connections {
-				connIds[i] = conn.Id
-			}
-			space.oldNodesMap[p] = &SavedNode{node.root, node.accessedEventIDS, connIds}
+			space.oldNodesMap[p] = node.ConvertToSaved()
+		}
+	}
+	for p, node := range space.oldNodesMap {
+		if node.IsDead(space) {
+			space.nbDeadNodes++
+			delete(space.oldNodesMap, p)
 		}
 	}
 	finalActive := space.activeConnections[:0]

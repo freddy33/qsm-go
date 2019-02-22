@@ -79,7 +79,7 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 3, space.blockOnSameEvent)
 
 	// Test center is overridden
-	ctx := GrowthContext{Point{5,6,7}, 1, 0, false, 0}
+	ctx := GrowthContext{Point{5, 6, 7}, 1, 0, false, 0}
 	evt := space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
 
 	assert.Equal(t, Origin, ctx.center)
@@ -143,9 +143,9 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 1, len(evt.latestOutgrowths))
 	assert.Equal(t, 1, len(evt.currentOutgrowths))
 
-	eo1 := evt.latestOutgrowths[0]
+	eo1 := *evt.latestOutgrowths[0]
 	var o1 Outgrowth
-	o1 = eo1
+	o1 = &eo1
 
 	assert.Equal(t, nextPoint, o1.GetPoint())
 	assert.Equal(t, Distance(1), o1.GetDistance())
@@ -163,14 +163,14 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 1, o1.FromLength())
 
 	ids := o1.GetFromConnIds()
-	LogTest.Infof("from conn list %v",ids)
+	LogTest.Infof("from conn list %v", ids)
 	assert.Equal(t, 1, len(ids))
-	assert.Equal(t, int8(-4), ids[0])
+	assert.Equal(t, int8(4), ids[0])
 	assert.Equal(t, true, o1.CameFromPoint(Origin))
 	p := o1.GetRootPathElement(evt)
 	assert.Equal(t, 1, p.GetLength())
 	assert.Equal(t, 1, p.NbForwardElements())
-	assert.Equal(t, int8(4), p.GetForwardConnId(0))
+	assert.Equal(t, int8(-4), p.GetForwardConnId(0))
 }
 
 func TestOverlapSameEvent(t *testing.T) {
