@@ -11,7 +11,24 @@ type ExpectedSpaceState struct {
 	baseNodes      int
 	newNodes       int
 	oldActiveNodes int
+	deadNodes      int
 	mainPoints     int
+}
+
+func simpleState(newNodes int, mainPoints int) ExpectedSpaceState {
+	return ExpectedSpaceState{1, newNodes, 0, 0, mainPoints}
+}
+
+func noMainState(newNodes int) ExpectedSpaceState {
+	return ExpectedSpaceState{1, newNodes, 0, 0, -1}
+}
+
+func oldActiveState(newNodes int, oldActiveNodes int, mainPoints int) ExpectedSpaceState {
+	return ExpectedSpaceState{1, newNodes, oldActiveNodes, 0, mainPoints}
+}
+
+func deadState(newNodes int, deadNodes int) ExpectedSpaceState {
+	return ExpectedSpaceState{1, newNodes, 0, deadNodes, -1}
 }
 
 func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
@@ -45,18 +62,18 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 		}
 
 		expectedState := map[TickTime]ExpectedSpaceState{
-			0: {1, 0, 0, 0},
-			1: {1, 3, 0, 0},
-			3: {1, 0, 0, 6},
-			4: {1, -2, 0, 6},
-			5: {1, -10, 0, 4},
-			6: {1, -19, 0, -1},
-			7: {1, -25, 0, -1},
+			0: simpleState(0, 0),
+			1: simpleState(3, 0),
+			3: simpleState(0, 6),
+			4: simpleState(-2, 6),
+			5: simpleState(-10, 4),
+			6: noMainState(-19),
+			7: noMainState(-25),
 
-			8:  {1, -51 + deltaT8FromIdx0, 0, -1},
-			9:  {1, -69 + deltaT9FromIdx0, 0, -1},
-			10: {1, -79 + deltaT10FromIdx0, 0, -1},
-			11: {1, -131 + deltaT11FromIdx0, 0, -1},
+			8:  noMainState(-51 + deltaT8FromIdx0),
+			9:  noMainState(-69 + deltaT9FromIdx0),
+			10: noMainState(-79 + deltaT10FromIdx0),
+			11: noMainState(-131 + deltaT11FromIdx0),
 		}
 		assertSpaceStates(t, &space, expectedState, 10, getContextString(evt.growthContext))
 
@@ -101,18 +118,18 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 		}
 
 		expectedState := map[TickTime]ExpectedSpaceState{
-			0: {1, 0, 0, 0},
-			1: {1, 3, 0, 0},
-			3: {1, 0, 0, 6},
-			4: {1, -4, 0, 6},
-			5: {1, -16, 0, 4},
-			6: {1, -17, 0, -1},
-			7: {1, -16, 0, -1},
+			0: simpleState(0, 0),
+			1: simpleState(3, 0),
+			3: simpleState(0, 6),
+			4: simpleState(-4, 6),
+			5: simpleState(-16, 4),
+			6: noMainState(-17),
+			7: noMainState(-16),
 
-			8:  {1, -31 + deltaT8FromIdx0, 0, -1},
-			9:  {1, -31 + deltaT9FromIdx0, 0, -1},
-			10: {1, -61 + deltaT10FromIdx0, 0, -1},
-			11: {1, -102 + deltaT11FromIdx0, 0, -1},
+			8:  noMainState(-31 + deltaT8FromIdx0),
+			9:  noMainState(-31 + deltaT9FromIdx0),
+			10: noMainState(-61 + deltaT10FromIdx0),
+			11: noMainState(-102 + deltaT11FromIdx0),
 		}
 		assertSpaceStates(t, &space, expectedState, 11, getContextString(evt.growthContext))
 
@@ -156,18 +173,18 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 		}
 
 		expectedState := map[TickTime]ExpectedSpaceState{
-			0: {1, 0, 0, 0},
-			1: {1, 3, 0, 0},
-			3: {1, 0, 0, 6},
-			4: {1, -2, 0, 6},
-			5: {1, -10, 0, 4},
-			6: {1, -20, 0, -1},
-			7: {1, -23, 0, -1},
+			0: simpleState(0, 0),
+			1: simpleState(3, 0),
+			3: simpleState(0, 6),
+			4: simpleState(-2, 6),
+			5: simpleState(-10, 4),
+			6: noMainState(-20),
+			7: noMainState(-23),
 
-			8:  {1, -54 + deltaT8FromIdx0, 0, -1},
-			9:  {1, -65 + deltaT9FromIdx0, 0, -1},
-			10: {1, -80 + deltaT10FromIdx0, 0, -1},
-			11: {1, -133 + deltaT11FromIdx0, 0, -1},
+			8:  noMainState(-54 + deltaT8FromIdx0),
+			9:  noMainState(-65 + deltaT9FromIdx0),
+			10: noMainState(-80 + deltaT10FromIdx0),
+			11: noMainState(-133 + deltaT11FromIdx0),
 		}
 		assertSpaceStates(t, &space, expectedState, 11, getContextString(evt.growthContext))
 
@@ -179,7 +196,48 @@ func getContextString(ctx *GrowthContext) string {
 	return fmt.Sprintf("Type %d, Idx %d", ctx.permutationType, ctx.permutationIndex)
 }
 
-func Test_Evt1_Type1_D0_Old3_Same4(t *testing.T) {
+func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
+	for trioIdx := 0; trioIdx < 8; trioIdx++ {
+		space := MakeSpace(3 * 9)
+
+		assertEmptySpace(t, &space, 3*9)
+
+		// Force to only 3
+		space.MaxConnections = 3
+		space.blockOnSameEvent = 4
+		// Only latest counting
+		space.SetEventOutgrowthThreshold(Distance(0))
+
+		ctx := GrowthContext{Origin, 1, trioIdx, false, 0}
+		space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
+
+		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
+
+		expectedState := map[TickTime]ExpectedSpaceState{
+			0:  simpleState(0, 0),
+			1:  simpleState(3, 0),
+			3:  simpleState(0, 6),
+			4:  simpleState(0, 6),
+			5:  simpleState(-13, 2),
+			6:  simpleState(-22, -1),
+			7:  simpleState(-27, -1),
+			8:  simpleState(-52, -1),
+			9:  simpleState(-64, -1),
+			10: deadState(-78, 3),
+			11: deadState(-115, 6),
+			12: deadState(-130, 12),
+			13: deadState(-153, 24),
+			14: deadState(-202, 35),
+		}
+		assertSpaceStates(t, &space, expectedState, 14, getContextString(&ctx))
+
+		assertNearMainPoints(t, &space)
+	}
+}
+
+func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 	Log.Level = m3util.WARN
 	LogStat.Level = m3util.INFO
 	for trioIdx := 0; trioIdx < 8; trioIdx++ {
@@ -200,20 +258,20 @@ func Test_Evt1_Type1_D0_Old3_Same4(t *testing.T) {
 		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
 
 		expectedState := map[TickTime]ExpectedSpaceState{
-			0:  {1, 0, 0, 0},
-			1:  {1, 3, 0, 0},
-			3:  {1, 0, 0, 6},
-			4:  {1, 0, 0, 6},
-			5:  {1, -13, 0, 2},
-			6:  {1, -22, 0, -1},
-			7:  {1, -27, 0, -1},
-			8:  {1, -52, 0, -1},
-			9:  {1, -64, 0, -1},
-			10: {1, -78, 0, -1},
-			11: {1, -115, 0, -1},
-			12: {1, -130, 0, -1},
-			13: {1, -153, 0, -1},
-			14: {1, -202, 0, -1},
+			0:  simpleState(0, 0),
+			1:  simpleState(3, 0),
+			3:  simpleState(0, 6),
+			4:  simpleState(0, 6),
+			5:  simpleState(-13, 2),
+			6:  simpleState(-22, -1),
+			7:  simpleState(-27, -1),
+			8:  simpleState(-52, -1),
+			9:  simpleState(-64, -1),
+			10: simpleState(-78, -1),
+			11: simpleState(-115, -1),
+			12: simpleState(-130, -1),
+			13: simpleState(-153, -1),
+			14: simpleState(-202, -1),
 		}
 		assertSpaceStates(t, &space, expectedState, 14, getContextString(&ctx))
 
@@ -240,12 +298,12 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 	assert.Equal(t, Origin, evt.growthContext.center)
 
 	expectedState := map[TickTime]ExpectedSpaceState{
-		0: {1, 0, 0, 0},
-		1: {1, 3, 0, 0},
-		2: {1, 6, 3, 0},
-		3: {1, 12, 6, 6},
-		4: {1, -2, 12, 6},
-		5: {1, -10, 22, 4},
+		0: simpleState(0, 0),
+		1: simpleState(3, 0),
+		2: oldActiveState(6, 3, 0),
+		3: oldActiveState(12, 6, 6),
+		4: oldActiveState(-2, 12, 6),
+		5: oldActiveState(-10, 22, 4),
 	}
 	assertSpaceStates(t, &space, expectedState, 5, getContextString(evt.growthContext))
 }
@@ -298,6 +356,9 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 				// Stop testing main points
 				nbMainPoints = -1
 				nbActiveMainPoints = -1
+			}
+			if expect.deadNodes > 0 {
+				nbNodes -= expect.deadNodes
 			}
 		} else {
 			newNodes *= 2
