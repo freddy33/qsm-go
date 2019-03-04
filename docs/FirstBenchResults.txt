@@ -47,3 +47,14 @@ BenchmarkPack20-8   	       1	25854488663 ns/op
 PASS
 
 Process finished with exit code 0
+
+3. With New Possible Outgrowth pool
+
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	       5	 234532612 ns/op
+BenchmarkPack2-8    	       5	 274339656 ns/op
+BenchmarkPack12-8   	       1	4828684820 ns/op
+BenchmarkPack20-8   	       1	25360534183 ns/op
+PASS

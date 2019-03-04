@@ -111,13 +111,23 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 				}
 				if sendOutgrowth {
 					Log.Trace("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
-					c <- &NewPossibleOutgrowth{nextPoint, evt, eg, eg.distance + 1, EventOutgrowthNew}
+					c <- makeNewPossibleOutgrowth(nextPoint, evt, eg, eg.distance + 1, EventOutgrowthNew)
 				}
 			}
 		}
 	}
 	Log.Debug("Finished with event outgrowth for", evt.id, "sending End state possible outgrowth")
-	c <- &NewPossibleOutgrowth{evt.node.Pos, evt, nil, Distance(0), EventOutgrowthEnd}
+	c <- makeNewPossibleOutgrowth(evt.node.Pos, evt, nil, Distance(0), EventOutgrowthEnd)
+}
+
+func makeNewPossibleOutgrowth(p Point, evt *Event, eg *EventOutgrowth, d Distance, s EventOutgrowthState) *NewPossibleOutgrowth {
+	npo := newPosOutgrowthPool.Get().(*NewPossibleOutgrowth)
+	npo.pos = p
+	npo.event = evt
+	npo.from = eg
+	npo.distance = d
+	npo.state = s
+	return npo
 }
 
 func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *FullOutgrowthCollector {
@@ -708,6 +718,7 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(evt.id, space.currentTime)
 	Log.Trace("Created new outgrowth", newEo.String())
+	newPosOutgrowthPool.Put(newPosEo)
 	return newEo, nil
 }
 

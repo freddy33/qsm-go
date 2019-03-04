@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"sync"
 )
 
 type EventOutgrowthState uint8
@@ -24,12 +25,24 @@ type NewPossibleOutgrowth struct {
 	state    EventOutgrowthState
 }
 
+var newPosOutgrowthPool = sync.Pool{
+	New: func() interface{} {
+		return &NewPossibleOutgrowth{}
+	},
+}
+
 type EventOutgrowth struct {
 	pos             Point
 	fromConnections []int8
 	distance        Distance
 	state           EventOutgrowthState
 	rootPath        PathElement
+}
+
+var newEventOutgrowthPool = sync.Pool{
+	New: func() interface{} {
+		return &EventOutgrowth{}
+	},
 }
 
 type SavedEventOutgrowth struct {
