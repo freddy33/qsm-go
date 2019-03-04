@@ -1,65 +1,102 @@
 QSM Env:/work/qsm/qsm-go$ go tool pprof --text m3space.test cprof
 File: m3space.test
 Type: cpu
-Time: Mar 2, 2019 at 3:46pm (IST)
-Duration: 2.66s, Total samples = 3.91s (146.74%)
-Showing nodes accounting for 3.64s, 93.09% of 3.91s total
-Dropped 78 nodes (cum <= 0.02s)
+Time: Mar 4, 2019 at 12:20pm (EST)
+Duration: 33.89s, Total samples = 50.86s (150.09%)
+Showing nodes accounting for 46.51s, 91.45% of 50.86s total
+Dropped 230 nodes (cum <= 0.25s)
       flat  flat%   sum%        cum   cum%
-     0.73s 18.67% 18.67%      0.73s 18.67%  runtime.usleep
-     0.22s  5.63% 24.30%      0.22s  5.63%  runtime.memmove
-     0.17s  4.35% 28.64%      0.17s  4.35%  runtime.pthread_cond_wait
-     0.17s  4.35% 32.99%      0.36s  9.21%  runtime.scanobject
-     0.16s  4.09% 37.08%      0.16s  4.09%  runtime.(*mspan).refillAllocCache
-     0.16s  4.09% 41.18%      0.30s  7.67%  runtime.convT2Eslice
-     0.15s  3.84% 45.01%      0.24s  6.14%  runtime.mapaccess2
-     0.15s  3.84% 48.85%      0.15s  3.84%  runtime.memclrNoHeapPointers
-     0.13s  3.32% 52.17%      0.13s  3.32%  github.com/freddy33/qsm-go/m3space.(*SavedNode).GetLastAccessed
-     0.12s  3.07% 55.24%      0.12s  3.07%  runtime.pthread_cond_signal
-     0.11s  2.81% 58.06%      0.62s 15.86%  runtime.mallocgc
-     0.10s  2.56% 60.61%      0.22s  5.63%  github.com/freddy33/qsm-go/m3space.(*Event).createNewPossibleOutgrowths
-     0.07s  1.79% 62.40%      0.10s  2.56%  github.com/freddy33/qsm-go/m3space.(*ActiveNode).ConvertToSaved (inline)
-     0.07s  1.79% 64.19%      0.07s  1.79%  runtime.(*mspan).init (inline)
-     0.05s  1.28% 65.47%      0.25s  6.39%  github.com/freddy33/qsm-go/m3space.(*Space).GetNode (inline)
-     0.05s  1.28% 66.75%      0.11s  2.81%  github.com/freddy33/qsm-go/m3space.(*Space).makeConnection
-     0.05s  1.28% 68.03%      0.07s  1.79%  github.com/freddy33/qsm-go/m3space.MakeActiveOutgrowth (inline)
-     0.05s  1.28% 69.31%      0.09s  2.30%  runtime.greyobject
-     0.05s  1.28% 70.59%      0.05s  1.28%  runtime.stkbucket
-     0.05s  1.28% 71.87%      0.17s  4.35%  time.NewTimer
-     0.04s  1.02% 72.89%      0.07s  1.79%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorSameEvent).addNewEoFromSingle
-     0.04s  1.02% 73.91%      0.06s  1.53%  github.com/freddy33/qsm-go/m3space.(*SavedNode).IsDead
-     0.04s  1.02% 74.94%      0.59s 15.09%  github.com/freddy33/qsm-go/m3space.(*Space).moveOldToOldMaps
-     0.04s  1.02% 75.96%      0.11s  2.81%  runtime.convT2Estring
-     0.04s  1.02% 76.98%      0.06s  1.53%  runtime.findObject
-     0.04s  1.02% 78.01%      0.23s  5.88%  runtime.lock
-     0.04s  1.02% 79.03%      0.10s  2.56%  runtime.makechan
-     0.03s  0.77% 79.80%      0.03s  0.77%  fmt.(*fmt).fmtInteger
-     0.03s  0.77% 80.56%      1.18s 30.18%  github.com/freddy33/qsm-go/m3space.(*NewPossibleOutgrowth).realize
-     0.03s  0.77% 81.33%      0.46s 11.76%  github.com/freddy33/qsm-go/m3space.(*SavedNode).GetStateString
-     0.03s  0.77% 82.10%      0.08s  2.05%  github.com/freddy33/qsm-go/m3space.NewNode (inline)
-     0.03s  0.77% 82.86%      0.03s  0.77%  runtime.aeshashbody
-     0.03s  0.77% 83.63%      0.03s  0.77%  runtime.getempty
-     0.03s  0.77% 84.40%      0.03s  0.77%  runtime.heapBitsSetType
-     0.03s  0.77% 85.17%      0.03s  0.77%  runtime.nextFreeFast (inline)
-     0.03s  0.77% 85.93%      0.04s  1.02%  runtime.pthread_mutex_lock
-     0.02s  0.51% 86.45%      0.13s  3.32%  github.com/freddy33/qsm-go/m3space.(*SavedNode).IsOld
-     0.02s  0.51% 86.96%      0.02s  0.51%  memeqbody
-     0.02s  0.51% 87.47%      0.02s  0.51%  runtime.evacuate
-     0.02s  0.51% 87.98%      0.02s  0.51%  runtime.heapBits.next (inline)
-     0.02s  0.51% 88.49%      0.02s  0.51%  runtime.mapaccess1
-     0.02s  0.51% 89.00%      0.06s  1.53%  runtime.memhash_varlen
-     0.02s  0.51% 89.51%      0.02s  0.51%  runtime.spanOf (inline)
-     0.01s  0.26% 89.77%      0.13s  3.32%  fmt.(*pp).handleMethods
-     0.01s  0.26% 90.03%      0.25s  6.39%  fmt.(*pp).printArg
-     0.01s  0.26% 90.28%      0.30s  7.67%  github.com/freddy33/qsm-go/m3space.(*Connection).IsOld
-     0.01s  0.26% 90.54%      0.02s  0.51%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorMultiEvent).beginRealize
-     0.01s  0.26% 90.79%      0.03s  0.77%  github.com/freddy33/qsm-go/m3space.(*Space).getAndActivateNode
-     0.01s  0.26% 91.05%      0.09s  2.30%  reflect.Value.Interface
-     0.01s  0.26% 91.30%      0.03s  0.77%  runtime.(*timersBucket).addtimerLocked
-     0.01s  0.26% 91.56%      0.46s 11.76%  runtime.gcDrain
-     0.01s  0.26% 91.82%      0.02s  0.51%  runtime.gcWriteBarrier
-     0.01s  0.26% 92.07%      0.02s  0.51%  runtime.mapassign
-     0.01s  0.26% 92.33%      0.04s  1.02%  runtime.memhash
-     0.01s  0.26% 92.58%      0.14s  3.58%  runtime.notewakeup
-     0.01s  0.26% 92.84%      0.54s 13.81%  runtime.runqgrab
-     0.01s  0.26% 93.09%      0.03s  0.77%  runtime.unlock
+     8.23s 16.18% 16.18%      8.24s 16.20%  runtime.usleep
+     3.55s  6.98% 23.16%      6.27s 12.33%  runtime.scanobject
+     2.91s  5.72% 28.88%      2.91s  5.72%  runtime.memmove
+     2.72s  5.35% 34.23%      3.74s  7.35%  runtime.mapaccess2
+     2.03s  3.99% 38.22%      2.03s  3.99%  runtime.pthread_cond_wait
+     1.84s  3.62% 41.84%      1.84s  3.62%  runtime.memclrNoHeapPointers
+     1.77s  3.48% 45.32%      1.77s  3.48%  runtime.(*mspan).refillAllocCache
+     1.52s  2.99% 48.31%      1.52s  2.99%  runtime.pthread_cond_signal
+     1.46s  2.87% 51.18%      2.70s  5.31%  runtime.convT2Eslice
+     1.39s  2.73% 53.91%      1.43s  2.81%  github.com/freddy33/qsm-go/m3space.(*SavedNode).IsOld (partial-inline)
+     1.03s  2.03% 55.94%      3.03s  5.96%  github.com/freddy33/qsm-go/m3space.(*Event).createNewPossibleOutgrowths
+     0.93s  1.83% 57.77%      6.29s 12.37%  runtime.mallocgc
+     0.84s  1.65% 59.42%      1.08s  2.12%  runtime.findObject
+     0.82s  1.61% 61.03%      1.72s  3.38%  sync.(*Pool).Put
+     0.81s  1.59% 62.62%      0.83s  1.63%  github.com/freddy33/qsm-go/m3space.(*SavedNode).IsDead (inline)
+     0.78s  1.53% 64.16%      9.31s 18.31%  github.com/freddy33/qsm-go/m3space.(*Space).moveOldToOldMaps
+     0.73s  1.44% 65.59%      0.73s  1.44%  runtime.nanotime
+     0.71s  1.40% 66.99%      0.71s  1.40%  runtime.(*mspan).init (inline)
+     0.64s  1.26% 68.25%      0.64s  1.26%  runtime.aeshashbody
+     0.60s  1.18% 69.43%      1.21s  2.38%  runtime.greyobject
+     0.55s  1.08% 70.51%      1.13s  2.22%  runtime.convT2Estring
+     0.49s  0.96% 71.47%      1.08s  2.12%  github.com/freddy33/qsm-go/m3space.makeConnection
+     0.49s  0.96% 72.43%      0.49s  0.96%  memeqbody
+     0.47s  0.92% 73.36%      0.48s  0.94%  sync.(*Mutex).Lock
+     0.41s  0.81% 74.16%      0.63s  1.24%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorSameEvent).addNewEoFromSingle
+     0.40s  0.79% 74.95%      0.99s  1.95%  runtime.mapassign
+     0.39s  0.77% 75.72%      2.47s  4.86%  runtime.lock
+     0.39s  0.77% 76.48%      0.84s  1.65%  sync.(*Pool).getSlow
+     0.38s  0.75% 77.23%      7.41s 14.57%  runtime.gcDrain
+     0.35s  0.69% 77.92%      0.36s  0.71%  sync.(*Mutex).Unlock
+     0.34s  0.67% 78.59%      0.40s  0.79%  runtime.stkbucket
+     0.33s  0.65% 79.24%      1.38s  2.71%  time.NewTimer
+     0.30s  0.59% 79.83%      1.09s  2.14%  github.com/freddy33/qsm-go/m3space.(*ActiveNode).ConvertToSaved
+     0.29s  0.57% 80.40%      0.29s  0.57%  runtime.markBits.isMarked (inline)
+     0.29s  0.57% 80.97%      0.29s  0.57%  runtime.pthread_mutex_lock
+     0.28s  0.55% 81.52%      0.45s  0.88%  github.com/freddy33/qsm-go/m3space.makeNewPossibleOutgrowth
+     0.28s  0.55% 82.07%      0.66s  1.30%  runtime.makechan
+     0.28s  0.55% 82.62%      0.32s  0.63%  runtime.mapiternext
+     0.25s  0.49% 83.11%     14.13s 27.78%  github.com/freddy33/qsm-go/m3space.(*NewPossibleOutgrowth).realize
+     0.24s  0.47% 83.58%      5.52s 10.85%  github.com/freddy33/qsm-go/m3space.(*SavedNode).GetStateString
+     0.23s  0.45% 84.03%      3.01s  5.92%  github.com/freddy33/qsm-go/m3space.(*Space).GetNode (inline)
+     0.22s  0.43% 84.47%      1.78s  3.50%  sync.(*Pool).Get
+     0.21s  0.41% 84.88%     14.82s 29.14%  github.com/freddy33/qsm-go/m3space.(*Space).realizeAllOutgrowth
+     0.19s  0.37% 85.25%      0.31s  0.61%  github.com/freddy33/qsm-go/m3space.(*ActiveNode).IsAlreadyConnected
+     0.19s  0.37% 85.63%      0.45s  0.88%  github.com/freddy33/qsm-go/m3space.NewActiveNode
+     0.19s  0.37% 86.00%      0.27s  0.53%  runtime.(*hmap).newoverflow
+     0.19s  0.37% 86.37%      0.31s  0.61%  runtime.getitab
+     0.17s  0.33% 86.71%      0.31s  0.61%  fmt.(*fmt).fmtInteger
+     0.17s  0.33% 87.04%      0.39s  0.77%  github.com/freddy33/qsm-go/m3space.(*Event).moveNewOutgrowthsToLatest
+     0.17s  0.33% 87.38%      0.49s  0.96%  github.com/freddy33/qsm-go/m3space.MakeActiveOutgrowth
+     0.17s  0.33% 87.71%      0.30s  0.59%  runtime.evacuate
+     0.13s  0.26% 87.97%      3.36s  6.61%  fmt.(*pp).doPrintf
+     0.13s  0.26% 88.22%      3.21s  6.31%  fmt.(*pp).printArg
+     0.13s  0.26% 88.48%      4.29s  8.43%  github.com/freddy33/qsm-go/m3space.(*Connection).IsOld
+     0.12s  0.24% 88.71%      1.63s  3.20%  fmt.(*pp).printValue
+     0.10s   0.2% 88.91%      5.56s 10.93%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorStatSameEvent).realizeSameEvent
+     0.10s   0.2% 89.11%      1.66s  3.26%  github.com/freddy33/qsm-go/m3space.(*Space).getOrCreateNode
+     0.09s  0.18% 89.28%      0.29s  0.57%  runtime.mapaccess1
+     0.08s  0.16% 89.44%      8.70s 17.11%  runtime.findrunnable
+     0.08s  0.16% 89.60%      0.28s  0.55%  runtime.mapdelete
+     0.08s  0.16% 89.76%      0.73s  1.44%  runtime.memhash_varlen
+     0.07s  0.14% 89.89%      0.74s  1.45%  runtime.memhash
+     0.06s  0.12% 90.01%      1.49s  2.93%  fmt.(*pp).handleMethods
+     0.06s  0.12% 90.13%      0.90s  1.77%  reflect.packEface
+     0.06s  0.12% 90.25%      0.37s  0.73%  runtime.assertE2I2
+     0.05s 0.098% 90.35%      0.78s  1.53%  github.com/freddy33/qsm-go/m3space.(*Space).getAndActivateNode
+     0.04s 0.079% 90.42%      1.01s  1.99%  github.com/freddy33/qsm-go/m3space.(*FullOutgrowthCollector).addNewEo
+     0.04s 0.079% 90.50%      0.94s  1.85%  reflect.valueInterface
+     0.04s 0.079% 90.58%      6.22s 12.23%  runtime.runqgrab
+     0.04s 0.079% 90.66%      1.45s  2.85%  runtime.selectgo
+     0.03s 0.059% 90.72%      0.34s  0.67%  fmt.(*pp).fmtInteger
+     0.03s 0.059% 90.78%      5.07s  9.97%  fmt.Sprintf
+     0.03s 0.059% 90.84%      0.42s  0.83%  reflect.unsafe_New
+     0.02s 0.039% 90.88%      1.36s  2.67%  github.com/freddy33/qsm-go/m3space.(*Space).makeConnection
+     0.02s 0.039% 90.92%      3.98s  7.83%  github.com/freddy33/qsm-go/m3space.(*Space).processNewOutgrowth
+     0.02s 0.039% 90.96%         1s  1.97%  github.com/freddy33/qsm-go/m3space.Point.String
+     0.02s 0.039% 90.99%      0.96s  1.89%  reflect.Value.Interface
+     0.02s 0.039% 91.03%      0.86s  1.69%  runtime.chansend1
+     0.02s 0.039% 91.07%      0.58s  1.14%  runtime.convT2E64
+     0.02s 0.039% 91.11%      0.66s  1.30%  runtime.convT2Enoptr
+     0.02s 0.039% 91.15%      9.03s 17.75%  runtime.schedule
+     0.02s 0.039% 91.19%      2.25s  4.42%  runtime.semasleep
+     0.02s 0.039% 91.23%     13.53s 26.60%  runtime.systemstack
+     0.01s  0.02% 91.25%      3.60s  7.08%  github.com/freddy33/qsm-go/m3space.(*EventOutgrowth).String
+     0.01s  0.02% 91.27%      3.96s  7.79%  runtime.(*mcentral).cacheSpan
+     0.01s  0.02% 91.29%      2.29s  4.50%  runtime.(*mcentral).grow
+     0.01s  0.02% 91.31%      0.74s  1.45%  runtime.(*mheap).allocSpanLocked
+     0.01s  0.02% 91.33%      0.86s  1.69%  runtime.(*mheap).alloc_m
+     0.01s  0.02% 91.35%      0.85s  1.67%  runtime.chansend
+     0.01s  0.02% 91.37%      0.42s  0.83%  runtime.mProf_Malloc
+     0.01s  0.02% 91.39%      0.31s  0.61%  runtime.resetspinning
+     0.01s  0.02% 91.41%      1.85s  3.64%  runtime.slicebytetostring
+     0.01s  0.02% 91.43%      0.26s  0.51%  runtime.timerproc
+     0.01s  0.02% 91.45%      0.56s  1.10%  runtime.typedmemmove

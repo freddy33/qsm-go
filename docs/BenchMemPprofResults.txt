@@ -1,0 +1,60 @@
+QSM Env:/work/qsm/qsm-go$ go tool pprof --text m3spacemem.test mem.pprof
+m3spacemem.test: open m3spacemem.test: no such file or directory
+Fetched 1 source profiles out of 2
+Type: alloc_space
+Time: Mar 4, 2019 at 12:30pm (EST)
+Showing nodes accounting for 4813.84MB, 99.14% of 4855.84MB total
+Dropped 14 nodes (cum <= 24.28MB)
+      flat  flat%   sum%        cum   cum%
+  924.07MB 19.03% 19.03%  1097.24MB 22.60%  time.NewTimer
+  686.08MB 14.13% 33.16%   686.08MB 14.13%  sync.(*Pool).Put
+  461.04MB  9.49% 42.65%   461.04MB  9.49%  github.com/freddy33/qsm-go/m3space.MakeOutgrowthCollector (inline)
+  455.01MB  9.37% 52.02%   778.02MB 16.02%  github.com/freddy33/qsm-go/m3space.(*SavedNode).GetStateString
+  360.01MB  7.41% 59.44%   595.51MB 12.26%  fmt.Sprintf
+  263.01MB  5.42% 64.85%   535.51MB 11.03%  github.com/freddy33/qsm-go/m3space.(*EventOutgrowth).String
+  240.51MB  4.95% 69.81%   240.51MB  4.95%  github.com/freddy33/qsm-go/m3space.glob..func3
+  211.01MB  4.35% 74.15%   356.51MB  7.34%  github.com/freddy33/qsm-go/m3space.(*Event).createNewPossibleOutgrowths
+  173.17MB  3.57% 77.72%   173.17MB  3.57%  time.startTimer
+  163.98MB  3.38% 81.10%  2086.89MB 42.98%  github.com/freddy33/qsm-go/m3space.(*NewPossibleOutgrowth).realize
+     161MB  3.32% 84.41%      161MB  3.32%  reflect.packEface
+  126.60MB  2.61% 87.02%   126.60MB  2.61%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorSameEvent).addNewEoFromSingle
+  116.51MB  2.40% 89.42%   116.51MB  2.40%  github.com/freddy33/qsm-go/m3space.glob..func4
+   91.99MB  1.89% 91.31%   554.15MB 11.41%  github.com/freddy33/qsm-go/m3space.(*Space).moveOldToOldMaps
+   75.86MB  1.56% 92.87%   156.88MB  3.23%  github.com/freddy33/qsm-go/m3space.(*Space).getOrCreateNode
+   74.50MB  1.53% 94.41%   147.50MB  3.04%  github.com/freddy33/qsm-go/m3space.Point.String
+      55MB  1.13% 95.54%       55MB  1.13%  github.com/freddy33/qsm-go/m3space.glob..func5
+      53MB  1.09% 96.63%       53MB  1.09%  github.com/freddy33/qsm-go/m3space.glob..func2
+      48MB  0.99% 97.62%       48MB  0.99%  github.com/freddy33/qsm-go/m3space.glob..func1
+   24.28MB   0.5% 98.12%   268.30MB  5.53%  github.com/freddy33/qsm-go/m3space.(*Space).makeConnection
+   18.50MB  0.38% 98.50%   209.39MB  4.31%  github.com/freddy33/qsm-go/m3space.(*ActiveNode).ConvertToSaved
+      11MB  0.23% 98.73%   947.21MB 19.51%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorStatSameEvent).realizeSameEvent
+   10.70MB  0.22% 98.95%   147.40MB  3.04%  github.com/freddy33/qsm-go/m3space.(*Event).moveNewOutgrowthsToLatest
+    7.49MB  0.15% 99.10%    34.52MB  0.71%  github.com/freddy33/qsm-go/m3space.(*Space).getAndActivateNode
+       1MB 0.021% 99.12%  4498.33MB 92.64%  github.com/freddy33/qsm-go/m3space.(*Space).ForwardTime
+    0.50MB  0.01% 99.14%  2104.89MB 43.35%  github.com/freddy33/qsm-go/m3space.(*Space).realizeAllOutgrowth
+         0     0% 99.14%   308.51MB  6.35%  fmt.(*pp).doPrintf
+         0     0% 99.14%   147.50MB  3.04%  fmt.(*pp).handleMethods
+         0     0% 99.14%   308.51MB  6.35%  fmt.(*pp).printArg
+         0     0% 99.14%      161MB  3.32%  fmt.(*pp).printValue
+         0     0% 99.14%   132.60MB  2.73%  github.com/freddy33/qsm-go/m3space.(*FullOutgrowthCollector).addNewEo
+         0     0% 99.14%    44.24MB  0.91%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorStatMultiEvent).realizeMultiEvent
+         0     0% 99.14%  1106.44MB 22.79%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorStatSingle).realizeSingle
+         0     0% 99.14%   147.50MB  3.04%  github.com/freddy33/qsm-go/m3space.(*Point).String
+         0     0% 99.14%  1690.88MB 34.82%  github.com/freddy33/qsm-go/m3space.(*Space).processNewOutgrowth
+         0     0% 99.14%   345.19MB  7.11%  github.com/freddy33/qsm-go/m3space.BenchmarkPack1
+         0     0% 99.14%   674.86MB 13.90%  github.com/freddy33/qsm-go/m3space.BenchmarkPack12
+         0     0% 99.14%   268.91MB  5.54%  github.com/freddy33/qsm-go/m3space.BenchmarkPack2
+         0     0% 99.14%  3210.36MB 66.11%  github.com/freddy33/qsm-go/m3space.BenchmarkPack20
+         0     0% 99.14%    55.50MB  1.14%  github.com/freddy33/qsm-go/m3space.MakeActiveOutgrowth
+         0     0% 99.14%       48MB  0.99%  github.com/freddy33/qsm-go/m3space.NewActiveNode
+         0     0% 99.14%  4499.33MB 92.66%  github.com/freddy33/qsm-go/m3space.benchSpaceTest
+         0     0% 99.14%   240.51MB  4.95%  github.com/freddy33/qsm-go/m3space.makeConnection
+         0     0% 99.14%   116.51MB  2.40%  github.com/freddy33/qsm-go/m3space.makeNewPossibleOutgrowth
+         0     0% 99.14%  4499.33MB 92.66%  github.com/freddy33/qsm-go/m3space.runSpaceTest
+         0     0% 99.14%      161MB  3.32%  reflect.Value.Interface
+         0     0% 99.14%      161MB  3.32%  reflect.valueInterface
+         0     0% 99.14%   513.53MB 10.58%  sync.(*Pool).Get
+         0     0% 99.14%   546.34MB 11.25%  testing.(*B).launch
+         0     0% 99.14%  3952.98MB 81.41%  testing.(*B).run1.func1
+         0     0% 99.14%  4499.33MB 92.66%  testing.(*B).runN
+         0     0% 99.14%  1097.24MB 22.60%  time.After

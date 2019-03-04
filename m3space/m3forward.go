@@ -107,10 +107,14 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 				nodeThere := evt.space.GetNode(nextPoint)
 				if nodeThere != nil {
 					sendOutgrowth = nodeThere.IsEventAlreadyPresent(evt.id)
-					Log.Trace("New EO on existing node", nodeThere.GetStateString(), "can receive=", sendOutgrowth)
+					if Log.Level <= m3util.TRACE {
+						Log.Trace("New EO on existing node", nodeThere.GetStateString(), "can receive=", sendOutgrowth)
+					}
 				}
 				if sendOutgrowth {
-					Log.Trace("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
+					if Log.Level <= m3util.TRACE {
+						Log.Trace("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
+					}
 					c <- makeNewPossibleOutgrowth(nextPoint, evt, eg, eg.distance + 1, EventOutgrowthNew)
 				}
 			}
@@ -706,10 +710,14 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	fromPoint := newPosEo.from.pos
 	fromNode := space.getOrCreateNode(fromPoint)
 	if !fromNode.IsAlreadyConnected(newNode) {
-		Log.Trace("Need to connect the two nodes", fromNode.GetStateString(), newNode.GetStateString())
+		if Log.Level <= m3util.TRACE {
+			Log.Trace("Need to connect the two nodes", fromNode.GetStateString(), newNode.GetStateString())
+		}
 		if space.makeConnection(fromNode, newNode) == nil {
 			// No more connections
-			Log.Debug("Two nodes", fromNode.GetStateString(), newNode.GetStateString(), "cannot be connected without exceeding", newPosEo.event.space.MaxConnections, "connections")
+			if Log.Level <= m3util.DEBUG {
+				Log.Debug("Two nodes", fromNode.GetStateString(), newNode.GetStateString(), "cannot be connected without exceeding", newPosEo.event.space.MaxConnections, "connections")
+			}
 			return nil, &NoMoreConnectionsError{newNode.Pos, fromPoint}
 		}
 	}
@@ -717,7 +725,9 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	newEo.AddFrom(newPosEo.from.pos)
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(evt.id, space.currentTime)
-	Log.Trace("Created new outgrowth", newEo.String())
+	if Log.Level <= m3util.TRACE {
+		Log.Trace("Created new outgrowth", newEo.String())
+	}
 	newPosOutgrowthPool.Put(newPosEo)
 	return newEo, nil
 }
