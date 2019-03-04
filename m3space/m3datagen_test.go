@@ -83,6 +83,18 @@ func benchSpaceTest(b *testing.B, pSize int64) {
 	}
 }
 
+func TestSpaceRunPySize5(t *testing.T) {
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
+	runSpaceTest(5, t)
+}
+
+func TestSpaceRunPySize2(t *testing.T) {
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
+	runSpaceTest(2, t)
+}
+
 func runSpaceTest(pSize int64, t assert.TestingT) {
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
@@ -128,8 +140,7 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 				builder.createPyramids(pointsPer3Ids, &Pyramid{}, 0, nbThreeIdsActive-4)
 				allPyramids := builder.allPyramids
 				LogTest.Debugf("AllPyramids %d", len(allPyramids))
-				assert.True(t, len(allPyramids) > 0)
-				if len(allPyramids) > 1 {
+				if len(allPyramids) > 0 {
 					bestSize := int64(0)
 					var bestPyramid [4]Point
 					for pyramid, size := range allPyramids {
@@ -139,7 +150,7 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 							bestPyramid = pyramid
 						}
 					}
-					LogTest.Infof("We have a winner %v at size %d", bestPyramid, bestSize)
+					LogTest.Infof("We have a winner out of %d possible %v at size %d", len(allPyramids), bestPyramid, bestSize)
 					break
 				}
 			}
@@ -147,11 +158,8 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 	}
 }
 
-func TestStatPack(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+func TestStdDev(t *testing.T) {
 	fmt.Println(stat.StdDev([]float64{1.3, 1.5, 1.7, 1.1}, nil))
-	runSpaceTest(5, t)
 }
 
 // Builder to extract possible pyramids out of a list of ThreeIds that have common points

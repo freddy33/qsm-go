@@ -151,7 +151,7 @@ func (space *Space) getOrCreateNode(p Point) *ActiveNode {
 	if n != nil {
 		return n
 	}
-	n = NewNode(p)
+	n = NewActiveNode(p)
 	space.activeNodesMap[p] = n
 	for _, c := range p {
 		if c > 0 && space.Max < c {

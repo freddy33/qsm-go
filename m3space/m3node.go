@@ -52,7 +52,6 @@ func (ae AccessedEventID) IsActive(space *Space) bool {
 var activeNodesPool = sync.Pool{
 	New: func() interface{} {
 		newNode := ActiveNode{}
-		newNode.connections = make([]int8, 0, 3)
 		return &newNode
 	},
 }
@@ -64,20 +63,32 @@ var savedNodesPool = sync.Pool{
 	},
 }
 
-func NewNode(p Point) *ActiveNode {
+func NewActiveNode(p Point) *ActiveNode {
 	an := activeNodesPool.Get().(*ActiveNode)
 	an.Pos = p
-	an.accessedEventIDS = an.accessedEventIDS[:0]
-	an.connections = an.connections[:0]
+	if len(an.accessedEventIDS) > 0 {
+		an.accessedEventIDS = an.accessedEventIDS[:0]
+	}
+	if len(an.connections) > 0 {
+		an.connections = an.connections[:0]
+	}
 	an.root = false
 	return an
 }
 
 func (s *SavedNode) ConvertToActive(p Point) *ActiveNode {
-	n := NewNode(p)
+	n := NewActiveNode(p)
 	n.root = s.root
-	copy(n.accessedEventIDS, s.accessedEventIDS)
-	copy(n.connections, s.connections)
+	if len(s.accessedEventIDS) > 0 {
+		for _, ae := range s.accessedEventIDS {
+			n.accessedEventIDS = append(n.accessedEventIDS, ae)
+		}
+	}
+	if len(s.connections) > 0 {
+		for _, c := range s.connections {
+			n.connections = append(n.connections, c)
+		}
+	}
 	savedNodesPool.Put(s)
 	return n
 }
@@ -85,8 +96,22 @@ func (s *SavedNode) ConvertToActive(p Point) *ActiveNode {
 func (a *ActiveNode) ConvertToSaved() *SavedNode {
 	s := savedNodesPool.Get().(*SavedNode)
 	s.root = a.root
-	copy(s.accessedEventIDS, a.accessedEventIDS)
-	copy(s.connections, a.connections)
+	if len(s.accessedEventIDS) > 0 {
+		s.accessedEventIDS = s.accessedEventIDS[:0]
+	}
+	if len(s.connections) > 0 {
+		s.connections = s.connections[:0]
+	}
+	if len(a.accessedEventIDS) > 0 {
+		for _, ae := range a.accessedEventIDS {
+			s.accessedEventIDS = append(s.accessedEventIDS, ae)
+		}
+	}
+	if len(s.connections) > 0 {
+		for _, c := range s.connections {
+			s.connections = append(s.connections, c)
+		}
+	}
 	activeNodesPool.Put(a)
 	return s
 }
@@ -104,9 +129,6 @@ func (node *ActiveNode) HasFreeConnections(space *Space) bool {
 func (node *ActiveNode) AddConnection(conn *Connection, space *Space) int {
 	if !node.HasFreeConnections(space) {
 		return -1
-	}
-	if node.connections == nil {
-		node.connections = make([]int8, 0, 3)
 	}
 	index := len(node.connections)
 	if node.Pos == conn.P1 {

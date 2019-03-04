@@ -224,12 +224,12 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 			6:  simpleState(-22, -1),
 			7:  simpleState(-27, -1),
 			8:  simpleState(-52, -1),
-			9:  deadState(-64, 128),
-			10: deadState(-78, 69),
-			11: deadState(-115, 86),
-			12: deadState(-130, 108),
-			13: deadState(-153, 138),
-			14: deadState(-202, 161),
+			9:  simpleState(-64, -1),
+			10: deadState(-78, 3),
+			11: deadState(-115, 6),
+			12: deadState(-130, 12),
+			13: deadState(-153, 24),
+			14: deadState(-202, 35),
 		}
 		assertSpaceStates(t, &space, expectedState, 14, getContextString(&ctx))
 
