@@ -1,0 +1,14 @@
+
+1. First test no pooling
+
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	      10	 160862060 ns/op
+BenchmarkPack2-8    	      10	 203515985 ns/op
+BenchmarkPack12-8   	       1	4407082765 ns/op
+BenchmarkPack20-8   	       1	21204801091 ns/op
+PASS
+
+2. Test with pooling
+

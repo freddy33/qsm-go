@@ -1,6 +1,9 @@
 package m3space
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 type AccessedEventID struct {
 	id     EventID
@@ -46,28 +49,46 @@ func (ae AccessedEventID) IsActive(space *Space) bool {
 /***************************************************************/
 // Node Functions
 /***************************************************************/
+var activeNodesPool = sync.Pool{
+	New: func() interface{} {
+		newNode := ActiveNode{}
+		newNode.connections = make([]int8, 0, 3)
+		return &newNode
+	},
+}
+
+var savedNodesPool = sync.Pool{
+	New: func() interface{} {
+		newNode := SavedNode{}
+		return &newNode
+	},
+}
 
 func NewNode(p Point) *ActiveNode {
-	n := ActiveNode{}
-	n.Pos = p
-	return &n
+	an := activeNodesPool.Get().(*ActiveNode)
+	an.Pos = p
+	an.accessedEventIDS = an.accessedEventIDS[:0]
+	an.connections = an.connections[:0]
+	an.root = false
+	return an
 }
 
 func (s *SavedNode) ConvertToActive(p Point) *ActiveNode {
-	n := ActiveNode{}
-	n.Pos = p
+	n := NewNode(p)
 	n.root = s.root
-	n.accessedEventIDS = s.accessedEventIDS
-	n.connections = s.connections
-	return &n
+	copy(n.accessedEventIDS, s.accessedEventIDS)
+	copy(n.connections, s.connections)
+	savedNodesPool.Put(s)
+	return n
 }
 
 func (a *ActiveNode) ConvertToSaved() *SavedNode {
-	s := SavedNode{}
+	s := savedNodesPool.Get().(*SavedNode)
 	s.root = a.root
-	s.accessedEventIDS = a.accessedEventIDS
-	s.connections = a.connections
-	return &s
+	copy(s.accessedEventIDS, a.accessedEventIDS)
+	copy(s.connections, a.connections)
+	activeNodesPool.Put(a)
+	return s
 }
 
 func (node *ActiveNode) SetRoot(id EventID, time TickTime) {
@@ -130,6 +151,12 @@ func (node *ActiveNode) AddOutgrowth(id EventID, time TickTime) {
 // Connection Functions
 /***************************************************************/
 
+var connectionsPool = sync.Pool{
+	New: func() interface{} {
+		return &Connection{}
+	},
+}
+
 func (conn *Connection) GetConnId() int8 {
 	return conn.Id
 }
@@ -187,16 +214,24 @@ func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 	// All good create connection
 	bv := MakeVector(n1.Pos, n2.Pos)
 	cd := AllConnectionsPossible[bv]
-	c1 := &Connection{cd.GetIntId(), n1.Pos, n2.Pos}
+	c1 := makeConnection(cd.GetIntId(), n1, n2)
 	space.activeConnections = append(space.activeConnections, c1)
 	n1done := n1.AddConnection(c1, space)
-	c2 := &Connection{-cd.GetIntId(), n2.Pos, n1.Pos}
+	c2 := makeConnection(-cd.GetIntId(), n2, n1)
 	n2done := n2.AddConnection(c2, space)
 	if n1done < 0 || n2done < 0 {
 		Log.Error("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
 		return nil
 	}
 	return c1
+}
+
+func makeConnection(Id int8, n1, n2 *ActiveNode) *Connection {
+	c := connectionsPool.Get().(*Connection)
+	c.Id = Id
+	c.P1 = n1.Pos
+	c.P2 = n2.Pos
+	return c
 }
 
 /***************************************************************/

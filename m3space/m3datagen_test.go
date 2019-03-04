@@ -58,15 +58,37 @@ func (pyramid Pyramid) ordered() Pyramid {
 	return Pyramid{slice[0], slice[1], slice[2], slice[3]}
 }
 
-func TestStatPack(t *testing.T) {
+func BenchmarkPack1(b *testing.B) {
+	benchSpaceTest(b, 1)
+}
+
+func BenchmarkPack2(b *testing.B) {
+	benchSpaceTest(b, 2)
+}
+
+func BenchmarkPack12(b *testing.B) {
+	benchSpaceTest(b, 12)
+}
+
+func BenchmarkPack20(b *testing.B) {
+	benchSpaceTest(b, 20)
+}
+
+func benchSpaceTest(b *testing.B, pSize int64) {
 	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
-	fmt.Println(stat.StdDev([]float64{1.3, 1.5, 1.7, 1.1}, nil))
+	LogStat.Level = m3util.WARN
+	LogTest.Level = m3util.WARN
+	for r := 0; r < b.N; r++ {
+		runSpaceTest(pSize, b)
+	}
+}
+
+func runSpaceTest(pSize int64, t assert.TestingT) {
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3
 	space.SetEventOutgrowthThreshold(Distance(0))
-	space.CreatePyramid(10)
+	space.CreatePyramid(pSize)
 	/*
 		i:=0
 		for _, evt := range space.events {
@@ -87,7 +109,11 @@ func TestStatPack(t *testing.T) {
 	LogTest.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := TickTime(0)
-	for expectedTime < 50 {
+	finalTime := TickTime(5 * pSize)
+	if finalTime < TickTime(25) {
+		finalTime = TickTime(25)
+	}
+	for expectedTime < finalTime {
 		assert.Equal(t, expectedTime, space.currentTime)
 		col := space.ForwardTime()
 		expectedTime++
@@ -95,13 +121,13 @@ func TestStatPack(t *testing.T) {
 		pointsPer3Ids := col.multiEvents.pointsPerThreeIds
 		nbThreeIdsActive := len(pointsPer3Ids)
 		if nbThreeIdsActive >= 3 {
-			LogTest.Infof("Found a 3 match with %d elements", nbThreeIdsActive)
+			LogTest.Debugf("Found a 3 match with %d elements", nbThreeIdsActive)
 			if nbThreeIdsActive >= 4 {
-				LogTest.Info("Found a 4 match")
+				LogTest.Debug("Found a 4 match")
 				builder := PyramidBuilder{make(map[Pyramid]int64, 1)}
 				builder.createPyramids(pointsPer3Ids, &Pyramid{}, 0, nbThreeIdsActive-4)
 				allPyramids := builder.allPyramids
-				LogTest.Infof("AllPyramids %d", len(allPyramids))
+				LogTest.Debugf("AllPyramids %d", len(allPyramids))
 				assert.True(t, len(allPyramids) > 0)
 				if len(allPyramids) > 1 {
 					bestSize := int64(0)
@@ -119,6 +145,13 @@ func TestStatPack(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestStatPack(t *testing.T) {
+	Log.Level = m3util.WARN
+	LogStat.Level = m3util.INFO
+	fmt.Println(stat.StdDev([]float64{1.3, 1.5, 1.7, 1.1}, nil))
+	runSpaceTest(5, t)
 }
 
 // Builder to extract possible pyramids out of a list of ThreeIds that have common points
