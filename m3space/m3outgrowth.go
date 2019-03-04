@@ -39,7 +39,7 @@ type EventOutgrowth struct {
 	rootPath        PathElement
 }
 
-var newEventOutgrowthPool = sync.Pool{
+var eventOutgrowthPool = sync.Pool{
 	New: func() interface{} {
 		return &EventOutgrowth{}
 	},
@@ -130,7 +130,13 @@ func (newPosEo *NewPossibleOutgrowth) String() string {
 /***************************************************************/
 
 func MakeActiveOutgrowth(pos Point, d Distance, state EventOutgrowthState) *EventOutgrowth {
-	return &EventOutgrowth{pos, nil, d, state, nil,}
+	r := eventOutgrowthPool.Get().(*EventOutgrowth)
+	r.pos = pos
+	r.fromConnections = r.fromConnections[:0]
+	r.distance = d
+	r.rootPath = nil
+	r.state = state
+	return r
 }
 
 func (eo *EventOutgrowth) String() string {

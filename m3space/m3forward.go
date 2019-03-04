@@ -739,8 +739,9 @@ func (evt *Event) moveNewOutgrowthsToLatest() {
 	finalCurrent := evt.currentOutgrowths[:0]
 	for _, eg := range evt.currentOutgrowths {
 		if eg.state == EventOutgrowthCurrent && eg.IsOld(evt) {
-			// Just cvhange state and removed from list
+			// Just change state and removed from list
 			eg.state = EventOutgrowthOld
+			eventOutgrowthPool.Put(eg)
 		} else {
 			finalCurrent = append(finalCurrent, eg)
 		}

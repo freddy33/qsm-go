@@ -1,8 +1,6 @@
 
 1. First test no pooling
 
-goos: darwin
-goarch: amd64
 pkg: github.com/freddy33/qsm-go/m3space
 BenchmarkPack1-8    	      10	 160862060 ns/op
 BenchmarkPack2-8    	      10	 203515985 ns/op
@@ -12,23 +10,6 @@ PASS
 
 2. Test with pooling only nodes and connections
 
-goos: darwin
-goarch: amd64
-pkg: github.com/freddy33/qsm-go/m3space
-BenchmarkPack1-8    	       5	 276941867 ns/op
-FAIL: BenchmarkPack2-8
-    m3datagen_test.go:131:
-        	Error Trace:	m3datagen_test.go:131
-        	            				m3datagen_test.go:82
-        	            				m3datagen_test.go:66
-        	Error:      	Should be true
-        	Test:       	BenchmarkPack2
-BenchmarkPack12-8   	       1	3823059398 ns/op
-BenchmarkPack20-8   	       1	22075959806 ns/op
-FAIL
-
-goos: darwin
-goarch: amd64
 pkg: github.com/freddy33/qsm-go/m3space
 BenchmarkPack1-8    	       5	 278013481 ns/op
 BenchmarkPack2-8    	      20	  75815094 ns/op
@@ -37,8 +18,6 @@ BenchmarkPack20-8   	       1	21399648380 ns/op
 PASS
 
 Fixed copy slice bug:
-goos: darwin
-goarch: amd64
 pkg: github.com/freddy33/qsm-go/m3space
 BenchmarkPack1-8    	       5	 244459643 ns/op
 BenchmarkPack2-8    	       5	 266536115 ns/op
@@ -46,15 +25,21 @@ BenchmarkPack12-8   	       1	4900443616 ns/op
 BenchmarkPack20-8   	       1	25854488663 ns/op
 PASS
 
-Process finished with exit code 0
-
 3. With New Possible Outgrowth pool
 
-goos: darwin
-goarch: amd64
 pkg: github.com/freddy33/qsm-go/m3space
 BenchmarkPack1-8    	       5	 234532612 ns/op
 BenchmarkPack2-8    	       5	 274339656 ns/op
 BenchmarkPack12-8   	       1	4828684820 ns/op
 BenchmarkPack20-8   	       1	25360534183 ns/op
 PASS
+
+4. With Event Outgrowth pool
+
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	       5	 240868522 ns/op
+BenchmarkPack2-8    	       5	 278206422 ns/op
+BenchmarkPack12-8   	       1	4862284707 ns/op
+BenchmarkPack20-8   	       1	25938253269 ns/op
+PASS
+

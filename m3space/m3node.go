@@ -10,8 +10,11 @@ type AccessedEventID struct {
 	access TickTime
 }
 
+var NilAccessEventID = AccessedEventID{NilEvent, TickTime(0)}
+
 type Node interface {
 	IsRoot() bool
+	GetLatest() AccessedEventID
 	GetLastAccessed() TickTime
 	IsActive(space *Space) bool
 	HowManyColors(space *Space) uint8
@@ -264,24 +267,23 @@ func (node *SavedNode) IsRoot() bool {
 	return node.root
 }
 
-func (node *SavedNode) GetLastAccessed() TickTime {
-	bestTime := TickTime(0)
-	for _, ae := range node.accessedEventIDS {
-		if ae.access > bestTime {
-			bestTime = ae.access
-		}
+func (node *SavedNode) GetLatest() AccessedEventID {
+	if len(node.accessedEventIDS) > 0 {
+		return node.accessedEventIDS[len(node.accessedEventIDS) - 1]
 	}
-	return bestTime
+	return NilAccessEventID
+}
+
+func (node *SavedNode) GetLastAccessed() TickTime {
+	return node.GetLatest().access
 }
 
 func (node *SavedNode) IsActive(space *Space) bool {
 	if node.IsRoot() {
 		return true
 	}
-	for _, ae := range node.accessedEventIDS {
-		if ae.IsActive(space) {
-			return true
-		}
+	if node.GetLatest().IsActive(space) {
+		return true
 	}
 	return false
 }
