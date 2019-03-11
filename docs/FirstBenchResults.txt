@@ -49,3 +49,12 @@ BenchmarkPack2-8    	       5	 271101575 ns/op
 BenchmarkPack12-8   	       1	4899250830 ns/op
 BenchmarkPack20-8   	       1	24810039614 ns/op
 PASS
+
+5. Removing calls to trace and debug by testing level before log method call
+
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	      10	 136336572 ns/op
+BenchmarkPack2-8    	      10	 167351903 ns/op
+BenchmarkPack12-8   	       1	3305566089 ns/op
+BenchmarkPack20-8   	       1	18504156410 ns/op
+PASS
