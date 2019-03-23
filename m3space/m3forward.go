@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"sort"
+	"sync"
 )
 
 var LogStat = m3util.NewStatLogger("m3stat", m3util.INFO)
@@ -70,9 +71,11 @@ func (space *Space) ForwardTime() *FullOutgrowthCollector {
 	for _, evt := range space.events {
 		nbLatest += len(evt.latestOutgrowths)
 	}
-	Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn, %d reactivated, %d died",
-		space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
-		len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
+	if Log.Level <= m3util.INFO {
+		Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn, %d reactivated, %d died",
+			space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
+			len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
+	}
 	LogStat.Infof("%4d: LIVE( %d: %d: %d: %d: %d ) REMOVED( %d: %d: %d )",
 		space.currentTime, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
 		len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
@@ -94,33 +97,41 @@ func (space *Space) ForwardTime() *FullOutgrowthCollector {
 }
 
 func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
+	wg := sync.WaitGroup{}
 	for _, eg := range evt.latestOutgrowths {
 		if eg.state != EventOutgrowthLatest {
 			Log.Fatalf("Wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, eg.pos)
+		} else {
+			wg.Add(1)
+			go evt.createNewPossibleOutgrowthsForLatestOutgrowth(c, eg, &wg)
 		}
+	}
+	wg.Wait()
+	Log.Debug("Finished with event outgrowth for", evt.id, "sending End state possible outgrowth")
+	c <- makeNewPossibleOutgrowth(evt.node.Pos, evt, nil, Distance(0), EventOutgrowthEnd)
+}
 
-		nextPoints := eg.pos.getNextPoints(evt.growthContext)
-		for _, nextPoint := range nextPoints {
-			if !eg.CameFromPoint(nextPoint) {
-				sendOutgrowth := true
-				nodeThere := evt.space.GetNode(nextPoint)
-				if nodeThere != nil {
-					sendOutgrowth = nodeThere.IsEventAlreadyPresent(evt.id)
-					if Log.Level <= m3util.TRACE {
-						Log.Trace("New EO on existing node", nodeThere.GetStateString(), "can receive=", sendOutgrowth)
-					}
+func (evt *Event) createNewPossibleOutgrowthsForLatestOutgrowth(c chan *NewPossibleOutgrowth, eg *EventOutgrowth, wg *sync.WaitGroup) {
+	nextPoints := eg.pos.getNextPoints(evt.growthContext)
+	for _, nextPoint := range nextPoints {
+		if !eg.CameFromPoint(nextPoint) {
+			sendOutgrowth := true
+			nodeThere := evt.space.GetNode(nextPoint)
+			if nodeThere != nil {
+				sendOutgrowth = !nodeThere.IsEventAlreadyPresent(evt.id)
+				if Log.Level <= m3util.TRACE {
+					Log.Trace("New EO on existing node", nodeThere.GetStateString(), "can receive=", sendOutgrowth)
 				}
-				if sendOutgrowth {
-					if Log.Level <= m3util.TRACE {
-						Log.Trace("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
-					}
-					c <- makeNewPossibleOutgrowth(nextPoint, evt, eg, eg.distance + 1, EventOutgrowthNew)
+			}
+			if sendOutgrowth {
+				if Log.Level <= m3util.TRACE {
+					Log.Trace("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
 				}
+				c <- makeNewPossibleOutgrowth(nextPoint, evt, eg, eg.distance+1, EventOutgrowthNew)
 			}
 		}
 	}
-	Log.Debug("Finished with event outgrowth for", evt.id, "sending End state possible outgrowth")
-	c <- makeNewPossibleOutgrowth(evt.node.Pos, evt, nil, Distance(0), EventOutgrowthEnd)
+	wg.Done()
 }
 
 func makeNewPossibleOutgrowth(p Point, evt *Event, eg *EventOutgrowth, d Distance, s EventOutgrowthState) *NewPossibleOutgrowth {

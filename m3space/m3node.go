@@ -176,10 +176,7 @@ func (node *ActiveNode) IsAlreadyConnected(otherNode *ActiveNode) bool {
 }
 
 func (node *ActiveNode) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
-	if !node.IsEventAlreadyPresent(newPosEo.event.id) {
-		return false
-	}
-	return true
+	return !node.IsEventAlreadyPresent(newPosEo.event.id)
 }
 
 func (node *ActiveNode) AddOutgrowth(id EventID, time TickTime) {
@@ -327,10 +324,10 @@ func (node *SavedNode) GetColorMask(space *Space) uint8 {
 func (node *SavedNode) IsEventAlreadyPresent(id EventID) bool {
 	for _, ae := range node.accessedEventIDS {
 		if ae.id == id {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (node *SavedNode) IsOld(space *Space) bool {
