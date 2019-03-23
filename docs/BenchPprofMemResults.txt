@@ -1,0 +1,46 @@
+Type: alloc_space
+Time: Mar 23, 2019 at 8:12pm (IST)
+Showing nodes accounting for 3075.87MB, 99.02% of 3106.29MB total
+Dropped 16 nodes (cum <= 15.53MB)
+      flat  flat%   sum%        cum   cum%
+  986.08MB 31.74% 31.74%  1164.31MB 37.48%  time.NewTimer
+  468.59MB 15.09% 46.83%   468.59MB 15.09%  sync.(*Pool).Put
+  462.19MB 14.88% 61.71%   462.19MB 14.88%  github.com/freddy33/qsm-go/m3space.MakeOutgrowthCollector
+  240.01MB  7.73% 69.44%   240.01MB  7.73%  github.com/freddy33/qsm-go/m3space.glob..func3
+  178.23MB  5.74% 75.17%   178.23MB  5.74%  time.startTimer
+  145.51MB  4.68% 79.86%   145.51MB  4.68%  github.com/freddy33/qsm-go/m3space.glob..func4
+  116.27MB  3.74% 83.60%   116.27MB  3.74%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorSameEvent).addNewEoFromSingle
+   95.19MB  3.06% 86.66%   413.25MB 13.30%  github.com/freddy33/qsm-go/m3space.(*Space).moveOldToOldMaps
+   85.07MB  2.74% 89.40%   167.24MB  5.38%  github.com/freddy33/qsm-go/m3space.(*Space).getOrCreateNode
+   67.51MB  2.17% 91.58%    67.51MB  2.17%  github.com/freddy33/qsm-go/m3space.glob..func1
+      57MB  1.84% 93.41%       57MB  1.84%  github.com/freddy33/qsm-go/m3space.glob..func5
+   47.50MB  1.53% 94.94%    47.50MB  1.53%  github.com/freddy33/qsm-go/m3space.glob..func2
+   25.07MB  0.81% 95.75%   268.08MB  8.63%  github.com/freddy33/qsm-go/m3space.(*Space).makeConnection
+   24.50MB  0.79% 96.54%    24.50MB  0.79%  github.com/freddy33/qsm-go/m3space.(*ActiveNode).AddOutgrowth
+   21.50MB  0.69% 97.23%   156.06MB  5.02%  github.com/freddy33/qsm-go/m3space.(*ActiveNode).ConvertToSaved
+   16.69MB  0.54% 97.77%   119.97MB  3.86%  github.com/freddy33/qsm-go/m3space.(*Event).moveNewOutgrowthsToLatest
+   14.50MB  0.47% 98.23%   422.09MB 13.59%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorStatSameEvent).realizeSameEvent
+   14.10MB  0.45% 98.69%   648.87MB 20.89%  github.com/freddy33/qsm-go/m3space.(*NewPossibleOutgrowth).realize
+    7.85MB  0.25% 98.94%    20.17MB  0.65%  github.com/freddy33/qsm-go/m3space.(*Space).getAndActivateNode
+    2.01MB 0.065% 99.00%   127.30MB  4.10%  github.com/freddy33/qsm-go/m3space.(*FullOutgrowthCollector).addNewEo
+    0.50MB 0.016% 99.02%  2957.88MB 95.22%  github.com/freddy33/qsm-go/m3space.(*Space).ForwardTime
+         0     0% 99.02%   145.51MB  4.68%  github.com/freddy33/qsm-go/m3space.(*Event).createNewPossibleOutgrowths
+         0     0% 99.02%    31.05MB     1%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorStatMultiEvent).realizeMultiEvent
+         0     0% 99.02%   210.22MB  6.77%  github.com/freddy33/qsm-go/m3space.(*OutgrowthCollectorStatSingle).realizeSingle
+         0     0% 99.02%  1753.80MB 56.46%  github.com/freddy33/qsm-go/m3space.(*Space).processNewOutgrowth
+         0     0% 99.02%   670.37MB 21.58%  github.com/freddy33/qsm-go/m3space.(*Space).realizeAllOutgrowth
+         0     0% 99.02%   243.54MB  7.84%  github.com/freddy33/qsm-go/m3space.BenchmarkPack1
+         0     0% 99.02%      414MB 13.33%  github.com/freddy33/qsm-go/m3space.BenchmarkPack12
+         0     0% 99.02%   298.35MB  9.60%  github.com/freddy33/qsm-go/m3space.BenchmarkPack2
+         0     0% 99.02%  2002.50MB 64.47%  github.com/freddy33/qsm-go/m3space.BenchmarkPack20
+         0     0% 99.02%       57MB  1.84%  github.com/freddy33/qsm-go/m3space.MakeActiveOutgrowth
+         0     0% 99.02%    67.51MB  2.17%  github.com/freddy33/qsm-go/m3space.NewActiveNode
+         0     0% 99.02%  2958.39MB 95.24%  github.com/freddy33/qsm-go/m3space.benchSpaceTest
+         0     0% 99.02%   240.01MB  7.73%  github.com/freddy33/qsm-go/m3space.makeConnection
+         0     0% 99.02%   145.51MB  4.68%  github.com/freddy33/qsm-go/m3space.makeNewPossibleOutgrowth
+         0     0% 99.02%  2958.39MB 95.24%  github.com/freddy33/qsm-go/m3space.runSpaceTest
+         0     0% 99.02%   557.54MB 17.95%  sync.(*Pool).Get
+         0     0% 99.02%   498.24MB 16.04%  testing.(*B).launch
+         0     0% 99.02%  2460.15MB 79.20%  testing.(*B).run1.func1
+         0     0% 99.02%  2958.39MB 95.24%  testing.(*B).runN
+         0     0% 99.02%  1164.31MB 37.48%  time.After
