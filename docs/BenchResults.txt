@@ -65,3 +65,12 @@ BenchmarkPack2-8    	      10	 156441570 ns/op
 BenchmarkPack12-8   	       1	3566422712 ns/op
 BenchmarkPack20-8   	       1	19106994713 ns/op
 PASS
+
+6. No timeout
+
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	      10	 112782529 ns/op
+BenchmarkPack2-8    	      10	 136525447 ns/op
+BenchmarkPack12-8   	       1	3063571740 ns/op
+BenchmarkPack20-8   	       1	16988807061 ns/op
+PASS

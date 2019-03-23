@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"sort"
-	"time"
 )
 
 var LogStat = m3util.NewStatLogger("m3stat", m3util.INFO)
@@ -135,11 +134,6 @@ func makeNewPossibleOutgrowth(p Point, evt *Event, eg *EventOutgrowth, d Distanc
 }
 
 func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *FullOutgrowthCollector {
-	// Protect full calculation timeout with 5 milliseconds per latest outgrowth
-	timeout := int64(5 * nbLatest)
-	if timeout < 1000 {
-		timeout = 1000
-	}
 	nbEvents := len(space.events)
 	nbEventsDone := 0
 	collector := MakeOutgrowthCollector(nbLatest)
@@ -161,10 +155,6 @@ func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest i
 				stop = true
 				break
 			}
-		case <-time.After(time.Duration(timeout) * time.Millisecond):
-			stop = true
-			Log.Error("Did not manage to process", nbLatest, "latest event outgrowth from", nbEvents, "events in", nbLatest*5, "msecs")
-			break
 		}
 		if stop {
 			break
