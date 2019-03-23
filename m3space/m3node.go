@@ -52,22 +52,27 @@ func (ae AccessedEventID) IsActive(space *Space) bool {
 /***************************************************************/
 // Node Functions
 /***************************************************************/
+var ActivatePooling = false
+
 var activeNodesPool = sync.Pool{
 	New: func() interface{} {
-		newNode := ActiveNode{}
-		return &newNode
+		return new(ActiveNode)
 	},
 }
 
 var savedNodesPool = sync.Pool{
 	New: func() interface{} {
-		newNode := SavedNode{}
-		return &newNode
+		return new(SavedNode)
 	},
 }
 
 func NewActiveNode(p Point) *ActiveNode {
-	an := activeNodesPool.Get().(*ActiveNode)
+	var an *ActiveNode
+	if ActivatePooling {
+		an = activeNodesPool.Get().(*ActiveNode)
+	} else {
+		an = new(ActiveNode)
+	}
 	an.Pos = p
 	if len(an.accessedEventIDS) > 0 {
 		an.accessedEventIDS = an.accessedEventIDS[:0]
@@ -92,12 +97,19 @@ func (s *SavedNode) ConvertToActive(p Point) *ActiveNode {
 			n.connections = append(n.connections, c)
 		}
 	}
-	savedNodesPool.Put(s)
+	if ActivatePooling {
+		savedNodesPool.Put(s)
+	}
 	return n
 }
 
 func (a *ActiveNode) ConvertToSaved() *SavedNode {
-	s := savedNodesPool.Get().(*SavedNode)
+	var s *SavedNode
+	if ActivatePooling {
+		s = savedNodesPool.Get().(*SavedNode)
+	} else {
+		s = new (SavedNode)
+	}
 	s.root = a.root
 	if len(s.accessedEventIDS) > 0 {
 		s.accessedEventIDS = s.accessedEventIDS[:0]
@@ -115,7 +127,9 @@ func (a *ActiveNode) ConvertToSaved() *SavedNode {
 			s.connections = append(s.connections, c)
 		}
 	}
-	activeNodesPool.Put(a)
+	if ActivatePooling {
+		activeNodesPool.Put(a)
+	}
 	return s
 }
 
@@ -178,7 +192,7 @@ func (node *ActiveNode) AddOutgrowth(id EventID, time TickTime) {
 
 var connectionsPool = sync.Pool{
 	New: func() interface{} {
-		return &Connection{}
+		return new(Connection)
 	},
 }
 
@@ -252,7 +266,12 @@ func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 }
 
 func makeConnection(Id int8, n1, n2 *ActiveNode) *Connection {
-	c := connectionsPool.Get().(*Connection)
+	var c *Connection
+	if ActivatePooling {
+		c = connectionsPool.Get().(*Connection)
+	} else {
+		c = new (Connection)
+	}
 	c.Id = Id
 	c.P1 = n1.Pos
 	c.P2 = n2.Pos

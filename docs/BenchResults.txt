@@ -74,3 +74,10 @@ BenchmarkPack2-8    	      10	 136525447 ns/op
 BenchmarkPack12-8   	       1	3063571740 ns/op
 BenchmarkPack20-8   	       1	16988807061 ns/op
 PASS
+
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	      20	  92832426 ns/op
+BenchmarkPack2-8    	      10	 115815285 ns/op
+BenchmarkPack12-8   	       1	2723673402 ns/op
+BenchmarkPack20-8   	       1	15363200681 ns/op
+PASS

@@ -760,14 +760,18 @@ func (space *Space) moveOldToOldMaps() {
 		if node.IsDead(space) {
 			space.nbDeadNodes++
 			delete(space.oldNodesMap, p)
-			savedNodesPool.Put(node)
+			if ActivatePooling {
+				savedNodesPool.Put(node)
+			}
 		}
 	}
 	finalActive := space.activeConnections[:0]
 	for _, conn := range space.activeConnections {
 		if conn.IsOld(space) {
 			space.nbOldConnections++
-			connectionsPool.Put(conn)
+			if ActivatePooling {
+				connectionsPool.Put(conn)
+			}
 		} else {
 			finalActive = append(finalActive, conn)
 		}

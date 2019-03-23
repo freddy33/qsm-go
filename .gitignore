@@ -1,8 +1,17 @@
-.idea/
-space
-qsm-go
-*.iml
+# Basics
 .DS_Store
 
+# IDE
+.idea/
+*.iml
+
+# Executable
+qsm-go
+
+# Data folders
 docs/generated/
 docs/data/
+
+# Profiling
+*.prof
+m3space.test
