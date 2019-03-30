@@ -1,0 +1,7 @@
+m3point 2019/03/30 20:07:04 m3trio.go:222: [INFO Number of connection details created 50]
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3point
+BenchmarkAllGrowth-8   	       5	 211376926 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3point	1.554s

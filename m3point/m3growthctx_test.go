@@ -7,6 +7,45 @@ import (
 	"testing"
 )
 
+func BenchmarkAllGrowth(b *testing.B) {
+	allCtx := getAllContexts()
+	nbRound := 25
+	for r:=0;r<b.N;r++ {
+		for _, ctx := range allCtx[1] {
+			runNextPoints(&ctx, nbRound)
+		}
+		for _, ctx := range allCtx[2] {
+			runNextPoints(&ctx, nbRound)
+		}
+		for _, ctx := range allCtx[4] {
+			runNextPoints(&ctx, nbRound)
+		}
+		for _, ctx := range allCtx[8] {
+			runNextPoints(&ctx, nbRound)
+		}
+	}
+}
+
+func runNextPoints(ctx *GrowthContext, nbRound int) {
+	usedPoints := make(map[Point]bool, 15000)
+	latestPoints := make([]Point, 1)
+	latestPoints[0] = Origin
+	usedPoints[Origin] = true
+	for d := 0; d < nbRound; d++ {
+		finalPoints := latestPoints[:0]
+		for _, p := range latestPoints {
+			newPoints := p.GetNextPoints(ctx)
+			for _, np := range newPoints {
+				if !usedPoints[np] {
+					finalPoints = append(finalPoints, np)
+					usedPoints[np] = true
+				}
+			}
+		}
+		latestPoints = finalPoints
+	}
+}
+
 func getAllContexts() map[uint8][]GrowthContext {
 	res := make(map[uint8][]GrowthContext)
 	res[1] = make([]GrowthContext, 0, 8)
@@ -34,6 +73,10 @@ func getAllContexts() map[uint8][]GrowthContext {
 }
 
 func TestDivByThree(t *testing.T) {
+	runDivByThree(t)
+}
+
+func runDivByThree(t assert.TestingT) {
 	Log.Level = m3util.DEBUG
 	someCenter1 := Point{3, -6, 9}
 	ctx := GrowthContext{someCenter1, 1, 1, false, 0,}
@@ -99,6 +142,10 @@ func TestGrowthContext3(t *testing.T) {
 }
 
 func TestGrowthContextsExpectType3(t *testing.T) {
+	runGrowthContextsExpectType3(t)
+}
+
+func runGrowthContextsExpectType3(t assert.TestingT) {
 	Log.Level = m3util.DEBUG
 
 	growthContexts := getAllContexts()

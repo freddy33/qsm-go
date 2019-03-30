@@ -15,7 +15,7 @@ runAndSave() {
     go tool pprof --text perf-data/mem-${packageName}.prof > ./docs/${packageName}-BenchPprofMemResults.txt
 }
 
-if [[ "$pack" == "point" ] || [ "$pack" == "space" ] || [ "$pack" == "gl" ]]; then
+if [ "$pack" == "point" ] || [ "$pack" == "space" ] || [ "$pack" == "gl" ]; then
     runAndSave ${pack}
     exit $?
 fi
