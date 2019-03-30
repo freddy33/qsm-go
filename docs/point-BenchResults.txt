@@ -5,3 +5,30 @@ pkg: github.com/freddy33/qsm-go/m3point
 BenchmarkAllGrowth-8   	       5	 211376926 ns/op
 PASS
 ok  	github.com/freddy33/qsm-go/m3point	1.554s
+m3point 2019/03/30 20:20:39 m3trio.go:222: [INFO Number of connection details created 50]
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3point
+BenchmarkAllGrowth-8   	       2	 630784580 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3point	2.163s
+m3point 2019/03/30 20:27:10 m3trio.go:222: [INFO Number of connection details created 50]
+m3point 2019/03/30 20:27:11 m3utils.go:78: INFO  Max size for all context 4,150 with 50 runs
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3point
+BenchmarkAllGrowth-8   	m3point 2019/03/30 20:27:12 m3utils.go:78: INFO  Max size for all context 4,150 with 50 runs
+m3point 2019/03/30 20:27:12 m3utils.go:78: INFO  Max size for all context 4,150 with 50 runs
+       2	 645713973 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3point	2.295s
+m3point 2019/03/30 20:37:28 m3trio.go:222: [INFO Number of connection details created 50]
+m3point 2019/03/30 20:37:29 m3utils.go:78: INFO  Max size for all context 4,150, 178 with 50 runs
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3point
+BenchmarkAllGrowth-8   	m3point 2019/03/30 20:37:29 m3utils.go:78: INFO  Max size for all context 4,150, 178 with 50 runs
+m3point 2019/03/30 20:37:30 m3utils.go:78: INFO  Max size for all context 4,150, 178 with 50 runs
+       2	 553197963 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3point	1.961s

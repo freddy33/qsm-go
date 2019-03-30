@@ -9,25 +9,27 @@ import (
 
 func BenchmarkAllGrowth(b *testing.B) {
 	allCtx := getAllContexts()
-	nbRound := 25
-	for r:=0;r<b.N;r++ {
-		for _, ctx := range allCtx[1] {
-			runNextPoints(&ctx, nbRound)
+	nbRound := 50
+	for r := 0; r < b.N; r++ {
+		maxUsed := 0
+		maxLatest := 0
+		for _, pType := range [5]uint8{1, 2, 3, 4, 8} {
+			for _, ctx := range allCtx[pType] {
+				nU, nL := runNextPoints(&ctx, nbRound)
+				if nU > maxUsed {
+					maxUsed = nU
+				}
+				if nL > maxLatest {
+					maxLatest = nL
+				}
+			}
 		}
-		for _, ctx := range allCtx[2] {
-			runNextPoints(&ctx, nbRound)
-		}
-		for _, ctx := range allCtx[4] {
-			runNextPoints(&ctx, nbRound)
-		}
-		for _, ctx := range allCtx[8] {
-			runNextPoints(&ctx, nbRound)
-		}
+		Log.Infof("Max size for all context %d, %d with %d runs", maxUsed, maxLatest, nbRound)
 	}
 }
 
-func runNextPoints(ctx *GrowthContext, nbRound int) {
-	usedPoints := make(map[Point]bool, 15000)
+func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
+	usedPoints := make(map[Point]bool, 10*nbRound)
 	latestPoints := make([]Point, 1)
 	latestPoints[0] = Origin
 	usedPoints[Origin] = true
@@ -36,7 +38,8 @@ func runNextPoints(ctx *GrowthContext, nbRound int) {
 		for _, p := range latestPoints {
 			newPoints := p.GetNextPoints(ctx)
 			for _, np := range newPoints {
-				if !usedPoints[np] {
+				_, ok := usedPoints[np]
+				if !ok {
 					finalPoints = append(finalPoints, np)
 					usedPoints[np] = true
 				}
@@ -44,6 +47,7 @@ func runNextPoints(ctx *GrowthContext, nbRound int) {
 		}
 		latestPoints = finalPoints
 	}
+	return len(usedPoints), len(latestPoints)
 }
 
 func getAllContexts() map[uint8][]GrowthContext {
@@ -61,11 +65,12 @@ func getAllContexts() map[uint8][]GrowthContext {
 		}
 	}
 
-	for _, pType := range [4]uint8{2, 4, 8} {
+	for _, pType := range [3]uint8{2, 4, 8} {
 		for pIdx := 0; pIdx < 12; pIdx++ {
 			for offset := 0; offset < int(pType); offset++ {
-				res[pType] = append(res[pType], GrowthContext{Origin, pType, pIdx, false, offset,})
-				res[pType] = append(res[pType], GrowthContext{Origin, pType, pIdx, true, offset,})
+				res[pType] = append(res[pType],
+					GrowthContext{Origin, pType, pIdx, false, offset,},
+					GrowthContext{Origin, pType, pIdx, true, offset,})
 			}
 		}
 	}
@@ -260,7 +265,7 @@ func TestConnectionDetails(t *testing.T) {
 			}
 		}
 	}
-	Log.Info("ConnId usage:",countConnId)
+	Log.Info("ConnId usage:", countConnId)
 
 	allCtx := getAllContexts()
 	assert.Equal(t, 5, len(allCtx))
