@@ -11,7 +11,9 @@ qsm-go
 # Data folders
 docs/generated/
 docs/data/
+docs/perf/
 
 # Profiling
+perf-data/
 *.prof
-m3space.test
+*.test
