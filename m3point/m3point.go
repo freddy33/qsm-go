@@ -1,7 +1,15 @@
-package m3space
+package m3point
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
+)
+
+var Log = m3util.NewLogger("m3point", m3util.INFO)
+
+const (
+	// Where the number matters and appear. Remember that 3 is the number!
+	THREE = 3
 )
 
 type Point [3]int64
@@ -19,7 +27,7 @@ func (p Point) String() string {
 	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
 }
 
-func (p Point) getNearMainPoint() Point {
+func (p Point) GetNearMainPoint() Point {
 	res := Point{}
 	for i, c := range p {
 		switch c % THREE {
@@ -42,7 +50,7 @@ func (p Point) getNearMainPoint() Point {
 // Return a clean new array not interacting with existing nodes, just the points extensions here based on the permutations.
 // TODO (in the calling method): If the node already connected,
 // TODO: only the connecting points that natches the normal event growth permutation cycle are returned.
-func (currentPoint Point) getNextPoints(ctx *GrowthContext) [3]Point {
+func (currentPoint Point) GetNextPoints(ctx *GrowthContext) [3]Point {
 	result := [3]Point{}
 	if currentPoint.IsMainPoint() {
 		trio := ctx.GetTrio(currentPoint)
@@ -51,7 +59,7 @@ func (currentPoint Point) getNextPoints(ctx *GrowthContext) [3]Point {
 		}
 		return result
 	}
-	mainPoint := currentPoint.getNearMainPoint()
+	mainPoint := currentPoint.GetNearMainPoint()
 	result[0] = mainPoint
 	cVec := currentPoint.Sub(mainPoint)
 	nextPoints := mainPoint.getNextPointsFromMainAndVector(cVec, ctx)

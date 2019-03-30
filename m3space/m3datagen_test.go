@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/gonum/stat"
 	"github.com/stretchr/testify/assert"
@@ -13,22 +14,22 @@ import (
 
 var LogTest = m3util.NewDataLogger("m3test", m3util.DEBUG)
 
-func GetPyramidSize(points [4]Point) int64 {
+func GetPyramidSize(points [4]m3point.Point) int64 {
 	// Sum all the edges
 	totalSize := int64(0)
-	totalSize += MakeVector(points[0], points[1]).DistanceSquared()
-	totalSize += MakeVector(points[0], points[2]).DistanceSquared()
-	totalSize += MakeVector(points[0], points[3]).DistanceSquared()
-	totalSize += MakeVector(points[1], points[2]).DistanceSquared()
-	totalSize += MakeVector(points[1], points[3]).DistanceSquared()
-	totalSize += MakeVector(points[2], points[3]).DistanceSquared()
+	totalSize += m3point.MakeVector(points[0], points[1]).DistanceSquared()
+	totalSize += m3point.MakeVector(points[0], points[2]).DistanceSquared()
+	totalSize += m3point.MakeVector(points[0], points[3]).DistanceSquared()
+	totalSize += m3point.MakeVector(points[1], points[2]).DistanceSquared()
+	totalSize += m3point.MakeVector(points[1], points[3]).DistanceSquared()
+	totalSize += m3point.MakeVector(points[2], points[3]).DistanceSquared()
 	return totalSize
 }
 
-type Pyramid [4]Point
+type Pyramid [4]m3point.Point
 
 func (pyramid Pyramid) ordered() Pyramid {
-	slice := make([]Point, 4)
+	slice := make([]m3point.Point, 4)
 	for i, p := range pyramid {
 		slice[i] = p
 	}
@@ -142,7 +143,7 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 				LogTest.Debugf("AllPyramids %d", len(allPyramids))
 				if len(allPyramids) > 0 {
 					bestSize := int64(0)
-					var bestPyramid [4]Point
+					var bestPyramid [4]m3point.Point
 					for pyramid, size := range allPyramids {
 						LogTest.Debugf("%v : %d", pyramid, size)
 						if size > bestSize {
@@ -168,7 +169,7 @@ type PyramidBuilder struct {
 	allPyramids map[Pyramid]int64
 }
 
-func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]Point, currentPyramid *Pyramid, currentPos int, possibleSkip int) {
+func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]m3point.Point, currentPyramid *Pyramid, currentPos int, possibleSkip int) {
 	// Recursive Algorithm:
 	// Find threeIds with smallest list of points (small3Ids),
 	// Iterate though each point in the list of points for this small3Ids -> pickedPoint,
@@ -217,7 +218,7 @@ func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]Poi
 
 	// If there are some possible skips do a skip of this ThreeIds
 	if possibleSkip > 0 {
-		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]Point, curLength-1)
+		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]m3point.Point, curLength-1)
 		for tIds, points := range currentPointsPer3Ids {
 			if tIds != small3Ids {
 				newCurrentPointsPer3Ids[tIds] = points
@@ -231,10 +232,10 @@ func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]Poi
 		// Dereference creates a copy
 		newPyramid := *(currentPyramid)
 		newPyramid[currentPos] = pickedPoint
-		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]Point, curLength-1)
+		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]m3point.Point, curLength-1)
 		for tIds, points := range currentPointsPer3Ids {
 			if tIds != small3Ids {
-				newList := make([]Point, 0, len(*points))
+				newList := make([]m3point.Point, 0, len(*points))
 				for _, p := range *points {
 					if p != pickedPoint {
 						newList = append(newList, p)

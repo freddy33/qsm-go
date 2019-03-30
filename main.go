@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/freddy33/qsm-go/m3point"
 	"os"
 	"fmt"
 	"github.com/freddy33/qsm-go/playgl"
@@ -17,7 +18,7 @@ func main() {
 	case "play1":
 		playgl.DisplayPlay1()
 	case "writeTables":
-		m3space.WriteAllTables()
+		m3point.WriteAllTables()
 	case "writeTimeFlows":
 		m3space.Write0To4TimeFlow()
 	case "writeDataFiles":

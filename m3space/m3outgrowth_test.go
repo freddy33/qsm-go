@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -9,10 +10,10 @@ import (
 func TestActiveEventOutgrowth(t *testing.T) {
 	Log.Level = m3util.TRACE
 	var o Outgrowth
-	aeo := MakeActiveOutgrowth(Point{1, 2, 3}, Distance(0), EventOutgrowthLatest)
+	aeo := MakeActiveOutgrowth(m3point.Point{1, 2, 3}, Distance(0), EventOutgrowthLatest)
 	o = aeo
 
-	assert.Equal(t, Point{1, 2, 3}, o.GetPoint())
+	assert.Equal(t, m3point.Point{1, 2, 3}, o.GetPoint())
 	assert.Equal(t, Distance(0), o.GetDistance())
 	assert.Equal(t, EventOutgrowthLatest, o.GetState())
 	assert.Equal(t, true, o.IsRoot())
@@ -25,13 +26,13 @@ func TestActiveEventOutgrowth(t *testing.T) {
 	assert.Equal(t, 0, o.FromLength())
 
 	assert.Equal(t, 0, len(o.GetFromConnIds()))
-	assert.Equal(t, false, o.CameFromPoint(Origin))
+	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
 	assert.Equal(t, TheEnd, o.GetRootPathElement(nil))
 
-	o.AddFrom(Point{2, 2, 3})
+	o.AddFrom(m3point.Point{2, 2, 3})
 	aeo.rootPath = nil
 
-	assert.Equal(t, Point{1, 2, 3}, o.GetPoint())
+	assert.Equal(t, m3point.Point{1, 2, 3}, o.GetPoint())
 	assert.Equal(t, Distance(0), o.GetDistance())
 	assert.Equal(t, EventOutgrowthLatest, o.GetState())
 	assert.Equal(t, false, o.IsRoot())
@@ -40,8 +41,8 @@ func TestActiveEventOutgrowth(t *testing.T) {
 	assert.Equal(t, 1, o.FromLength())
 
 	assert.Equal(t, 1, len(o.GetFromConnIds()))
-	assert.Equal(t, false, o.CameFromPoint(Origin))
-	assert.Equal(t, true, o.CameFromPoint(Point{2, 2, 3}))
+	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
+	assert.Equal(t, true, o.CameFromPoint(m3point.Point{2, 2, 3}))
 	p := o.GetRootPathElement(nil)
 	// TODO: Fix please => Should be 1
 	assert.Equal(t, 0, p.GetLength())
@@ -50,9 +51,9 @@ func TestActiveEventOutgrowth(t *testing.T) {
 func TestSavedEventOutgrowth(t *testing.T) {
 	Log.Level = m3util.TRACE
 	var o Outgrowth
-	o = &SavedEventOutgrowth{Point{1, 2, 3}, nil, Distance(0), TheEnd}
+	o = &SavedEventOutgrowth{m3point.Point{1, 2, 3}, nil, Distance(0), TheEnd}
 
-	assert.Equal(t, Point{1, 2, 3}, o.GetPoint())
+	assert.Equal(t, m3point.Point{1, 2, 3}, o.GetPoint())
 	assert.Equal(t, Distance(0), o.GetDistance())
 	assert.Equal(t, EventOutgrowthOld, o.GetState())
 	assert.Equal(t, true, o.IsRoot())
@@ -65,7 +66,7 @@ func TestSavedEventOutgrowth(t *testing.T) {
 	assert.Equal(t, 0, o.FromLength())
 
 	assert.Equal(t, 0, len(o.GetFromConnIds()))
-	assert.Equal(t, false, o.CameFromPoint(Origin))
+	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
 	assert.Equal(t, TheEnd, o.GetRootPathElement(nil))
 }
 
@@ -80,10 +81,10 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 3, space.blockOnSameEvent)
 
 	// Test center is overridden
-	ctx := GrowthContext{Point{5, 6, 7}, 1, 0, false, 0}
-	evt := space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
+	ctx := m3point.CreateGrowthContext(m3point.Point{5, 6, 7}, 1, 0, false, 0)
+	evt := space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
-	assert.Equal(t, Origin, ctx.center)
+	assert.Equal(t, m3point.Origin, ctx.GetCenter())
 
 	assert.Equal(t, 1, len(evt.latestOutgrowths))
 	assert.Equal(t, 0, len(evt.currentOutgrowths))
@@ -93,7 +94,7 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	var o Outgrowth
 	o = eo
 
-	assert.Equal(t, Point{0, 0, 0}, o.GetPoint())
+	assert.Equal(t, m3point.Point{0, 0, 0}, o.GetPoint())
 	assert.Equal(t, Distance(0), o.GetDistance())
 	assert.Equal(t, EventOutgrowthLatest, o.GetState())
 	assert.Equal(t, true, o.IsRoot())
@@ -106,11 +107,11 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 0, o.FromLength())
 
 	assert.Equal(t, 0, len(o.GetFromConnIds()))
-	assert.Equal(t, false, o.CameFromPoint(Origin))
+	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
 	assert.Equal(t, TheEnd, o.GetRootPathElement(evt))
 
-	nextPoint := Point{1, 1, 0}
-	nextPoints := o.GetPoint().getNextPoints(evt.growthContext)
+	nextPoint := m3point.Point{1, 1, 0}
+	nextPoints := o.GetPoint().GetNextPoints(evt.growthContext)
 	assert.Equal(t, 3, len(nextPoints))
 	assert.Equal(t, nextPoint, nextPoints[0])
 	assert.Equal(t, false, o.CameFromPoint(nextPoint))
@@ -169,7 +170,7 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	/*
 		assert.Equal(t, 1, len(ids))
 		assert.Equal(t, int8(4), ids[0])
-		assert.Equal(t, true, o1.CameFromPoint(Origin))
+		assert.Equal(t, true, o1.CameFromPoint(m3point.Origin))
 		p := o1.GetRootPathElement(evt)
 		assert.Equal(t, 0, p.GetLength())
 		assert.Equal(t, 1, p.NbForwardElements())
@@ -187,8 +188,8 @@ func TestOverlapSameEvent(t *testing.T) {
 	// Only latest counting
 	space.SetEventOutgrowthThreshold(Distance(0))
 	space.blockOnSameEvent = 4
-	ctx := GrowthContext{Origin, 1, 0, false, 0}
-	space.CreateEventWithGrowthContext(Origin, RedEvent, &ctx)
+	ctx := m3point.CreateGrowthContext(m3point.Origin, 1, 0, false, 0)
+	space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
 	expectedTime := TickTime(0)
 	nbLatestNodes := 1
@@ -214,7 +215,7 @@ func TestOverlapSameEvent(t *testing.T) {
 
 	assert.Equal(t, nbLatestNodes-13, len(latestNodes))
 	// Single vent means only one latest outgrowth per active point
-	latestOutgrowths := make(map[Point]Outgrowth, len(latestNodes))
+	latestOutgrowths := make(map[m3point.Point]Outgrowth, len(latestNodes))
 	fromSizeHisto := make(map[int]int, 3)
 	for _, evt := range space.events {
 		for _, eo := range evt.latestOutgrowths {
@@ -233,8 +234,8 @@ func TestOverlapSameEvent(t *testing.T) {
 }
 
 // Retrieve all nodes having outgrowth at exact distance d from the event
-func getAllNodeWithOutgrowthAtD(space *Space, atD Distance) map[Point]Node {
-	res := make(map[Point]Node, 25)
+func getAllNodeWithOutgrowthAtD(space *Space, atD Distance) map[m3point.Point]Node {
+	res := make(map[m3point.Point]Node, 25)
 	for _, evt := range space.events {
 		for _, eo := range evt.latestOutgrowths {
 			if eo.distance == atD {

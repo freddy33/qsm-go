@@ -3,6 +3,7 @@ package m3space
 import (
 	"bytes"
 	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"sort"
 	"sync"
@@ -46,18 +47,18 @@ type OutgrowthCollectorStatMultiEvent struct {
 
 type OutgrowthCollectorSingle struct {
 	OutgrowthCollectorStatSingle
-	data map[Point]*NewPossibleOutgrowth
+	data map[m3point.Point]*NewPossibleOutgrowth
 }
 
 type OutgrowthCollectorSameEvent struct {
 	OutgrowthCollectorStatSameEvent
-	data map[Point]*[]*NewPossibleOutgrowth
+	data map[m3point.Point]*[]*NewPossibleOutgrowth
 }
 
 type OutgrowthCollectorMultiEvent struct {
 	OutgrowthCollectorStatMultiEvent
-	data              map[Point]*map[EventID]*[]*NewPossibleOutgrowth
-	pointsPerThreeIds map[ThreeIds]*[]Point
+	data              map[m3point.Point]*map[EventID]*[]*NewPossibleOutgrowth
+	pointsPerThreeIds map[ThreeIds]*[]m3point.Point
 }
 
 type FullOutgrowthCollector struct {
@@ -112,7 +113,7 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 }
 
 func (evt *Event) createNewPossibleOutgrowthsForLatestOutgrowth(c chan *NewPossibleOutgrowth, eg *EventOutgrowth, wg *sync.WaitGroup) {
-	nextPoints := eg.pos.getNextPoints(evt.growthContext)
+	nextPoints := eg.pos.GetNextPoints(evt.growthContext)
 	for _, nextPoint := range nextPoints {
 		if !eg.CameFromPoint(nextPoint) {
 			sendOutgrowth := true
@@ -134,7 +135,7 @@ func (evt *Event) createNewPossibleOutgrowthsForLatestOutgrowth(c chan *NewPossi
 	wg.Done()
 }
 
-func makeNewPossibleOutgrowth(p Point, evt *Event, eg *EventOutgrowth, d Distance, s EventOutgrowthState) *NewPossibleOutgrowth {
+func makeNewPossibleOutgrowth(p m3point.Point, evt *Event, eg *EventOutgrowth, d Distance, s EventOutgrowthState) *NewPossibleOutgrowth {
 	npo := newPosOutgrowthPool.Get().(*NewPossibleOutgrowth)
 	npo.pos = p
 	npo.event = evt
@@ -218,7 +219,7 @@ func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 				}
 			}
 		}
-		if len(idsAlreadyDone) >= THREE {
+		if len(idsAlreadyDone) >= m3point.THREE {
 			ids := make([]EventID, len(idsAlreadyDone))
 			i := 0
 			for id := range idsAlreadyDone {
@@ -228,7 +229,7 @@ func (space *Space) realizeAllOutgrowth(collector *FullOutgrowthCollector) {
 			for _, threeId := range MakeThreeIds(ids) {
 				points, ok := collector.multiEvents.pointsPerThreeIds[threeId]
 				if !ok {
-					pointsList := make([]Point, 1)
+					pointsList := make([]m3point.Point, 1)
 					pointsList[0] = pos
 					points = &pointsList
 					collector.multiEvents.pointsPerThreeIds[threeId] = points
@@ -252,9 +253,9 @@ func MakeOutgrowthCollector(nbLatest int) *FullOutgrowthCollector {
 		nbLatest = 5
 	}
 	res := FullOutgrowthCollector{}
-	res.single.data = make(map[Point]*NewPossibleOutgrowth, 2*nbLatest)
-	res.sameEvent.data = make(map[Point]*[]*NewPossibleOutgrowth, nbLatest/3)
-	res.multiEvents.data = make(map[Point]*map[EventID]*[]*NewPossibleOutgrowth, 10)
+	res.single.data = make(map[m3point.Point]*NewPossibleOutgrowth, 2*nbLatest)
+	res.sameEvent.data = make(map[m3point.Point]*[]*NewPossibleOutgrowth, nbLatest/3)
+	res.multiEvents.data = make(map[m3point.Point]*map[EventID]*[]*NewPossibleOutgrowth, 10)
 	res.single.name = "Single"
 	res.sameEvent.name = "Same Event"
 	res.multiEvents.name = "Multi Events"
@@ -319,7 +320,7 @@ func (col *OutgrowthCollectorMultiEvent) beginRealize() {
 		return
 	}
 	col.totalOriginalPossible = 0
-	col.pointsPerThreeIds = make(map[ThreeIds]*[]Point, 3)
+	col.pointsPerThreeIds = make(map[ThreeIds]*[]m3point.Point, 3)
 	col.nbEventsOriginalHistogram = make([]int, 2)
 	col.perEvent = make(map[EventID]*OutgrowthCollectorStatSameEvent, 3)
 	for _, evtMapList := range col.data {

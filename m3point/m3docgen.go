@@ -1,4 +1,4 @@
-package m3space
+package m3point
 
 import (
 	"encoding/csv"
@@ -261,71 +261,3 @@ func writeAllConnectionDetails() {
 	}
 }
 
-// Write all the points, base vector used, DS and connection details used from1 T=0 to T=X when transitioning from Trio Index 0 to 4 back and forth
-func Write0To4TimeFlow() {
-	m3util.ChangeToDocsGeneratedDir()
-
-	// Start from origin with growth context type 2 index 0
-	ctx := &GrowthContext{Origin, 2, 0, false, 0}
-	untilTime := TickTime(8)
-
-	txtFile, err := os.Create(fmt.Sprintf("Center_%03d_%03d_%03d_Growth_%d_%d_Time_%03d.txt",
-		ctx.center[0], ctx.center[1], ctx.center[2],
-		ctx.permutationType, ctx.permutationIndex, untilTime))
-	if err != nil {
-		log.Fatal("Cannot create text file", err)
-	}
-
-	collectFlow(ctx, untilTime, func(pointMap *map[Point]*PointState, time TickTime) {
-		WriteCurrentPointsToFile(txtFile, time, pointMap)
-	})
-}
-
-func WriteCurrentPointsToFile(txtFile *os.File, time TickTime, allPoints *map[Point]*PointState) {
-	mainPoints, currentPoints := extractMainAndOtherPoints(allPoints, time)
-
-	m3util.WriteNextString(txtFile, "\n**************************************************\n")
-	m3util.WriteNextString(txtFile, fmt.Sprintf("Time: %4d       %4d       %4d\n######  MAIN POINTS: %4d #######", time, time, time, len(mainPoints)))
-	for i, p := range mainPoints {
-		if i%4 == 0 {
-			m3util.WriteNextString(txtFile, "\n")
-		}
-		pState := (*allPoints)[p]
-		m3util.WriteNextString(txtFile, fmt.Sprintf("%3d - %d: %2d, %2d, %2d <= %s | ", pState.globalIdx, pState.trioIndex, p[0], p[1], p[2], pState.GetFromString()))
-	}
-	m3util.WriteNextString(txtFile, fmt.Sprintf("\n###### OTHER POINTS: %4d #######", len(currentPoints)))
-	for i, p := range currentPoints {
-		if i%6 == 0 {
-			m3util.WriteNextString(txtFile, "\n")
-		}
-		pState := (*allPoints)[p]
-		m3util.WriteNextString(txtFile, fmt.Sprintf("%3d: %2d, %2d, %2d <= %s | ", pState.globalIdx, p[0], p[1], p[2], pState.GetFromString()))
-	}
-}
-
-func GenerateDataTimeFlow0() {
-	m3util.ChangeToDocsDataDir()
-
-	// Start from origin with growth context type 2 index 0
-	ctx := &GrowthContext{Origin, 2, 0, false, 0}
-	untilTime := TickTime(30)
-
-	binFile, err := os.Create(fmt.Sprintf("Growth_%d_%d_Time_%03d.data",
-		ctx.permutationType, ctx.permutationIndex, untilTime))
-	if err != nil {
-		log.Fatal("Cannot create bin data file", err)
-	}
-
-	collectFlow(ctx, untilTime, func(pointMap *map[Point]*PointState, time TickTime) {
-		WriteCurrentPointsDataToFile(binFile, time, pointMap)
-	})
-}
-
-func WriteCurrentPointsDataToFile(file *os.File, time TickTime, allPoints *map[Point]*PointState) {
-	for _, ps := range *allPoints {
-		if ps.creationTime == time {
-			m3util.WriteNextString(file, ps.ToDataString())
-			m3util.WriteNextString(file, "\n")
-		}
-	}
-}

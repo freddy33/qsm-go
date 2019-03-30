@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"sync"
 )
 
@@ -32,13 +33,13 @@ type SavedNode struct {
 }
 
 type ActiveNode struct {
-	Pos Point
+	Pos m3point.Point
 	SavedNode
 }
 
 type Connection struct {
 	Id     int8
-	P1, P2 Point
+	P1, P2 m3point.Point
 }
 
 func countOnes(m uint8) uint8 {
@@ -66,7 +67,7 @@ var savedNodesPool = sync.Pool{
 	},
 }
 
-func NewActiveNode(p Point) *ActiveNode {
+func NewActiveNode(p m3point.Point) *ActiveNode {
 	var an *ActiveNode
 	if ActivatePooling {
 		an = activeNodesPool.Get().(*ActiveNode)
@@ -84,7 +85,7 @@ func NewActiveNode(p Point) *ActiveNode {
 	return an
 }
 
-func (s *SavedNode) ConvertToActive(p Point) *ActiveNode {
+func (s *SavedNode) ConvertToActive(p m3point.Point) *ActiveNode {
 	n := NewActiveNode(p)
 	n.root = s.root
 	if len(s.accessedEventIDS) > 0 {
@@ -160,8 +161,8 @@ func (node *ActiveNode) AddConnection(conn *Connection, space *Space) int {
 }
 
 func (node *ActiveNode) IsAlreadyConnected(otherNode *ActiveNode) bool {
-	bv := MakeVector(node.Pos, otherNode.Pos)
-	cd, ok := AllConnectionsPossible[bv]
+	bv := m3point.MakeVector(node.Pos, otherNode.Pos)
+	cd, ok := m3point.AllConnectionsPossible[bv]
 	if !ok {
 		Log.Errorf("Cannot determine an already connected nodes P1=%v P2=%v that is not reachable by a base connection %v",
 			node.Pos, otherNode.Pos, bv)
@@ -197,11 +198,11 @@ func (conn *Connection) GetConnId() int8 {
 	return conn.Id
 }
 
-func (conn *Connection) GetConnectionDetails() ConnectionDetails {
-	return AllConnectionsIds[conn.Id]
+func (conn *Connection) GetConnectionDetails() m3point.ConnectionDetails {
+	return m3point.AllConnectionsIds[conn.Id]
 }
 
-func (conn *Connection) IsConnectedTo(point Point) bool {
+func (conn *Connection) IsConnectedTo(point m3point.Point) bool {
 	return conn.P1 == point || conn.P2 == point
 }
 
@@ -242,14 +243,14 @@ func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 		return nil
 	}
 
-	d := DS(n1.Pos, n2.Pos)
+	d := m3point.DS(n1.Pos, n2.Pos)
 	if !(d == 1 || d == 2 || d == 3 || d == 5) {
 		Log.Error("Connection between 2 points", n1.Pos, n2.Pos, "that are not 1, 2, 3 or 5 DS away!")
 		return nil
 	}
 	// All good create connection
-	bv := MakeVector(n1.Pos, n2.Pos)
-	cd := AllConnectionsPossible[bv]
+	bv := m3point.MakeVector(n1.Pos, n2.Pos)
+	cd := m3point.AllConnectionsPossible[bv]
 	c1 := makeConnection(cd.GetIntId(), n1, n2)
 	space.activeConnections = append(space.activeConnections, c1)
 	n1done := n1.AddConnection(c1, space)
@@ -351,7 +352,7 @@ func (node *SavedNode) String() string {
 func (node *SavedNode) GetStateString() string {
 	connIds := make([]string, len(node.connections))
 	for i, connId := range node.connections {
-		connIds[i] = AllConnectionsIds[connId].GetName()
+		connIds[i] = m3point.AllConnectionsIds[connId].GetName()
 	}
 	if node.root {
 		return fmt.Sprintf("%s: root %v, %v", "Saved", node.accessedEventIDS, connIds)

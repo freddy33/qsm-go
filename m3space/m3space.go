@@ -2,15 +2,11 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 )
 
 var Log = m3util.NewLogger("m3space", m3util.INFO)
-
-const (
-	// Where the number matters and appear. Remember that 3 is the number!
-	THREE = 3
-)
 
 type TickTime uint64
 
@@ -21,8 +17,8 @@ type SpaceVisitor interface {
 
 type Space struct {
 	events                map[EventID]*Event
-	activeNodesMap        map[Point]*ActiveNode
-	oldNodesMap           map[Point]*SavedNode
+	activeNodesMap        map[m3point.Point]*ActiveNode
+	oldNodesMap           map[m3point.Point]*SavedNode
 	activeConnections     []*Connection
 	nbOldConnections      int
 	nbOldNodesReactivated int
@@ -46,8 +42,8 @@ type Space struct {
 func MakeSpace(max int64) Space {
 	space := Space{}
 	space.events = make(map[EventID]*Event)
-	space.activeNodesMap = make(map[Point]*ActiveNode)
-	space.oldNodesMap = make(map[Point]*SavedNode)
+	space.activeNodesMap = make(map[m3point.Point]*ActiveNode)
+	space.oldNodesMap = make(map[m3point.Point]*SavedNode)
 	space.activeConnections = make([]*Connection, 0, 500)
 	space.nbOldConnections = 0
 	space.nbOldNodesReactivated = 0
@@ -106,17 +102,17 @@ func (space *Space) VisitAll(visitor SpaceVisitor) {
 }
 
 func (space *Space) CreateSingleEventCenter() *Event {
-	return space.CreateEvent(Origin, RedEvent)
+	return space.CreateEvent(m3point.Origin, RedEvent)
 }
 
 func (space *Space) CreatePyramid(pyramidSize int64) {
-	space.CreateEvent(Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
-	space.CreateEvent(Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
-	space.CreateEvent(Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
-	space.CreateEvent(Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
+	space.CreateEvent(m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
+	space.CreateEvent(m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
+	space.CreateEvent(m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
+	space.CreateEvent(m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
-func (space *Space) GetNode(p Point) Node {
+func (space *Space) GetNode(p m3point.Point) Node {
 	n, ok := space.activeNodesMap[p]
 	if ok {
 		return n
@@ -128,7 +124,7 @@ func (space *Space) GetNode(p Point) Node {
 	return nil
 }
 
-func (space *Space) getAndActivateNode(p Point) *ActiveNode {
+func (space *Space) getAndActivateNode(p m3point.Point) *ActiveNode {
 	n, ok := space.activeNodesMap[p]
 	if ok {
 		return n
@@ -148,7 +144,7 @@ func (space *Space) getAndActivateNode(p Point) *ActiveNode {
 	return nil
 }
 
-func (space *Space) getOrCreateNode(p Point) *ActiveNode {
+func (space *Space) getOrCreateNode(p m3point.Point) *ActiveNode {
 	n := space.getAndActivateNode(p)
 	if n != nil {
 		return n

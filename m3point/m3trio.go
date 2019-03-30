@@ -1,4 +1,4 @@
-package m3space
+package m3point
 
 import "fmt"
 

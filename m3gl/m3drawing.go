@@ -2,6 +2,7 @@ package m3gl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 )
 
@@ -26,7 +27,7 @@ type SpaceDrawingElement interface {
 	// Key of the drawing element to point to the OpenGL buffer to render
 	Key() ObjectType
 	// The translation point to apply to the OpenGL model, since all the above are drawn at the origin
-	Pos() *m3space.Point
+	Pos() *m3point.Point
 	// Return the obj_color int for the shader program
 	Color(blinkValue float64) int32
 	// Return the obj_dimmer int for the shader program
@@ -99,7 +100,7 @@ type NodeDrawingElement struct {
 type ConnectionDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	pos        *m3space.Point
+	pos        *m3point.Point
 }
 
 type AxeDrawingElement struct {
@@ -273,7 +274,7 @@ func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection
 	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, &conn.P1,}
 }
 
-func getConnectionObjectType(cd m3space.ConnectionDetails) ObjectType {
+func getConnectionObjectType(cd m3point.ConnectionDetails) ObjectType {
 	cdId := cd.GetIntId()
 	if cdId > 0 {
 		return ObjectType(int8(Connection00) + cdId*2)
@@ -305,7 +306,7 @@ func (n NodeDrawingElement) Dimmer(blinkValue float64) float32 {
 	return n.sdc.dimmer(blinkValue)
 }
 
-func (n NodeDrawingElement) Pos() *m3space.Point {
+func (n NodeDrawingElement) Pos() *m3point.Point {
 	return &n.node.Pos
 }
 
@@ -330,7 +331,7 @@ func (c ConnectionDrawingElement) Dimmer(blinkValue float64) float32 {
 	return dimmer
 }
 
-func (c ConnectionDrawingElement) Pos() *m3space.Point {
+func (c ConnectionDrawingElement) Pos() *m3point.Point {
 	return c.pos
 }
 
@@ -359,16 +360,16 @@ func (a AxeDrawingElement) Dimmer(blinkValue float64) float32 {
 	return 1.0
 }
 
-func (a AxeDrawingElement) Pos() *m3space.Point {
+func (a AxeDrawingElement) Pos() *m3point.Point {
 	if a.neg {
 		switch a.objectType {
 		case AxeX:
-			return &m3space.Point{-a.max, 0, 0}
+			return &m3point.Point{-a.max, 0, 0}
 		case AxeY:
-			return &m3space.Point{0, -a.max, 0}
+			return &m3point.Point{0, -a.max, 0}
 		case AxeZ:
-			return &m3space.Point{0, 0, -a.max}
+			return &m3point.Point{0, 0, -a.max}
 		}
 	}
-	return &m3space.Origin
+	return &m3point.Origin
 }

@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"sync"
 )
 
@@ -18,7 +19,7 @@ const (
 )
 
 type NewPossibleOutgrowth struct {
-	pos      Point
+	pos      m3point.Point
 	event    *Event
 	from     *EventOutgrowth
 	distance Distance
@@ -32,7 +33,7 @@ var newPosOutgrowthPool = sync.Pool{
 }
 
 type EventOutgrowth struct {
-	pos             Point
+	pos             m3point.Point
 	fromConnections []int8
 	distance        Distance
 	state           EventOutgrowthState
@@ -46,14 +47,14 @@ var eventOutgrowthPool = sync.Pool{
 }
 
 type SavedEventOutgrowth struct {
-	pos             Point
+	pos             m3point.Point
 	fromConnections []int8
 	distance        Distance
 	rootPath        PathElement
 }
 
 type Outgrowth interface {
-	GetPoint() Point
+	GetPoint() m3point.Point
 	GetDistance() Distance
 	GetState() EventOutgrowthState
 	IsRoot() bool
@@ -66,11 +67,11 @@ type Outgrowth interface {
 	FromLength() int
 
 	GetFromConnIds() []int8
-	CameFromPoint(point Point) bool
+	CameFromPoint(point m3point.Point) bool
 
 	GetRootPathElement(evt *Event) PathElement
 	BuildPath(path PathElement) PathElement
-	AddFrom(point Point)
+	AddFrom(point m3point.Point)
 }
 
 func (eos EventOutgrowthState) String() string {
@@ -101,7 +102,7 @@ func (eos EventOutgrowthState) String() string {
 
 type EventAlreadyGrewThereError struct {
 	id  EventID
-	pos Point
+	pos m3point.Point
 }
 
 func (e *EventAlreadyGrewThereError) Error() string {
@@ -109,8 +110,8 @@ func (e *EventAlreadyGrewThereError) Error() string {
 }
 
 type NoMoreConnectionsError struct {
-	pos      Point
-	otherPos Point
+	pos      m3point.Point
+	otherPos m3point.Point
 }
 
 func (e *NoMoreConnectionsError) Error() string {
@@ -129,7 +130,7 @@ func (newPosEo *NewPossibleOutgrowth) String() string {
 // EventOutgrowth Functions
 /***************************************************************/
 
-func MakeActiveOutgrowth(pos Point, d Distance, state EventOutgrowthState) *EventOutgrowth {
+func MakeActiveOutgrowth(pos m3point.Point, d Distance, state EventOutgrowthState) *EventOutgrowth {
 	r := eventOutgrowthPool.Get().(*EventOutgrowth)
 	r.pos = pos
 	r.fromConnections = r.fromConnections[:0]
@@ -143,7 +144,7 @@ func (eo *EventOutgrowth) String() string {
 	return fmt.Sprintf("%v: %s, %d, %v", eo.pos, eo.state.String(), eo.distance, eo.fromConnections)
 }
 
-func (eo *EventOutgrowth) GetPoint() Point {
+func (eo *EventOutgrowth) GetPoint() m3point.Point {
 	return eo.pos
 }
 
@@ -155,9 +156,9 @@ func (eo *EventOutgrowth) GetState() EventOutgrowthState {
 	return eo.state
 }
 
-func (eo *EventOutgrowth) AddFrom(point Point) {
-	bv := MakeVector(eo.pos, point)
-	connId := AllConnectionsPossible[bv].Id
+func (eo *EventOutgrowth) AddFrom(point m3point.Point) {
+	bv := m3point.MakeVector(eo.pos, point)
+	connId := m3point.AllConnectionsPossible[bv].Id
 	if eo.fromConnections == nil {
 		eo.fromConnections = []int8{connId}
 	} else {
@@ -177,12 +178,12 @@ func (eo *EventOutgrowth) GetFromConnIds() []int8 {
 	return eo.fromConnections
 }
 
-func (eo *EventOutgrowth) CameFromPoint(point Point) bool {
+func (eo *EventOutgrowth) CameFromPoint(point m3point.Point) bool {
 	if !eo.HasFrom() {
 		return false
 	}
 	for _, fromConnId := range eo.fromConnections {
-		cd := AllConnectionsIds[fromConnId]
+		cd := m3point.AllConnectionsIds[fromConnId]
 		if eo.pos.Add(cd.Vector) == point {
 			return true
 		}
@@ -226,7 +227,7 @@ func (seo *SavedEventOutgrowth) String() string {
 	return fmt.Sprintf("%v: %s, %d, %d", seo.pos, EventOutgrowthOld.String(), seo.distance, len(seo.fromConnections))
 }
 
-func (seo *SavedEventOutgrowth) GetPoint() Point {
+func (seo *SavedEventOutgrowth) GetPoint() m3point.Point {
 	return seo.pos
 }
 
@@ -238,7 +239,7 @@ func (seo *SavedEventOutgrowth) GetState() EventOutgrowthState {
 	return EventOutgrowthOld
 }
 
-func (seo *SavedEventOutgrowth) AddFrom(point Point) {
+func (seo *SavedEventOutgrowth) AddFrom(point m3point.Point) {
 	Log.Errorf("Cannot add to from list on saved outgrowth %v <- %v", seo, point)
 }
 
@@ -254,12 +255,12 @@ func (seo *SavedEventOutgrowth) GetFromConnIds() []int8 {
 	return seo.fromConnections
 }
 
-func (seo *SavedEventOutgrowth) CameFromPoint(point Point) bool {
+func (seo *SavedEventOutgrowth) CameFromPoint(point m3point.Point) bool {
 	if !seo.HasFrom() {
 		return false
 	}
 	for _, fromConnId := range seo.fromConnections {
-		cd := AllConnectionsIds[fromConnId]
+		cd := m3point.AllConnectionsIds[fromConnId]
 		if seo.pos.Add(cd.Vector) == point {
 			return true
 		}

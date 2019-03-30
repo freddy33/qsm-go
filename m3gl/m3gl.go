@@ -2,6 +2,7 @@ package m3gl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/go-gl/mathgl/mgl32"
@@ -73,8 +74,8 @@ type OpenGLDrawingElement struct {
 }
 
 func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
-	if Max%m3space.THREE != 0 {
-		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3space.THREE))
+	if Max%m3point.THREE != 0 {
+		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}
 	verifyData()
 	space := m3space.MakeSpace(Max)
@@ -313,9 +314,9 @@ type TriangleFiller struct {
 
 func (t *TriangleFiller) drawAxes(max int64) {
 	for axe := int16(0); axe < axes; axe++ {
-		p := m3space.Point{}
+		p := m3point.Point{}
 		p[axe] = max + AxeExtraLength
-		t.fill(MakeSegment(m3space.Origin, p, ObjectType(axe)))
+		t.fill(MakeSegment(m3point.Origin, p, ObjectType(axe)))
 	}
 }
 
@@ -326,10 +327,10 @@ func (t *TriangleFiller) drawNodes() {
 
 func (t *TriangleFiller) drawConnections() {
 	connDone := make(map[int8]bool)
-	for _, cd := range m3space.AllConnectionsPossible {
+	for _, cd := range m3point.AllConnectionsPossible {
 		cdId := cd.GetIntId()
 		if !connDone[cdId] {
-			t.fill(MakeSegment(m3space.Origin, cd.Vector, getConnectionObjectType(cd)))
+			t.fill(MakeSegment(m3point.Origin, cd.Vector, getConnectionObjectType(cd)))
 			connDone[cdId] = true
 		}
 	}

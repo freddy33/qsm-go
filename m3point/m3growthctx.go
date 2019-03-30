@@ -1,6 +1,8 @@
-package m3space
+package m3point
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // TODO: Create trio index for non main points base on growth context
 
@@ -27,6 +29,33 @@ func PosMod4(i uint64) uint64 {
 
 func PosMod8(i uint64) uint64 {
 	return i & 0x0000000000000007
+}
+
+func CreateGrowthContext(center Point, permType uint8, index int, flow bool, offset int) *GrowthContext {
+	return &GrowthContext{center, permType, index, flow, offset}
+}
+
+func (ctx *GrowthContext) SetIndexOffset(idx, offset int) {
+	ctx.permutationIndex = idx
+	ctx.permutationOffset = offset
+}
+
+func (ctx *GrowthContext) SetCenter(c Point) {
+	ctx.center = c
+}
+
+func (ctx *GrowthContext) GetCenter() Point {
+	return ctx.center
+}
+
+func (ctx *GrowthContext) GetFileName() string {
+	return fmt.Sprintf("C_%03d_%03d_%03d_G_%d_%d",
+		ctx.center[0], ctx.center[1], ctx.center[2],
+		ctx.permutationType, ctx.permutationIndex)
+}
+
+func (ctx *GrowthContext) GetContextString() string {
+	return fmt.Sprintf("Type %d, Idx %d", ctx.permutationType, ctx.permutationIndex)
 }
 
 func (ctx *GrowthContext) GetTrioIndex(divByThree uint64) int {

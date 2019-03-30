@@ -1,9 +1,9 @@
 package m3gl
 
 import (
-	"github.com/freddy33/qsm-go/m3space"
-	"math"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/go-gl/mathgl/mgl64"
+	"math"
 )
 
 type Segment struct {
@@ -19,10 +19,10 @@ type Sphere struct {
 
 var Origin = mgl64.Vec3{0.0, 0.0, 0.0}
 
-func MakeSegment(p1, p2 m3space.Point, t ObjectType) (Segment) {
+func MakeSegment(p1, p2 m3point.Point, t ObjectType) Segment {
 	return Segment{
 		Origin,
-		mgl64.Vec3{float64(p2.X()-p1.X()), float64(p2.Y()-p1.Y()), float64(p2.Z()-p1.Z()),},
+		mgl64.Vec3{float64(p2.X() - p1.X()), float64(p2.Y() - p1.Y()), float64(p2.Z() - p1.Z()),},
 		t,
 	}
 }
@@ -67,14 +67,14 @@ func (s Sphere) ExtractTriangles() []Triangle {
 	deltaAngle := 2.0 * math.Pi / circlePartsSphere
 	angle := deltaAngle
 	for z := 0; z < nbMiddleCircles; z++ {
-		middleCirclesZPart[z] = mgl64.Vec2{math.Sin(angle),-math.Cos(angle),}
+		middleCirclesZPart[z] = mgl64.Vec2{math.Sin(angle), -math.Cos(angle),}
 		middleCircles[z] = make([]mgl64.Vec3, circlePartsSphere+1)
 		middleCirclesNorm[z] = make([]mgl64.Vec3, circlePartsSphere)
 		angle += deltaAngle
 	}
 	for i, c := range CircleForSphere {
 		for zIdx, zH := range middleCirclesZPart {
-			middleCirclesNorm[zIdx][i] = mgl64.Vec3{c[0]*zH[0], c[1]*zH[0], zH[1]}.Normalize()
+			middleCirclesNorm[zIdx][i] = mgl64.Vec3{c[0] * zH[0], c[1] * zH[0], zH[1]}.Normalize()
 			middleCircles[zIdx][i] = s.C.Add(middleCirclesNorm[zIdx][i].Mul(s.R))
 		}
 	}
@@ -137,7 +137,7 @@ func (s Segment) ExtractTriangles() []Triangle {
 	} else {
 		lw = LineWidth.Val / 2.0
 	}
- 	for i, c := range CircleForLine {
+	for i, c := range CircleForLine {
 		norm := bestCross.Mul(c[0]).Add(cross2.Mul(c[1])).Normalize().Mul(lw)
 		aPoints[i] = s.A.Add(norm)
 		bPoints[i] = s.B.Add(norm)

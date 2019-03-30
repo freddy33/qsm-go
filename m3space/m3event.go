@@ -1,6 +1,9 @@
 package m3space
 
-import "github.com/freddy33/qsm-go/m3util"
+import (
+	"github.com/freddy33/qsm-go/m3point"
+	"github.com/freddy33/qsm-go/m3util"
+)
 
 type EventID uint64
 
@@ -27,7 +30,7 @@ type Event struct {
 	node              *ActiveNode
 	created           TickTime
 	color             EventColor
-	growthContext     *GrowthContext
+	growthContext     *m3point.GrowthContext
 	currentOutgrowths []*EventOutgrowth
 	latestOutgrowths  []*EventOutgrowth
 }
@@ -37,29 +40,26 @@ type SavedEvent struct {
 	node                 SavedNode
 	created              TickTime
 	color                EventColor
-	growthContext        GrowthContext
+	growthContext        m3point.GrowthContext
 	savedLatestOutgrowth []SavedEventOutgrowth
 }
 
-func (space *Space) CreateEvent(p Point, k EventColor) *Event {
-	ctx := GrowthContext{Origin, 8, 0, false, 0}
+func (space *Space) CreateEvent(p m3point.Point, k EventColor) *Event {
+	ctx := m3point.CreateGrowthContext(m3point.Origin, 8, 0, false, 0)
 	switch k {
 	case RedEvent:
 		// No change
 	case GreenEvent:
-		ctx.permutationIndex = 4
-		ctx.permutationOffset = 0
+		ctx.SetIndexOffset(4, 0)
 	case BlueEvent:
-		ctx.permutationIndex = 8
-		ctx.permutationOffset = 0
+		ctx.SetIndexOffset(8, 0)
 	case YellowEvent:
-		ctx.permutationIndex = 10
-		ctx.permutationOffset = 4
+		ctx.SetIndexOffset(10, 4)
 	}
-	return space.CreateEventWithGrowthContext(p, k, &ctx)
+	return space.CreateEventWithGrowthContext(p, k, ctx)
 }
 
-func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx *GrowthContext) *Event {
+func (space *Space) CreateEventWithGrowthContext(p m3point.Point, k EventColor, ctx *m3point.GrowthContext) *Event {
 	n := space.getOrCreateNode(p)
 	id := space.currentId
 	n.SetRoot(id, space.currentTime)
@@ -72,7 +72,7 @@ func (space *Space) CreateEventWithGrowthContext(p Point, k EventColor, ctx *Gro
 		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100)}
 	e.latestOutgrowths[0] = MakeActiveOutgrowth(n.Pos, Distance(0), EventOutgrowthLatest)
 	space.events[id] = &e
-	ctx.center = n.Pos
+	ctx.SetCenter(n.Pos)
 	return &e
 }
 
