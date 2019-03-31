@@ -7,6 +7,40 @@ import (
 	"testing"
 )
 
+func TestPosMod2(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, uint64(1), PosMod2(5))
+	assert.Equal(t, uint64(0), PosMod2(4))
+	assert.Equal(t, uint64(1), PosMod2(3))
+	assert.Equal(t, uint64(0), PosMod2(2))
+	assert.Equal(t, uint64(1), PosMod2(1))
+	assert.Equal(t, uint64(0), PosMod2(0))
+}
+
+func TestPosMod4(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, uint64(1), PosMod4(5))
+	assert.Equal(t, uint64(0), PosMod4(4))
+	assert.Equal(t, uint64(3), PosMod4(3))
+	assert.Equal(t, uint64(2), PosMod4(2))
+	assert.Equal(t, uint64(1), PosMod4(1))
+	assert.Equal(t, uint64(0), PosMod4(0))
+}
+
+func TestPosMod8(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, uint64(1), PosMod8(9))
+	assert.Equal(t, uint64(0), PosMod8(8))
+	assert.Equal(t, uint64(7), PosMod8(7))
+	assert.Equal(t, uint64(6), PosMod8(6))
+	assert.Equal(t, uint64(5), PosMod8(5))
+	assert.Equal(t, uint64(4), PosMod8(4))
+	assert.Equal(t, uint64(3), PosMod8(3))
+	assert.Equal(t, uint64(2), PosMod8(2))
+	assert.Equal(t, uint64(1), PosMod8(1))
+	assert.Equal(t, uint64(0), PosMod8(0))
+}
+
 func BenchmarkAllGrowth(b *testing.B) {
 	allCtx := getAllContexts()
 	nbRound := 50
@@ -131,19 +165,25 @@ func TestGrowthContext1(t *testing.T) {
 
 func TestGrowthContext3(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	ctx := GrowthContext{Origin, 3, 0, false, 0,}
-	assert.Equal(t, uint8(3), ctx.permutationType)
-	assert.Equal(t, 0, ctx.permutationIndex)
-	assert.Equal(t, false, ctx.permutationNegFlow)
-	assert.Equal(t, 0, ctx.permutationOffset)
-	assert.Equal(t, 0, ctx.GetTrioIndex(0), "failed trio index for ctx %v", ctx)
-	assert.Equal(t, 4, ctx.GetTrioIndex(1), "failed trio index for ctx %v", ctx)
-	assert.Equal(t, 0, ctx.GetTrioIndex(2), "failed trio index for ctx %v", ctx)
-	assert.Equal(t, 6, ctx.GetTrioIndex(3), "failed trio index for ctx %v", ctx)
-	assert.Equal(t, 0, ctx.GetTrioIndex(4), "failed trio index for ctx %v", ctx)
-	assert.Equal(t, 7, ctx.GetTrioIndex(5), "failed trio index for ctx %v", ctx)
-	assert.Equal(t, 0, ctx.GetTrioIndex(6), "failed trio index for ctx %v", ctx)
-	assert.Equal(t, 4, ctx.GetTrioIndex(7), "failed trio index for ctx %v", ctx)
+
+	for idx := 0; idx < 4; idx++ {
+		ctx := GrowthContext{Origin, 3, idx, false, 0,}
+		assert.Equal(t, uint8(3), ctx.permutationType)
+		assert.Equal(t, idx, ctx.permutationIndex)
+		assert.Equal(t, false, ctx.permutationNegFlow)
+		assert.Equal(t, 0, ctx.permutationOffset)
+		for d := uint64(0); d < 9; d++ {
+			if d%2 == 0 {
+				assert.Equal(t, idx, ctx.GetTrioIndex(d), "failed trio index for ctx %v step %d", ctx, d)
+			} else {
+				expected := 4 + (int(d/2) % 3)
+				if expected >= idx+4 {
+					expected++
+				}
+				assert.Equal(t, expected, ctx.GetTrioIndex(d), "failed trio index for ctx %v step %d", ctx, d)
+			}
+		}
+	}
 }
 
 func TestGrowthContextsExpectType3(t *testing.T) {

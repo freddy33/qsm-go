@@ -1,47 +1,18 @@
 package m3point
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Trio [3]Point
 
 var AllBaseTrio [8]Trio
 
-var ValidNextTrio = [12][2]int{
-	{0,4},{0,6},{0,7},
-	{1,4},{1,5},{1,7},
-	{2,4},{2,5},{2,6},
-	{3,5},{3,6},{3,7},
-}
+var ValidNextTrio [12][2]int
 
-var AllMod4Permutations = [12][4]int{
-	{0,4,1,7},
-	{0,4,2,6},
-	{0,6,2,4},
-	{0,6,3,7},
-	{0,7,1,4},
-	{0,7,3,6},
-	{1,4,2,5},
-	{1,5,2,4},
-	{1,5,3,7},
-	{1,7,3,5},
-	{2,5,3,6},
-	{2,6,3,5},
-}
+var AllMod4Permutations [12][4]int
 
-var AllMod8Permutations = [12][8]int{
-	{0,4,1,5,2,6,3,7},
-	{0,4,1,7,3,5,2,6},
-	{0,4,2,5,1,7,3,6},
-	{0,4,2,6,3,5,1,7},
-	{0,6,2,4,1,5,3,7},
-	{0,6,2,5,3,7,1,4},
-	{0,6,3,5,2,4,1,7},
-	{0,6,3,7,1,5,2,4},
-	{0,7,1,4,2,5,3,6},
-	{0,7,1,5,3,6,2,4},
-	{0,7,3,5,1,4,2,6},
-	{0,7,3,6,2,5,1,4},
-}
+var AllMod8Permutations [12][8]int
 
 var AllConnectionsPossible map[Point]ConnectionDetails
 var AllConnectionsIds map[int8]ConnectionDetails
@@ -57,30 +28,144 @@ var EmptyConnDetails = ConnectionDetails{0, Origin, 0,}
 func init() {
 	// Initial Trio 0
 	AllBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
-	// Initial Trio 0 prime
-	AllBaseTrio[4] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, 1}, {0, -1, -1}})
 	for i := 1; i < 4; i++ {
 		AllBaseTrio[i] = AllBaseTrio[i-1].PlusX()
-		AllBaseTrio[i+4] = AllBaseTrio[i+4-1].PlusX()
 	}
+	// Initial Trio 0 prime
+	for i := 0; i < 4; i++ {
+		AllBaseTrio[i+4] = AllBaseTrio[i].Neg()
+	}
+
+	initValidTrios()
+	initMod4Permutations()
+	initMod8Permutations()
 	initConnectionDetails()
 }
 
-func (cd ConnectionDetails) GetIntId() int8 {
-	return cd.Id
-}
-
-func (cd ConnectionDetails) GetName() string {
-	if cd.Id < 0 {
-		return fmt.Sprintf("CN%02d", -cd.Id)
-	} else {
-		return fmt.Sprintf("CP%02d", cd.Id)
+func initValidTrios() {
+	// Valid next trio are all but prime
+	idx := 0
+	for i := 0; i < 4; i++ {
+		for j := 4; j < 8; j++ {
+			// j index cannot be the prime (neg) trio
+			if !isPrime(i, j) {
+				ValidNextTrio[idx] = [2]int{i, j}
+				idx++
+			}
+		}
 	}
 }
 
-func (t Trio) PlusX() Trio {
-	return MakeBaseConnectingVectorsTrio([3]Point{t[0].PlusX(), t[1].PlusX(), t[2].PlusX()})
+type PermBuilder struct {
+	size      int
+	colIdx    int
+	collector [][]int
 }
+
+func samePermutation(p1, p2 []int) bool {
+	if len(p1) != len(p2) {
+		Log.Fatalf("cannot test 2 permutation of different sizes %v %v", p1, p2)
+	}
+	permSize := len(p1)
+	// Index in p2 of first entry in p1
+	idx0 := -1
+	for idx := 0; idx < permSize; idx++ {
+		if p2[idx] == p1[0] {
+			idx0 = idx
+			break
+		}
+	}
+	if idx0 == -1 {
+		// did not find p1[0] so not same permutation
+		return false
+	}
+	// Now they are same permutation if translation index of idx0 get same values
+	for idx := 0; idx < permSize; idx++ {
+		if p2[(idx0+idx) % permSize] != p1[idx] {
+			// just one failure means doom
+			return false
+		}
+	}
+	return true
+}
+
+func (p *PermBuilder) fill(pos int, current []int) {
+	if pos == p.size {
+		exists := false
+		for i := 0; i < p.colIdx; i++ {
+			if samePermutation(p.collector[i], current) {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			p.collector[p.colIdx] = current
+			p.colIdx++
+		}
+		return
+	}
+	for i := 0; i < 4; i++ {
+		// non prime index
+		newIndex := i
+		if pos%2 == 1 {
+			// prime index
+			newIndex = i + 4
+		}
+		usable := true
+		if pos-1 >= 0 {
+			// any index only once
+			for j := 0; j < pos-1; j++ {
+				if current[j] == newIndex {
+					usable = false
+				}
+			}
+			// Cannot have prime before
+			if isPrime(newIndex, current[pos-1]) {
+				usable = false
+			}
+		}
+		// If last cannot be prime with first
+		if pos+1 == p.size {
+			if isPrime(newIndex, current[0]) {
+				usable = false
+			}
+		}
+		if usable {
+			perm := make([]int, p.size)
+			copy(perm, current)
+			perm[pos] = newIndex
+			p.fill(pos+1, perm)
+		}
+	}
+}
+
+func initMod4Permutations() {
+	p := PermBuilder{4, 0, make([][]int, 12)}
+	p.fill(0, make([]int, p.size))
+	for pIdx:=0;pIdx<len(AllMod4Permutations);pIdx++ {
+		for i:=0;i<4;i++ {
+			AllMod4Permutations[pIdx][i] = p.collector[pIdx][i]
+		}
+	}
+}
+
+func initMod8Permutations() {
+	p := PermBuilder{8, 0, make([][]int, 12)}
+	p.fill(0, make([]int, p.size))
+	for pIdx:=0;pIdx<len(AllMod8Permutations);pIdx++ {
+		for i:=0;i<8;i++ {
+			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
+		}
+	}
+}
+
+func isPrime(i1, i2 int) bool {
+	return i2-i1 == 4 || i2-i1 == -4
+}
+
+/***************************************************************/
+// Trio Functions
+/***************************************************************/
 
 func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	res := Trio{}
@@ -99,6 +184,14 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 		}
 	}
 	return res
+}
+
+func (t Trio) PlusX() Trio {
+	return MakeBaseConnectingVectorsTrio([3]Point{t[0].PlusX(), t[1].PlusX(), t[2].PlusX()})
+}
+
+func (t Trio) Neg() Trio {
+	return MakeBaseConnectingVectorsTrio([3]Point{t[0].Neg(), t[1].Neg(), t[2].Neg()})
 }
 
 // Return the 6 connections possible +X, -X, +Y, -Y, +Z, -Z vectors between 2 Trio
@@ -205,6 +298,22 @@ func (t Trio) getMinusZVector() Point {
 	return Origin
 }
 
+/***************************************************************/
+// ConnectionDetails Functions
+/***************************************************************/
+
+func (cd ConnectionDetails) GetIntId() int8 {
+	return cd.Id
+}
+
+func (cd ConnectionDetails) GetName() string {
+	if cd.Id < 0 {
+		return fmt.Sprintf("CN%02d", -cd.Id)
+	} else {
+		return fmt.Sprintf("CP%02d", cd.Id)
+	}
+}
+
 func initConnectionDetails() uint8 {
 	connMap := make(map[Point]ConnectionDetails)
 	// Going through all Trio and all combination of Trio, to aggregate connection details
@@ -225,7 +334,7 @@ func initConnectionDetails() uint8 {
 	// Reordering connection details number by size, and x, y, z
 	AllConnectionsIds = make(map[int8]ConnectionDetails)
 	for currentConnNumber := int8(1); currentConnNumber <= nbConnDetails; currentConnNumber++ {
-		smallestCD := ConnectionDetails{0,Origin, 0}
+		smallestCD := ConnectionDetails{0, Origin, 0}
 		for _, cd := range connMap {
 			if cd.Id == int8(0) {
 				if smallestCD.Vector == Origin {
