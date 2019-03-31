@@ -54,7 +54,7 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 		deltaT9FromIdx0 := 0
 		deltaT10FromIdx0 := 0
 		deltaT11FromIdx0 := 0
-		if m3point.AllMod8Permutations[trioIdx][3] != 5 {
+		if m3point.AllMod8Permutations[trioIdx][3] != 4 {
 			deltaT8FromIdx0 = 5
 			deltaT9FromIdx0 = -11
 			deltaT10FromIdx0 = -13
@@ -104,13 +104,13 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 		deltaT9FromIdx0 := 0
 		deltaT10FromIdx0 := 0
 		deltaT11FromIdx0 := 0
-		if m3point.AllMod8Permutations[trioIdx][3] != 5 {
+		if m3point.AllMod8Permutations[trioIdx][3] != 4 {
 			deltaT8FromIdx0 = 5
 			deltaT9FromIdx0 = -11
 			deltaT10FromIdx0 = -13
 			deltaT11FromIdx0 = -22
 		}
-		if m3point.AllMod8Permutations[trioIdx][5] == 5 {
+		if m3point.AllMod8Permutations[trioIdx][5] == 4 {
 			deltaT8FromIdx0 += 2
 			deltaT9FromIdx0 -= 10
 			deltaT10FromIdx0 += 24
@@ -160,13 +160,13 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 		deltaT9FromIdx0 := 0
 		deltaT10FromIdx0 := 0
 		deltaT11FromIdx0 := 0
-		if m3point.AllMod8Permutations[trioIdx][3] != 5 {
+		if m3point.AllMod8Permutations[trioIdx][3] != 4 {
 			deltaT8FromIdx0 = 5
 			deltaT9FromIdx0 = -11
 			deltaT10FromIdx0 = -13
 			deltaT11FromIdx0 = -22
 		}
-		if m3point.AllMod8Permutations[trioIdx][5] == 5 {
+		if m3point.AllMod8Permutations[trioIdx][5] == 4 {
 			deltaT9FromIdx0 -= 4
 			deltaT10FromIdx0 += 11
 			deltaT11FromIdx0 += 44

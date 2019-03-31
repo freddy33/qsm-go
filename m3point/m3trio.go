@@ -151,7 +151,10 @@ func initMod4Permutations() {
 
 func initMod8Permutations() {
 	p := PermBuilder{8, 0, make([][]int, 12)}
-	p.fill(0, make([]int, p.size))
+	// In 8 size permutation the first index always 0 since we use all the indexes
+	first := make([]int, p.size)
+	first[0] = 0
+	p.fill(1, first)
 	for pIdx:=0;pIdx<len(AllMod8Permutations);pIdx++ {
 		for i:=0;i<8;i++ {
 			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
