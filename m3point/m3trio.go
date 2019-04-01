@@ -7,6 +7,7 @@ import (
 type Trio [3]Point
 
 var AllBaseTrio [8]Trio
+var AllTrio []Trio
 
 var ValidNextTrio [12][2]int
 
@@ -240,6 +241,57 @@ func GetNonBaseConnections(tA, tB Trio) [6]Point {
 	}
 	return res
 }
+
+// Return the 3 new Trio out of Origin + tA
+func GetNextTrios(tA, tB Trio) [3]Trio {
+	// 0 z=0 for first element, x connector, y connector
+	// 1 y=0 for first element, x connector, z connector
+	// 2 x=0 for first element, y connector, z connector
+	res := [3]Trio{}
+
+	noZ := tA[0]
+	var xConn, yConn, zConn Point
+	if noZ.X() > 0 {
+		xConn = XFirst.Add(tB.getMinusXVector()).Sub(noZ)
+	} else {
+		xConn = XFirst.Neg().Add(tB.getPlusXVector()).Sub(noZ)
+	}
+	if noZ.Y() > 0 {
+		yConn = YFirst.Add(tB.getMinusYVector()).Sub(noZ)
+	} else {
+		yConn = YFirst.Neg().Add(tB.getPlusYVector()).Sub(noZ)
+	}
+	res[0] = Trio{noZ.Neg(), xConn, yConn}
+
+	noY := tA[1]
+	if noY.X() > 0 {
+		xConn = XFirst.Add(tB.getMinusXVector()).Sub(noY)
+	} else {
+		xConn = XFirst.Neg().Add(tB.getPlusXVector()).Sub(noY)
+	}
+	if noY.Z() > 0 {
+		zConn = ZFirst.Add(tB.getMinusZVector()).Sub(noY)
+	} else {
+		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noY)
+	}
+	res[1] = Trio{noY.Neg(), xConn, zConn}
+
+	noX := tA[2]
+	if noX.Y() > 0 {
+		yConn = YFirst.Add(tB.getMinusYVector()).Sub(noX)
+	} else {
+		yConn = YFirst.Neg().Add(tB.getPlusYVector()).Sub(noX)
+	}
+	if noX.Z() > 0 {
+		zConn = ZFirst.Add(tB.getMinusZVector()).Sub(noX)
+	} else {
+		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noX)
+	}
+	res[2] = Trio{noX.Neg(), yConn, zConn}
+
+	return res
+}
+
 
 func (t Trio) getPlusXVector() Point {
 	for _, vec := range t {

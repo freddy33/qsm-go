@@ -28,6 +28,14 @@ func TestPermBuilder(t *testing.T) {
 	}
 }
 
+func TestAllTrioBuilder(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	fillAllTrio()
+	for i, tr := range AllTrio {
+		fmt.Printf("%04d: %v\n", i, tr)
+	}
+}
+
 func TestInitialTrioConnectingVectors(t *testing.T) {
 	Log.Level = m3util.DEBUG
 	assert.Equal(t, AllBaseTrio[0][0], Point{1, 1, 0})

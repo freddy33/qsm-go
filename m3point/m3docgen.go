@@ -217,6 +217,22 @@ func writeAllTrioTable() {
 	}
 }
 
+func fillAllTrio() {
+	AllTrio = make([]Trio, 8, 30)
+	// All base trio first
+	for i, tr := range AllBaseTrio {
+		AllTrio[i] = tr
+	}
+	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
+	for _, tA := range AllBaseTrio {
+		for _, tB := range AllBaseTrio {
+			for _, nextTrio := range GetNextTrios(tA, tB) {
+				AllTrio = append(AllTrio, nextTrio)
+			}
+		}
+	}
+}
+
 // Write all the connection details in text and CSV files
 func writeAllConnectionDetails() {
 	txtFile, err := os.Create("AllConnectionDetails.txt")
