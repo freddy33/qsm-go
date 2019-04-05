@@ -29,6 +29,19 @@ func TestDS(t *testing.T) {
 	assert.Equal(t, int64(3), DS(Point{-3,-2,-1}, Point{-2,-1,0}))
 }
 
+func TestNbPosCoord(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, int64(0), Origin.SumOfPositiveCoord())
+	assert.Equal(t, int64(0), Point{-1,0,0}.SumOfPositiveCoord())
+	assert.Equal(t, int64(0), Point{0,-1,0}.SumOfPositiveCoord())
+	assert.Equal(t, int64(0), Point{0,0,-1}.SumOfPositiveCoord())
+	assert.Equal(t, int64(0), Point{-34,-45,-14}.SumOfPositiveCoord())
+	assert.Equal(t, int64(34), Point{34,-45,-14}.SumOfPositiveCoord())
+	assert.Equal(t, int64(45), Point{-34,45,-14}.SumOfPositiveCoord())
+	assert.Equal(t, int64(14), Point{-34,-45,14}.SumOfPositiveCoord())
+	assert.Equal(t, int64(6), Point{1,2,3}.SumOfPositiveCoord())
+}
+
 func TestPoint(t *testing.T) {
 	Log.Level = m3util.DEBUG
 

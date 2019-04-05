@@ -249,6 +249,16 @@ func (p Point) IsConnectionVector() bool {
 	return false
 }
 
+func (p Point) SumOfPositiveCoord() int64 {
+	res := int64(0)
+	for _, c := range p {
+		if c > 0 {
+			res += c
+		}
+	}
+	return res
+}
+
 func (p Point) IsOnlyOneAndZero() bool {
 	for _, c := range p {
 		if c != 0 && c != 1 && c != -1 {

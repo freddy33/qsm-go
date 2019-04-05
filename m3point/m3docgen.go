@@ -196,6 +196,7 @@ func writeTrioConnectionsTable() {
 
 // Write all the 8 base vectors trio in text and CSV files
 func writeAllTrioTable() {
+	fillAllTrio()
 	txtFile, err := os.Create("AllTrioTable.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
@@ -209,10 +210,10 @@ func writeAllTrioTable() {
 
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
-	for a, trio := range AllBaseTrio {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
+	for a, trio := range AllTrio {
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%02d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("\t\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("\t\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
 		m3util.WriteNextString(txtFile, "\n")
 	}
 }

@@ -82,7 +82,7 @@ func samePermutation(p1, p2 []int) bool {
 	}
 	// Now they are same permutation if translation index of idx0 get same values
 	for idx := 0; idx < permSize; idx++ {
-		if p2[(idx0+idx) % permSize] != p1[idx] {
+		if p2[(idx0+idx)%permSize] != p1[idx] {
 			// just one failure means doom
 			return false
 		}
@@ -143,8 +143,8 @@ func (p *PermBuilder) fill(pos int, current []int) {
 func initMod4Permutations() {
 	p := PermBuilder{4, 0, make([][]int, 12)}
 	p.fill(0, make([]int, p.size))
-	for pIdx:=0;pIdx<len(AllMod4Permutations);pIdx++ {
-		for i:=0;i<4;i++ {
+	for pIdx := 0; pIdx < len(AllMod4Permutations); pIdx++ {
+		for i := 0; i < 4; i++ {
 			AllMod4Permutations[pIdx][i] = p.collector[pIdx][i]
 		}
 	}
@@ -156,8 +156,8 @@ func initMod8Permutations() {
 	first := make([]int, p.size)
 	first[0] = 0
 	p.fill(1, first)
-	for pIdx:=0;pIdx<len(AllMod8Permutations);pIdx++ {
-		for i:=0;i<8;i++ {
+	for pIdx := 0; pIdx < len(AllMod8Permutations); pIdx++ {
+		for i := 0; i < 8; i++ {
 			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
 		}
 	}
@@ -292,7 +292,6 @@ func GetNextTrios(tA, tB Trio) [3]Trio {
 	return res
 }
 
-
 func (t Trio) getPlusXVector() Point {
 	for _, vec := range t {
 		if vec.X() == 1 {
@@ -407,12 +406,30 @@ func initConnectionDetails() uint8 {
 				}
 			}
 		}
+		vec1 := smallestCD.Vector
+		vec2 := vec1.Neg()
+		var posVec, negVec Point
+		// first one with non 0 pos coord
+		for _, c := range vec1 {
+			if c > 0 {
+				posVec = vec1
+				negVec = vec2
+				break
+			} else if c < 0 {
+				posVec = vec2
+				negVec = vec1
+				break
+			}
+		}
+
+		smallestCD = connMap[posVec]
 		smallestCD.Id = currentConnNumber
 		connMap[smallestCD.Vector] = smallestCD
-		negVec := smallestCD.Vector.Neg()
+
 		negSmallestCD := connMap[negVec]
 		negSmallestCD.Id = -currentConnNumber
 		connMap[negVec] = negSmallestCD
+
 		AllConnectionsIds[smallestCD.GetIntId()] = smallestCD
 		AllConnectionsIds[negSmallestCD.GetIntId()] = negSmallestCD
 	}
