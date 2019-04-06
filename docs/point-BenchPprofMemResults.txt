@@ -1,10 +1,10 @@
 Type: alloc_space
-Time: Mar 30, 2019 at 8:37pm (IDT)
-Showing nodes accounting for 421.99MB, 99.53% of 423.97MB total
-Dropped 8 nodes (cum <= 2.12MB)
+Time: Apr 6, 2019 at 8:07pm (IDT)
+Showing nodes accounting for 413.55MB, 99.47% of 415.73MB total
+Dropped 17 nodes (cum <= 2.08MB)
       flat  flat%   sum%        cum   cum%
-  421.99MB 99.53% 99.53%   421.99MB 99.53%  github.com/freddy33/qsm-go/m3point.runNextPoints
-         0     0% 99.53%   421.99MB 99.53%  github.com/freddy33/qsm-go/m3point.BenchmarkAllGrowth
-         0     0% 99.53%   282.94MB 66.74%  testing.(*B).launch
-         0     0% 99.53%   139.05MB 32.80%  testing.(*B).run1.func1
-         0     0% 99.53%   421.99MB 99.53%  testing.(*B).runN
+  413.55MB 99.47% 99.47%   413.55MB 99.47%  github.com/freddy33/qsm-go/m3point.runNextPoints
+         0     0% 99.47%   413.55MB 99.47%  github.com/freddy33/qsm-go/m3point.BenchmarkAllGrowth
+         0     0% 99.47%   283.59MB 68.21%  testing.(*B).launch
+         0     0% 99.47%   129.96MB 31.26%  testing.(*B).run1.func1
+         0     0% 99.47%   413.55MB 99.47%  testing.(*B).runN

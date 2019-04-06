@@ -2,6 +2,7 @@ package m3point
 
 import (
 	"fmt"
+	"sort"
 )
 
 type Trio [3]Point
@@ -190,6 +191,28 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	return res
 }
 
+func MakeTrio(points ...Point) Trio {
+	// All points should be a connection details
+	cds := make([]ConnectionDetails, 3)
+	for i, p := range points {
+		cd, ok := AllConnectionsPossible[p]
+		if !ok {
+			Log.Fatalf("trying to create trio with vector not a connection %v", p)
+		} else {
+			cds[i] = cd
+		}
+	}
+	// Order based on connection details index, and if same index Pos > Neg
+	sort.Slice(cds, func(i, j int) bool {
+		absDiff := Abs8(cds[i].Id) - Abs8(cds[j].Id)
+		if absDiff == 0 {
+			return cds[i].Id > 0
+		}
+		return absDiff < 0
+	})
+	return Trio{cds[0].Vector, cds[1].Vector, cds[2].Vector}
+}
+
 func (t Trio) PlusX() Trio {
 	return MakeBaseConnectingVectorsTrio([3]Point{t[0].PlusX(), t[1].PlusX(), t[2].PlusX()})
 }
@@ -261,7 +284,7 @@ func GetNextTrios(tA, tB Trio) [3]Trio {
 	} else {
 		yConn = YFirst.Neg().Add(tB.getPlusYVector()).Sub(noZ)
 	}
-	res[0] = Trio{noZ.Neg(), xConn, yConn}
+	res[0] = MakeTrio(noZ.Neg(), xConn, yConn)
 
 	noY := tA[1]
 	if noY.X() > 0 {
@@ -274,7 +297,7 @@ func GetNextTrios(tA, tB Trio) [3]Trio {
 	} else {
 		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noY)
 	}
-	res[1] = Trio{noY.Neg(), xConn, zConn}
+	res[1] = MakeTrio(noY.Neg(), xConn, zConn)
 
 	noX := tA[2]
 	if noX.Y() > 0 {
@@ -287,7 +310,7 @@ func GetNextTrios(tA, tB Trio) [3]Trio {
 	} else {
 		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noX)
 	}
-	res[2] = Trio{noX.Neg(), yConn, zConn}
+	res[2] = MakeTrio(noX.Neg(), yConn, zConn)
 
 	return res
 }

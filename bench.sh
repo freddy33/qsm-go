@@ -2,10 +2,14 @@
 
 mkdir -p perf-data
 
+usage() {
+    echo "Usage $0 [package name = point, space, all]"
+    exit 1
+}
+
 pack="$1"
 if [[ -z "$pack" ]]; then
-    echo "Usage $0 [package name = point, space, gl]"
-    exit 1
+    usage
 fi
 
 runAndSave() {
@@ -15,11 +19,16 @@ runAndSave() {
     go tool pprof --text perf-data/mem-${packageName}.prof > ./docs/${packageName}-BenchPprofMemResults.txt
 }
 
-if [ "$pack" == "point" ] || [ "$pack" == "space" ] || [ "$pack" == "gl" ]; then
+if [ "$pack" == "point" ] || [ "$pack" == "space" ]; then
     runAndSave ${pack}
     exit $?
 fi
 
-echo "Usage $0 [package name = point, space, gl]"
+if [ "$pack" == "all" ]; then
+    runAndSave point
+    runAndSave space
+    exit $?
+fi
+
 echo "Package $pack unknown"
-exit 2
+usage

@@ -211,9 +211,9 @@ func writeAllTrioTable() {
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
 	for a, trio := range AllTrio {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%02d:\t%v\t%s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("\t\t%v\t%s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("\t\t%v\t%s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%02d: %v %s\n", a, trio[0], AllConnectionsPossible[trio[0]].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("     %v %s\n", trio[1], AllConnectionsPossible[trio[1]].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("     %v %s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
 		m3util.WriteNextString(txtFile, "\n")
 	}
 }
@@ -228,10 +228,24 @@ func fillAllTrio() {
 	for _, tA := range AllBaseTrio {
 		for _, tB := range AllBaseTrio {
 			for _, nextTrio := range GetNextTrios(tA, tB) {
-				AllTrio = append(AllTrio, nextTrio)
+				exists := false
+				for _, tr := range AllTrio {
+					if tr == nextTrio {
+						exists = true
+						break
+					}
+				}
+				if !exists {
+					AllTrio = append(AllTrio, nextTrio)
+				}
 			}
 		}
 	}
+	/*
+	sort.Slice(AllTrio, func (i, j int) bool {
+
+	})
+	*/
 }
 
 // Write all the connection details in text and CSV files
