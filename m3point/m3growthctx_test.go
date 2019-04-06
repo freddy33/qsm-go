@@ -279,10 +279,10 @@ func TestConnectionDetails(t *testing.T) {
 	Log.Level = m3util.DEBUG
 	for k, v := range AllConnectionsPossible {
 		assert.Equal(t, k, v.Vector)
-		currentNumber := Abs8(v.GetIntId())
+		currentNumber := v.GetPosIntId()
 		sameNumber := 0
 		for _, nv := range AllConnectionsPossible {
-			if Abs8(nv.GetIntId()) == currentNumber {
+			if nv.GetPosIntId() == currentNumber {
 				sameNumber++
 				if nv.Vector != v.Vector {
 					assert.Equal(t, nv.GetIntId(), -v.GetIntId(), "Should have opposite id")

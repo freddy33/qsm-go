@@ -196,7 +196,6 @@ func writeTrioConnectionsTable() {
 
 // Write all the 8 base vectors trio in text and CSV files
 func writeAllTrioTable() {
-	fillAllTrio()
 	txtFile, err := os.Create("AllTrioTable.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
@@ -216,36 +215,6 @@ func writeAllTrioTable() {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("     %v %s\n", trio[2], AllConnectionsPossible[trio[2]].GetName()))
 		m3util.WriteNextString(txtFile, "\n")
 	}
-}
-
-func fillAllTrio() {
-	AllTrio = make([]Trio, 8, 30)
-	// All base trio first
-	for i, tr := range AllBaseTrio {
-		AllTrio[i] = tr
-	}
-	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
-	for _, tA := range AllBaseTrio {
-		for _, tB := range AllBaseTrio {
-			for _, nextTrio := range GetNextTrios(tA, tB) {
-				exists := false
-				for _, tr := range AllTrio {
-					if tr == nextTrio {
-						exists = true
-						break
-					}
-				}
-				if !exists {
-					AllTrio = append(AllTrio, nextTrio)
-				}
-			}
-		}
-	}
-	/*
-	sort.Slice(AllTrio, func (i, j int) bool {
-
-	})
-	*/
 }
 
 // Write all the connection details in text and CSV files

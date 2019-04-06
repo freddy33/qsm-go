@@ -42,6 +42,7 @@ func init() {
 	initMod4Permutations()
 	initMod8Permutations()
 	initConnectionDetails()
+	fillAllTrio()
 }
 
 func initValidTrios() {
@@ -204,13 +205,105 @@ func MakeTrio(points ...Point) Trio {
 	}
 	// Order based on connection details index, and if same index Pos > Neg
 	sort.Slice(cds, func(i, j int) bool {
-		absDiff := Abs8(cds[i].Id) - Abs8(cds[j].Id)
+		absDiff := cds[i].GetPosIntId() - cds[j].GetPosIntId()
 		if absDiff == 0 {
 			return cds[i].Id > 0
 		}
 		return absDiff < 0
 	})
 	return Trio{cds[0].Vector, cds[1].Vector, cds[2].Vector}
+}
+
+// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
+var PossibleDSArray = [4][3]int64{{2, 2, 2}, {1, 2, 3}, {2, 3, 3}, {2, 5, 5}}
+
+func (t Trio) GetDSIndex() int {
+	if t[0].DistanceSquared() == int64(1) {
+		return 1
+	} else {
+		switch t[1].DistanceSquared() {
+		case int64(2):
+			return 0
+		case int64(3):
+			return 2
+		case int64(5):
+			return 3
+		}
+	}
+	Log.Errorf("Did not find correct index for %v", t)
+	return -1
+}
+
+func fillAllTrio() {
+	AllTrio = make([]Trio, 8, 30)
+	// All base trio first
+	for i, tr := range AllBaseTrio {
+		AllTrio[i] = tr
+	}
+	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
+	for _, tA := range AllBaseTrio {
+		for _, tB := range AllBaseTrio {
+			for _, nextTrio := range GetNextTrios(tA, tB) {
+				exists := false
+				for _, tr := range AllTrio {
+					if tr == nextTrio {
+						exists = true
+						break
+					}
+				}
+				if !exists {
+					AllTrio = append(AllTrio, nextTrio)
+				}
+			}
+		}
+	}
+
+	sort.SliceStable(AllTrio, func (i, j int) bool {
+		tr1 := AllTrio[i]
+		tr2 := AllTrio[j]
+		ds1Index := tr1.GetDSIndex()
+		diffDS := ds1Index - tr2.GetDSIndex()
+
+		// Order by ds index first
+		if diffDS < 0 {
+			return true
+		} else if diffDS > 0 {
+			return false
+		} else {
+			// Same ds index
+			if ds1Index == 0 {
+				// Base trio, keep order as defined with 0-4 prime -> 5-7
+				var k,l int
+				for bi, bt := range AllBaseTrio {
+					if bt == tr1 {
+						k = bi
+					}
+					if bt == tr2 {
+						l = bi
+					}
+				}
+				return k < l
+			} else {
+				// order by conn id, first ABS number, then pos > neg
+				for k1, v1 := range tr1 {
+					cd1 := AllConnectionsPossible[v1]
+					cd2 := AllConnectionsPossible[tr2[k1]]
+					if cd1.GetIntId() != cd2.GetIntId() {
+						absDiff := cd1.GetPosIntId() - cd2.GetPosIntId()
+						if absDiff < 0 {
+							return true
+						} else if absDiff > 0 {
+							return false
+						} else {
+							return cd1.Id > 0
+						}
+					}
+				}
+			}
+		}
+		Log.Errorf("Should not get here for %v compare to %v", tr1, tr2)
+		return false
+	})
 }
 
 func (t Trio) PlusX() Trio {
@@ -381,6 +474,10 @@ func (t Trio) getMinusZVector() Point {
 
 func (cd ConnectionDetails) GetIntId() int8 {
 	return cd.Id
+}
+
+func (cd ConnectionDetails) GetPosIntId() int8 {
+	return Abs8(cd.Id)
 }
 
 func (cd ConnectionDetails) GetName() string {

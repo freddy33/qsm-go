@@ -30,9 +30,76 @@ func TestPermBuilder(t *testing.T) {
 
 func TestAllTrioBuilder(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	fillAllTrio()
+
+	assert.Equal(t, 92, len(AllTrio))
+	indexInPossDS := make([]int, len(AllTrio))
 	for i, tr := range AllTrio {
-		fmt.Printf("%04d: %v\n", i, tr)
+		// All vec should have conn details
+		cds := [3]ConnectionDetails{}
+		for j, v := range tr {
+			var ok bool
+			cds[j], ok = AllConnectionsPossible[v]
+			assert.True(t, ok, "Failed to find conn for %d = %v in trio %d = %v", j, v, i, tr)
+		}
+		// Conn ID increase always
+		assert.True(t, cds[0].GetPosIntId() <= cds[1].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, tr)
+		assert.True(t, cds[1].GetPosIntId() <= cds[2].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, tr)
+
+		dsArray := [3]int64{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
+		found := false
+		for k, posDsArray := range PossibleDSArray {
+			if posDsArray == dsArray {
+				found = true
+				indexInPossDS[i] = k
+			}
+		}
+		assert.True(t, found, "DS array %v not correct for trio %d = %v", dsArray, i, tr)
+		assert.Equal(t, indexInPossDS[i], tr.GetDSIndex(), "DS array %v not correct for trio %d = %v", dsArray, i, tr)
+	}
+
+	// Check that All trio is ordered correctly
+	countPerIndex := [4]int{}
+	countPerIndexPerPosId := [4][10]int{}
+	for i, tr := range AllTrio {
+		if i > 0 {
+			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrio[i-1], i, tr)
+		}
+
+		dsIndex := tr.GetDSIndex()
+		countPerIndex[dsIndex]++
+		countPerIndexPerPosId[dsIndex][AllConnectionsPossible[tr[0]].GetPosIntId()]++
+	}
+	assert.Equal(t, 8, countPerIndex[0])
+	assert.Equal(t, 3*8*2, countPerIndex[1])
+	assert.Equal(t, 3*4*2, countPerIndex[2])
+	assert.Equal(t, 3*2*2, countPerIndex[3])
+	for i, v := range countPerIndexPerPosId[0] {
+		if i == 4 || i == 5 {
+			assert.Equal(t, 4, v, "Index 0 wrong for %d", i)
+		} else {
+			assert.Equal(t, 0, v, "Index 0 wrong for %d", i)
+		}
+	}
+	for i, v := range countPerIndexPerPosId[1] {
+		if i == 1 || i == 2 || i == 3 {
+			assert.Equal(t, 16, v, "Index 1 wrong for %d", i)
+		} else {
+			assert.Equal(t, 0, v, "Index 1 wrong for %d", i)
+		}
+	}
+	for i, v := range countPerIndexPerPosId[2] {
+		if i >= 4 && i <= 9 {
+			assert.Equal(t, 4, v, "Index 2 wrong for %d", i)
+		} else {
+			assert.Equal(t, 0, v, "Index 2 wrong for %d", i)
+		}
+	}
+	for i, v := range countPerIndexPerPosId[3] {
+		if i >= 4 && i <= 9 {
+			assert.Equal(t, 2, v, "Index 3 wrong for %d", i)
+		} else {
+			assert.Equal(t, 0, v, "Index 3 wrong for %d", i)
+		}
 	}
 }
 

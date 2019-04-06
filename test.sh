@@ -10,20 +10,13 @@ if [[ -z "$pack" ]]; then
     usage
 fi
 
-runTest() {
-    local packageName="$1"
-    go test -parallel 4 ./m3${packageName}/
-}
-
 if [ "$pack" == "point" ] || [ "$pack" == "space" ] || [ "$pack" == "gl" ]; then
-    runTest ${pack}
+    go test ./m3${pack}/
     exit $?
 fi
 
 if [ "$pack" == "all" ]; then
-    runTest point
-    runTest space
-    runTest gl
+    go test -parallel 4 ./m3point/ ./m3space/ ./m3gl/
     exit $?
 fi
 
