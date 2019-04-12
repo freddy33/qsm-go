@@ -75,7 +75,10 @@ func (l *Logger) Info(a ...interface{}) {
 
 func (l *Logger) Infof(format string, v ...interface{}) {
 	if l.Level <= INFO {
-		l.log.Println("INFO ", p.Sprintf(format, v...))
+		err := l.log.Output(2, p.Sprintln(append([]interface{}{"INFO"}, p.Sprintf(format, v...))))
+		if err != nil {
+			log.Print(err)
+		}
 	}
 }
 

@@ -42,3 +42,49 @@ m3point 2019/04/06 20:07:13 m3utils.go:78: INFO  Max size for all context 4,150,
        2	 546313403 ns/op
 PASS
 ok  	github.com/freddy33/qsm-go/m3point	1.952s
+m3point 2019/04/12 01:14:26 m3trio.go:505: [INFO Number of connection details created 50]
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3point
+BenchmarkCtx1-8        	      50	  32920210 ns/op
+BenchmarkCtx2-8        	       5	 216134788 ns/op
+BenchmarkCtx3-8        	      10	 111810282 ns/op
+BenchmarkCtx4-8        	       3	 434398697 ns/op
+BenchmarkCtx8-8        	       2	 895075343 ns/op
+BenchmarkAllGrowth-8   	       1	1698382812 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3point	11.423s
+
+Run single thread 150 runs
+m3point 2019/04/12 02:21:51 m3trio.go:505: [INFO Number of connection details created 50]
+=== RUN   TestCtxPerType
+m3point 2019/04/12 02:21:59 m3growthctx_test.go:91: [INFO Max size for all context of type 1: 1,515,249, 30,000 with 150 runs]
+m3point 2019/04/12 02:22:49 m3growthctx_test.go:91: [INFO Max size for all context of type 2: 1,641,081, 32,498 with 150 runs]
+m3point 2019/04/12 02:23:23 m3growthctx_test.go:91: [INFO Max size for all context of type 3: 1,950,396, 38,733 with 150 runs]
+m3point 2019/04/12 02:25:37 m3growthctx_test.go:91: [INFO Max size for all context of type 4: 1,895,451, 37,534 with 150 runs]
+m3point 2019/04/12 02:30:19 m3growthctx_test.go:91: [INFO Max size for all context of type 8: 1,989,280, 39,378 with 150 runs]
+--- PASS: TestCtxPerType (508.67s)
+PASS
+
+Run async next points concurrent map 50 runs
+m3point 2019/04/12 02:58:52 m3trio.go:505: [INFO Number of connection details created 50]
+=== RUN   TestCtxPerType
+m3point 2019/04/12 02:58:54 m3growthctx_test.go:92: [INFO Max size for all context of type 1: 57,306, 3,320 with 50 runs]
+m3point 2019/04/12 02:59:05 m3growthctx_test.go:92: [INFO Max size for all context of type 2: 61,938, 3,604 with 50 runs]
+m3point 2019/04/12 02:59:12 m3growthctx_test.go:92: [INFO Max size for all context of type 3: 72,837, 4,277 with 50 runs]
+m3point 2019/04/12 02:59:42 m3growthctx_test.go:92: [INFO Max size for all context of type 4: 70,884, 4,167 with 50 runs]
+m3point 2019/04/12 03:00:49 m3growthctx_test.go:92: [INFO Max size for all context of type 8: 73,309, 4,328 with 50 runs]
+--- PASS: TestCtxPerType (116.67s)
+PASS
+
+Run async next points simple map 50 runs
+m3point 2019/04/12 03:02:21 m3trio.go:505: [INFO Number of connection details created 50]
+=== RUN   TestCtxPerType
+m3point 2019/04/12 03:02:23 m3growthctx_test.go:92: [INFO Max size for all context of type 1: 57,306, 3,320 with 50 runs]
+m3point 2019/04/12 03:02:29 m3growthctx_test.go:92: [INFO Max size for all context of type 2: 61,938, 3,604 with 50 runs]
+m3point 2019/04/12 03:02:34 m3growthctx_test.go:92: [INFO Max size for all context of type 3: 72,837, 4,277 with 50 runs]
+m3point 2019/04/12 03:02:53 m3growthctx_test.go:92: [INFO Max size for all context of type 4: 70,884, 4,167 with 50 runs]
+m3point 2019/04/12 03:03:36 m3growthctx_test.go:92: [INFO Max size for all context of type 8: 73,309, 4,328 with 50 runs]
+--- PASS: TestCtxPerType (74.90s)
+PASS
+

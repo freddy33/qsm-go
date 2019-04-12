@@ -1,9 +1,9 @@
 package m3point
 
 import (
-	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 )
 
@@ -41,9 +41,71 @@ func TestPosMod8(t *testing.T) {
 	assert.Equal(t, uint64(0), PosMod8(0))
 }
 
-func BenchmarkAllGrowth(b *testing.B) {
+const (
+	SPLIT          = 8
+	BENCH_NB_ROUND = 100
+	TEST_NB_ROUND  = 25
+)
+
+func BenchmarkCtx1(b *testing.B) {
+	Log.Level = m3util.WARN
+	runForCtxType(b.N, BENCH_NB_ROUND, 1)
+}
+
+func BenchmarkCtx2(b *testing.B) {
+	Log.Level = m3util.WARN
+	runForCtxType(b.N, BENCH_NB_ROUND, 2)
+}
+
+func BenchmarkCtx3(b *testing.B) {
+	Log.Level = m3util.WARN
+	runForCtxType(b.N, BENCH_NB_ROUND, 3)
+}
+
+func BenchmarkCtx4(b *testing.B) {
+	Log.Level = m3util.WARN
+	runForCtxType(b.N, BENCH_NB_ROUND, 4)
+}
+
+func BenchmarkCtx8(b *testing.B) {
+	Log.Level = m3util.WARN
+	runForCtxType(b.N, BENCH_NB_ROUND, 8)
+}
+
+func TestCtx2(t *testing.T) {
+	Log.Level = m3util.INFO
+	runForCtxType(1, TEST_NB_ROUND, 2)
+}
+
+func TestCtxPerType(t *testing.T) {
+	Log.Level = m3util.INFO
+	for _, pType := range [5]uint8{1, 2, 3, 4, 8} {
+		runForCtxType(1, TEST_NB_ROUND, pType)
+	}
+}
+
+func runForCtxType(N, nbRound int, pType uint8) {
 	allCtx := getAllContexts()
+	for r := 0; r < N; r++ {
+		maxUsed := 0
+		maxLatest := 0
+		for _, ctx := range allCtx[pType] {
+			nU, nL := runNextPoints(&ctx, nbRound)
+			if nU > maxUsed {
+				maxUsed = nU
+			}
+			if nL > maxLatest {
+				maxLatest = nL
+			}
+		}
+		Log.Infof("Max size for all context of type %d: %d, %d with %d runs", pType, maxUsed, maxLatest, nbRound)
+	}
+}
+
+func BenchmarkAllGrowth(b *testing.B) {
+	Log.Level = m3util.WARN
 	nbRound := 50
+	allCtx := getAllContexts()
 	for r := 0; r < b.N; r++ {
 		maxUsed := 0
 		maxLatest := 0
@@ -63,28 +125,118 @@ func BenchmarkAllGrowth(b *testing.B) {
 }
 
 func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
-	usedPoints := make(map[Point]bool, 10*nbRound)
+	usedPoints := make(map[Point]bool, 10*nbRound*nbRound)
+	totalUsedPoints := 1
 	latestPoints := make([]Point, 1)
 	latestPoints[0] = Origin
 	usedPoints[Origin] = true
 	for d := 0; d < nbRound; d++ {
-		finalPoints := latestPoints[:0]
-		for _, p := range latestPoints {
-			newPoints := p.GetNextPoints(ctx)
-			for _, np := range newPoints {
-				_, ok := usedPoints[np]
+		nbLatestPoints := len(latestPoints)
+		// Send all orig new points
+		origNewPoints := make(chan Point, 4*SPLIT)
+		wg := sync.WaitGroup{}
+		if nbLatestPoints < 4*SPLIT {
+			// too small for split send all
+			wg.Add(1)
+			go nextPointsSplit(&latestPoints, 0, nbLatestPoints, ctx, origNewPoints, &wg)
+		} else {
+			sizePerSplit := int(nbLatestPoints / SPLIT)
+			for currentPos := 0; currentPos < nbLatestPoints; currentPos += sizePerSplit {
+				wg.Add(1)
+				go nextPointsSplit(&latestPoints, currentPos, sizePerSplit, ctx, origNewPoints, &wg)
+			}
+		}
+		go func(step int) {
+			wg.Wait()
+			close(origNewPoints)
+		}(d)
+
+		f := make(chan Point, 100)
+		go func(step int) {
+			defer close(f)
+			c := 0
+			for p := range origNewPoints {
+				c++
+				_, ok := usedPoints[p]
 				if !ok {
-					finalPoints = append(finalPoints, np)
-					usedPoints[np] = true
+					f <- p
+					usedPoints[p] = true
+				}
+			}
+			//fmt.Println(step, c)
+		}(d)
+
+		finalPoints := make([]Point, 0, int(1.7*float32(nbLatestPoints)))
+		for np := range f {
+			finalPoints = append(finalPoints, np)
+		}
+
+		totalUsedPoints += len(finalPoints)
+		latestPoints = finalPoints
+	}
+	return totalUsedPoints, len(latestPoints)
+}
+
+func runNextPointsAsync(ctx *GrowthContext, nbRound int) (int, int) {
+	//usedPoints := make(map[Point]bool, 10*nbRound*nbRound)
+	usedPoints := new(sync.Map)
+	totalUsedPoints := 1
+	latestPoints := make([]Point, 1)
+	latestPoints[0] = Origin
+	usedPoints.Store(Origin, true)
+	o := make(chan Point, 100)
+	for d := 0; d < nbRound; d++ {
+		finalPoints := make([]Point, 0, int(1.2*float32(len(latestPoints))))
+		for _, p := range latestPoints {
+			go asyncNextPoints(p, ctx, o, nil)
+		}
+		// I'll always get 3 tines the amount of latest points
+		newPoints := 3 * len(latestPoints)
+		for i := 0; i < newPoints; i++ {
+			p, ok := <-o
+			if !ok {
+				break
+			} else {
+				_, ok := usedPoints.LoadOrStore(p, true)
+				if !ok {
+					finalPoints = append(finalPoints, p)
 				}
 			}
 		}
 		latestPoints = finalPoints
+		totalUsedPoints += len(latestPoints)
 	}
-	return len(usedPoints), len(latestPoints)
+	return totalUsedPoints, len(latestPoints)
 }
 
+func nextPointsSplit(lps *[]Point, currentPos, nb int, ctx *GrowthContext, o chan Point, wg *sync.WaitGroup) {
+	c := 0
+	for i := currentPos; i < len(*lps); i++ {
+		p := (*lps)[i]
+		for _, np := range p.GetNextPoints(ctx) {
+			o <- np
+		}
+		c++
+		if c == nb {
+			break
+		}
+	}
+	wg.Done()
+}
+
+func asyncNextPoints(p Point, ctx *GrowthContext, o chan Point, wg *sync.WaitGroup) {
+	for _, np := range p.GetNextPoints(ctx) {
+		o <- np
+	}
+	wg.Done()
+}
+
+var allContexts map[uint8][]GrowthContext
+
 func getAllContexts() map[uint8][]GrowthContext {
+	if allContexts != nil {
+		return allContexts
+	}
 	res := make(map[uint8][]GrowthContext)
 	res[1] = make([]GrowthContext, 0, 8)
 	res[3] = make([]GrowthContext, 0, 8*4)
@@ -108,6 +260,8 @@ func getAllContexts() map[uint8][]GrowthContext {
 			}
 		}
 	}
+
+	allContexts = res
 	return res
 }
 
@@ -273,144 +427,4 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 		}
 	}
 
-}
-
-func TestConnectionDetails(t *testing.T) {
-	Log.Level = m3util.DEBUG
-	for k, v := range AllConnectionsPossible {
-		assert.Equal(t, k, v.Vector)
-		currentNumber := v.GetPosIntId()
-		sameNumber := 0
-		for _, nv := range AllConnectionsPossible {
-			if nv.GetPosIntId() == currentNumber {
-				sameNumber++
-				if nv.Vector != v.Vector {
-					assert.Equal(t, nv.GetIntId(), -v.GetIntId(), "Should have opposite id")
-					assert.Equal(t, nv.Vector.Neg(), v.Vector, "Should have neg vector")
-				}
-			}
-		}
-		assert.Equal(t, 2, sameNumber, "Should have 2 with same conn number for %d", currentNumber)
-	}
-
-	countConnId := make(map[int8]int)
-	for i, tA := range AllBaseTrio {
-		for j, tB := range AllBaseTrio {
-			connVectors := GetNonBaseConnections(tA, tB)
-			for k, connVector := range connVectors {
-				connDetails, ok := AllConnectionsPossible[connVector]
-				assert.True(t, ok, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
-				assert.Equal(t, connVector, connDetails.Vector, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
-				countConnId[connDetails.GetIntId()]++
-			}
-		}
-	}
-	Log.Info("ConnId usage:", countConnId)
-
-	allCtx := getAllContexts()
-	assert.Equal(t, 5, len(allCtx))
-
-	nbCtx := 0
-	for _, contextList := range allCtx {
-		nbCtx += len(contextList)
-	}
-	Log.Info("Created", nbCtx, "contexts")
-	Log.Info("Using", len(allCtx[8]), " contexts from the 8 context")
-	// For all trioIndex rotations, any 2 close main points there should be a connection details
-	min := int64(-2) // -5
-	max := int64(2)  // 5
-	for _, ctx := range allCtx[8] {
-		for x := min; x < max; x++ {
-			for y := min; y < max; y++ {
-				for z := min; z < max; z++ {
-					mainPoint := Point{x, y, z}.Mul(3)
-					connectingVectors := ctx.GetTrio(mainPoint)
-					for _, cVec := range connectingVectors {
-
-						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Pos", mainPoint, "base vector", cVec))
-
-						nextMain := Origin
-						switch cVec.X() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(XFirst)
-						case -1:
-							nextMain = mainPoint.Sub(XFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with x value %d", cVec.X())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.X() == -cVec.X() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = Origin
-						switch cVec.Y() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(YFirst)
-						case -1:
-							nextMain = mainPoint.Sub(YFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with y value %d", cVec.Y())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Y() == -cVec.Y() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = Origin
-						switch cVec.Z() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(ZFirst)
-						case -1:
-							nextMain = mainPoint.Sub(ZFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with Z value %d", cVec.Z())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Z() == -cVec.Z() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-}
-
-func assertValidConnDetails(t *testing.T, p1, p2 Point, msg string) {
-	connDetails1 := GetConnectionDetails(p1, p2)
-	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
-	assert.Equal(t, MakeVector(p1, p2), connDetails1.Vector, msg)
-
-	connDetails2 := GetConnectionDetails(p2, p1)
-	assert.NotEqual(t, EmptyConnDetails, connDetails2, msg)
-	assert.Equal(t, MakeVector(p2, p1), connDetails2.Vector, msg)
 }
