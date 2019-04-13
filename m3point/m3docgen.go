@@ -210,9 +210,9 @@ func writeAllTrioTable() {
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
 	for a, td := range AllTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%02d: %v %s\n", a, td.Conns[0].Vector, td.Conns[0].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("     %v %s\n", td.Conns[1].Vector, td.Conns[1].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("     %v %s\n", td.Conns[2].Vector, td.Conns[2].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v %s\n", a, td.Conns[0].Vector, td.Conns[0].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[1].Vector, td.Conns[1].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[2].Vector, td.Conns[2].GetName()))
 		m3util.WriteNextString(txtFile, "\n")
 	}
 }

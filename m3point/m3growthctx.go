@@ -64,7 +64,7 @@ func (ctx *GrowthContext) GetFileName() string {
 }
 
 func (ctx *GrowthContext) GetContextString() string {
-	return fmt.Sprintf("Type %d, Idx %d", ctx.permutationType, ctx.permutationIndex)
+	return fmt.Sprintf("Type %d, Idx %d, Neg %v, Offset %d", ctx.permutationType, ctx.permutationIndex, ctx.permutationNegFlow, ctx.permutationOffset)
 }
 
 func (ctx *GrowthContext) GetTrioIndex(divByThree uint64) int {

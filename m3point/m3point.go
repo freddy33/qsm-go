@@ -69,6 +69,9 @@ func (currentPoint Point) GetNextPoints(ctx *GrowthContext) [3]Point {
 }
 
 func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthContext) [2]Point {
+	if !cVec.IsBaseConnectingVector() {
+		Log.Fatalf("cannot do getNextPointsFromMainAndVector if %v not main base vector", cVec)
+	}
 	offset := 0
 	result := [2]Point{}
 

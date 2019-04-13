@@ -3,6 +3,7 @@ package m3point
 import (
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
+	"sort"
 	"sync"
 	"testing"
 )
@@ -416,4 +417,132 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 		}
 	}
 
+}
+
+func TestTrioListPerContext(t *testing.T) {
+	Log.Level = m3util.INFO
+	contexts := getAllContexts()
+	for _, ctxs := range contexts {
+		stableStep := -1
+		indexList := make(map[int][]int)
+		for _, ctx := range ctxs {
+			s, l := runAllTrioList(t, &ctx)
+			if stableStep == -1 {
+				stableStep = s
+			} else {
+				assert.Equal(t, stableStep, s, "failed same stable step for %s", ctx.GetContextString())
+			}
+			curList, ok := indexList[ctx.permutationIndex]
+			if !ok {
+				indexList[ctx.permutationIndex] = l
+			} else {
+				assert.True(t, EqualIntSlice(curList, l), "failed same index list for %s %v != %v", ctx.GetContextString(), curList, l)
+			}
+ 		}
+	}
+}
+
+// Return the ordered list of trio index used
+func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList []int) {
+	// The result list of trio index used
+	var currentIndexList []int
+
+	countUsedIdx := make(map[int]int)
+	usedPoints := make(map[Point]int)
+	latestPoints := make([]Point, 1)
+	latestPoints[0] = ctx.center
+
+	// If currentIndexList is stable for "verifyStable" iterations we should stop
+	verifyStable := 8
+	stableIndexList := 0
+	stepStable := 0
+
+	for d := uint64(0); d < 30; d++ {
+		stepStable = int(d)
+		newPoints := make([]Point, 0, 2*len(latestPoints))
+		stepCountIdx := make(map[int]int)
+		stepConflictCount := make(map[Point]int)
+
+		for _, p := range latestPoints {
+			nextPoints := p.GetNextPoints(ctx)
+			tIdx := findTrioIndex(p, nextPoints, ctx)
+			countUsedIdx[tIdx]++
+			stepCountIdx[tIdx]++
+
+			existingIdx, ok := usedPoints[p]
+			if !ok {
+				usedPoints[p] = tIdx
+				for _, np := range nextPoints {
+					_, present := usedPoints[np]
+					if !present {
+						newPoints = append(newPoints, np)
+					}
+				}
+			} else {
+				stepConflictCount[p]++
+				assert.Equal(t, existingIdx, tIdx, "conflict on %v step %d ctx %s", p, d, ctx.GetContextString())
+			}
+		}
+		stepConflictSummary := make(map[int]int)
+		for _, v := range stepConflictCount {
+			stepConflictSummary[v]++
+		}
+		_, impossible := stepConflictSummary[3]
+		assert.False(t, impossible)
+
+		Log.Tracef("Run: %2d %4d : %4d %2d %v", d, len(latestPoints), stepConflictSummary[1], stepConflictSummary[2], stepCountIdx)
+
+		newIndexList := make([]int, 0, len(countUsedIdx))
+		for trIdx, _ := range countUsedIdx {
+			newIndexList = append(newIndexList, trIdx)
+		}
+		sort.Ints(newIndexList)
+
+		if EqualIntSlice(currentIndexList, newIndexList) {
+			stableIndexList++
+		} else {
+			stableIndexList = 0
+			currentIndexList = newIndexList
+		}
+
+		if stableIndexList >= verifyStable {
+			break
+		}
+
+		latestPoints = newPoints
+	}
+	Log.Debug(ctx.GetContextString(), stepStable-verifyStable, currentIndexList)
+
+	return stepStable-verifyStable, currentIndexList
+}
+
+// Equal tells whether a and b contain the same elements.
+// A nil argument is equivalent to an empty slice.
+func EqualIntSlice(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Stupid reverse engineering of trio index that works for main and non main points
+func findTrioIndex(c Point, np [3]Point, ctx *GrowthContext) int {
+	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
+	for idx, td := range AllTrioDetails {
+		if toFind.GetTrio() == td.GetTrio() {
+			return idx
+		}
+	}
+	Log.Errorf("did not find any trio for %v %v %v", c, np, toFind)
+	Log.Errorf("All trio index %d %d %d %d", getTrioIdx(c, ctx), getTrioIdx(np[0], ctx), getTrioIdx(np[1], ctx), getTrioIdx(np[2], ctx))
+	return -1
+}
+
+func getTrioIdx(p Point, ctx *GrowthContext) int {
+	return ctx.GetTrioIndex(ctx.GetDivByThree(p.GetNearMainPoint()))
 }
