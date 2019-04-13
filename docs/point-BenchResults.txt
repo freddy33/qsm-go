@@ -88,3 +88,23 @@ m3point 2019/04/12 03:03:36 m3growthctx_test.go:92: [INFO Max size for all conte
 --- PASS: TestCtxPerType (74.90s)
 PASS
 
+Run async with split 8 using a channel with go routine for map filter
+m3point 2019/04/12 23:11:45 m3trio.go:505: [INFO Number of connection details created 50]
+=== RUN   TestCtx2
+m3point 2019/04/12 23:13:31 m3growthctx_test.go:101: [INFO Max size for all context of type 2: 951,539, 22,555 with 125 runs]
+--- PASS: TestCtx2 (106.14s)
+PASS
+
+Run async with split 8 using direct fill of slice for final points
+m3point 2019/04/12 23:14:31 m3trio.go:505: [INFO Number of connection details created 50]
+=== RUN   TestCtx2
+m3point 2019/04/12 23:16:17 m3growthctx_test.go:101: [INFO Max size for all context of type 2: 951,539, 22,555 with 125 runs]
+--- PASS: TestCtx2 (105.95s)
+PASS
+
+Run async with split 16 using direct fill of slice for final points
+m3point 2019/04/12 23:32:17 m3trio.go:505: [INFO Number of connection details created 50]
+=== RUN   TestCtx2
+m3point 2019/04/12 23:34:15 m3growthctx_test.go:101: [INFO Max size for all context of type 2: 951,539, 22,555 with 125 runs]
+--- PASS: TestCtx2 (118.07s)
+PASS

@@ -69,8 +69,6 @@ type Outgrowth interface {
 	GetFromConnIds() []int8
 	CameFromPoint(point m3point.Point) bool
 
-	GetRootPathElement(evt *Event) PathElement
-	BuildPath(path PathElement) PathElement
 	AddFrom(point m3point.Point)
 }
 

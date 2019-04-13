@@ -1,6 +1,15 @@
 package m3space
 
-import "github.com/freddy33/qsm-go/m3util"
+import (
+	"github.com/freddy33/qsm-go/m3point"
+	"github.com/freddy33/qsm-go/m3util"
+)
+
+type PathBuilder struct {
+	ctx *m3point.GrowthContext
+
+}
+
 
 // An element in the path from event base node to latest outgrowth
 // Forward is from event to outgrowth
@@ -239,50 +248,4 @@ func addCopyToMap(path PathElement, idx int, pathsPerConnId *map[int8][]*SimpleP
 		paths = append(paths, newPath)
 	}
 	(*pathsPerConnId)[connId] = paths
-}
-
-/***************************************************************/
-// Path building Functions
-/***************************************************************/
-
-func (eo *EventOutgrowth) GetRootPathElement(evt *Event) PathElement {
-	if eo.rootPath == nil {
-		eo.rootPath = eo.BuildPath(TheEnd)
-	}
-	return eo.rootPath
-}
-
-func (seo *SavedEventOutgrowth) GetRootPathElement(evt *Event) PathElement {
-	if seo.rootPath == nil {
-		seo.rootPath = seo.BuildPath(TheEnd)
-	}
-	return seo.rootPath
-}
-
-func (eo *EventOutgrowth) BuildPath(path PathElement) PathElement {
-	if eo.IsRoot() {
-		return path
-	}
-	return path
-	/* TODO
-	fromConnIds := eo.GetFromConnIds()
-	firstPath := eo.fromList[0].BuildPath(&SimplePathElement{-fromConnIds[0], path,})
-	if len(eo.fromList) == 1 {
-		return firstPath
-	}
-	for i := 1; i < len(eo.fromList); i++ {
-		newPath := eo.fromList[i].BuildPath(&SimplePathElement{-fromConnIds[i], path,})
-		firstPath = MergePath(firstPath, newPath)
-	}
-	return firstPath
-	*/
-}
-
-func (seo *SavedEventOutgrowth) BuildPath(path PathElement) PathElement {
-	if seo.IsRoot() {
-		return path
-	}
-	newPath := seo.rootPath.Copy()
-	newPath.SetLastNext(path)
-	return newPath
 }

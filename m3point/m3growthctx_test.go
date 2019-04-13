@@ -42,7 +42,7 @@ func TestPosMod8(t *testing.T) {
 }
 
 const (
-	SPLIT          = 8
+	SPLIT          = 4
 	BENCH_NB_ROUND = 100
 	TEST_NB_ROUND  = 25
 )
@@ -151,24 +151,13 @@ func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
 			close(origNewPoints)
 		}(d)
 
-		f := make(chan Point, 100)
-		go func(step int) {
-			defer close(f)
-			c := 0
-			for p := range origNewPoints {
-				c++
-				_, ok := usedPoints[p]
-				if !ok {
-					f <- p
-					usedPoints[p] = true
-				}
-			}
-			//fmt.Println(step, c)
-		}(d)
-
 		finalPoints := make([]Point, 0, int(1.7*float32(nbLatestPoints)))
-		for np := range f {
-			finalPoints = append(finalPoints, np)
+		for p := range origNewPoints {
+			_, ok := usedPoints[p]
+			if !ok {
+				finalPoints = append(finalPoints, p)
+				usedPoints[p] = true
+			}
 		}
 
 		totalUsedPoints += len(finalPoints)

@@ -27,7 +27,6 @@ func TestActiveEventOutgrowth(t *testing.T) {
 
 	assert.Equal(t, 0, len(o.GetFromConnIds()))
 	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
-	assert.Equal(t, TheEnd, o.GetRootPathElement(nil))
 
 	o.AddFrom(m3point.Point{2, 2, 3})
 	aeo.rootPath = nil
@@ -43,9 +42,6 @@ func TestActiveEventOutgrowth(t *testing.T) {
 	assert.Equal(t, 1, len(o.GetFromConnIds()))
 	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
 	assert.Equal(t, true, o.CameFromPoint(m3point.Point{2, 2, 3}))
-	p := o.GetRootPathElement(nil)
-	// TODO: Fix please => Should be 1
-	assert.Equal(t, 0, p.GetLength())
 }
 
 func TestSavedEventOutgrowth(t *testing.T) {
@@ -67,7 +63,6 @@ func TestSavedEventOutgrowth(t *testing.T) {
 
 	assert.Equal(t, 0, len(o.GetFromConnIds()))
 	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
-	assert.Equal(t, TheEnd, o.GetRootPathElement(nil))
 }
 
 func TestActiveEventOutgrowthPath(t *testing.T) {
@@ -108,7 +103,6 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 
 	assert.Equal(t, 0, len(o.GetFromConnIds()))
 	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
-	assert.Equal(t, TheEnd, o.GetRootPathElement(evt))
 
 	nextPoint := m3point.Point{1, 1, 0}
 	nextPoints := o.GetPoint().GetNextPoints(evt.growthContext)
