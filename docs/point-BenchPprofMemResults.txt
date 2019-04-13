@@ -1,16 +1,15 @@
 Type: alloc_space
-Time: Apr 12, 2019 at 1:14am (IDT)
-Showing nodes accounting for 2312.35MB, 99.84% of 2316.06MB total
-Dropped 16 nodes (cum <= 11.58MB)
+Time: Apr 13, 2019 at 8:22pm (IDT)
+Showing nodes accounting for 32884.07MB, 100% of 32886.57MB total
+Dropped 8 nodes (cum <= 164.43MB)
       flat  flat%   sum%        cum   cum%
- 2312.35MB 99.84% 99.84%  2312.35MB 99.84%  github.com/freddy33/qsm-go/m3point.runNextPoints
-         0     0% 99.84%   336.99MB 14.55%  github.com/freddy33/qsm-go/m3point.BenchmarkAllGrowth
-         0     0% 99.84%   358.43MB 15.48%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx1
-         0     0% 99.84%   269.61MB 11.64%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx2
-         0     0% 99.84%   252.81MB 10.92%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx3
-         0     0% 99.84%   542.42MB 23.42%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx4
-         0     0% 99.84%   552.09MB 23.84%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx8
-         0     0% 99.84%  1975.36MB 85.29%  github.com/freddy33/qsm-go/m3point.runForCtxType
-         0     0% 99.84%  1631.97MB 70.46%  testing.(*B).launch
-         0     0% 99.84%   680.38MB 29.38%  testing.(*B).run1.func1
-         0     0% 99.84%  2312.35MB 99.84%  testing.(*B).runN
+32884.07MB   100%   100% 32884.07MB   100%  github.com/freddy33/qsm-go/m3point.runNextPoints
+         0     0%   100%  3481.06MB 10.59%  github.com/freddy33/qsm-go/m3point.BenchmarkAllGrowth
+         0     0%   100%   588.07MB  1.79%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx1
+         0     0%   100%     3681MB 11.19%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx2
+         0     0%   100%  1938.51MB  5.89%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx3
+         0     0%   100%  7679.85MB 23.35%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx4
+         0     0%   100% 15515.59MB 47.18%  github.com/freddy33/qsm-go/m3point.BenchmarkCtx8
+         0     0%   100% 29403.01MB 89.41%  github.com/freddy33/qsm-go/m3point.runForCtxType
+         0     0%   100% 32884.07MB   100%  testing.(*B).run1.func1
+         0     0%   100% 32884.07MB   100%  testing.(*B).runN

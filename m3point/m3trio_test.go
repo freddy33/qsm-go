@@ -15,12 +15,12 @@ func TestAllTrioBuilder(t *testing.T) {
 
 	assert.Equal(t, 92, len(AllTrioDetails))
 	indexInPossDS := make([]int, len(AllTrioDetails))
-	for i, tr := range AllTrioDetails {
+	for i, td := range AllTrioDetails {
 		// All vec should have conn details
-		cds := tr.Conns
+		cds := td.Conns
 		// Conn ID increase always
-		assert.True(t, cds[0].GetPosIntId() <= cds[1].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, tr)
-		assert.True(t, cds[1].GetPosIntId() <= cds[2].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, tr)
+		assert.True(t, cds[0].GetPosIntId() <= cds[1].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
+		assert.True(t, cds[1].GetPosIntId() <= cds[2].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
 
 		dsArray := [3]int64{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
@@ -30,8 +30,8 @@ func TestAllTrioBuilder(t *testing.T) {
 				indexInPossDS[i] = k
 			}
 		}
-		assert.True(t, found, "DS array %v not correct for trio %d = %v", dsArray, i, tr)
-		assert.Equal(t, indexInPossDS[i], tr.GetDSIndex(), "DS array %v not correct for trio %d = %v", dsArray, i, tr)
+		assert.True(t, found, "DS array %v not correct for trio %d = %v", dsArray, i, td)
+		assert.Equal(t, indexInPossDS[i], td.GetDSIndex(), "DS array %v not correct for trio %d = %v", dsArray, i, td)
 	}
 
 	// Check that All trio is ordered correctly

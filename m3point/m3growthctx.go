@@ -6,12 +6,21 @@ import (
 
 // TODO: Create trio index for non main points base on growth context
 
+/*
+Define how outgrowth and path evolve from the center. There are 6 types of growth depending of the value of permutationType:
+1. type = 0 : Main points will not be covered. TODO Switch from trio to next that has neg conn
+2. type = 1 : All main points have the same base trio index
+3. type = 3 : Rotate between valid trios depending on starting index in modulo 3
+4. type = 2 : Use the modulo 2 permutation => Specific index valid next trio back and forth
+5. type = 4 : Use the modulo 4 permutation => Specific index line in AllMod4Permutations cycling through the 4 values
+6. type = 8 : Use the modulo 8 permutation => Specific index line in AllMod8Permutations cycling through the 8 values
+*/
 type GrowthContext struct {
 	center             Point
-	permutationType    uint8 // 1,2,4, or 8
+	permutationType    uint8 // 0,1,2,3,4, or 8
 	permutationIndex   int   // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
 	permutationNegFlow bool  // true for backward flow in permutation
-	permutationOffset  int   // Offset in perm modulo
+	permutationOffset  int   // Offset in permutation to start with
 }
 
 var reverse2Map = [2]int{1,0}

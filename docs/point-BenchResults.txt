@@ -108,3 +108,15 @@ m3point 2019/04/12 23:32:17 m3trio.go:505: [INFO Number of connection details cr
 m3point 2019/04/12 23:34:15 m3growthctx_test.go:101: [INFO Max size for all context of type 2: 951,539, 22,555 with 125 runs]
 --- PASS: TestCtx2 (118.07s)
 PASS
+m3point 2019/04/13 20:15:12 m3conn.go:113: [INFO Number of connection details created 50]
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3point
+BenchmarkCtx1-8        	       1	5317932028 ns/op
+BenchmarkCtx2-8        	       1	42103731200 ns/op
+BenchmarkCtx3-8        	       1	24790163340 ns/op
+BenchmarkCtx4-8        	       1	114114485120 ns/op
+BenchmarkCtx8-8        	       1	221156763951 ns/op
+BenchmarkAllGrowth-8   	       1	46424469864 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3point	454.163s

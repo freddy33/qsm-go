@@ -274,7 +274,7 @@ func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection
 	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, &conn.P1,}
 }
 
-func getConnectionObjectType(cd m3point.ConnectionDetails) ObjectType {
+func getConnectionObjectType(cd *m3point.ConnectionDetails) ObjectType {
 	cdId := cd.GetIntId()
 	if cdId > 0 {
 		return ObjectType(int8(Connection00) + cdId*2)

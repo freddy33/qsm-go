@@ -251,7 +251,7 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 		if !ok {
 			Log.Fatalf("trying to create trio with vector not a connection %v", p)
 		} else {
-			cds[i] = &cd
+			cds[i] = cd
 		}
 	}
 	// Order based on connection details index, and if same index Pos > Neg
@@ -355,19 +355,12 @@ func fillAllTrioDetails() {
 				for k, cd1 := range tr1.Conns {
 					cd2 := tr2.Conns[k]
 					if cd1.GetIntId() != cd2.GetIntId() {
-						absDiff := cd1.GetPosIntId() - cd2.GetPosIntId()
-						if absDiff < 0 {
-							return true
-						} else if absDiff > 0 {
-							return false
-						} else {
-							return cd1.Id > 0
-						}
+						return IsLessConnId(cd1, cd2)
 					}
 				}
 			}
 		}
-		Log.Errorf("Should not get here for %v compare to %v", tr1, tr2)
+		Log.Errorf("Should not get here for %v compare to %v", *tr1, *tr2)
 		return false
 	})
 

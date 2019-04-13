@@ -198,7 +198,7 @@ func (conn *Connection) GetConnId() int8 {
 	return conn.Id
 }
 
-func (conn *Connection) GetConnectionDetails() m3point.ConnectionDetails {
+func (conn *Connection) GetConnectionDetails() *m3point.ConnectionDetails {
 	return m3point.GetConnDetailsById(conn.Id)
 }
 
