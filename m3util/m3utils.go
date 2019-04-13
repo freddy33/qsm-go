@@ -115,13 +115,13 @@ func (l *Logger) Errorf(format string, v ...interface{}) {
 func (l *Logger) Fatal(a ...interface{}) {
 	msg := fmt.Sprintln(a...)
 	l.log.Print("FATAL ", msg)
-	log.Fatal(msg)
+	panic(msg)
 }
 
 func (l *Logger) Fatalf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 	l.log.Println("FATAL", msg)
-	log.Fatal(msg)
+	panic(msg)
 }
 
 func ChangeToDocsGeneratedDir() {

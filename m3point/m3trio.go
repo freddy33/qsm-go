@@ -2,13 +2,13 @@ package m3point
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 	"sort"
 )
 
 type Trio [3]Point
 
 var AllBaseTrio [8]Trio
-var AllTrio []Trio
 
 var ValidNextTrio [12][2]int
 
@@ -16,16 +16,16 @@ var AllMod4Permutations [12][4]int
 
 var AllMod8Permutations [12][8]int
 
-var AllConnectionsPossible map[Point]ConnectionDetails
-var AllConnectionsIds map[int8]ConnectionDetails
-
-type ConnectionDetails struct {
-	Id     int8
-	Vector Point
-	ConnDS int64
+type TrioDetails struct {
+	Id    int
+	Conns [3]*ConnectionDetails
 }
 
-var EmptyConnDetails = ConnectionDetails{0, Origin, 0,}
+var AllTrioDetails [92]*TrioDetails
+
+/***************************************************************/
+// Init Functions
+/***************************************************************/
 
 func init() {
 	// Initial Trio 0
@@ -42,7 +42,7 @@ func init() {
 	initMod4Permutations()
 	initMod8Permutations()
 	initConnectionDetails()
-	fillAllTrio()
+	fillAllTrioDetails()
 }
 
 func initValidTrios() {
@@ -55,89 +55,6 @@ func initValidTrios() {
 				ValidNextTrio[idx] = [2]int{i, j}
 				idx++
 			}
-		}
-	}
-}
-
-type PermBuilder struct {
-	size      int
-	colIdx    int
-	collector [][]int
-}
-
-func samePermutation(p1, p2 []int) bool {
-	if len(p1) != len(p2) {
-		Log.Fatalf("cannot test 2 permutation of different sizes %v %v", p1, p2)
-	}
-	permSize := len(p1)
-	// Index in p2 of first entry in p1
-	idx0 := -1
-	for idx := 0; idx < permSize; idx++ {
-		if p2[idx] == p1[0] {
-			idx0 = idx
-			break
-		}
-	}
-	if idx0 == -1 {
-		// did not find p1[0] so not same permutation
-		return false
-	}
-	// Now they are same permutation if translation index of idx0 get same values
-	for idx := 0; idx < permSize; idx++ {
-		if p2[(idx0+idx)%permSize] != p1[idx] {
-			// just one failure means doom
-			return false
-		}
-	}
-	return true
-}
-
-func (p *PermBuilder) fill(pos int, current []int) {
-	if pos == p.size {
-		exists := false
-		for i := 0; i < p.colIdx; i++ {
-			if samePermutation(p.collector[i], current) {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			p.collector[p.colIdx] = current
-			p.colIdx++
-		}
-		return
-	}
-	for i := 0; i < 4; i++ {
-		// non prime index
-		newIndex := i
-		if pos%2 == 1 {
-			// prime index
-			newIndex = i + 4
-		}
-		usable := true
-		if pos-1 >= 0 {
-			// any index only once
-			for j := 0; j < pos-1; j++ {
-				if current[j] == newIndex {
-					usable = false
-				}
-			}
-			// Cannot have prime before
-			if isPrime(newIndex, current[pos-1]) {
-				usable = false
-			}
-		}
-		// If last cannot be prime with first
-		if pos+1 == p.size {
-			if isPrime(newIndex, current[0]) {
-				usable = false
-			}
-		}
-		if usable {
-			perm := make([]int, p.size)
-			copy(perm, current)
-			perm[pos] = newIndex
-			p.fill(pos+1, perm)
 		}
 	}
 }
@@ -192,31 +109,6 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	return res
 }
 
-func MakeTrio(points ...Point) Trio {
-	// All points should be a connection details
-	cds := make([]ConnectionDetails, 3)
-	for i, p := range points {
-		cd, ok := AllConnectionsPossible[p]
-		if !ok {
-			Log.Fatalf("trying to create trio with vector not a connection %v", p)
-		} else {
-			cds[i] = cd
-		}
-	}
-	// Order based on connection details index, and if same index Pos > Neg
-	sort.Slice(cds, func(i, j int) bool {
-		absDiff := cds[i].GetPosIntId() - cds[j].GetPosIntId()
-		if absDiff == 0 {
-			return cds[i].Id > 0
-		}
-		return absDiff < 0
-	})
-	return Trio{cds[0].Vector, cds[1].Vector, cds[2].Vector}
-}
-
-// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
-var PossibleDSArray = [4][3]int64{{2, 2, 2}, {1, 2, 3}, {2, 3, 3}, {2, 5, 5}}
-
 func (t Trio) GetDSIndex() int {
 	if t[0].DistanceSquared() == int64(1) {
 		return 1
@@ -232,78 +124,6 @@ func (t Trio) GetDSIndex() int {
 	}
 	Log.Errorf("Did not find correct index for %v", t)
 	return -1
-}
-
-func fillAllTrio() {
-	AllTrio = make([]Trio, 8, 30)
-	// All base trio first
-	for i, tr := range AllBaseTrio {
-		AllTrio[i] = tr
-	}
-	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
-	for _, tA := range AllBaseTrio {
-		for _, tB := range AllBaseTrio {
-			for _, nextTrio := range GetNextTrios(tA, tB) {
-				exists := false
-				for _, tr := range AllTrio {
-					if tr == nextTrio {
-						exists = true
-						break
-					}
-				}
-				if !exists {
-					AllTrio = append(AllTrio, nextTrio)
-				}
-			}
-		}
-	}
-
-	sort.SliceStable(AllTrio, func (i, j int) bool {
-		tr1 := AllTrio[i]
-		tr2 := AllTrio[j]
-		ds1Index := tr1.GetDSIndex()
-		diffDS := ds1Index - tr2.GetDSIndex()
-
-		// Order by ds index first
-		if diffDS < 0 {
-			return true
-		} else if diffDS > 0 {
-			return false
-		} else {
-			// Same ds index
-			if ds1Index == 0 {
-				// Base trio, keep order as defined with 0-4 prime -> 5-7
-				var k,l int
-				for bi, bt := range AllBaseTrio {
-					if bt == tr1 {
-						k = bi
-					}
-					if bt == tr2 {
-						l = bi
-					}
-				}
-				return k < l
-			} else {
-				// order by conn id, first ABS number, then pos > neg
-				for k1, v1 := range tr1 {
-					cd1 := AllConnectionsPossible[v1]
-					cd2 := AllConnectionsPossible[tr2[k1]]
-					if cd1.GetIntId() != cd2.GetIntId() {
-						absDiff := cd1.GetPosIntId() - cd2.GetPosIntId()
-						if absDiff < 0 {
-							return true
-						} else if absDiff > 0 {
-							return false
-						} else {
-							return cd1.Id > 0
-						}
-					}
-				}
-			}
-		}
-		Log.Errorf("Should not get here for %v compare to %v", tr1, tr2)
-		return false
-	})
 }
 
 func (t Trio) PlusX() Trio {
@@ -355,56 +175,6 @@ func GetNonBaseConnections(tA, tB Trio) [6]Point {
 			res[5] = ZFirst.Neg().Add(bVec).Sub(aVec)
 		}
 	}
-	return res
-}
-
-// Return the 3 new Trio out of Origin + tA
-func GetNextTrios(tA, tB Trio) [3]Trio {
-	// 0 z=0 for first element, x connector, y connector
-	// 1 y=0 for first element, x connector, z connector
-	// 2 x=0 for first element, y connector, z connector
-	res := [3]Trio{}
-
-	noZ := tA[0]
-	var xConn, yConn, zConn Point
-	if noZ.X() > 0 {
-		xConn = XFirst.Add(tB.getMinusXVector()).Sub(noZ)
-	} else {
-		xConn = XFirst.Neg().Add(tB.getPlusXVector()).Sub(noZ)
-	}
-	if noZ.Y() > 0 {
-		yConn = YFirst.Add(tB.getMinusYVector()).Sub(noZ)
-	} else {
-		yConn = YFirst.Neg().Add(tB.getPlusYVector()).Sub(noZ)
-	}
-	res[0] = MakeTrio(noZ.Neg(), xConn, yConn)
-
-	noY := tA[1]
-	if noY.X() > 0 {
-		xConn = XFirst.Add(tB.getMinusXVector()).Sub(noY)
-	} else {
-		xConn = XFirst.Neg().Add(tB.getPlusXVector()).Sub(noY)
-	}
-	if noY.Z() > 0 {
-		zConn = ZFirst.Add(tB.getMinusZVector()).Sub(noY)
-	} else {
-		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noY)
-	}
-	res[1] = MakeTrio(noY.Neg(), xConn, zConn)
-
-	noX := tA[2]
-	if noX.Y() > 0 {
-		yConn = YFirst.Add(tB.getMinusYVector()).Sub(noX)
-	} else {
-		yConn = YFirst.Neg().Add(tB.getPlusYVector()).Sub(noX)
-	}
-	if noX.Z() > 0 {
-		zConn = ZFirst.Add(tB.getMinusZVector()).Sub(noX)
-	} else {
-		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noX)
-	}
-	res[2] = MakeTrio(noX.Neg(), yConn, zConn)
-
 	return res
 }
 
@@ -469,139 +239,193 @@ func (t Trio) getMinusZVector() Point {
 }
 
 /***************************************************************/
-// ConnectionDetails Functions
+// TrioDetails Functions
 /***************************************************************/
+var count = 0
 
-func (cd ConnectionDetails) GetIntId() int8 {
-	return cd.Id
-}
-
-func (cd ConnectionDetails) GetPosIntId() int8 {
-	return Abs8(cd.Id)
-}
-
-func (cd ConnectionDetails) GetName() string {
-	if cd.Id < 0 {
-		return fmt.Sprintf("CN%02d", -cd.Id)
-	} else {
-		return fmt.Sprintf("CP%02d", cd.Id)
-	}
-}
-
-func initConnectionDetails() uint8 {
-	connMap := make(map[Point]ConnectionDetails)
-	// Going through all Trio and all combination of Trio, to aggregate connection details
-	for _, tr := range AllBaseTrio {
-		for _, vec := range tr {
-			addConnDetail(&connMap, vec)
+func MakeTrioDetails(points ...Point) *TrioDetails {
+	// All points should be a connection details
+	cds := make([]*ConnectionDetails, 3)
+	for i, p := range points {
+		cd, ok := AllConnectionsPossible[p]
+		if !ok {
+			Log.Fatalf("trying to create trio with vector not a connection %v", p)
+		} else {
+			cds[i] = &cd
 		}
+	}
+	// Order based on connection details index, and if same index Pos > Neg
+	sort.Slice(cds, func(i, j int) bool {
+		absDiff := cds[i].GetPosIntId() - cds[j].GetPosIntId()
+		if absDiff == 0 {
+			return cds[i].Id > 0
+		}
+		return absDiff < 0
+	})
+	res := TrioDetails{}
+	res.Id = -1
+	for i, cd := range cds {
+		res.Conns[i] = cd
+	}
+	if Log.Level <= m3util.TRACE {
+		fmt.Println(count, res.Conns[0].GetName(), res.Conns[1].GetName(), res.Conns[2].GetName())
+		count++
+	}
+	return &res
+}
+
+func (td *TrioDetails) GetTrio() Trio {
+	return Trio{td.Conns[0].Vector, td.Conns[1].Vector, td.Conns[2].Vector}
+}
+
+func (td *TrioDetails) GetDSIndex() int {
+	if td.Conns[0].DistanceSquared() == int64(1) {
+		return 1
+	} else {
+		switch td.Conns[1].DistanceSquared() {
+		case int64(2):
+			return 0
+		case int64(3):
+			return 2
+		case int64(5):
+			return 3
+		}
+	}
+	Log.Errorf("Did not find correct index for %v", *td)
+	return -1
+}
+
+func fillAllTrioDetails() {
+	allTDSlice := make([]*TrioDetails, 8, 92)
+	// All base trio first
+	for i, tr := range AllBaseTrio {
+		td := MakeTrioDetails(tr[0], tr[1], tr[2])
+		td.Id = i
+		allTDSlice[i] = td
+	}
+	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
+	for _, tA := range AllBaseTrio {
 		for _, tB := range AllBaseTrio {
-			connectingVectors := GetNonBaseConnections(tr, tB)
-			for _, conn := range connectingVectors {
-				addConnDetail(&connMap, conn)
+			for _, nextTrio := range getNextTriosDetails(tA, tB) {
+				exists := false
+				for _, tr := range allTDSlice {
+					if tr.GetTrio() == nextTrio.GetTrio() {
+						exists = true
+						break
+					}
+				}
+				if !exists {
+					allTDSlice = append(allTDSlice, nextTrio)
+				}
 			}
 		}
 	}
-	Log.Info("Number of connection details created", len(connMap))
-	nbConnDetails := int8(len(connMap) / 2)
 
-	// Reordering connection details number by size, and x, y, z
-	AllConnectionsIds = make(map[int8]ConnectionDetails)
-	for currentConnNumber := int8(1); currentConnNumber <= nbConnDetails; currentConnNumber++ {
-		smallestCD := ConnectionDetails{0, Origin, 0}
-		for _, cd := range connMap {
-			if cd.Id == int8(0) {
-				if smallestCD.Vector == Origin {
-					smallestCD = cd
-				} else if smallestCD.ConnDS > cd.ConnDS {
-					smallestCD = cd
-				} else if smallestCD.ConnDS == cd.ConnDS {
-					if Abs64(cd.Vector.X()) > Abs64(smallestCD.Vector.X()) {
-						smallestCD = cd
-					} else if Abs64(cd.Vector.X()) == Abs64(smallestCD.Vector.X()) && Abs64(cd.Vector.Y()) > Abs64(smallestCD.Vector.Y()) {
-						smallestCD = cd
-					} else if Abs64(cd.Vector.X()) == Abs64(smallestCD.Vector.X()) && Abs64(cd.Vector.Y()) == Abs64(smallestCD.Vector.Y()) && Abs64(cd.Vector.Z()) > Abs64(smallestCD.Vector.Z()) {
-						smallestCD = cd
+	if len(allTDSlice) != len(AllTrioDetails) {
+		Log.Fatalf("did not find all the correct trio details got %d instead of %d", len(allTDSlice), len(AllTrioDetails))
+	}
+
+	sort.SliceStable(allTDSlice, func(i, j int) bool {
+		tr1 := allTDSlice[i]
+		tr2 := allTDSlice[j]
+		ds1Index := tr1.GetDSIndex()
+		diffDS := ds1Index - tr2.GetDSIndex()
+
+		// Order by ds index first
+		if diffDS < 0 {
+			return true
+		} else if diffDS > 0 {
+			return false
+		} else {
+			// Same ds index
+			if ds1Index == 0 {
+				// Base trio, keep order as defined with 0-4 prime -> 5-7
+				var k, l int
+				for bi, bt := range AllBaseTrio {
+					if bt == tr1.GetTrio() {
+						k = bi
+					}
+					if bt == tr2.GetTrio() {
+						l = bi
+					}
+				}
+				return k < l
+			} else {
+				// order by conn id, first ABS number, then pos > neg
+				for k, cd1 := range tr1.Conns {
+					cd2 := tr2.Conns[k]
+					if cd1.GetIntId() != cd2.GetIntId() {
+						absDiff := cd1.GetPosIntId() - cd2.GetPosIntId()
+						if absDiff < 0 {
+							return true
+						} else if absDiff > 0 {
+							return false
+						} else {
+							return cd1.Id > 0
+						}
 					}
 				}
 			}
 		}
-		vec1 := smallestCD.Vector
-		vec2 := vec1.Neg()
-		var posVec, negVec Point
-		// first one with non 0 pos coord
-		for _, c := range vec1 {
-			if c > 0 {
-				posVec = vec1
-				negVec = vec2
-				break
-			} else if c < 0 {
-				posVec = vec2
-				negVec = vec1
-				break
-			}
+		Log.Errorf("Should not get here for %v compare to %v", tr1, tr2)
+		return false
+	})
+
+	for i, td := range allTDSlice {
+		if td.Id != -1 && td.Id != i {
+			Log.Fatalf("incorrect Id for trio details %v at %d", *td, i)
 		}
-
-		smallestCD = connMap[posVec]
-		smallestCD.Id = currentConnNumber
-		connMap[smallestCD.Vector] = smallestCD
-
-		negSmallestCD := connMap[negVec]
-		negSmallestCD.Id = -currentConnNumber
-		connMap[negVec] = negSmallestCD
-
-		AllConnectionsIds[smallestCD.GetIntId()] = smallestCD
-		AllConnectionsIds[negSmallestCD.GetIntId()] = negSmallestCD
-	}
-	AllConnectionsPossible = connMap
-
-	return uint8(nbConnDetails)
-}
-
-func addConnDetail(connMap *map[Point]ConnectionDetails, connVector Point) {
-	ds := connVector.DistanceSquared()
-	if ds == 0 {
-		panic("zero vector cannot be a connection")
-	}
-	if !(ds == 1 || ds == 2 || ds == 3 || ds == 5) {
-		panic(fmt.Sprintf("vector %v of ds=%d cannot be a connection", connVector, ds))
-	}
-	_, ok := (*connMap)[connVector]
-	if !ok {
-		// Consider negative if X, then Y, then Z is neg
-		// If vector negative need to flip
-		posVec := connVector
-		negVec := connVector.Neg()
-		if connVector.X() < 0 {
-			// flip
-			posVec = negVec
-			negVec = connVector
-		} else if connVector.X() == 0 {
-			if connVector.Y() < 0 {
-				// flip
-				posVec = negVec
-				negVec = connVector
-			} else if connVector.Y() == 0 {
-				if connVector.Z() < 0 {
-					// flip
-					posVec = negVec
-					negVec = connVector
-				}
-			}
-		}
-		posConnDetails := ConnectionDetails{0, posVec, ds,}
-		negConnDetails := ConnectionDetails{0, negVec, ds,}
-		(*connMap)[posVec] = posConnDetails
-		(*connMap)[negVec] = negConnDetails
+		td.Id = i
+		AllTrioDetails[i] = td
 	}
 }
 
-func GetConnectionDetails(p1, p2 Point) ConnectionDetails {
-	vector := MakeVector(p1, p2)
-	cd, ok := AllConnectionsPossible[vector]
-	if !ok {
-		Log.Error("Trying to connect to Pos", p1, p2, "that cannot be connected with any known connection details")
-		return EmptyConnDetails
+// Return the 3 new Trio out of Origin + tA
+func getNextTriosDetails(tA, tB Trio) [3]*TrioDetails {
+	// 0 z=0 for first element, x connector, y connector
+	// 1 y=0 for first element, x connector, z connector
+	// 2 x=0 for first element, y connector, z connector
+	res := [3]*TrioDetails{}
+
+	noZ := tA[0]
+	var xConn, yConn, zConn Point
+	if noZ.X() > 0 {
+		xConn = XFirst.Add(tB.getMinusXVector()).Sub(noZ)
+	} else {
+		xConn = XFirst.Neg().Add(tB.getPlusXVector()).Sub(noZ)
 	}
-	return cd
+	if noZ.Y() > 0 {
+		yConn = YFirst.Add(tB.getMinusYVector()).Sub(noZ)
+	} else {
+		yConn = YFirst.Neg().Add(tB.getPlusYVector()).Sub(noZ)
+	}
+	res[0] = MakeTrioDetails(noZ.Neg(), xConn, yConn)
+
+	noY := tA[1]
+	if noY.X() > 0 {
+		xConn = XFirst.Add(tB.getMinusXVector()).Sub(noY)
+	} else {
+		xConn = XFirst.Neg().Add(tB.getPlusXVector()).Sub(noY)
+	}
+	if noY.Z() > 0 {
+		zConn = ZFirst.Add(tB.getMinusZVector()).Sub(noY)
+	} else {
+		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noY)
+	}
+	res[1] = MakeTrioDetails(noY.Neg(), xConn, zConn)
+
+	noX := tA[2]
+	if noX.Y() > 0 {
+		yConn = YFirst.Add(tB.getMinusYVector()).Sub(noX)
+	} else {
+		yConn = YFirst.Neg().Add(tB.getPlusYVector()).Sub(noX)
+	}
+	if noX.Z() > 0 {
+		zConn = ZFirst.Add(tB.getMinusZVector()).Sub(noX)
+	} else {
+		zConn = ZFirst.Neg().Add(tB.getPlusZVector()).Sub(noX)
+	}
+	res[2] = MakeTrioDetails(noX.Neg(), yConn, zConn)
+
+	return res
 }

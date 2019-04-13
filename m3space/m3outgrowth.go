@@ -181,7 +181,7 @@ func (eo *EventOutgrowth) CameFromPoint(point m3point.Point) bool {
 		return false
 	}
 	for _, fromConnId := range eo.fromConnections {
-		cd := m3point.AllConnectionsIds[fromConnId]
+		cd := m3point.GetConnDetailsById(fromConnId)
 		if eo.pos.Add(cd.Vector) == point {
 			return true
 		}
@@ -258,7 +258,7 @@ func (seo *SavedEventOutgrowth) CameFromPoint(point m3point.Point) bool {
 		return false
 	}
 	for _, fromConnId := range seo.fromConnections {
-		cd := m3point.AllConnectionsIds[fromConnId]
+		cd := m3point.GetConnDetailsById(fromConnId)
 		if seo.pos.Add(cd.Vector) == point {
 			return true
 		}

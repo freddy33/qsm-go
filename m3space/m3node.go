@@ -199,7 +199,7 @@ func (conn *Connection) GetConnId() int8 {
 }
 
 func (conn *Connection) GetConnectionDetails() m3point.ConnectionDetails {
-	return m3point.AllConnectionsIds[conn.Id]
+	return m3point.GetConnDetailsById(conn.Id)
 }
 
 func (conn *Connection) IsConnectedTo(point m3point.Point) bool {
@@ -352,7 +352,7 @@ func (node *SavedNode) String() string {
 func (node *SavedNode) GetStateString() string {
 	connIds := make([]string, len(node.connections))
 	for i, connId := range node.connections {
-		connIds[i] = m3point.AllConnectionsIds[connId].GetName()
+		connIds[i] = m3point.GetConnDetailsById(connId).GetName()
 	}
 	if node.root {
 		return fmt.Sprintf("%s: root %v, %v", "Saved", node.accessedEventIDS, connIds)

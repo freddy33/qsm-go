@@ -400,8 +400,8 @@ func assertNearMainPoints(t *testing.T, space *Space) {
 			mainPointNode = node
 		} else {
 			for _, conn := range node.connections {
-				bv, ok := m3point.AllConnectionsIds[conn]
-				assert.True(t, ok, "Failed finding for %d", conn)
+				bv := m3point.GetConnDetailsById(conn)
+				assert.True(t, bv.Vector != m3point.Origin, "Failed finding for %d", conn)
 				P := node.Pos.Add(bv.Vector)
 				if P.IsMainPoint() {
 					mainPointNode = space.getAndActivateNode(P)

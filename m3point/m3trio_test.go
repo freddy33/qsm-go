@@ -7,40 +7,17 @@ import (
 	"testing"
 )
 
-func TestSamePermutation(t *testing.T) {
-	assert.True(t, samePermutation([]int{1, 2, 3, 4}, []int{1, 2, 3, 4}))
-	assert.True(t, samePermutation([]int{1, 2, 3, 4}, []int{4, 1, 2, 3}))
-	assert.True(t, samePermutation([]int{1, 2, 3, 4}, []int{3, 4, 1, 2}))
-	assert.True(t, samePermutation([]int{1, 2, 3, 4}, []int{2, 3, 4, 1}))
-
-	assert.False(t, samePermutation([]int{1, 2, 3, 4}, []int{1, 2, 4, 3}))
-	assert.False(t, samePermutation([]int{1, 2, 3, 4}, []int{3, 1, 2, 4}))
-}
-
-func TestPermBuilder(t *testing.T) {
-	Log.Level = m3util.DEBUG
-	p := PermBuilder{4, 0, make([][]int, 12)}
-	p.fill(0, make([]int, p.size))
-	fmt.Println(p.collector)
-	assert.Equal(t, 12, len(p.collector))
-	for i, c := range p.collector {
-		assert.Equal(t, 4, len(c), "population failed for %d %v", i, c)
-	}
-}
-
 func TestAllTrioBuilder(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
-	assert.Equal(t, 92, len(AllTrio))
-	indexInPossDS := make([]int, len(AllTrio))
-	for i, tr := range AllTrio {
+	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
+	PossibleDSArray := [4][3]int64{{2, 2, 2}, {1, 2, 3}, {2, 3, 3}, {2, 5, 5}}
+
+	assert.Equal(t, 92, len(AllTrioDetails))
+	indexInPossDS := make([]int, len(AllTrioDetails))
+	for i, tr := range AllTrioDetails {
 		// All vec should have conn details
-		cds := [3]ConnectionDetails{}
-		for j, v := range tr {
-			var ok bool
-			cds[j], ok = AllConnectionsPossible[v]
-			assert.True(t, ok, "Failed to find conn for %d = %v in trio %d = %v", j, v, i, tr)
-		}
+		cds := tr.Conns
 		// Conn ID increase always
 		assert.True(t, cds[0].GetPosIntId() <= cds[1].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, tr)
 		assert.True(t, cds[1].GetPosIntId() <= cds[2].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, tr)
@@ -60,14 +37,14 @@ func TestAllTrioBuilder(t *testing.T) {
 	// Check that All trio is ordered correctly
 	countPerIndex := [4]int{}
 	countPerIndexPerPosId := [4][10]int{}
-	for i, tr := range AllTrio {
+	for i, tr := range AllTrioDetails {
 		if i > 0 {
-			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrio[i-1], i, tr)
+			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
 		}
 
 		dsIndex := tr.GetDSIndex()
 		countPerIndex[dsIndex]++
-		countPerIndexPerPosId[dsIndex][AllConnectionsPossible[tr[0]].GetPosIntId()]++
+		countPerIndexPerPosId[dsIndex][tr.Conns[0].GetPosIntId()]++
 	}
 	assert.Equal(t, 8, countPerIndex[0])
 	assert.Equal(t, 3*8*2, countPerIndex[1])
@@ -193,146 +170,6 @@ func TestAllMod8Permutations(t *testing.T) {
 		}
 		assertAllIndexUsed(t, idxMap, 1, fmt.Sprint("in mod8 permutation[", i, "]=", permutMap))
 	}
-}
-
-func TestConnectionDetails(t *testing.T) {
-	Log.Level = m3util.DEBUG
-	for k, v := range AllConnectionsPossible {
-		assert.Equal(t, k, v.Vector)
-		currentNumber := v.GetPosIntId()
-		sameNumber := 0
-		for _, nv := range AllConnectionsPossible {
-			if nv.GetPosIntId() == currentNumber {
-				sameNumber++
-				if nv.Vector != v.Vector {
-					assert.Equal(t, nv.GetIntId(), -v.GetIntId(), "Should have opposite id")
-					assert.Equal(t, nv.Vector.Neg(), v.Vector, "Should have neg vector")
-				}
-			}
-		}
-		assert.Equal(t, 2, sameNumber, "Should have 2 with same conn number for %d", currentNumber)
-	}
-
-	countConnId := make(map[int8]int)
-	for i, tA := range AllBaseTrio {
-		for j, tB := range AllBaseTrio {
-			connVectors := GetNonBaseConnections(tA, tB)
-			for k, connVector := range connVectors {
-				connDetails, ok := AllConnectionsPossible[connVector]
-				assert.True(t, ok, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
-				assert.Equal(t, connVector, connDetails.Vector, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
-				countConnId[connDetails.GetIntId()]++
-			}
-		}
-	}
-	Log.Info("ConnId usage:", countConnId)
-
-	allCtx := getAllContexts()
-	assert.Equal(t, 5, len(allCtx))
-
-	nbCtx := 0
-	for _, contextList := range allCtx {
-		nbCtx += len(contextList)
-	}
-	Log.Info("Created", nbCtx, "contexts")
-	Log.Info("Using", len(allCtx[8]), " contexts from the 8 context")
-	// For all trioIndex rotations, any 2 close main points there should be a connection details
-	min := int64(-2) // -5
-	max := int64(2)  // 5
-	for _, ctx := range allCtx[8] {
-		for x := min; x < max; x++ {
-			for y := min; y < max; y++ {
-				for z := min; z < max; z++ {
-					mainPoint := Point{x, y, z}.Mul(3)
-					connectingVectors := ctx.GetTrio(mainPoint)
-					for _, cVec := range connectingVectors {
-
-						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Pos", mainPoint, "base vector", cVec))
-
-						nextMain := Origin
-						switch cVec.X() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(XFirst)
-						case -1:
-							nextMain = mainPoint.Sub(XFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with x value %d", cVec.X())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.X() == -cVec.X() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = Origin
-						switch cVec.Y() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(YFirst)
-						case -1:
-							nextMain = mainPoint.Sub(YFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with y value %d", cVec.Y())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Y() == -cVec.Y() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = Origin
-						switch cVec.Z() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(ZFirst)
-						case -1:
-							nextMain = mainPoint.Sub(ZFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with Z value %d", cVec.Z())
-						}
-						if nextMain != Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Z() == -cVec.Z() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-}
-
-func assertValidConnDetails(t *testing.T, p1, p2 Point, msg string) {
-	connDetails1 := GetConnectionDetails(p1, p2)
-	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
-	assert.Equal(t, MakeVector(p1, p2), connDetails1.Vector, msg)
-
-	connDetails2 := GetConnectionDetails(p2, p1)
-	assert.NotEqual(t, EmptyConnDetails, connDetails2, msg)
-	assert.Equal(t, MakeVector(p2, p1), connDetails2.Vector, msg)
 }
 
 func assertExistsInValidNextTrio(t *testing.T, startIdx int, endIdx int, msg string) {
