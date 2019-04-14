@@ -75,25 +75,11 @@ func TestAllTrioBuilder(t *testing.T) {
 		if i > 0 {
 			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
 		}
-		switch indexInPossDS[i] {
-		case 0:
+		if indexInPossDS[i] == 0 {
 			assert.Equal(t, 0, len(tr.links), "Nb links wrong for %v", tr.String())
-		case 1:
-			assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
-		case 2:
-			assert.Equal(t, 14, len(tr.links), "Nb links wrong for %v", tr.String())
-		case 3:
-			assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
-		case 4:
-			// Pattern here is that if conn pos id for tr[1] and tr[2] are non identical size is 8 otherwise 24
-			if tr.conns[1].GetPosIntId() == tr.conns[2].GetPosIntId() {
-				assert.Equal(t, 14, len(tr.links), "Nb links wrong for %v", tr.String())
-			} else {
-				assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
-			}
-		case 5:
-			assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
-		case 6:
+		} else if indexInPossDS[i] == 6 {
+			assert.Equal(t, 6, len(tr.links), "Nb links wrong for %v", tr.String())
+		} else {
 			assert.Equal(t, 8, len(tr.links), "Nb links wrong for %v", tr.String())
 		}
 		dsIndex := tr.GetDSIndex()

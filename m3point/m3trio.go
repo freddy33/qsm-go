@@ -4,25 +4,46 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"sort"
+	"strings"
 )
 
+// Trio of connection vectors from any point using connections only
 type Trio [3]Point
 
-var AllBaseTrio [8]Trio
+// Keeping track of how base trio connects
+type TrioLink struct {
+	// The trio index of the source
+	a int
+	// The 2 possible trio index of the destination
+	b, c int
+}
 
-var ValidNextTrio [12][2]int
+// Defining a list type to manage uniqueness and ordering
+type TrioLinkList []*TrioLink
 
-var AllMod4Permutations [12][4]int
-
-var AllMod8Permutations [12][8]int
-
+// A bigger struct than Trio to keep more info on how points grow from a trio index
 type TrioDetails struct {
 	id    int
 	conns [3]*ConnectionDetails
-	links [][3]int
+	links TrioLinkList
 }
 
-var AllTrioDetails [200]*TrioDetails
+// Defining a list type to manage uniqueness and ordering
+type TrioDetailList []*TrioDetails
+
+// All the initialized arrays used to navigate the switch between base trio index at base points
+var AllBaseTrio [8]Trio
+var ValidNextTrio [12][2]int
+var AllMod4Permutations [12][4]int
+var AllMod8Permutations [12][8]int
+
+const(
+	NbTrioDsIndex = 7
+)
+
+// All the possible Trio details used
+var AllTrioDetails TrioDetailList
+
 
 /***************************************************************/
 // Util Functions
@@ -43,6 +64,177 @@ func PosMod8(i uint64) uint64 {
 // Test if in the base trio index i2 is pointing to the negative trio of i1 T[i1] == T'[i2]
 func isPrime(i1, i2 int) bool {
 	return i2-i1 == 4 || i2-i1 == -4
+}
+
+/***************************************************************/
+// TrioLink Functions
+/***************************************************************/
+
+func makeTrioLink(a,b,c int) TrioLink {
+	// The destination should be ordered by smaller first
+	if c < b {
+		return TrioLink{a,c,b,}
+	}
+	return TrioLink{a,b,c,}
+}
+
+func (tl TrioLink) sameBC() bool {
+	return tl.b == tl.c
+}
+
+func (tl *TrioLink) String() string {
+	return fmt.Sprintf("[%d %d %d]", tl.a, tl.b, tl.c)
+}
+
+/***************************************************************/
+// TrioLinkList Functions
+/***************************************************************/
+
+func (l *TrioLinkList) exists(tl *TrioLink) bool {
+	present := false
+	for _, trL := range *l {
+		if *trL == *tl {
+			present = true
+			break
+		}
+	}
+	return present
+}
+
+func (l *TrioLinkList) addUnique(tl *TrioLink) bool {
+	b := l.exists(tl)
+	if !b {
+		*l = append(*l, tl)
+	}
+	return b
+}
+
+func (l *TrioLinkList) addAll(l2 *TrioLinkList) {
+	for _, tl := range *l2 {
+		l.addUnique(tl)
+	}
+}
+
+func (l TrioLinkList) String() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf( "%d : ", len(l)))
+	for _, tl := range l {
+		b.WriteString(tl.String())
+		b.WriteString(" ")
+	}
+	return b.String()
+}
+
+func (l TrioLinkList) Len() int {
+	return len(l)
+}
+
+func (l TrioLinkList) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+
+func (l TrioLinkList) Less(i, j int) bool {
+	t1 := l[i]
+	t2 := l[j]
+	d := t1.a - t2.a
+	if d != 0 {
+		return d < 0
+	}
+	d = t1.b - t2.b
+	if d != 0 {
+		return d < 0
+	}
+	d = t1.c - t2.c
+	if d != 0 {
+		return d < 0
+	}
+	return false
+}
+
+
+/***************************************************************/
+// TrioDetailsList Functions
+/***************************************************************/
+
+func (l *TrioDetailList) exists(tr *TrioDetails) bool {
+	present := false
+	for _, trL := range *l {
+		if trL.GetTrio() == tr.GetTrio() {
+			present = true
+			break
+		}
+	}
+	return present
+}
+
+func (l *TrioDetailList) addUnique(td *TrioDetails) bool {
+	b := l.exists(td)
+	if !b {
+		*l = append(*l, td)
+	}
+	return b
+}
+
+func (l *TrioDetailList) addWithLinks(td *TrioDetails) bool {
+	present := false
+	for _, trL := range *l {
+		if trL.GetTrio() == td.GetTrio() {
+			trL.links.addAll(&td.links)
+			present = true
+			break
+		}
+	}
+	if !present {
+		*l = append(*l, td)
+	}
+	return present
+}
+
+func (l TrioDetailList) Len() int {
+	return len(l)
+}
+
+func (l TrioDetailList) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
+
+func (l TrioDetailList) Less(i, j int) bool {
+	tr1 := l[i]
+	tr2 := l[j]
+	ds1Index := tr1.GetDSIndex()
+	diffDS := ds1Index - tr2.GetDSIndex()
+
+	// Order by ds index first
+	if diffDS < 0 {
+		return true
+	} else if diffDS > 0 {
+		return false
+	} else {
+		// Same ds index
+		if ds1Index == 0 {
+			// Base trio, keep order as defined with 0-4 prime -> 5-7
+			var k, l int
+			for bi, bt := range AllBaseTrio {
+				if bt == tr1.GetTrio() {
+					k = bi
+				}
+				if bt == tr2.GetTrio() {
+					l = bi
+				}
+			}
+			return k < l
+		} else {
+			// order by conn id, first ABS number, then pos > neg
+			for k, cd1 := range tr1.conns {
+				cd2 := tr2.conns[k]
+				if cd1.GetIntId() != cd2.GetIntId() {
+					return IsLessConnId(cd1, cd2)
+				}
+			}
+		}
+	}
+	Log.Errorf("Should not get here for %v compare to %v", *tr1, *tr2)
+	return false
 }
 
 /***************************************************************/
@@ -302,10 +494,6 @@ func (td *TrioDetails) GetTrio() Trio {
 	return Trio{td.conns[0].Vector, td.conns[1].Vector, td.conns[2].Vector}
 }
 
-const(
-	NbTrioDsIndex = 7
-)
-
 func (td *TrioDetails) GetDSIndex() int {
 	if td.conns[0].DistanceSquared() == int64(1) {
 		switch td.conns[1].DistanceSquared() {
@@ -339,79 +527,31 @@ func (td *TrioDetails) GetDSIndex() int {
 }
 
 func fillAllTrioDetails() {
-	allTDSlice := make([]*TrioDetails, 8, 92)
+	allTrioLinks := TrioLinkList{}
+	allTDSlice := TrioDetailList{}
 	// All base trio first
 	for i, tr := range AllBaseTrio {
 		td := MakeTrioDetails(tr[0], tr[1], tr[2])
 		td.id = i
-		allTDSlice[i] = td
+		allTDSlice.addUnique(td)
 	}
 	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
 	for a, tA := range AllBaseTrio {
 		for b, tB := range AllBaseTrio {
 			for c, tC := range AllBaseTrio {
-				thisTrio := [3]int{a,b,c}
-				for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
-					exists := false
-					for _, tr := range allTDSlice {
-						if tr.GetTrio() == nextTrio.GetTrio() {
-							exists = true
-							tr.links = append(tr.links, thisTrio)
-							break
-						}
-					}
-					if !exists {
-						nextTrio.links = make([][3]int, 1)
-						nextTrio.links[0] = thisTrio
-						allTDSlice = append(allTDSlice, nextTrio)
+				thisTrio := makeTrioLink(a,b,c)
+				alreadyDone := allTrioLinks.addUnique(&thisTrio)
+				if !alreadyDone {
+					for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
+						nextTrio.links.addUnique(&thisTrio)
+						allTDSlice.addWithLinks(nextTrio)
 					}
 				}
 			}
 		}
 	}
 
-	if len(allTDSlice) != len(AllTrioDetails) {
-		Log.Fatalf("did not find all the correct trio details got %d instead of %d", len(allTDSlice), len(AllTrioDetails))
-	}
-
-	sort.SliceStable(allTDSlice, func(i, j int) bool {
-		tr1 := allTDSlice[i]
-		tr2 := allTDSlice[j]
-		ds1Index := tr1.GetDSIndex()
-		diffDS := ds1Index - tr2.GetDSIndex()
-
-		// Order by ds index first
-		if diffDS < 0 {
-			return true
-		} else if diffDS > 0 {
-			return false
-		} else {
-			// Same ds index
-			if ds1Index == 0 {
-				// Base trio, keep order as defined with 0-4 prime -> 5-7
-				var k, l int
-				for bi, bt := range AllBaseTrio {
-					if bt == tr1.GetTrio() {
-						k = bi
-					}
-					if bt == tr2.GetTrio() {
-						l = bi
-					}
-				}
-				return k < l
-			} else {
-				// order by conn id, first ABS number, then pos > neg
-				for k, cd1 := range tr1.conns {
-					cd2 := tr2.conns[k]
-					if cd1.GetIntId() != cd2.GetIntId() {
-						return IsLessConnId(cd1, cd2)
-					}
-				}
-			}
-		}
-		Log.Errorf("Should not get here for %v compare to %v", *tr1, *tr2)
-		return false
-	})
+	sort.Sort(allTDSlice)
 
 	for i, td := range allTDSlice {
 		if td.id != -1 && td.id != i {
@@ -419,43 +559,12 @@ func fillAllTrioDetails() {
 		}
 		td.id = i
 		// Order the links array
-		sort.Slice(td.links, func(i,j int) bool {
-			t1 := td.links[i]
-			t2 := td.links[j]
-			for c := 0; c<3;c++ {
-				d := t1[c] - t2[c]
-				if d != 0 {
-					return d < 0
-				}
-			}
-			return false
-		})
-		AllTrioDetails[i] = td
+		sort.Sort(td.links)
 	}
+	AllTrioDetails = allTDSlice
 }
 
-type TrioDetailList []*TrioDetails
-
-func (l *TrioDetailList) exists(tr *TrioDetails) bool {
-	present := false
-	for _, trL := range *l {
-		if trL.GetTrio() == tr.GetTrio() {
-			present = true
-			break
-		}
-	}
-	return present
-}
-
-func (l *TrioDetailList) addUnique(tr *TrioDetails) bool {
-	b := l.exists(tr)
-	if !b {
-		*l = append(*l, tr)
-	}
-	return b
-}
-
-// Return the 6 new Trio out of Origin + tA (with next tB or tB/tC)
+// Return the new Trio out of Origin + tA (with next tB or tB/tC)
 func getNextTriosDetails(tA, tB, tC Trio) []*TrioDetails {
 	// 0 z=0 for first element, x connector, y connector
 	// 1 y=0 for first element, x connector, z connector

@@ -390,7 +390,7 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 				td := AllTrioDetails[tdIdx]
 				foundLink := false
 				for _, l := range td.links {
-					if l == link {
+					if *l == link {
 						foundLink = true
 						break
 					}
@@ -462,8 +462,8 @@ func EqualIntSlice(a, b []int) bool {
 }
 
 // Stupid reverse engineering of trio index that works for main and non main points
-func findTrioIndex(c Point, np [3]Point, ctx *GrowthContext) (int, [3]int) {
-	link := [3]int{getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx) }
+func findTrioIndex(c Point, np [3]Point, ctx *GrowthContext) (int, TrioLink) {
+	link := makeTrioLink(getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx))
 	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
 	for trIdx, td := range AllTrioDetails {
 		if toFind.GetTrio() == td.GetTrio() {
