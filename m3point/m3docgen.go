@@ -11,6 +11,7 @@ import (
 func WriteAllTables() {
 	m3util.ChangeToDocsGeneratedDir()
 	writeAllTrioTable()
+	writeAllTrioPermutationsTable()
 	writeTrioConnectionsTable()
 	writeAllConnectionDetails()
 }
@@ -214,6 +215,28 @@ func writeAllTrioTable() {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[1].Vector, td.Conns[1].GetName()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[2].Vector, td.Conns[2].GetName()))
 		m3util.WriteNextString(txtFile, "\n")
+	}
+}
+
+// Write all the 8 base vectors trio in text and CSV files
+func writeAllTrioPermutationsTable() {
+	txtFile, err := os.Create("AllTrioPermTable.txt")
+	if err != nil {
+		log.Fatal("Cannot create text file", err)
+	}
+	defer m3util.CloseFile(txtFile)
+
+	m3util.WriteNextString(txtFile, "Valid next Trio Index permutation 2\n")
+	for i, perm := range ValidNextTrio {
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
+	}
+	m3util.WriteNextString(txtFile, "\nAll Trio Index permutation 4\n")
+	for i, perm := range AllMod4Permutations {
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
+	}
+	m3util.WriteNextString(txtFile, "\nAll Trio Index permutation 8\n")
+	for i, perm := range AllMod8Permutations {
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}
 }
 

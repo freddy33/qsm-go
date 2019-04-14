@@ -75,7 +75,7 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 			10: noMainState(-79 + deltaT10FromIdx0),
 			11: noMainState(-131 + deltaT11FromIdx0),
 		}
-		assertSpaceStates(t, &space, expectedState, 10, evt.growthContext.GetContextString())
+		assertSpaceStates(t, &space, expectedState, 10, evt.growthContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -131,7 +131,7 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 			10: noMainState(-61 + deltaT10FromIdx0),
 			11: noMainState(-102 + deltaT11FromIdx0),
 		}
-		assertSpaceStates(t, &space, expectedState, 11, evt.growthContext.GetContextString())
+		assertSpaceStates(t, &space, expectedState, 11, evt.growthContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -186,7 +186,7 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 			10: noMainState(-80 + deltaT10FromIdx0),
 			11: noMainState(-133 + deltaT11FromIdx0),
 		}
-		assertSpaceStates(t, &space, expectedState, 11, evt.growthContext.GetContextString())
+		assertSpaceStates(t, &space, expectedState, 11, evt.growthContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -206,7 +206,7 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 		// Only latest counting
 		space.SetEventOutgrowthThreshold(Distance(0))
 
-		ctx := m3point.CreateGrowthContext(m3point.Origin, 1, trioIdx, false, 0)
+		ctx := m3point.CreateGrowthContext(m3point.Origin, 1, trioIdx, 0)
 		space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
 		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
@@ -227,7 +227,7 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 			13: deadState(-153, 24),
 			14: deadState(-202, 35),
 		}
-		assertSpaceStates(t, &space, expectedState, 14, ctx.GetContextString())
+		assertSpaceStates(t, &space, expectedState, 14, ctx.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -248,7 +248,7 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 		space.SetEventOutgrowthThreshold(Distance(0))
 		space.EventOutgrowthDeadThreshold = Distance(20)
 
-		ctx := m3point.CreateGrowthContext(m3point.Origin, 1, trioIdx, false, 0)
+		ctx := m3point.CreateGrowthContext(m3point.Origin, 1, trioIdx, 0)
 		space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
 		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
@@ -269,7 +269,7 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 			13: simpleState(-153, -1),
 			14: simpleState(-202, -1),
 		}
-		assertSpaceStates(t, &space, expectedState, 14, ctx.GetContextString())
+		assertSpaceStates(t, &space, expectedState, 14, ctx.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -287,7 +287,7 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 	assert.Equal(t, Distance(4), space.EventOutgrowthOldThreshold)
 
 	evt := space.CreateSingleEventCenter()
-	expectedContext := m3point.CreateGrowthContext(m3point.Origin, 8, 0, false, 0)
+	expectedContext := m3point.CreateGrowthContext(m3point.Origin, 8, 0, 0)
 	assert.Equal(t, *expectedContext, *evt.growthContext)
 
 	expectedState := map[TickTime]ExpectedSpaceState{
@@ -298,7 +298,7 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 		4: oldActiveState(-2, 12, 6),
 		5: oldActiveState(-10, 22, 4),
 	}
-	assertSpaceStates(t, &space, expectedState, 5, evt.growthContext.GetContextString())
+	assertSpaceStates(t, &space, expectedState, 5, evt.growthContext.String())
 }
 
 func assertEmptySpace(t *testing.T, space *Space, max int64) {

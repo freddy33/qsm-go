@@ -24,7 +24,29 @@ type TrioDetails struct {
 var AllTrioDetails [200]*TrioDetails
 
 /***************************************************************/
+// Util Functions
+/***************************************************************/
+
+func PosMod2(i uint64) uint64 {
+	return i & 0x0000000000000001
+}
+
+func PosMod4(i uint64) uint64 {
+	return i & 0x0000000000000003
+}
+
+func PosMod8(i uint64) uint64 {
+	return i & 0x0000000000000007
+}
+
+// Test if in the base trio index i2 is pointing to the negative trio of i1 T[i1] == T'[i2]
+func isPrime(i1, i2 int) bool {
+	return i2-i1 == 4 || i2-i1 == -4
+}
+
+/***************************************************************/
 // Init Functions
+// TODO: Find a better way than Init
 /***************************************************************/
 
 func init() {
@@ -80,10 +102,6 @@ func initMod8Permutations() {
 			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
 		}
 	}
-}
-
-func isPrime(i1, i2 int) bool {
-	return i2-i1 == 4 || i2-i1 == -4
 }
 
 /***************************************************************/
@@ -283,7 +301,7 @@ func (td *TrioDetails) GetTrio() Trio {
 }
 
 const(
-	NB_TRIO_DS_INDEX = 7
+	NbTrioDsIndex = 7
 )
 
 func (td *TrioDetails) GetDSIndex() int {

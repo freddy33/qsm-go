@@ -232,31 +232,13 @@ func getAllTestContexts() map[ContextType][]GrowthContext {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		maxOffset := maxOffsetPerType[ctxType]
-		if ctxType.IsPermutation() {
-			// Has pos and neg flow
-			res[ctxType] = make([]GrowthContext, nbIndexes*maxOffset*2)
-		} else {
-			res[ctxType] = make([]GrowthContext, nbIndexes*maxOffset)
-		}
+		res[ctxType] = make([]GrowthContext, nbIndexes*maxOffset)
 		idx := 0
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			rootCtx := GetRootContext(ctxType, pIdx)
-			if maxOffset == 1 {
-				res[ctxType][idx] = *rootCtx
+			rootCtx := GetTrioIndexContext(ctxType, pIdx)
+			for offset := 0; offset < maxOffset; offset++ {
+				res[ctxType][idx] = *CreateFromRoot(rootCtx, Origin, offset)
 				idx++
-			} else {
-				for offset := 0; offset < maxOffset; offset++ {
-					if ctxType.IsPermutation() {
-						// Has pos and neg flow
-						res[ctxType][idx] = *CreateFromRoot(rootCtx, Origin, false, offset)
-						idx++
-						res[ctxType][idx] = *CreateFromRoot(rootCtx, Origin, true, offset)
-						idx++
-					} else {
-						res[ctxType][idx] = *CreateFromRoot(rootCtx, Origin, false, offset)
-						idx++
-					}
-				}
 			}
 		}
 	}
@@ -272,12 +254,11 @@ func TestDivByThree(t *testing.T) {
 func runDivByThree(t assert.TestingT) {
 	Log.Level = m3util.DEBUG
 	someCenter1 := Point{3, -6, 9}
-	ctx := GrowthContext{someCenter1, 1, 1, false, 0,}
+	ctx := CreateGrowthContext(someCenter1, 1, 1, 0)
 	assert.Equal(t, someCenter1, ctx.center)
-	assert.Equal(t, ContextType(1), ctx.permutationType)
-	assert.Equal(t, 1, ctx.permutationIndex)
-	assert.Equal(t, false, ctx.permutationNegFlow)
-	assert.Equal(t, 0, ctx.permutationOffset)
+	assert.Equal(t, ContextType(1), ctx.ctxType)
+	assert.Equal(t, 1, ctx.ctxIndex)
+	assert.Equal(t, 0, ctx.offset)
 
 	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{0, -6, 9}))
 	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{6, -6, 9}))
@@ -297,21 +278,18 @@ func runDivByThree(t assert.TestingT) {
 
 func TestGrowthContext1(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	ctx := GrowthContext{Origin, 1, 3, false, 0,}
-	assert.Equal(t, ContextType(1), ctx.permutationType)
-	assert.Equal(t, 3, ctx.permutationIndex)
-	assert.Equal(t, false, ctx.permutationNegFlow)
-	assert.Equal(t, 0, ctx.permutationOffset)
+	ctx := CreateGrowthContext(Origin, 1, 3, 0)
+	assert.Equal(t, ContextType(1), ctx.ctxType)
+	assert.Equal(t, 3, ctx.ctxIndex)
+	assert.Equal(t, 0, ctx.offset)
 	for d := uint64(0); d < 30; d++ {
 		assert.Equal(t, 3, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
 	}
-	ctx.permutationIndex = 4
-	ctx.permutationNegFlow = true
-	ctx.permutationOffset = 2
-	assert.Equal(t, ContextType(1), ctx.permutationType)
-	assert.Equal(t, 4, ctx.permutationIndex)
-	assert.Equal(t, true, ctx.permutationNegFlow)
-	assert.Equal(t, 2, ctx.permutationOffset)
+	ctx.ctxIndex = 4
+	ctx.offset = 2
+	assert.Equal(t, ContextType(1), ctx.ctxType)
+	assert.Equal(t, 4, ctx.ctxIndex)
+	assert.Equal(t, 2, ctx.offset)
 	for d := uint64(0); d < 30; d++ {
 		assert.Equal(t, 4, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
 	}
@@ -321,11 +299,10 @@ func TestGrowthContext3(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
 	for idx := 0; idx < 4; idx++ {
-		ctx := GrowthContext{Origin, 3, idx, false, 0,}
-		assert.Equal(t, ContextType(3), ctx.permutationType)
-		assert.Equal(t, idx, ctx.permutationIndex)
-		assert.Equal(t, false, ctx.permutationNegFlow)
-		assert.Equal(t, 0, ctx.permutationOffset)
+		ctx := CreateGrowthContext(Origin, 3, idx, 0)
+		assert.Equal(t, ContextType(3), ctx.ctxType)
+		assert.Equal(t, idx, ctx.ctxIndex)
+		assert.Equal(t, 0, ctx.offset)
 		for d := uint64(0); d < 9; d++ {
 			if d%2 == 0 {
 				assert.Equal(t, idx, ctx.GetTrioIndex(d), "failed trio index for ctx %v step %d", ctx, d)
@@ -349,80 +326,47 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 
 	growthContexts := getAllTestContexts()
 	for _, ctx := range growthContexts[1] {
-		assert.Equal(t, ContextType(1), ctx.permutationType)
+		assert.Equal(t, ContextType(1), ctx.ctxType)
 		for d := uint64(0); d < 30; d++ {
-			assert.Equal(t, ctx.permutationIndex, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
+			assert.Equal(t, ctx.ctxIndex, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx.String(), d)
 		}
 	}
 
 	for _, ctx := range growthContexts[2] {
-		assert.Equal(t, ContextType(2), ctx.permutationType)
-		oneTwo := ValidNextTrio[ctx.permutationIndex]
-		twoIdx := ctx.permutationOffset
-		if ctx.permutationNegFlow {
-			twoIdx = reverse2Map[twoIdx]
-		}
+		assert.Equal(t, ContextType(2), ctx.ctxType)
+		oneTwo := ValidNextTrio[ctx.ctxIndex]
+		twoIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
-			assert.Equal(t, oneTwo[twoIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d twoIdx=%d", ctx, d, twoIdx)
-			// Positive flow
-			if ctx.permutationNegFlow {
-				twoIdx--
-				if twoIdx == -1 {
-					twoIdx = 1
-				}
-			} else {
-				twoIdx++
-				if twoIdx == 2 {
-					twoIdx = 0
-				}
+			assert.Equal(t, oneTwo[twoIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d twoIdx=%d in %v", ctx.String(), d, twoIdx, oneTwo)
+			twoIdx++
+			if twoIdx == 2 {
+				twoIdx = 0
 			}
 		}
 	}
 
 	for _, ctx := range growthContexts[4] {
-		assert.Equal(t, ContextType(4), ctx.permutationType)
-		oneToFour := AllMod4Permutations[ctx.permutationIndex]
-		fourIdx := ctx.permutationOffset
-		if ctx.permutationNegFlow {
-			fourIdx = reverse4Map[fourIdx]
-		}
+		assert.Equal(t, ContextType(4), ctx.ctxType)
+		oneToFour := AllMod4Permutations[ctx.ctxIndex]
+		fourIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
-			assert.Equal(t, oneToFour[fourIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d fourIdx=%d", ctx, d, fourIdx)
-			// Positive flow
-			if ctx.permutationNegFlow {
-				fourIdx--
-				if fourIdx == -1 {
-					fourIdx = 3
-				}
-			} else {
-				fourIdx++
-				if fourIdx == 4 {
-					fourIdx = 0
-				}
+			assert.Equal(t, oneToFour[fourIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d fourIdx=%d in %v", ctx.String(), d, fourIdx, oneToFour)
+			fourIdx++
+			if fourIdx == 4 {
+				fourIdx = 0
 			}
 		}
 	}
 
 	for _, ctx := range growthContexts[8] {
-		assert.Equal(t, ContextType(8), ctx.permutationType)
-		oneToEight := AllMod8Permutations[ctx.permutationIndex]
-		eightIdx := ctx.permutationOffset
-		if ctx.permutationNegFlow {
-			eightIdx = reverse8Map[eightIdx]
-		}
+		assert.Equal(t, ContextType(8), ctx.ctxType)
+		oneToEight := AllMod8Permutations[ctx.ctxIndex]
+		eightIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
-			assert.Equal(t, oneToEight[eightIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d eightIdx=%d", ctx, d, eightIdx)
-			// Positive flow
-			if ctx.permutationNegFlow {
-				eightIdx--
-				if eightIdx == -1 {
-					eightIdx = 7
-				}
-			} else {
-				eightIdx++
-				if eightIdx == 8 {
-					eightIdx = 0
-				}
+			assert.Equal(t, oneToEight[eightIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d eightIdx=%d in %v", ctx.String(), d, eightIdx, oneToEight)
+			eightIdx++
+			if eightIdx == 8 {
+				eightIdx = 0
 			}
 		}
 	}
@@ -440,13 +384,13 @@ func TestTrioListPerContext(t *testing.T) {
 			if stableStep == -1 {
 				stableStep = s
 			} else {
-				assert.Equal(t, stableStep, s, "failed same stable step for %s", ctx.GetContextString())
+				assert.Equal(t, stableStep, s, "failed same stable step for %s", ctx.String())
 			}
-			curList, ok := indexList[ctx.permutationIndex]
+			curList, ok := indexList[ctx.ctxIndex]
 			if !ok {
-				indexList[ctx.permutationIndex] = l
+				indexList[ctx.ctxIndex] = l
 			} else {
-				assert.True(t, EqualIntSlice(curList, l), "failed same index list for %s %v != %v", ctx.GetContextString(), curList, l)
+				assert.True(t, EqualIntSlice(curList, l), "failed same index list for %s %v != %v", ctx.String(), curList, l)
 			}
 		}
 	}
@@ -490,7 +434,7 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 				}
 			} else {
 				stepConflictCount[p]++
-				assert.Equal(t, existingIdx, tIdx, "conflict on %v step %d ctx %s", p, d, ctx.GetContextString())
+				assert.Equal(t, existingIdx, tIdx, "conflict on %v step %d ctx %s", p, d, ctx.String())
 			}
 		}
 		stepConflictSummary := make(map[int]int)
@@ -521,7 +465,7 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 
 		latestPoints = newPoints
 	}
-	Log.Debug(ctx.GetContextString(), stepStable-verifyStable, currentIndexList)
+	Log.Debug(ctx.String(), stepStable-verifyStable, currentIndexList)
 
 	return stepStable - verifyStable, currentIndexList
 }

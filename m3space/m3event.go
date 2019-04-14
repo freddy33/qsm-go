@@ -45,7 +45,7 @@ type SavedEvent struct {
 }
 
 func (space *Space) CreateEvent(p m3point.Point, k EventColor) *Event {
-	ctx := m3point.CreateGrowthContext(m3point.Origin, 8, 0, false, 0)
+	ctx := m3point.CreateGrowthContext(m3point.Origin, 8, 0, 0)
 	switch k {
 	case RedEvent:
 		// No change

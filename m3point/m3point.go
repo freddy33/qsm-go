@@ -19,130 +19,9 @@ var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
 
-func MakeVector(p1,p2 Point) Point {
-	return p2.Sub(p1)
-}
-
-func (p Point) String() string {
-	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
-}
-
-func (p Point) GetNearMainPoint() Point {
-	res := Point{}
-	for i, c := range p {
-		switch c % THREE {
-		case 0:
-			res[i] = c
-		case 1:
-			res[i] = c - 1
-		case 2:
-			res[i] = c + 1
-		case -1:
-			res[i] = c + 1
-		case -2:
-			res[i] = c - 1
-		}
-	}
-	return res
-}
-
-// Give the 3 next points of a given node activated in the context of the current event.
-// Return a clean new array not interacting with existing nodes, just the points extensions here based on the permutations.
-// TODO (in the calling method): If the node already connected,
-// TODO: only the connecting points that natches the normal event growth permutation cycle are returned.
-func (currentPoint Point) GetNextPoints(ctx *GrowthContext) [3]Point {
-	result := [3]Point{}
-	if currentPoint.IsMainPoint() {
-		trio := ctx.GetTrio(currentPoint)
-		for i, tr := range trio {
-			result[i] = currentPoint.Add(tr)
-		}
-		return result
-	}
-	mainPoint := currentPoint.GetNearMainPoint()
-	result[0] = mainPoint
-	cVec := currentPoint.Sub(mainPoint)
-	nextPoints := mainPoint.getNextPointsFromMainAndVector(cVec, ctx)
-	result[1] = nextPoints[0]
-	result[2] = nextPoints[1]
-	return result
-}
-
-func (mainPoint Point) getNextPointsFromMainAndVector(cVec Point, ctx *GrowthContext) [2]Point {
-	if !cVec.IsBaseConnectingVector() {
-		Log.Fatalf("cannot do getNextPointsFromMainAndVector if %v not main base vector", cVec)
-	}
-	offset := 0
-	result := [2]Point{}
-
-	nextMain := mainPoint
-	switch cVec.X() {
-	case 0:
-		// Nothing out
-	case 1:
-		nextMain = mainPoint.Add(XFirst)
-	case -1:
-		nextMain = mainPoint.Sub(XFirst)
-	default:
-		Log.Errorf("There should not be a connecting vector with x value %d\n", cVec.X())
-		return result
-	}
-	if nextMain != mainPoint {
-		// Find the base Pos on the other side ( the opposite 1 or -1 on X() )
-		nextConnectingVectors := ctx.GetTrio(nextMain)
-		for _, nbp := range nextConnectingVectors {
-			if nbp.X() == -cVec.X() {
-				result[offset] = nextMain.Add(nbp)
-				offset++
-			}
-		}
-	}
-
-	nextMain = mainPoint
-	switch cVec.Y() {
-	case 0:
-		// Nothing out
-	case 1:
-		nextMain = mainPoint.Add(YFirst)
-	case -1:
-		nextMain = mainPoint.Sub(YFirst)
-	default:
-		Log.Errorf("There should not be a connecting vector with y value %d\n", cVec.Y())
-	}
-	if nextMain != mainPoint {
-		// Find the base Pos on the other side ( the opposite 1 or -1 on Y() )
-		nextConnectingVectors := ctx.GetTrio(nextMain)
-		for _, nbp := range nextConnectingVectors {
-			if nbp.Y() == -cVec.Y() {
-				result[offset] = nextMain.Add(nbp)
-				offset++
-			}
-		}
-	}
-
-	nextMain = mainPoint
-	switch cVec.Z() {
-	case 0:
-		// Nothing out
-	case 1:
-		nextMain = mainPoint.Add(ZFirst)
-	case -1:
-		nextMain = mainPoint.Sub(ZFirst)
-	default:
-		Log.Errorf("There should not be a connecting vector with z value %d\n", cVec.Z())
-	}
-	if nextMain != mainPoint {
-		// Find the base Pos on the other side ( the opposite 1 or -1 on Z() )
-		nextConnectingVectors := ctx.GetTrio(nextMain)
-		for _, nbp := range nextConnectingVectors {
-			if nbp.Z() == -cVec.Z() {
-				result[offset] = nextMain.Add(nbp)
-				offset++
-			}
-		}
-	}
-	return result
-}
+/***************************************************************/
+// Util Functions
+/***************************************************************/
 
 func Abs64(i int64) int64 {
 	if i < 0 {
@@ -156,6 +35,26 @@ func Abs8(i int8) int8 {
 		return -i
 	}
 	return i
+}
+
+func DS(p1, p2 Point) int64 {
+	x := p2.X() - p1.X()
+	y := p2.Y() - p1.Y()
+	z := p2.Z() - p1.Z()
+	return x*x + y*y + z*z
+}
+
+/***************************************************************/
+// Point Functions for ALL points not only main
+// TODO: Make MainPoint a type
+/***************************************************************/
+
+func MakeVector(p1,p2 Point) Point {
+	return p2.Sub(p1)
+}
+
+func (p Point) String() string {
+	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
 }
 
 func (p Point) X() int64 {
@@ -174,12 +73,12 @@ func (p Point) Mul(m int64) Point {
 	return Point{p[0] * m, p[1] * m, p[2] * m}
 }
 
-func (p1 Point) Add(p2 Point) Point {
-	return Point{p1[0] + p2[0], p1[1] + p2[1], p1[2] + p2[2]}
+func (p Point) Add(p2 Point) Point {
+	return Point{p[0] + p2[0], p[1] + p2[1], p[2] + p2[2]}
 }
 
-func (p1 Point) Sub(p2 Point) Point {
-	return Point{p1[0] - p2[0], p1[1] - p2[1], p1[2] - p2[2]}
+func (p Point) Sub(p2 Point) Point {
+	return Point{p[0] - p2[0], p[1] - p2[1], p[2] - p2[2]}
 }
 
 func (p Point) Neg() Point {
@@ -214,13 +113,6 @@ func (p Point) PlusZ() Point {
 // Negative PI/2 rotation on X
 func (p Point) NegZ() Point {
 	return Point{p[1], -p[0], p[2]}
-}
-
-func DS(p1, p2 Point) int64 {
-	x := p2.X() - p1.X()
-	y := p2.Y() - p1.Y()
-	z := p2.Z() - p1.Z()
-	return x*x + y*y + z*z
 }
 
 func (p Point) DistanceSquared() int64 {
@@ -302,4 +194,126 @@ func (p Point) IsOutBorder(max int64) bool {
 		}
 	}
 	return false
+}
+
+func (p Point) GetNearMainPoint() Point {
+	res := Point{}
+	for i, c := range p {
+		switch c % THREE {
+		case 0:
+			res[i] = c
+		case 1:
+			res[i] = c - 1
+		case 2:
+			res[i] = c + 1
+		case -1:
+			res[i] = c + 1
+		case -2:
+			res[i] = c - 1
+		}
+	}
+	return res
+}
+
+// Give the 3 next points of a given node activated in the context of the current event.
+// Return a clean new array not interacting with existing nodes, just the points extensions here based on the permutations.
+// TODO (in the calling method): If the node already connected,
+// TODO: only the connecting points that natches the normal event growth permutation cycle are returned.
+func (p Point) GetNextPoints(ctx *GrowthContext) [3]Point {
+	result := [3]Point{}
+	if p.IsMainPoint() {
+		trio := ctx.GetTrio(p)
+		for i, tr := range trio {
+			result[i] = p.Add(tr)
+		}
+		return result
+	}
+	mainPoint := p.GetNearMainPoint()
+	result[0] = mainPoint
+	cVec := p.Sub(mainPoint)
+	nextPoints := getNextPointsFromMainAndVector(mainPoint, cVec, ctx)
+	result[1] = nextPoints[0]
+	result[2] = nextPoints[1]
+	return result
+}
+
+/***************************************************************/
+// Point Functions for only main points (all coord dividable by 3)
+// TODO: Make MainPoint a type
+/***************************************************************/
+
+func getNextPointsFromMainAndVector(mainPoint Point, cVec Point, ctx *GrowthContext) [2]Point {
+	if !cVec.IsBaseConnectingVector() {
+		Log.Fatalf("cannot do getNextPointsFromMainAndVector if %v not main base vector", cVec)
+	}
+	offset := 0
+	result := [2]Point{}
+
+	nextMain := mainPoint
+	switch cVec.X() {
+	case 0:
+		// Nothing out
+	case 1:
+		nextMain = mainPoint.Add(XFirst)
+	case -1:
+		nextMain = mainPoint.Sub(XFirst)
+	default:
+		Log.Errorf("There should not be a connecting vector with x value %d\n", cVec.X())
+		return result
+	}
+	if nextMain != mainPoint {
+		// Find the base Pos on the other side ( the opposite 1 or -1 on X() )
+		nextConnectingVectors := ctx.GetTrio(nextMain)
+		for _, nbp := range nextConnectingVectors {
+			if nbp.X() == -cVec.X() {
+				result[offset] = nextMain.Add(nbp)
+				offset++
+			}
+		}
+	}
+
+	nextMain = mainPoint
+	switch cVec.Y() {
+	case 0:
+		// Nothing out
+	case 1:
+		nextMain = mainPoint.Add(YFirst)
+	case -1:
+		nextMain = mainPoint.Sub(YFirst)
+	default:
+		Log.Errorf("There should not be a connecting vector with y value %d\n", cVec.Y())
+	}
+	if nextMain != mainPoint {
+		// Find the base Pos on the other side ( the opposite 1 or -1 on Y() )
+		nextConnectingVectors := ctx.GetTrio(nextMain)
+		for _, nbp := range nextConnectingVectors {
+			if nbp.Y() == -cVec.Y() {
+				result[offset] = nextMain.Add(nbp)
+				offset++
+			}
+		}
+	}
+
+	nextMain = mainPoint
+	switch cVec.Z() {
+	case 0:
+		// Nothing out
+	case 1:
+		nextMain = mainPoint.Add(ZFirst)
+	case -1:
+		nextMain = mainPoint.Sub(ZFirst)
+	default:
+		Log.Errorf("There should not be a connecting vector with z value %d\n", cVec.Z())
+	}
+	if nextMain != mainPoint {
+		// Find the base Pos on the other side ( the opposite 1 or -1 on Z() )
+		nextConnectingVectors := ctx.GetTrio(nextMain)
+		for _, nbp := range nextConnectingVectors {
+			if nbp.Z() == -cVec.Z() {
+				result[offset] = nextMain.Add(nbp)
+				offset++
+			}
+		}
+	}
+	return result
 }

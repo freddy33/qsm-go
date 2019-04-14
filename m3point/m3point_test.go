@@ -17,13 +17,13 @@ func TestDS(t *testing.T) {
 	assert.Equal(t, int64(1), DS(Point{1,2,3}, Point{1,2,4}))
 	assert.Equal(t, int64(1), DS(Point{1,2,3}, Point{1,2,2}))
 
-	assert.Equal(t, int64(3), DS(Point{1,1,1}, Origin))
-	assert.Equal(t, int64(3), DS(Point{-1,1,1}, Origin))
-	assert.Equal(t, int64(3), DS(Point{1,-1,1}, Origin))
-	assert.Equal(t, int64(3), DS(Point{1,1,-1}, Origin))
-	assert.Equal(t, int64(3), DS(Point{-1,-1,-1}, Origin))
+	assert.Equal(t, int64(3), Point{1,1,1}.DistanceSquared())
+	assert.Equal(t, int64(3), Point{-1,1,1}.DistanceSquared())
+	assert.Equal(t, int64(3), Point{1,-1,1}.DistanceSquared())
+	assert.Equal(t, int64(3), Point{1,1,-1}.DistanceSquared())
+	assert.Equal(t, int64(3), Point{-1,-1,-1}.DistanceSquared())
 
-	assert.Equal(t, int64(14), DS(Point{1,2,3}, Origin))
+	assert.Equal(t, int64(14), Point{1,2,3}.DistanceSquared())
 
 	assert.Equal(t, int64(0), DS(Point{-3,-2,-1}, Point{-3,-2,-1}))
 	assert.Equal(t, int64(3), DS(Point{-3,-2,-1}, Point{-2,-1,0}))

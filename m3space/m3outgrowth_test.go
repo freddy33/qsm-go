@@ -76,7 +76,7 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 3, space.blockOnSameEvent)
 
 	// Test center is overridden
-	ctx := m3point.CreateGrowthContext(m3point.Point{5, 6, 7}, 1, 0, false, 0)
+	ctx := m3point.CreateGrowthContext(m3point.Point{5, 6, 7}, 1, 0, 0)
 	evt := space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
 	assert.Equal(t, m3point.Origin, ctx.GetCenter())
@@ -182,7 +182,7 @@ func TestOverlapSameEvent(t *testing.T) {
 	// Only latest counting
 	space.SetEventOutgrowthThreshold(Distance(0))
 	space.blockOnSameEvent = 4
-	ctx := m3point.CreateGrowthContext(m3point.Origin, 1, 0, false, 0)
+	ctx := m3point.CreateGrowthContext(m3point.Origin, 1, 0, 0)
 	space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
 	expectedTime := TickTime(0)

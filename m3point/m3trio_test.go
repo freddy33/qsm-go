@@ -11,7 +11,7 @@ func TestAllTrioBuilder(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
-	PossibleDSArray := [NB_TRIO_DS_INDEX][3]int64{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
+	PossibleDSArray := [NbTrioDsIndex][3]int64{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
 
 	assert.Equal(t, 200, len(AllTrioDetails))
 	indexInPossDS := make([]int, len(AllTrioDetails))
@@ -35,8 +35,8 @@ func TestAllTrioBuilder(t *testing.T) {
 	}
 
 	// Check that All trio is ordered correctly
-	countPerIndex := [NB_TRIO_DS_INDEX]int{}
-	countPerIndexPerFirstConnPosId := [NB_TRIO_DS_INDEX][10]int{}
+	countPerIndex := [NbTrioDsIndex]int{}
+	countPerIndexPerFirstConnPosId := [NbTrioDsIndex][10]int{}
 	for i, tr := range AllTrioDetails {
 		if i > 0 {
 			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
@@ -120,7 +120,7 @@ func TestInitialTrioConnectingVectors(t *testing.T) {
 	assert.Equal(t, AllBaseTrio[4][2], Point{0, 1, -1})
 }
 
-func TestAllTrio(t *testing.T) {
+func TestAllBaseTrio(t *testing.T) {
 	Log.Level = m3util.DEBUG
 	for i, tr := range AllBaseTrio {
 		assert.Equal(t, int64(0), tr[0][2], "Failed on Trio %d", i)
