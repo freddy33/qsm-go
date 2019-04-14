@@ -17,7 +17,7 @@ func TestAllTrioBuilder(t *testing.T) {
 	indexInPossDS := make([]int, len(AllTrioDetails))
 	for i, td := range AllTrioDetails {
 		// All vec should have conn details
-		cds := td.Conns
+		cds := td.conns
 		// Conn ID increase always
 		assert.True(t, cds[0].GetPosIntId() <= cds[1].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
 		assert.True(t, cds[1].GetPosIntId() <= cds[2].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
@@ -44,7 +44,7 @@ func TestAllTrioBuilder(t *testing.T) {
 
 		dsIndex := tr.GetDSIndex()
 		countPerIndex[dsIndex]++
-		countPerIndexPerFirstConnPosId[dsIndex][tr.Conns[0].GetPosIntId()]++
+		countPerIndexPerFirstConnPosId[dsIndex][tr.conns[0].GetPosIntId()]++
 	}
 	assert.Equal(t, 8, countPerIndex[0])
 	assert.Equal(t, 3*2*2, countPerIndex[1])

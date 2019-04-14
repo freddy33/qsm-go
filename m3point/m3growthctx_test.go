@@ -419,13 +419,24 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 
 		for _, p := range latestPoints {
 			nextPoints := p.GetNextPoints(ctx)
-			tIdx := findTrioIndex(p, nextPoints, ctx)
-			countUsedIdx[tIdx]++
-			stepCountIdx[tIdx]++
+			tdIdx, link := findTrioIndex(p, nextPoints, ctx)
+			if !p.IsMainPoint() {
+				td := AllTrioDetails[tdIdx]
+				foundLink := false
+				for _, l := range td.links {
+					if l == link {
+						foundLink = true
+						break
+					}
+				}
+				assert.True(t, foundLink, "did not find link in idx=%d %v in %v", tdIdx, link, td.links)
+			}
+			countUsedIdx[tdIdx]++
+			stepCountIdx[tdIdx]++
 
 			existingIdx, ok := usedPoints[p]
 			if !ok {
-				usedPoints[p] = tIdx
+				usedPoints[p] = tdIdx
 				for _, np := range nextPoints {
 					_, present := usedPoints[np]
 					if !present {
@@ -434,7 +445,7 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 				}
 			} else {
 				stepConflictCount[p]++
-				assert.Equal(t, existingIdx, tIdx, "conflict on %v step %d ctx %s", p, d, ctx.String())
+				assert.Equal(t, existingIdx, tdIdx, "conflict on %v step %d ctx %s", p, d, ctx.String())
 			}
 		}
 		stepConflictSummary := make(map[int]int)
@@ -485,18 +496,19 @@ func EqualIntSlice(a, b []int) bool {
 }
 
 // Stupid reverse engineering of trio index that works for main and non main points
-func findTrioIndex(c Point, np [3]Point, ctx *GrowthContext) int {
+func findTrioIndex(c Point, np [3]Point, ctx *GrowthContext) (int, [3]int) {
+	link := [3]int{getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx) }
 	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
-	for idx, td := range AllTrioDetails {
+	for trIdx, td := range AllTrioDetails {
 		if toFind.GetTrio() == td.GetTrio() {
-			return idx
+			return trIdx, link
 		}
 	}
 	Log.Errorf("did not find any trio for %v %v %v", c, np, toFind)
-	Log.Errorf("All trio index %d %d %d %d", getTrioIdx(c, ctx), getTrioIdx(np[0], ctx), getTrioIdx(np[1], ctx), getTrioIdx(np[2], ctx))
-	return -1
+	Log.Errorf("All trio index %d %d %d %d", getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[0], ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx))
+	return -1, link
 }
 
-func getTrioIdx(p Point, ctx *GrowthContext) int {
+func getTrioIdxNearestMain(p Point, ctx *GrowthContext) int {
 	return ctx.GetTrioIndex(ctx.GetDivByThree(p.GetNearMainPoint()))
 }

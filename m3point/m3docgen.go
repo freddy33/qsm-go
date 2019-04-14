@@ -10,10 +10,11 @@ import (
 
 func WriteAllTables() {
 	m3util.ChangeToDocsGeneratedDir()
-	writeAllTrioTable()
+	writeAllTrioDetailsTable()
 	writeAllTrioPermutationsTable()
 	writeTrioConnectionsTable()
 	writeAllConnectionDetails()
+	writeAllTrioDetailsLinks()
 }
 
 type Int2 struct {
@@ -195,8 +196,7 @@ func writeTrioConnectionsTable() {
 	}
 }
 
-// Write all the 8 base vectors trio in text and CSV files
-func writeAllTrioTable() {
+func writeAllTrioDetailsTable() {
 	txtFile, err := os.Create("AllTrioTable.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
@@ -211,14 +211,25 @@ func writeAllTrioTable() {
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
 	for a, td := range AllTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v %s\n", a, td.Conns[0].Vector, td.Conns[0].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[1].Vector, td.Conns[1].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[2].Vector, td.Conns[2].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v %s\n", a, td.conns[0].Vector, td.conns[0].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[1].Vector, td.conns[1].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].GetName()))
 		m3util.WriteNextString(txtFile, "\n")
 	}
 }
 
-// Write all the 8 base vectors trio in text and CSV files
+func writeAllTrioDetailsLinks() {
+	txtFile, err := os.Create("AllTrioLinks.txt")
+	if err != nil {
+		log.Fatal("Cannot create text file", err)
+	}
+	defer m3util.CloseFile(txtFile)
+
+	for a, td := range AllTrioDetails {
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v\n", a, td.links))
+	}
+}
+
 func writeAllTrioPermutationsTable() {
 	txtFile, err := os.Create("AllTrioPermTable.txt")
 	if err != nil {

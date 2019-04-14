@@ -17,8 +17,9 @@ var AllMod4Permutations [12][4]int
 var AllMod8Permutations [12][8]int
 
 type TrioDetails struct {
-	Id    int
-	Conns [3]*ConnectionDetails
+	id    int
+	conns [3]*ConnectionDetails
+	links [][3]int
 }
 
 var AllTrioDetails [200]*TrioDetails
@@ -281,23 +282,23 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 		return absDiff < 0
 	})
 	res := TrioDetails{}
-	res.Id = -1
+	res.id = -1
 	for i, cd := range cds {
-		res.Conns[i] = cd
+		res.conns[i] = cd
 	}
 	if Log.Level <= m3util.TRACE {
-		fmt.Println(count, res.Conns[0].GetName(), res.Conns[1].GetName(), res.Conns[2].GetName())
+		fmt.Println(count, res.conns[0].GetName(), res.conns[1].GetName(), res.conns[2].GetName())
 		count++
 	}
 	return &res
 }
 
 func (td *TrioDetails) String() string {
-	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.Id, td.Conns[0].GetName(), td.Conns[1].GetName(), td.Conns[2].GetName())
+	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName())
 }
 
 func (td *TrioDetails) GetTrio() Trio {
-	return Trio{td.Conns[0].Vector, td.Conns[1].Vector, td.Conns[2].Vector}
+	return Trio{td.conns[0].Vector, td.conns[1].Vector, td.conns[2].Vector}
 }
 
 const(
@@ -305,12 +306,12 @@ const(
 )
 
 func (td *TrioDetails) GetDSIndex() int {
-	if td.Conns[0].DistanceSquared() == int64(1) {
-		switch td.Conns[1].DistanceSquared() {
+	if td.conns[0].DistanceSquared() == int64(1) {
+		switch td.conns[1].DistanceSquared() {
 		case int64(1):
 			return 1
 		case int64(2):
-			switch td.Conns[2].DistanceSquared() {
+			switch td.conns[2].DistanceSquared() {
 			case int64(3):
 				return 2
 			case int64(5):
@@ -318,11 +319,11 @@ func (td *TrioDetails) GetDSIndex() int {
 			}
 		}
 	} else {
-		switch td.Conns[1].DistanceSquared() {
+		switch td.conns[1].DistanceSquared() {
 		case int64(2):
 			return 0
 		case int64(3):
-			switch td.Conns[2].DistanceSquared() {
+			switch td.conns[2].DistanceSquared() {
 			case int64(3):
 				return 4
 			case int64(5):
@@ -341,22 +342,26 @@ func fillAllTrioDetails() {
 	// All base trio first
 	for i, tr := range AllBaseTrio {
 		td := MakeTrioDetails(tr[0], tr[1], tr[2])
-		td.Id = i
+		td.id = i
 		allTDSlice[i] = td
 	}
 	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
-	for _, tA := range AllBaseTrio {
-		for _, tB := range AllBaseTrio {
-			for _, tC := range AllBaseTrio {
+	for a, tA := range AllBaseTrio {
+		for b, tB := range AllBaseTrio {
+			for c, tC := range AllBaseTrio {
+				thisTrio := [3]int{a,b,c}
 				for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
 					exists := false
 					for _, tr := range allTDSlice {
 						if tr.GetTrio() == nextTrio.GetTrio() {
 							exists = true
+							tr.links = append(tr.links, thisTrio)
 							break
 						}
 					}
 					if !exists {
+						nextTrio.links = make([][3]int, 1)
+						nextTrio.links[0] = thisTrio
 						allTDSlice = append(allTDSlice, nextTrio)
 					}
 				}
@@ -395,8 +400,8 @@ func fillAllTrioDetails() {
 				return k < l
 			} else {
 				// order by conn id, first ABS number, then pos > neg
-				for k, cd1 := range tr1.Conns {
-					cd2 := tr2.Conns[k]
+				for k, cd1 := range tr1.conns {
+					cd2 := tr2.conns[k]
 					if cd1.GetIntId() != cd2.GetIntId() {
 						return IsLessConnId(cd1, cd2)
 					}
@@ -408,10 +413,22 @@ func fillAllTrioDetails() {
 	})
 
 	for i, td := range allTDSlice {
-		if td.Id != -1 && td.Id != i {
+		if td.id != -1 && td.id != i {
 			Log.Fatalf("incorrect Id for trio details %v at %d", *td, i)
 		}
-		td.Id = i
+		td.id = i
+		// Order the links array
+		sort.Slice(td.links, func(i,j int) bool {
+			t1 := td.links[i]
+			t2 := td.links[j]
+			for c := 0; c<3;c++ {
+				d := t1[c] - t2[c]
+				if d != 0 {
+					return d < 0
+				}
+			}
+			return false
+		})
 		AllTrioDetails[i] = td
 	}
 }
