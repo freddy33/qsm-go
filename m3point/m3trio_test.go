@@ -7,6 +7,40 @@ import (
 	"testing"
 )
 
+func TestPosMod2(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, uint64(1), PosMod2(5))
+	assert.Equal(t, uint64(0), PosMod2(4))
+	assert.Equal(t, uint64(1), PosMod2(3))
+	assert.Equal(t, uint64(0), PosMod2(2))
+	assert.Equal(t, uint64(1), PosMod2(1))
+	assert.Equal(t, uint64(0), PosMod2(0))
+}
+
+func TestPosMod4(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, uint64(1), PosMod4(5))
+	assert.Equal(t, uint64(0), PosMod4(4))
+	assert.Equal(t, uint64(3), PosMod4(3))
+	assert.Equal(t, uint64(2), PosMod4(2))
+	assert.Equal(t, uint64(1), PosMod4(1))
+	assert.Equal(t, uint64(0), PosMod4(0))
+}
+
+func TestPosMod8(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, uint64(1), PosMod8(9))
+	assert.Equal(t, uint64(0), PosMod8(8))
+	assert.Equal(t, uint64(7), PosMod8(7))
+	assert.Equal(t, uint64(6), PosMod8(6))
+	assert.Equal(t, uint64(5), PosMod8(5))
+	assert.Equal(t, uint64(4), PosMod8(4))
+	assert.Equal(t, uint64(3), PosMod8(3))
+	assert.Equal(t, uint64(2), PosMod8(2))
+	assert.Equal(t, uint64(1), PosMod8(1))
+	assert.Equal(t, uint64(0), PosMod8(0))
+}
+
 func TestAllTrioBuilder(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
@@ -41,7 +75,27 @@ func TestAllTrioBuilder(t *testing.T) {
 		if i > 0 {
 			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
 		}
-
+		switch indexInPossDS[i] {
+		case 0:
+			assert.Equal(t, 0, len(tr.links), "Nb links wrong for %v", tr.String())
+		case 1:
+			assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
+		case 2:
+			assert.Equal(t, 14, len(tr.links), "Nb links wrong for %v", tr.String())
+		case 3:
+			assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
+		case 4:
+			// Pattern here is that if conn pos id for tr[1] and tr[2] are non identical size is 8 otherwise 24
+			if tr.conns[1].GetPosIntId() == tr.conns[2].GetPosIntId() {
+				assert.Equal(t, 14, len(tr.links), "Nb links wrong for %v", tr.String())
+			} else {
+				assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
+			}
+		case 5:
+			assert.Equal(t, 16, len(tr.links), "Nb links wrong for %v", tr.String())
+		case 6:
+			assert.Equal(t, 8, len(tr.links), "Nb links wrong for %v", tr.String())
+		}
 		dsIndex := tr.GetDSIndex()
 		countPerIndex[dsIndex]++
 		countPerIndexPerFirstConnPosId[dsIndex][tr.conns[0].GetPosIntId()]++

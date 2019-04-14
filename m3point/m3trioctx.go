@@ -23,11 +23,6 @@ type TrioIndexContext struct {
 	ctxIndex int
 }
 
-var reverse2Map = [2]int{1, 0}
-var reverse3Map = [3]int{2, 1, 0}
-var reverse4Map = [4]int{3, 2, 1, 0}
-var reverse8Map = [8]int{7, 6, 5, 4, 3, 2, 1, 0}
-
 var trioIndexContexts map[ContextType][]*TrioIndexContext
 
 func init() {

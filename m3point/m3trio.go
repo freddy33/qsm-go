@@ -108,6 +108,7 @@ func initMod8Permutations() {
 /***************************************************************/
 // Trio Functions
 /***************************************************************/
+var reverse3Map = [3]int{2, 1, 0}
 
 func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	res := Trio{}
@@ -294,7 +295,7 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 }
 
 func (td *TrioDetails) String() string {
-	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName())
+	return fmt.Sprintf("T%02d: (%s, %s, %s) l=%3d", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName(), len(td.links))
 }
 
 func (td *TrioDetails) GetTrio() Trio {
@@ -433,62 +434,126 @@ func fillAllTrioDetails() {
 	}
 }
 
+type TrioDetailList []*TrioDetails
+
+func (l *TrioDetailList) exists(tr *TrioDetails) bool {
+	present := false
+	for _, trL := range *l {
+		if trL.GetTrio() == tr.GetTrio() {
+			present = true
+			break
+		}
+	}
+	return present
+}
+
+func (l *TrioDetailList) addUnique(tr *TrioDetails) bool {
+	b := l.exists(tr)
+	if !b {
+		*l = append(*l, tr)
+	}
+	return b
+}
+
 // Return the 6 new Trio out of Origin + tA (with next tB or tB/tC)
-func getNextTriosDetails(tA, tB, tC Trio) [6]*TrioDetails {
+func getNextTriosDetails(tA, tB, tC Trio) []*TrioDetails {
 	// 0 z=0 for first element, x connector, y connector
 	// 1 y=0 for first element, x connector, z connector
 	// 2 x=0 for first element, y connector, z connector
-	res := [6]*TrioDetails{}
+	res := TrioDetailList{}
 
+	sameBC := tB == tC
 	noZ := tA[0]
 	var xConnB, yConnB, zConnB Point
-	var yConnC, zConnC Point
+	var xConnC, yConnC, zConnC Point
 	if noZ.X() > 0 {
 		xConnB = MakeVector(noZ, XFirst.Add(tB.getMinusXVector()))
+		if !sameBC {
+			xConnC = MakeVector(noZ, XFirst.Add(tC.getMinusXVector()))
+		}
 	} else {
 		xConnB = MakeVector(noZ, XFirst.Neg().Add(tB.getPlusXVector()))
+		if !sameBC {
+			xConnC = MakeVector(noZ, XFirst.Neg().Add(tC.getPlusXVector()))
+		}
 	}
 	if noZ.Y() > 0 {
 		yConnB = MakeVector(noZ, YFirst.Add(tB.getMinusYVector()))
-		yConnC = MakeVector(noZ, YFirst.Add(tC.getMinusYVector()))
+		if !sameBC {
+			yConnC = MakeVector(noZ, YFirst.Add(tC.getMinusYVector()))
+		}
 	} else {
 		yConnB = MakeVector(noZ, YFirst.Neg().Add(tB.getPlusYVector()))
-		yConnC = MakeVector(noZ, YFirst.Neg().Add(tC.getPlusYVector()))
+		if !sameBC {
+			yConnC = MakeVector(noZ, YFirst.Neg().Add(tC.getPlusYVector()))
+		}
 	}
-	res[0] = MakeTrioDetails(noZ.Neg(), xConnB, yConnB)
-	res[1] = MakeTrioDetails(noZ.Neg(), xConnB, yConnC)
+	if sameBC {
+		res.addUnique(MakeTrioDetails(noZ.Neg(), xConnB, yConnB))
+	} else {
+		res.addUnique(MakeTrioDetails(noZ.Neg(), xConnB, yConnC))
+		res.addUnique(MakeTrioDetails(noZ.Neg(), xConnC, yConnB))
+	}
 
 	noY := tA[1]
 	if noY.X() > 0 {
 		xConnB = MakeVector(noY, XFirst.Add(tB.getMinusXVector()))
+		if !sameBC {
+			xConnC = MakeVector(noY, XFirst.Add(tC.getMinusXVector()))
+		}
 	} else {
 		xConnB = MakeVector(noY, XFirst.Neg().Add(tB.getPlusXVector()))
+		if !sameBC {
+			xConnC = MakeVector(noY, XFirst.Neg().Add(tC.getPlusXVector()))
+		}
 	}
 	if noY.Z() > 0 {
 		zConnB = MakeVector(noY, ZFirst.Add(tB.getMinusZVector()))
-		zConnC = MakeVector(noY, ZFirst.Add(tC.getMinusZVector()))
+		if !sameBC {
+			zConnC = MakeVector(noY, ZFirst.Add(tC.getMinusZVector()))
+		}
 	} else {
 		zConnB = MakeVector(noY, ZFirst.Neg().Add(tB.getPlusZVector()))
-		zConnC = MakeVector(noY, ZFirst.Neg().Add(tC.getPlusZVector()))
+		if !sameBC {
+			zConnC = MakeVector(noY, ZFirst.Neg().Add(tC.getPlusZVector()))
+		}
 	}
-	res[2] = MakeTrioDetails(noY.Neg(), xConnB, zConnB)
-	res[3] = MakeTrioDetails(noY.Neg(), xConnB, zConnC)
+	if sameBC {
+		res.addUnique(MakeTrioDetails(noY.Neg(), xConnB, zConnB))
+	} else {
+		res.addUnique(MakeTrioDetails(noY.Neg(), xConnB, zConnC))
+		res.addUnique(MakeTrioDetails(noY.Neg(), xConnC, zConnB))
+	}
 
 	noX := tA[2]
 	if noX.Y() > 0 {
 		yConnB = MakeVector(noX, YFirst.Add(tB.getMinusYVector()))
+		if !sameBC {
+			yConnC = MakeVector(noX, YFirst.Add(tC.getMinusYVector()))
+		}
 	} else {
 		yConnB = MakeVector(noX, YFirst.Neg().Add(tB.getPlusYVector()))
+		if !sameBC {
+			yConnC = MakeVector(noX, YFirst.Neg().Add(tC.getPlusYVector()))
+		}
 	}
 	if noX.Z() > 0 {
 		zConnB = MakeVector(noX, ZFirst.Add(tB.getMinusZVector()))
-		zConnC = MakeVector(noX, ZFirst.Add(tC.getMinusZVector()))
+		if !sameBC {
+			zConnC = MakeVector(noX, ZFirst.Add(tC.getMinusZVector()))
+		}
 	} else {
 		zConnB = MakeVector(noX, ZFirst.Neg().Add(tB.getPlusZVector()))
-		zConnC = MakeVector(noX, ZFirst.Neg().Add(tC.getPlusZVector()))
+		if !sameBC {
+			zConnC = MakeVector(noX, ZFirst.Neg().Add(tC.getPlusZVector()))
+		}
 	}
-	res[4] = MakeTrioDetails(noX.Neg(), yConnB, zConnB)
-	res[5] = MakeTrioDetails(noX.Neg(), yConnB, zConnC)
+	if sameBC {
+		res.addUnique(MakeTrioDetails(noX.Neg(), yConnB, zConnB))
+	} else {
+		res.addUnique(MakeTrioDetails(noX.Neg(), yConnB, zConnC))
+		res.addUnique(MakeTrioDetails(noX.Neg(), yConnC, zConnB))
+	}
 
 	return res
 }
