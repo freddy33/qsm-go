@@ -43,7 +43,7 @@ func TestConnectionDetails(t *testing.T) {
 }
 
 func TestConnectionDetailsInGrowthContext(t *testing.T) {
-	allCtx := getAllContexts()
+	allCtx := getAllTestContexts()
 	assert.Equal(t, 5, len(allCtx))
 
 	nbCtx := 0

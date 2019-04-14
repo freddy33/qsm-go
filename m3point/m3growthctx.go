@@ -15,18 +15,48 @@ Define how outgrowth and path evolve from the center. There are 6 types of growt
 5. type = 4 : Use the modulo 4 permutation => Specific index line in AllMod4Permutations cycling through the 4 values
 6. type = 8 : Use the modulo 8 permutation => Specific index line in AllMod8Permutations cycling through the 8 values
 */
+type ContextType uint8 // 0,1,2,3,4, or 8
+
+var allContextTypes = [5]ContextType{1, 2, 3, 4, 8}
+
 type GrowthContext struct {
 	center             Point
-	permutationType    uint8 // 0,1,2,3,4, or 8
-	permutationIndex   int   // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
-	permutationNegFlow bool  // true for backward flow in permutation
-	permutationOffset  int   // Offset in permutation to start with
+	permutationType    ContextType
+	permutationIndex   int  // Index in the permutations to choose from. For type 1 [0,7] for the other in the 12 list [0,11]
+	permutationNegFlow bool // true for backward flow in permutation
+	permutationOffset  int  // Offset in permutation to start with
 }
 
-var reverse2Map = [2]int{1,0}
-var reverse3Map = [3]int{2,1,0}
-var reverse4Map = [4]int{3,2,1,0}
-var reverse8Map = [8]int{7,6,5,4,3,2,1,0}
+var reverse2Map = [2]int{1, 0}
+var reverse3Map = [3]int{2, 1, 0}
+var reverse4Map = [4]int{3, 2, 1, 0}
+var reverse8Map = [8]int{7, 6, 5, 4, 3, 2, 1, 0}
+
+var allRootContexts map[ContextType][]*GrowthContext
+
+func init() {
+	count := make(map[ContextType]int)
+	allRootContexts = make(map[ContextType][]*GrowthContext)
+	for _, ctxType := range GetAllContextTypes() {
+		nbIndexes := ctxType.GetNbIndexes()
+		allRootContexts[ctxType] = make([]*GrowthContext, nbIndexes)
+		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
+			allRootContexts[ctxType][pIdx] = CreateRootGrowthContext(ctxType, pIdx)
+			count[ctxType]++
+		}
+	}
+	Log.Info(count)
+}
+
+type PathContext struct {
+	ctx           *GrowthContext
+	trioSequences []PathContextElement
+}
+
+type PathContextElement struct {
+	srcTrio   *TrioDetails
+	nextTrios []*TrioDetails
+}
 
 func PosMod2(i uint64) uint64 {
 	return i & 0x0000000000000001
@@ -40,8 +70,55 @@ func PosMod8(i uint64) uint64 {
 	return i & 0x0000000000000007
 }
 
-func CreateGrowthContext(center Point, permType uint8, index int, flow bool, offset int) *GrowthContext {
+func CreateGrowthContext(center Point, permType ContextType, index int, flow bool, offset int) *GrowthContext {
 	return &GrowthContext{center, permType, index, flow, offset}
+}
+
+func CreateRootGrowthContext(permType ContextType, index int) *GrowthContext {
+	return CreateGrowthContext(Origin, permType, index, false, 0)
+}
+
+func CreateFromRoot(rootCtx *GrowthContext, center Point, flow bool, offset int) *GrowthContext {
+	if offset < 0 || offset >= maxOffsetPerType[rootCtx.permutationType] {
+		Log.Error("Offset value %d invalid for context type", offset, rootCtx.permutationType)
+		return nil
+	}
+	newCtx := *rootCtx
+	newCtx.center = center
+	newCtx.permutationNegFlow = flow
+	newCtx.permutationOffset = offset
+	return &newCtx
+}
+
+func GetAllContextTypes() [5]ContextType {
+	return allContextTypes
+}
+
+func (t ContextType) IsPermutation() bool {
+	return t == ContextType(2) || t == ContextType(4) || t == ContextType(8)
+}
+
+func (t ContextType) GetModulo() int {
+	return int(t)
+}
+
+func (t ContextType) GetNbIndexes() int {
+	if t.IsPermutation() {
+		return 12
+	}
+	return 8
+}
+
+func GetRootContext(ctxType ContextType, index int) *GrowthContext {
+	return allRootContexts[ctxType][index]
+}
+
+var maxOffsetPerType = map[ContextType]int{
+	ContextType(1): 1,
+	ContextType(3): 4,
+	ContextType(2): 2,
+	ContextType(4): 4,
+	ContextType(8): 8,
 }
 
 func (ctx *GrowthContext) SetIndexOffset(idx, offset int) {

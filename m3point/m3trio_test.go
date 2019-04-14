@@ -36,7 +36,7 @@ func TestAllTrioBuilder(t *testing.T) {
 
 	// Check that All trio is ordered correctly
 	countPerIndex := [NB_TRIO_DS_INDEX]int{}
-	countPerIndexPerPosId := [NB_TRIO_DS_INDEX][10]int{}
+	countPerIndexPerFirstConnPosId := [NB_TRIO_DS_INDEX][10]int{}
 	for i, tr := range AllTrioDetails {
 		if i > 0 {
 			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
@@ -44,7 +44,7 @@ func TestAllTrioBuilder(t *testing.T) {
 
 		dsIndex := tr.GetDSIndex()
 		countPerIndex[dsIndex]++
-		countPerIndexPerPosId[dsIndex][tr.Conns[0].GetPosIntId()]++
+		countPerIndexPerFirstConnPosId[dsIndex][tr.Conns[0].GetPosIntId()]++
 	}
 	assert.Equal(t, 8, countPerIndex[0])
 	assert.Equal(t, 3*2*2, countPerIndex[1])
@@ -53,57 +53,57 @@ func TestAllTrioBuilder(t *testing.T) {
 	assert.Equal(t, 3*8*2, countPerIndex[4])
 	assert.Equal(t, 3*8*2, countPerIndex[5])
 	assert.Equal(t, 3*2*2, countPerIndex[6])
-	for i, v := range countPerIndexPerPosId[0] {
+	for i, v := range countPerIndexPerFirstConnPosId[0] {
 		if i == 4 || i == 5 {
 			assert.Equal(t, 4, v, "Index 0 wrong for %d", i)
 		} else {
 			assert.Equal(t, 0, v, "Index 0 wrong for %d", i)
 		}
 	}
-/*
-	for i, v := range countPerIndexPerPosId[1] {
-		if i == 1 || i == 2 || i == 3 {
+	for i, v := range countPerIndexPerFirstConnPosId[1] {
+		if i == 1 {
+			assert.Equal(t, 8, v, "Index 1 wrong for %d", i)
+		} else if i == 2 {
 			assert.Equal(t, 4, v, "Index 1 wrong for %d", i)
 		} else {
 			assert.Equal(t, 0, v, "Index 1 wrong for %d", i)
 		}
 	}
-	for i, v := range countPerIndexPerPosId[2] {
+	for i, v := range countPerIndexPerFirstConnPosId[2] {
 		if i == 1 || i == 2 || i == 3 {
-			assert.Equal(t, 16, v, "Index 1 wrong for %d", i)
-		} else {
-			assert.Equal(t, 0, v, "Index 1 wrong for %d", i)
-		}
-	}
-	for i, v := range countPerIndexPerPosId[3] {
-		if i == 1 || i == 2 || i == 3 {
-			assert.Equal(t, 8, v, "Index 1 wrong for %d", i)
-		} else {
-			assert.Equal(t, 0, v, "Index 1 wrong for %d", i)
-		}
-	}
-	for i, v := range countPerIndexPerPosId[4] {
-		if i >= 4 && i <= 9 {
-			assert.Equal(t, 4, v, "Index 2 wrong for %d", i)
+			assert.Equal(t, 16, v, "Index 2 wrong for %d", i)
 		} else {
 			assert.Equal(t, 0, v, "Index 2 wrong for %d", i)
 		}
 	}
-	for i, v := range countPerIndexPerPosId[5] {
-		if i >= 4 && i <= 9 {
-			assert.Equal(t, 2, v, "Index 3 wrong for %d", i)
+	for i, v := range countPerIndexPerFirstConnPosId[3] {
+		if i == 1 || i == 2 || i == 3 {
+			assert.Equal(t, 8, v, "Index 3 wrong for %d", i)
 		} else {
 			assert.Equal(t, 0, v, "Index 3 wrong for %d", i)
 		}
 	}
-	for i, v := range countPerIndexPerPosId[6] {
+	for i, v := range countPerIndexPerFirstConnPosId[4] {
 		if i >= 4 && i <= 9 {
-			assert.Equal(t, 2, v, "Index 3 wrong for %d", i)
+			assert.Equal(t, 8, v, "Index 4 wrong for %d", i)
 		} else {
-			assert.Equal(t, 0, v, "Index 3 wrong for %d", i)
+			assert.Equal(t, 0, v, "Index 4 wrong for %d", i)
 		}
 	}
-*/
+	for i, v := range countPerIndexPerFirstConnPosId[5] {
+		if i >= 4 && i <= 9 {
+			assert.Equal(t, 8, v, "Index 5 wrong for %d", i)
+		} else {
+			assert.Equal(t, 0, v, "Index 5 wrong for %d", i)
+		}
+	}
+	for i, v := range countPerIndexPerFirstConnPosId[6] {
+		if i >= 4 && i <= 9 {
+			assert.Equal(t, 2, v, "Index 6 wrong for %d", i)
+		} else {
+			assert.Equal(t, 0, v, "Index 6 wrong for %d", i)
+		}
+	}
 }
 
 
