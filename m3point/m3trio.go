@@ -43,6 +43,7 @@ const(
 
 // All the possible Trio details used
 var AllTrioDetails TrioDetailList
+var AllTrioLinks TrioLinkList
 
 
 /***************************************************************/
@@ -562,6 +563,7 @@ func fillAllTrioDetails() {
 		sort.Sort(td.links)
 	}
 	AllTrioDetails = allTDSlice
+	AllTrioLinks = allTrioLinks
 }
 
 // Return the new Trio out of Origin + tA (with next tB or tB/tC)

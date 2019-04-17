@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
+	"sort"
 	"testing"
 )
 
@@ -41,21 +42,57 @@ func TestPosMod8(t *testing.T) {
 	assert.Equal(t, uint64(0), PosMod8(0))
 }
 
-func TestAllTrioBuilder(t *testing.T) {
+func TestAllTrioLinks(t *testing.T) {
+	Log.Level = m3util.DEBUG
+	assert.Equal(t, 8*8*(1+8)/2, len(AllTrioLinks), "%v", AllTrioLinks)
+	for a := 0; a < 8; a++ {
+		for b := 0; b < 8; b++ {
+			for c := 0; c < 8; c++ {
+				count := 0
+				for _, tl := range AllTrioLinks {
+					if a == tl.a && b == tl.b && c == tl.c {
+						count++
+					}
+				}
+				if b <= c {
+					assert.Equal(t, 1, count, "sould have found one instance of %d %d %d",a,b,c)
+				} else {
+					assert.Equal(t, 0, count, "sould have found no instances of %d %d %d",a,b,c)
+				}
+			}
+		}
+	}
+}
+
+func TestAllTrioDetails(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
-	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
-	PossibleDSArray := [NbTrioDsIndex][3]int64{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
-
 	assert.Equal(t, 200, len(AllTrioDetails))
-	indexInPossDS := make([]int, len(AllTrioDetails))
 	for i, td := range AllTrioDetails {
 		// All vec should have conn details
 		cds := td.conns
 		// Conn ID increase always
 		assert.True(t, cds[0].GetPosIntId() <= cds[1].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
 		assert.True(t, cds[1].GetPosIntId() <= cds[2].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
+	}
 
+	// Check that All trio is ordered correctly
+	for i, tr := range AllTrioDetails {
+		if i > 0 {
+			assert.True(t, AllTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
+		}
+	}
+}
+
+func TestTrioDetailsPerDSIndex(t *testing.T) {
+	Log.Level = m3util.DEBUG
+
+	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
+	PossibleDSArray := [NbTrioDsIndex][3]int64{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
+
+	indexInPossDS := make([]int, len(AllTrioDetails))
+	for i, td := range AllTrioDetails {
+		cds := td.conns
 		dsArray := [3]int64{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
 		for k, posDsArray := range PossibleDSArray {
@@ -71,20 +108,13 @@ func TestAllTrioBuilder(t *testing.T) {
 	// Check that All trio is ordered correctly
 	countPerIndex := [NbTrioDsIndex]int{}
 	countPerIndexPerFirstConnPosId := [NbTrioDsIndex][10]int{}
-	for i, tr := range AllTrioDetails {
+	for i, td := range AllTrioDetails {
 		if i > 0 {
-			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
+			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, td)
 		}
-		if indexInPossDS[i] == 0 {
-			assert.Equal(t, 0, len(tr.links), "Nb links wrong for %v", tr.String())
-		} else if indexInPossDS[i] == 6 {
-			assert.Equal(t, 6, len(tr.links), "Nb links wrong for %v", tr.String())
-		} else {
-			assert.Equal(t, 8, len(tr.links), "Nb links wrong for %v", tr.String())
-		}
-		dsIndex := tr.GetDSIndex()
+		dsIndex := td.GetDSIndex()
 		countPerIndex[dsIndex]++
-		countPerIndexPerFirstConnPosId[dsIndex][tr.conns[0].GetPosIntId()]++
+		countPerIndexPerFirstConnPosId[dsIndex][td.conns[0].GetPosIntId()]++
 	}
 	assert.Equal(t, 8, countPerIndex[0])
 	assert.Equal(t, 3*2*2, countPerIndex[1])
@@ -146,6 +176,64 @@ func TestAllTrioBuilder(t *testing.T) {
 	}
 }
 
+func TestTrioDetailsLinks(t *testing.T) {
+	countPerTrioLinks := make(map[TrioLink]int)
+
+	for _, td := range AllTrioDetails {
+		switch td.GetDSIndex() {
+		case 0:
+			assert.Equal(t, 0, len(td.links), "Nb links wrong for %v", td.String())
+		case 6:
+			assert.Equal(t, 6, len(td.links), "Nb links wrong for %v", td.String())
+		default:
+			assert.Equal(t, 8, len(td.links), "Nb links wrong for %v", td.String())
+		}
+		for _, tl := range td.links {
+			countPerTrioLinks[*tl]++
+		}
+	}
+
+	collPerCount := make(map[int]*TrioLinkList)
+	for tl, c := range countPerTrioLinks {
+		coll, ok := collPerCount[c]
+		if !ok {
+			coll = &TrioLinkList{}
+			collPerCount[c] = coll
+		}
+		copyTl := makeTrioLink(tl.a, tl.b, tl.c)
+		coll.addUnique(&copyTl)
+	}
+	for _, tll := range collPerCount {
+		sort.Sort(tll)
+	}
+	assert.Equal(t, 8*8, collPerCount[3].Len(), "wrong number of 3 times in td %v", *collPerCount[3])
+	assert.Equal(t, 8*3, collPerCount[5].Len(), "wrong number of 5 times in td %v", *collPerCount[5])
+	assert.Equal(t, 8*25, collPerCount[6].Len(), "wrong number of 6 times in td %v", *collPerCount[6])
+
+	// The size 5 are due to going to a prime when the other is on my side
+	for _, td := range *collPerCount[5] {
+		if td.a < 4 {
+			assert.True(t, isPrime(td.a, td.c), "not prime on 5 %v", td.String())
+			assert.True(t, td.b < 4 && td.b != td.a, "wrong side on 5 %v", td.String())
+		} else {
+			assert.True(t, isPrime(td.a, td.b), "not prime on 5 %v", td.String())
+			assert.True(t, td.c >= 4 && td.c != td.a, "wrong side on 5 %v", td.String())
+		}
+	}
+
+	for _, tl := range AllTrioLinks {
+		c, ok := countPerTrioLinks[*tl]
+		assert.True(t, ok, "did not find %v", tl.String())
+		if tl.b == tl.c {
+			assert.Equal(t, 3, c, "wrong amount of presence of %v", tl.String())
+		} else if (tl.a < 4 && isPrime(tl.a,tl.c) && tl.b < 4 && tl.a != tl.b) ||
+		(tl.a >= 4 && isPrime(tl.a,tl.b) && tl.c >= 4 && tl.a != tl.c) {
+			assert.Equal(t, 5, c, "wrong amount of presence of %v", tl.String())
+		} else {
+			assert.Equal(t, 6, c, "wrong amount of presence of %v", tl.String())
+		}
+	}
+}
 
 func TestInitialTrioConnectingVectors(t *testing.T) {
 	Log.Level = m3util.DEBUG
