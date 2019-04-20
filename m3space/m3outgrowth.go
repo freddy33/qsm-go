@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"sync"
 )
@@ -37,7 +38,7 @@ type EventOutgrowth struct {
 	fromConnections []int8
 	distance        Distance
 	state           EventOutgrowthState
-	rootPath        PathElement
+	rootPath        m3path.PathElement
 }
 
 var eventOutgrowthPool = sync.Pool{
@@ -50,7 +51,7 @@ type SavedEventOutgrowth struct {
 	pos             m3point.Point
 	fromConnections []int8
 	distance        Distance
-	rootPath        PathElement
+	rootPath        m3path.PathElement
 }
 
 type Outgrowth interface {

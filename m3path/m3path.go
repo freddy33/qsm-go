@@ -1,12 +1,13 @@
-package m3space
+package m3path
 
 import (
-	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 )
 
+var Log = m3util.NewLogger("m3path", m3util.INFO)
+
 type PathBuilder struct {
-	ctx *m3point.GrowthContext
+	ctx *GrowthContext
 
 }
 

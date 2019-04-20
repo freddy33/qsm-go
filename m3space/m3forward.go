@@ -113,7 +113,7 @@ func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
 }
 
 func (evt *Event) createNewPossibleOutgrowthsForLatestOutgrowth(c chan *NewPossibleOutgrowth, eg *EventOutgrowth, wg *sync.WaitGroup) {
-	nextPoints := eg.pos.GetNextPoints(evt.growthContext)
+	nextPoints := evt.growthContext.GetNextPoints(eg.pos)
 	for _, nextPoint := range nextPoints {
 		if !eg.CameFromPoint(nextPoint) {
 			sendOutgrowth := true

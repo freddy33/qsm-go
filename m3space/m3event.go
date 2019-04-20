@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 )
@@ -30,7 +31,7 @@ type Event struct {
 	node              *ActiveNode
 	created           TickTime
 	color             EventColor
-	growthContext     *m3point.GrowthContext
+	growthContext     *m3path.GrowthContext
 	currentOutgrowths []*EventOutgrowth
 	latestOutgrowths  []*EventOutgrowth
 }
@@ -40,12 +41,12 @@ type SavedEvent struct {
 	node                 SavedNode
 	created              TickTime
 	color                EventColor
-	growthContext        m3point.GrowthContext
+	growthContext        m3path.GrowthContext
 	savedLatestOutgrowth []SavedEventOutgrowth
 }
 
 func (space *Space) CreateEvent(p m3point.Point, k EventColor) *Event {
-	ctx := m3point.CreateGrowthContext(m3point.Origin, 8, 0, 0)
+	ctx := m3path.CreateGrowthContext(m3point.Origin, 8, 0, 0)
 	switch k {
 	case RedEvent:
 		// No change
@@ -59,7 +60,7 @@ func (space *Space) CreateEvent(p m3point.Point, k EventColor) *Event {
 	return space.CreateEventWithGrowthContext(p, k, ctx)
 }
 
-func (space *Space) CreateEventWithGrowthContext(p m3point.Point, k EventColor, ctx *m3point.GrowthContext) *Event {
+func (space *Space) CreateEventWithGrowthContext(p m3point.Point, k EventColor, ctx *m3path.GrowthContext) *Event {
 	n := space.getOrCreateNode(p)
 	id := space.currentId
 	n.SetRoot(id, space.currentTime)

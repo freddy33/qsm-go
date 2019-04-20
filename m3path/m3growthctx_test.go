@@ -1,6 +1,8 @@
-package m3point
+package m3path
 
 import (
+	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"sort"
@@ -46,12 +48,12 @@ func TestCtx2(t *testing.T) {
 
 func TestCtxPerType(t *testing.T) {
 	Log.Level = m3util.INFO
-	for _, pType := range GetAllContextTypes() {
+	for _, pType := range m3point.GetAllContextTypes() {
 		runForCtxType(1, TEST_NB_ROUND, pType)
 	}
 }
 
-func runForCtxType(N, nbRound int, pType ContextType) {
+func runForCtxType(N, nbRound int, pType m3point.ContextType) {
 	allCtx := getAllTestContexts()
 	for r := 0; r < N; r++ {
 		maxUsed := 0
@@ -76,7 +78,7 @@ func BenchmarkAllGrowth(b *testing.B) {
 	for r := 0; r < b.N; r++ {
 		maxUsed := 0
 		maxLatest := 0
-		for _, pType := range GetAllContextTypes() {
+		for _, pType := range m3point.GetAllContextTypes() {
 			for _, ctx := range allCtx[pType] {
 				nU, nL := runNextPoints(&ctx, nbRound)
 				if nU > maxUsed {
@@ -92,15 +94,15 @@ func BenchmarkAllGrowth(b *testing.B) {
 }
 
 func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
-	usedPoints := make(map[Point]bool, 10*nbRound*nbRound)
+	usedPoints := make(map[m3point.Point]bool, 10*nbRound*nbRound)
 	totalUsedPoints := 1
-	latestPoints := make([]Point, 1)
-	latestPoints[0] = Origin
-	usedPoints[Origin] = true
+	latestPoints := make([]m3point.Point, 1)
+	latestPoints[0] = m3point.Origin
+	usedPoints[m3point.Origin] = true
 	for d := 0; d < nbRound; d++ {
 		nbLatestPoints := len(latestPoints)
 		// Send all orig new points
-		origNewPoints := make(chan Point, 4*SPLIT)
+		origNewPoints := make(chan m3point.Point, 4*SPLIT)
 		wg := sync.WaitGroup{}
 		if nbLatestPoints < 4*SPLIT {
 			// too small for split send all
@@ -118,7 +120,7 @@ func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
 			close(origNewPoints)
 		}(d)
 
-		finalPoints := make([]Point, 0, int(1.7*float32(nbLatestPoints)))
+		finalPoints := make([]m3point.Point, 0, int(1.7*float32(nbLatestPoints)))
 		for p := range origNewPoints {
 			_, ok := usedPoints[p]
 			if !ok {
@@ -134,15 +136,15 @@ func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
 }
 
 func runNextPointsAsync(ctx *GrowthContext, nbRound int) (int, int) {
-	//usedPoints := make(map[Point]bool, 10*nbRound*nbRound)
+	//usedPoints := make(map[m3point.Point]bool, 10*nbRound*nbRound)
 	usedPoints := new(sync.Map)
 	totalUsedPoints := 1
-	latestPoints := make([]Point, 1)
-	latestPoints[0] = Origin
-	usedPoints.Store(Origin, true)
-	o := make(chan Point, 100)
+	latestPoints := make([]m3point.Point, 1)
+	latestPoints[0] = m3point.Origin
+	usedPoints.Store(m3point.Origin, true)
+	o := make(chan m3point.Point, 100)
 	for d := 0; d < nbRound; d++ {
-		finalPoints := make([]Point, 0, int(1.2*float32(len(latestPoints))))
+		finalPoints := make([]m3point.Point, 0, int(1.2*float32(len(latestPoints))))
 		for _, p := range latestPoints {
 			go asyncNextPoints(p, ctx, o, nil)
 		}
@@ -165,11 +167,11 @@ func runNextPointsAsync(ctx *GrowthContext, nbRound int) (int, int) {
 	return totalUsedPoints, len(latestPoints)
 }
 
-func nextPointsSplit(lps *[]Point, currentPos, nb int, ctx *GrowthContext, o chan Point, wg *sync.WaitGroup) {
+func nextPointsSplit(lps *[]m3point.Point, currentPos, nb int, ctx *GrowthContext, o chan m3point.Point, wg *sync.WaitGroup) {
 	c := 0
 	for i := currentPos; i < len(*lps); i++ {
 		p := (*lps)[i]
-		for _, np := range p.GetNextPoints(ctx) {
+		for _, np := range ctx.GetNextPoints(p) {
 			o <- np
 		}
 		c++
@@ -180,30 +182,30 @@ func nextPointsSplit(lps *[]Point, currentPos, nb int, ctx *GrowthContext, o cha
 	wg.Done()
 }
 
-func asyncNextPoints(p Point, ctx *GrowthContext, o chan Point, wg *sync.WaitGroup) {
-	for _, np := range p.GetNextPoints(ctx) {
+func asyncNextPoints(p m3point.Point, ctx *GrowthContext, o chan m3point.Point, wg *sync.WaitGroup) {
+	for _, np := range ctx.GetNextPoints(p) {
 		o <- np
 	}
 	wg.Done()
 }
 
-var allTestContexts map[ContextType][]GrowthContext
+var allTestContexts map[m3point.ContextType][]GrowthContext
 
-func getAllTestContexts() map[ContextType][]GrowthContext {
+func getAllTestContexts() map[m3point.ContextType][]GrowthContext {
 	if allTestContexts != nil {
 		return allTestContexts
 	}
-	res := make(map[ContextType][]GrowthContext)
+	res := make(map[m3point.ContextType][]GrowthContext)
 
-	for _, ctxType := range GetAllContextTypes() {
+	for _, ctxType := range m3point.GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		maxOffset := maxOffsetPerType[ctxType]
 		res[ctxType] = make([]GrowthContext, nbIndexes*maxOffset)
 		idx := 0
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			rootCtx := GetTrioIndexContext(ctxType, pIdx)
+			rootCtx := m3point.GetTrioIndexContext(ctxType, pIdx)
 			for offset := 0; offset < maxOffset; offset++ {
-				res[ctxType][idx] = *CreateFromRoot(rootCtx, Origin, offset)
+				res[ctxType][idx] = *CreateFromRoot(rootCtx, m3point.Origin, offset)
 				idx++
 			}
 		}
@@ -219,21 +221,21 @@ func TestDivByThree(t *testing.T) {
 
 func runDivByThree(t assert.TestingT) {
 	Log.Level = m3util.DEBUG
-	someCenter1 := Point{3, -6, 9}
+	someCenter1 := m3point.Point{3, -6, 9}
 	ctx := CreateGrowthContext(someCenter1, 1, 1, 0)
 	assert.Equal(t, someCenter1, ctx.center)
-	assert.Equal(t, ContextType(1), ctx.ctxType)
-	assert.Equal(t, 1, ctx.ctxIndex)
+	assert.Equal(t, m3point.ContextType(1), ctx.GetType())
+	assert.Equal(t, 1, ctx.GetIndex())
 	assert.Equal(t, 0, ctx.offset)
 
-	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{0, -6, 9}))
-	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{6, -6, 9}))
-	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{3, -3, 9}))
-	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{3, -9, 9}))
-	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{3, -6, 12}))
-	assert.Equal(t, uint64(1), ctx.GetDivByThree(Point{3, -6, 6}))
+	assert.Equal(t, uint64(1), ctx.GetDivByThree(m3point.Point{0, -6, 9}))
+	assert.Equal(t, uint64(1), ctx.GetDivByThree(m3point.Point{6, -6, 9}))
+	assert.Equal(t, uint64(1), ctx.GetDivByThree(m3point.Point{3, -3, 9}))
+	assert.Equal(t, uint64(1), ctx.GetDivByThree(m3point.Point{3, -9, 9}))
+	assert.Equal(t, uint64(1), ctx.GetDivByThree(m3point.Point{3, -6, 12}))
+	assert.Equal(t, uint64(1), ctx.GetDivByThree(m3point.Point{3, -6, 6}))
 
-	assert.Equal(t, uint64(6), ctx.GetDivByThree(Point{0, 0, 0}))
+	assert.Equal(t, uint64(6), ctx.GetDivByThree(m3point.Point{0, 0, 0}))
 
 	// Verify trio index unaffected
 	for d := uint64(0); d < 30; d++ {
@@ -244,17 +246,17 @@ func runDivByThree(t assert.TestingT) {
 
 func TestGrowthContext1(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	ctx := CreateGrowthContext(Origin, 1, 3, 0)
-	assert.Equal(t, ContextType(1), ctx.ctxType)
-	assert.Equal(t, 3, ctx.ctxIndex)
+	ctx := CreateGrowthContext(m3point.Origin, 1, 3, 0)
+	assert.Equal(t, m3point.ContextType(1), ctx.GetType())
+	assert.Equal(t, 3, ctx.GetIndex())
 	assert.Equal(t, 0, ctx.offset)
 	for d := uint64(0); d < 30; d++ {
 		assert.Equal(t, 3, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
 	}
-	ctx.ctxIndex = 4
+	ctx.SetIndex(4)
 	ctx.offset = 2
-	assert.Equal(t, ContextType(1), ctx.ctxType)
-	assert.Equal(t, 4, ctx.ctxIndex)
+	assert.Equal(t, m3point.ContextType(1), ctx.GetType())
+	assert.Equal(t, 4, ctx.GetIndex())
 	assert.Equal(t, 2, ctx.offset)
 	for d := uint64(0); d < 30; d++ {
 		assert.Equal(t, 4, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
@@ -265,9 +267,9 @@ func TestGrowthContext3(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
 	for idx := 0; idx < 4; idx++ {
-		ctx := CreateGrowthContext(Origin, 3, idx, 0)
-		assert.Equal(t, ContextType(3), ctx.ctxType)
-		assert.Equal(t, idx, ctx.ctxIndex)
+		ctx := CreateGrowthContext(m3point.Origin, 3, idx, 0)
+		assert.Equal(t, m3point.ContextType(3), ctx.GetType())
+		assert.Equal(t, idx, ctx.GetIndex())
 		assert.Equal(t, 0, ctx.offset)
 		for d := uint64(0); d < 9; d++ {
 			if d%2 == 0 {
@@ -292,15 +294,15 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 
 	growthContexts := getAllTestContexts()
 	for _, ctx := range growthContexts[1] {
-		assert.Equal(t, ContextType(1), ctx.ctxType)
+		assert.Equal(t, m3point.ContextType(1), ctx.GetType())
 		for d := uint64(0); d < 30; d++ {
-			assert.Equal(t, ctx.ctxIndex, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx.String(), d)
+			assert.Equal(t, ctx.GetIndex(), ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx.String(), d)
 		}
 	}
 
 	for _, ctx := range growthContexts[2] {
-		assert.Equal(t, ContextType(2), ctx.ctxType)
-		oneTwo := ValidNextTrio[ctx.ctxIndex]
+		assert.Equal(t, m3point.ContextType(2), ctx.GetType())
+		oneTwo := m3point.ValidNextTrio[ctx.GetIndex()]
 		twoIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
 			assert.Equal(t, oneTwo[twoIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d twoIdx=%d in %v", ctx.String(), d, twoIdx, oneTwo)
@@ -312,8 +314,8 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 	}
 
 	for _, ctx := range growthContexts[4] {
-		assert.Equal(t, ContextType(4), ctx.ctxType)
-		oneToFour := AllMod4Permutations[ctx.ctxIndex]
+		assert.Equal(t, m3point.ContextType(4), ctx.GetType())
+		oneToFour := m3point.AllMod4Permutations[ctx.GetIndex()]
 		fourIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
 			assert.Equal(t, oneToFour[fourIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d fourIdx=%d in %v", ctx.String(), d, fourIdx, oneToFour)
@@ -325,8 +327,8 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 	}
 
 	for _, ctx := range growthContexts[8] {
-		assert.Equal(t, ContextType(8), ctx.ctxType)
-		oneToEight := AllMod8Permutations[ctx.ctxIndex]
+		assert.Equal(t, m3point.ContextType(8), ctx.GetType())
+		oneToEight := m3point.AllMod8Permutations[ctx.GetIndex()]
 		eightIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
 			assert.Equal(t, oneToEight[eightIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d eightIdx=%d in %v", ctx.String(), d, eightIdx, oneToEight)
@@ -352,9 +354,9 @@ func TestTrioListPerContext(t *testing.T) {
 			} else {
 				assert.Equal(t, stableStep, s, "failed same stable step for %s", ctx.String())
 			}
-			curList, ok := indexList[ctx.ctxIndex]
+			curList, ok := indexList[ctx.GetIndex()]
 			if !ok {
-				indexList[ctx.ctxIndex] = l
+				indexList[ctx.GetIndex()] = l
 			} else {
 				assert.True(t, EqualIntSlice(curList, l), "failed same index list for %s %v != %v", ctx.String(), curList, l)
 			}
@@ -368,8 +370,8 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 	var currentIndexList []int
 
 	countUsedIdx := make(map[int]int)
-	usedPoints := make(map[Point]int)
-	latestPoints := make([]Point, 1)
+	usedPoints := make(map[m3point.Point]int)
+	latestPoints := make([]m3point.Point, 1)
 	latestPoints[0] = ctx.center
 
 	// If currentIndexList is stable for "verifyStable" iterations we should stop
@@ -379,23 +381,23 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 
 	for d := uint64(0); d < 30; d++ {
 		stepStable = int(d)
-		newPoints := make([]Point, 0, 2*len(latestPoints))
+		newPoints := make([]m3point.Point, 0, 2*len(latestPoints))
 		stepCountIdx := make(map[int]int)
-		stepConflictCount := make(map[Point]int)
+		stepConflictCount := make(map[m3point.Point]int)
 
 		for _, p := range latestPoints {
-			nextPoints := p.GetNextPoints(ctx)
+			nextPoints := ctx.GetNextPoints(p)
 			tdIdx, link := findTrioIndex(p, nextPoints, ctx)
 			if !p.IsMainPoint() {
-				td := AllTrioDetails[tdIdx]
+				td := m3point.AllTrioDetails[tdIdx]
 				foundLink := false
-				for _, l := range td.links {
+				for _, l := range td.Links {
 					if *l == link {
 						foundLink = true
 						break
 					}
 				}
-				assert.True(t, foundLink, "did not find link in idx=%d %v in %v", tdIdx, link, td.links)
+				assert.True(t, foundLink, "did not find link in idx=%d %v in %v", tdIdx, link, td.Links)
 			}
 			countUsedIdx[tdIdx]++
 			stepCountIdx[tdIdx]++
@@ -462,10 +464,10 @@ func EqualIntSlice(a, b []int) bool {
 }
 
 // Stupid reverse engineering of trio index that works for main and non main points
-func findTrioIndex(c Point, np [3]Point, ctx *GrowthContext) (int, TrioLink) {
-	link := makeTrioLink(getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx))
-	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
-	for trIdx, td := range AllTrioDetails {
+func findTrioIndex(c m3point.Point, np [3]m3point.Point, ctx *GrowthContext) (int, m3point.TrioLink) {
+	link := m3point.MakeTrioLink(getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx))
+	toFind := m3point.MakeTrioDetails(m3point.MakeVector(c, np[0]), m3point.MakeVector(c, np[1]), m3point.MakeVector(c, np[2]))
+	for trIdx, td := range m3point.AllTrioDetails {
 		if toFind.GetTrio() == td.GetTrio() {
 			return trIdx, link
 		}
@@ -475,6 +477,115 @@ func findTrioIndex(c Point, np [3]Point, ctx *GrowthContext) (int, TrioLink) {
 	return -1, link
 }
 
-func getTrioIdxNearestMain(p Point, ctx *GrowthContext) int {
+func getTrioIdxNearestMain(p m3point.Point, ctx *GrowthContext) int {
 	return ctx.GetTrioIndex(ctx.GetDivByThree(p.GetNearMainPoint()))
+}
+
+func TestConnectionDetailsInGrowthContext(t *testing.T) {
+	allCtx := getAllTestContexts()
+	assert.Equal(t, 5, len(allCtx))
+
+	nbCtx := 0
+	for _, contextList := range allCtx {
+		nbCtx += len(contextList)
+	}
+	Log.Info("Created", nbCtx, "contexts")
+	Log.Info("Using", len(allCtx[8]), " contexts from the 8 context")
+	// For all trioIndex rotations, any 2 close main points there should be a connection details
+	min := int64(-2) // -5
+	max := int64(2)  // 5
+	for _, ctx := range allCtx[8] {
+		for x := min; x < max; x++ {
+			for y := min; y < max; y++ {
+				for z := min; z < max; z++ {
+					mainPoint := m3point.Point{x, y, z}.Mul(3)
+					connectingVectors := ctx.GetTrio(mainPoint)
+					for _, cVec := range connectingVectors {
+
+						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Pos", mainPoint, "base vector", cVec))
+
+						nextMain := m3point.Origin
+						switch cVec.X() {
+						case 0:
+							// Nothing out
+						case 1:
+							nextMain = mainPoint.Add(m3point.XFirst)
+						case -1:
+							nextMain = mainPoint.Sub(m3point.XFirst)
+						default:
+							assert.Fail(t, "There should not be a connecting vector with x value %d", cVec.X())
+						}
+						if nextMain != m3point.Origin {
+							// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
+							nextConnectingVectors := ctx.GetTrio(nextMain)
+							for _, nbp := range nextConnectingVectors {
+								if nbp.X() == -cVec.X() {
+									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
+										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
+										"main base vector", cVec, "next base vector", nbp))
+								}
+							}
+						}
+
+						nextMain = m3point.Origin
+						switch cVec.Y() {
+						case 0:
+							// Nothing out
+						case 1:
+							nextMain = mainPoint.Add(m3point.YFirst)
+						case -1:
+							nextMain = mainPoint.Sub(m3point.YFirst)
+						default:
+							assert.Fail(t, "There should not be a connecting vector with y value %d", cVec.Y())
+						}
+						if nextMain != m3point.Origin {
+							// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
+							nextConnectingVectors := ctx.GetTrio(nextMain)
+							for _, nbp := range nextConnectingVectors {
+								if nbp.Y() == -cVec.Y() {
+									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
+										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
+										"main base vector", cVec, "next base vector", nbp))
+								}
+							}
+						}
+
+						nextMain = m3point.Origin
+						switch cVec.Z() {
+						case 0:
+							// Nothing out
+						case 1:
+							nextMain = mainPoint.Add(m3point.ZFirst)
+						case -1:
+							nextMain = mainPoint.Sub(m3point.ZFirst)
+						default:
+							assert.Fail(t, "There should not be a connecting vector with Z value %d", cVec.Z())
+						}
+						if nextMain != m3point.Origin {
+							// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
+							nextConnectingVectors := ctx.GetTrio(nextMain)
+							for _, nbp := range nextConnectingVectors {
+								if nbp.Z() == -cVec.Z() {
+									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
+										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
+										"main base vector", cVec, "next base vector", nbp))
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
+
+func assertValidConnDetails(t *testing.T, p1, p2 m3point.Point, msg string) {
+	connDetails1 := m3point.GetConnDetailsByPoints(p1, p2)
+	assert.NotEqual(t, m3point.EmptyConnDetails, connDetails1, msg)
+	assert.Equal(t, m3point.MakeVector(p1, p2), connDetails1.Vector, msg)
+
+	connDetails2 := m3point.GetConnDetailsByPoints(p2, p1)
+	assert.NotEqual(t, m3point.EmptyConnDetails, connDetails2, msg)
+	assert.Equal(t, m3point.MakeVector(p2, p1), connDetails2.Vector, msg)
 }

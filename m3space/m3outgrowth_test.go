@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +48,7 @@ func TestActiveEventOutgrowth(t *testing.T) {
 func TestSavedEventOutgrowth(t *testing.T) {
 	Log.Level = m3util.TRACE
 	var o Outgrowth
-	o = &SavedEventOutgrowth{m3point.Point{1, 2, 3}, nil, Distance(0), TheEnd}
+	o = &SavedEventOutgrowth{m3point.Point{1, 2, 3}, nil, Distance(0), m3path.TheEnd}
 
 	assert.Equal(t, m3point.Point{1, 2, 3}, o.GetPoint())
 	assert.Equal(t, Distance(0), o.GetDistance())
@@ -76,7 +77,7 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, 3, space.blockOnSameEvent)
 
 	// Test center is overridden
-	ctx := m3point.CreateGrowthContext(m3point.Point{5, 6, 7}, 1, 0, 0)
+	ctx := m3path.CreateGrowthContext(m3point.Point{5, 6, 7}, 1, 0, 0)
 	evt := space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
 	assert.Equal(t, m3point.Origin, ctx.GetCenter())
@@ -105,7 +106,7 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
 
 	nextPoint := m3point.Point{1, 1, 0}
-	nextPoints := o.GetPoint().GetNextPoints(evt.growthContext)
+	nextPoints := evt.growthContext.GetNextPoints(o.GetPoint())
 	assert.Equal(t, 3, len(nextPoints))
 	assert.Equal(t, nextPoint, nextPoints[0])
 	assert.Equal(t, false, o.CameFromPoint(nextPoint))
@@ -182,7 +183,7 @@ func TestOverlapSameEvent(t *testing.T) {
 	// Only latest counting
 	space.SetEventOutgrowthThreshold(Distance(0))
 	space.blockOnSameEvent = 4
-	ctx := m3point.CreateGrowthContext(m3point.Origin, 1, 0, 0)
+	ctx := m3path.CreateGrowthContext(m3point.Origin, 1, 0, 0)
 	space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
 	expectedTime := TickTime(0)

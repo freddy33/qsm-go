@@ -182,13 +182,13 @@ func TestTrioDetailsLinks(t *testing.T) {
 	for _, td := range AllTrioDetails {
 		switch td.GetDSIndex() {
 		case 0:
-			assert.Equal(t, 0, len(td.links), "Nb links wrong for %v", td.String())
+			assert.Equal(t, 0, len(td.Links), "Nb links wrong for %v", td.String())
 		case 6:
-			assert.Equal(t, 6, len(td.links), "Nb links wrong for %v", td.String())
+			assert.Equal(t, 6, len(td.Links), "Nb links wrong for %v", td.String())
 		default:
-			assert.Equal(t, 8, len(td.links), "Nb links wrong for %v", td.String())
+			assert.Equal(t, 8, len(td.Links), "Nb links wrong for %v", td.String())
 		}
-		for _, tl := range td.links {
+		for _, tl := range td.Links {
 			countPerTrioLinks[*tl]++
 		}
 	}
@@ -200,7 +200,7 @@ func TestTrioDetailsLinks(t *testing.T) {
 			coll = &TrioLinkList{}
 			collPerCount[c] = coll
 		}
-		copyTl := makeTrioLink(tl.a, tl.b, tl.c)
+		copyTl := MakeTrioLink(tl.a, tl.b, tl.c)
 		coll.addUnique(&copyTl)
 	}
 	for _, tll := range collPerCount {

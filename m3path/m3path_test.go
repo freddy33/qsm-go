@@ -1,4 +1,4 @@
-package m3space
+package m3path
 
 import (
 	"github.com/freddy33/qsm-go/m3util"

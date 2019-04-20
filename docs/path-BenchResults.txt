@@ -1,0 +1,13 @@
+m3point 2019/04/20 10:01:34 m3conn.go:113: [INFO Number of connection details created 50]
+m3point 2019/04/20 10:01:34 m3trioctx.go:39: [INFO map[CtxType3:8 CtxType4:12 CtxType8:12 CtxType1:8 CtxType2:12]]
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3path
+BenchmarkCtx1-8        	       1	5171934828 ns/op
+BenchmarkCtx2-8        	       1	18198889885 ns/op
+BenchmarkCtx3-8        	       1	32894357176 ns/op
+BenchmarkCtx4-8        	       1	46962020638 ns/op
+BenchmarkCtx8-8        	       1	102499857311 ns/op
+BenchmarkAllGrowth-8   	       1	24949718542 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3path	230.934s

@@ -81,3 +81,15 @@ func (trCtx *TrioIndexContext) String() string {
 	return fmt.Sprintf("TrioCtx%d-Idx%02d", trCtx.ctxType, trCtx.ctxIndex)
 }
 
+func (trCtx *TrioIndexContext) GetType() ContextType {
+	return trCtx.ctxType
+}
+
+func (trCtx *TrioIndexContext) GetIndex() int {
+	return trCtx.ctxIndex
+}
+
+func (trCtx *TrioIndexContext) SetIndex(idx int) {
+	trCtx.ctxIndex = idx
+}
+

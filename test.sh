@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-    echo "Usage $0 [package name = point, space, gl, all]"
+    echo "Usage $0 [package name = point, path, space, gl, all]"
     exit 1
 }
 
@@ -10,13 +10,13 @@ if [[ -z "$pack" ]]; then
     usage
 fi
 
-if [ "$pack" == "point" ] || [ "$pack" == "space" ] || [ "$pack" == "gl" ]; then
+if [ "$pack" == "point" ] ||[ "$pack" == "path" ] || [ "$pack" == "space" ] || [ "$pack" == "gl" ]; then
     go test ./m3${pack}/
     exit $?
 fi
 
 if [ "$pack" == "all" ]; then
-    go test -parallel 4 ./m3point/ ./m3space/ ./m3gl/
+    go test -parallel 4 ./m3point/ ./m3path/ ./m3space/ ./m3gl/
     exit $?
 fi
 

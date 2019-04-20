@@ -1,0 +1,15 @@
+Type: alloc_space
+Time: Apr 20, 2019 at 10:05am (IDT)
+Showing nodes accounting for 18625.17MB, 100% of 18628.06MB total
+Dropped 26 nodes (cum <= 93.14MB)
+      flat  flat%   sum%        cum   cum%
+18625.17MB   100%   100% 18625.17MB   100%  github.com/freddy33/qsm-go/m3path.runNextPoints
+         0     0%   100%  1992.78MB 10.70%  github.com/freddy33/qsm-go/m3path.BenchmarkAllGrowth
+         0     0%   100%   611.56MB  3.28%  github.com/freddy33/qsm-go/m3path.BenchmarkCtx1
+         0     0%   100%  1826.70MB  9.81%  github.com/freddy33/qsm-go/m3path.BenchmarkCtx2
+         0     0%   100%  2572.95MB 13.81%  github.com/freddy33/qsm-go/m3path.BenchmarkCtx3
+         0     0%   100%  3844.37MB 20.64%  github.com/freddy33/qsm-go/m3path.BenchmarkCtx4
+         0     0%   100%  7776.81MB 41.75%  github.com/freddy33/qsm-go/m3path.BenchmarkCtx8
+         0     0%   100% 16632.39MB 89.29%  github.com/freddy33/qsm-go/m3path.runForCtxType
+         0     0%   100% 18625.17MB   100%  testing.(*B).run1.func1
+         0     0%   100% 18625.68MB   100%  testing.(*B).runN

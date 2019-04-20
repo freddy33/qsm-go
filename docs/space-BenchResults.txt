@@ -105,3 +105,14 @@ BenchmarkPack12-8   	       1	3556534606 ns/op
 BenchmarkPack20-8   	       1	20394990138 ns/op
 PASS
 ok  	github.com/freddy33/qsm-go/m3space	27.543s
+m3point 2019/04/20 10:05:27 m3conn.go:113: [INFO Number of connection details created 50]
+m3point 2019/04/20 10:05:27 m3trioctx.go:39: [INFO map[CtxType1:8 CtxType2:12 CtxType3:8 CtxType4:12 CtxType8:12]]
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	      10	 128507699 ns/op
+BenchmarkPack2-8    	      10	 150298621 ns/op
+BenchmarkPack12-8   	       1	3278300528 ns/op
+BenchmarkPack20-8   	       1	19157530335 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3space	25.806s

@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"log"
@@ -74,7 +75,7 @@ func extractMainAndOtherPoints(pointMap *map[m3point.Point]*PointState, time Tic
 	return
 }
 
-func collectFlow(ctx *m3point.GrowthContext, untilTime TickTime, writeAllPoints func(pointMap *map[m3point.Point]*PointState, time TickTime)) {
+func collectFlow(ctx *m3path.GrowthContext, untilTime TickTime, writeAllPoints func(pointMap *map[m3point.Point]*PointState, time TickTime)) {
 	globalPointIdx := 0
 	time := TickTime(0)
 	allPoints := make(map[m3point.Point]*PointState, 100)
@@ -94,7 +95,7 @@ func collectFlow(ctx *m3point.GrowthContext, untilTime TickTime, writeAllPoints 
 		newPoints := make([]m3point.Point, 0, nbPoints)
 		for _, p := range currentPoints {
 			currentState := allPoints[p]
-			nps := p.GetNextPoints(ctx)
+			nps := ctx.GetNextPoints(p)
 			for _, np := range nps {
 				npState, ok := allPoints[np]
 				if !ok {
@@ -125,7 +126,7 @@ func Write0To4TimeFlow() {
 	m3util.ChangeToDocsGeneratedDir()
 
 	// Start from origin with growth context type 2 index 0
-	ctx := m3point.CreateGrowthContext(m3point.Origin, 2, 0, 0)
+	ctx := m3path.CreateGrowthContext(m3point.Origin, 2, 0, 0)
 	untilTime := TickTime(8)
 
 	txtFile, err := os.Create(fmt.Sprintf("%s_Time_%03d.txt", ctx.GetFileName(), untilTime))
@@ -165,7 +166,7 @@ func GenerateDataTimeFlow0() {
 	m3util.ChangeToDocsDataDir()
 
 	// Start from origin with growth context type 2 index 0
-	ctx := m3point.CreateGrowthContext(m3point.Origin, 2, 0, 0)
+	ctx := m3path.CreateGrowthContext(m3point.Origin, 2, 0, 0)
 	untilTime := TickTime(30)
 
 	binFile, err := os.Create(fmt.Sprintf("%s_Time_%03d.data", ctx.GetFileName(), untilTime))

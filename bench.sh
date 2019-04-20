@@ -3,7 +3,7 @@
 mkdir -p perf-data
 
 usage() {
-    echo "Usage $0 [package name = point, space, all]"
+    echo "Usage $0 [package name = path, space, all]"
     exit 1
 }
 
@@ -19,13 +19,13 @@ runAndSave() {
     go tool pprof --text perf-data/mem-${packageName}.prof > ./docs/${packageName}-BenchPprofMemResults.txt
 }
 
-if [ "$pack" == "point" ] || [ "$pack" == "space" ]; then
+if [ "$pack" == "path" ] || [ "$pack" == "space" ]; then
     runAndSave ${pack}
     exit $?
 fi
 
 if [ "$pack" == "all" ]; then
-    runAndSave point
+    runAndSave path
     runAndSave space
     exit $?
 fi

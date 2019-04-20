@@ -226,7 +226,7 @@ func writeAllTrioDetailsLinks() {
 	defer m3util.CloseFile(txtFile)
 
 	for a, td := range AllTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %s\n", a, td.links.String()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %s\n", a, td.Links.String()))
 	}
 }
 

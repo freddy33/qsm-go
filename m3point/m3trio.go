@@ -25,7 +25,7 @@ type TrioLinkList []*TrioLink
 type TrioDetails struct {
 	id    int
 	conns [3]*ConnectionDetails
-	links TrioLinkList
+	Links TrioLinkList
 }
 
 // Defining a list type to manage uniqueness and ordering
@@ -71,7 +71,7 @@ func isPrime(i1, i2 int) bool {
 // TrioLink Functions
 /***************************************************************/
 
-func makeTrioLink(a,b,c int) TrioLink {
+func MakeTrioLink(a,b,c int) TrioLink {
 	// The destination should be ordered by smaller first
 	if c < b {
 		return TrioLink{a,c,b,}
@@ -180,7 +180,7 @@ func (l *TrioDetailList) addWithLinks(td *TrioDetails) bool {
 	present := false
 	for _, trL := range *l {
 		if trL.GetTrio() == td.GetTrio() {
-			trL.links.addAll(&td.links)
+			trL.Links.addAll(&td.Links)
 			present = true
 			break
 		}
@@ -488,7 +488,7 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 }
 
 func (td *TrioDetails) String() string {
-	return fmt.Sprintf("T%02d: (%s, %s, %s) l=%3d", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName(), len(td.links))
+	return fmt.Sprintf("T%02d: (%s, %s, %s) l=%3d", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName(), len(td.Links))
 }
 
 func (td *TrioDetails) GetTrio() Trio {
@@ -540,11 +540,11 @@ func fillAllTrioDetails() {
 	for a, tA := range AllBaseTrio {
 		for b, tB := range AllBaseTrio {
 			for c, tC := range AllBaseTrio {
-				thisTrio := makeTrioLink(a,b,c)
+				thisTrio := MakeTrioLink(a,b,c)
 				alreadyDone := allTrioLinks.addUnique(&thisTrio)
 				if !alreadyDone {
 					for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
-						nextTrio.links.addUnique(&thisTrio)
+						nextTrio.Links.addUnique(&thisTrio)
 						allTDSlice.addWithLinks(nextTrio)
 					}
 				}
@@ -560,7 +560,7 @@ func fillAllTrioDetails() {
 		}
 		td.id = i
 		// Order the links array
-		sort.Sort(td.links)
+		sort.Sort(td.Links)
 	}
 	AllTrioDetails = allTDSlice
 	AllTrioLinks = allTrioLinks
