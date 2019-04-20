@@ -67,51 +67,7 @@ func (ctx *GrowthContext) String() string {
 }
 
 func (ctx *GrowthContext) GetTrioIndex(divByThree uint64) int {
-	if ctx.GetType() == 1 {
-		// Always same value
-		return ctx.GetIndex()
-	}
-	if ctx.GetType() == 3 {
-		// Center on Trio index ctx.GetIndex() and then use X, Y, Z where conn are 1
-		mod2 := m3point.PosMod2(divByThree)
-		if mod2 == 0 {
-			return ctx.GetIndex()
-		}
-		mod3 := int(((divByThree-1)/2 + uint64(ctx.offset)) % 3)
-		if mod3 < 0 {
-			mod3 += 3
-		}
-		if ctx.GetIndex() < 4 {
-			return m3point.ValidNextTrio[3*ctx.GetIndex()+mod3][1]
-		}
-		count := 0
-		for _, validTrio := range m3point.ValidNextTrio {
-			if validTrio[1] == ctx.GetIndex() {
-				if count == mod3 {
-					return validTrio[0]
-				}
-				count++
-			}
-		}
-		panic(fmt.Sprintf("did not find valid Trio for div by three value %d in context %v!", divByThree, ctx))
-	}
-
-	divByThreeWithOffset := uint64(ctx.offset) + divByThree
-	switch ctx.GetType() {
-	case 2:
-		permutationMap := m3point.ValidNextTrio[ctx.GetIndex()]
-		idx := int(m3point.PosMod2(divByThreeWithOffset))
-		return permutationMap[idx]
-	case 4:
-		permutationMap := m3point.AllMod4Permutations[ctx.GetIndex()]
-		idx := int(m3point.PosMod4(divByThreeWithOffset))
-		return permutationMap[idx]
-	case 8:
-		permutationMap := m3point.AllMod8Permutations[ctx.GetIndex()]
-		idx := int(m3point.PosMod8(divByThreeWithOffset))
-		return permutationMap[idx]
-	}
-	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", ctx.GetType(), ctx))
+	return ctx.GetBaseTrioIndex(divByThree, ctx.offset)
 }
 
 func (ctx *GrowthContext) GetDivByThree(p m3point.Point) uint64 {

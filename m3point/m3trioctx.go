@@ -17,13 +17,14 @@ type ContextType uint8
 var allContextTypes = [5]ContextType{1, 2, 3, 4, 8}
 
 type TrioIndexContext struct {
-	ctxType  ContextType
+	ctxType ContextType
 	// Index in the permutations to choose from. For type 1 and 3 [0,7] for the other in the 12 list [0,11]
 	// Max number of indexes returned by ContextType.GetNbIndexes()
 	ctxIndex int
 }
 
 var trioIndexContexts map[ContextType][]*TrioIndexContext
+var trioDetailsPerContext map[ContextType][]*TrioDetailList
 
 func init() {
 	count := make(map[ContextType]int)
@@ -74,7 +75,7 @@ func GetTrioIndexContext(ctxType ContextType, index int) *TrioIndexContext {
 }
 
 func createTrioIndexContext(permType ContextType, index int) *TrioIndexContext {
-	return &TrioIndexContext{permType, index, }
+	return &TrioIndexContext{permType, index,}
 }
 
 func (trCtx *TrioIndexContext) String() string {
@@ -93,3 +94,109 @@ func (trCtx *TrioIndexContext) SetIndex(idx int) {
 	trCtx.ctxIndex = idx
 }
 
+func (trCtx *TrioIndexContext) GetPossibleTrioList() *TrioDetailList {
+	var r *TrioDetailList
+	l, ok := trioDetailsPerContext[trCtx.ctxType]
+	if !ok {
+		l = make([]*TrioDetailList, trCtx.ctxType.GetNbIndexes())
+		trioDetailsPerContext[trCtx.ctxType] = l
+	}
+
+	r = l[trCtx.ctxIndex]
+	if r != nil {
+		return r
+	}
+	r = trCtx.makePossibleTrioList()
+	l[trCtx.ctxIndex] = r
+	return r
+}
+
+func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
+	res := TrioDetailList{}
+	var tlToFind TrioLink
+	if trCtx.ctxType == 1 {
+		// Always same index so all details where links are this
+		tlToFind = MakeTrioLink(trCtx.ctxIndex,trCtx.ctxIndex,trCtx.ctxIndex)
+		for i, td := range AllTrioDetails {
+			if td.Links.exists(&tlToFind) {
+				// Add the pointer from list not from iteration
+				toAdd := AllTrioDetails[i]
+				res.addUnique(toAdd)
+			}
+		}
+		return &res
+	}
+
+	// Now use context to create possible trio links
+	possLinks := TrioLinkList{}
+	for divByThree := uint64(1); divByThree < 8; divByThree++ {
+		a := trCtx.GetBaseTrioIndex(divByThree-1, 0)
+		b := trCtx.GetBaseTrioIndex(divByThree, 0)
+		c := trCtx.GetBaseTrioIndex(divByThree+1, 0)
+		toAdd1 := MakeTrioLink(a, b, b)
+		possLinks.addUnique(&toAdd1)
+		toAdd2 := MakeTrioLink(a, b, c)
+		possLinks.addUnique(&toAdd2)
+	}
+
+	// Now extract all trio details associated with given links
+	for _, tl := range possLinks {
+		for i, td := range AllTrioDetails {
+			if td.Links.exists(tl) {
+				// Add the pointer from list not from iteration
+				toAdd := AllTrioDetails[i]
+				res.addUnique(toAdd)
+			}
+		}
+	}
+
+	return &res
+}
+
+func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) int {
+	if trCtx.ctxType == 1 {
+		// Always same value
+		return trCtx.ctxIndex
+	}
+	if trCtx.ctxType == 3 {
+		// Center on Trio index ctx.GetIndex() and then use X, Y, Z where conn are 1
+		mod2 := PosMod2(divByThree)
+		if mod2 == 0 {
+			return trCtx.ctxIndex
+		}
+		mod3 := int(((divByThree-1)/2 + uint64(offset)) % 3)
+		if mod3 < 0 {
+			mod3 += 3
+		}
+		if trCtx.ctxIndex < 4 {
+			return ValidNextTrio[3*trCtx.ctxIndex+mod3][1]
+		}
+		count := 0
+		for _, validTrio := range ValidNextTrio {
+			if validTrio[1] == trCtx.ctxIndex {
+				if count == mod3 {
+					return validTrio[0]
+				}
+				count++
+			}
+		}
+		panic(fmt.Sprintf("did not find valid Trio for div by three value %d in context %v!", divByThree, trCtx.String()))
+	}
+
+	divByThreeWithOffset := uint64(offset) + divByThree
+	switch trCtx.ctxType {
+	case 2:
+		permutationMap := ValidNextTrio[trCtx.ctxIndex]
+		idx := int(PosMod2(divByThreeWithOffset))
+		return permutationMap[idx]
+	case 4:
+		permutationMap := AllMod4Permutations[trCtx.ctxIndex]
+		idx := int(PosMod4(divByThreeWithOffset))
+		return permutationMap[idx]
+	case 8:
+		permutationMap := AllMod8Permutations[trCtx.ctxIndex]
+		idx := int(PosMod8(divByThreeWithOffset))
+		return permutationMap[idx]
+	}
+	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", trCtx.ctxIndex, trCtx.String()))
+}
