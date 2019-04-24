@@ -32,8 +32,8 @@ type TrioDetails struct {
 type TrioDetailList []*TrioDetails
 
 // All the initialized arrays used to navigate the switch between base trio index at base points
-var AllBaseTrio [8]Trio
-var ValidNextTrio [12][2]int
+var allBaseTrio [8]Trio
+var validNextTrio [12][2]int
 var AllMod4Permutations [12][4]int
 var AllMod8Permutations [12][8]int
 
@@ -42,8 +42,8 @@ const(
 )
 
 // All the possible Trio details used
-var AllTrioDetails TrioDetailList
-var AllTrioLinks TrioLinkList
+var allTrioDetails TrioDetailList
+var allTrioLinks TrioLinkList
 
 
 /***************************************************************/
@@ -230,7 +230,7 @@ func (l TrioDetailList) Less(i, j int) bool {
 		if ds1Index == 0 {
 			// Base trio, keep order as defined with 0-4 prime -> 5-7
 			var k, l int
-			for bi, bt := range AllBaseTrio {
+			for bi, bt := range allBaseTrio {
 				if bt == tr1.GetTrio() {
 					k = bi
 				}
@@ -260,13 +260,13 @@ func (l TrioDetailList) Less(i, j int) bool {
 
 func init() {
 	// Initial Trio 0
-	AllBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
+	allBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
 	for i := 1; i < 4; i++ {
-		AllBaseTrio[i] = AllBaseTrio[i-1].PlusX()
+		allBaseTrio[i] = allBaseTrio[i-1].PlusX()
 	}
 	// Initial Trio 0 prime
 	for i := 0; i < 4; i++ {
-		AllBaseTrio[i+4] = AllBaseTrio[i].Neg()
+		allBaseTrio[i+4] = allBaseTrio[i].Neg()
 	}
 
 	initValidTrios()
@@ -283,7 +283,7 @@ func initValidTrios() {
 		for j := 4; j < 8; j++ {
 			// j index cannot be the prime (neg) trio
 			if !isPrime(i, j) {
-				ValidNextTrio[idx] = [2]int{i, j}
+				validNextTrio[idx] = [2]int{i, j}
 				idx++
 			}
 		}
@@ -317,6 +317,18 @@ func initMod8Permutations() {
 // Trio Functions
 /***************************************************************/
 var reverse3Map = [3]int{2, 1, 0}
+
+func GetNumberOfBaseTrio() int {
+	return len(allBaseTrio)
+}
+
+func GetBaseTrio(trioIdx int) Trio {
+	return allBaseTrio[trioIdx]
+}
+
+func GetValidNextTrioPair(nextValidIdx int) [2]int {
+	return validNextTrio[nextValidIdx]
+}
 
 func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	res := Trio{}
@@ -469,7 +481,15 @@ func (t Trio) getMinusZVector() Point {
 /***************************************************************/
 // TrioDetails Functions
 /***************************************************************/
-var count = 0
+var _traceCounter = 0
+
+func GetNumberOfTrioDetails() int {
+	return len(allTrioDetails)
+}
+
+func GetTrioDetails(trioIdx int) *TrioDetails {
+	return allTrioDetails[trioIdx]
+}
 
 func MakeTrioDetails(points ...Point) *TrioDetails {
 	// All points should be a connection details
@@ -496,8 +516,8 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 		res.conns[i] = cd
 	}
 	if Log.Level <= m3util.TRACE {
-		fmt.Println(count, res.conns[0].GetName(), res.conns[1].GetName(), res.conns[2].GetName())
-		count++
+		fmt.Println(_traceCounter, res.conns[0].GetName(), res.conns[1].GetName(), res.conns[2].GetName())
+		_traceCounter++
 	}
 	return &res
 }
@@ -547,44 +567,44 @@ func (td *TrioDetails) GetDSIndex() int {
 }
 
 func fillAllTrioDetails() {
-	allTrioLinks := TrioLinkList{}
-	allTDSlice := TrioDetailList{}
+	localTrioLinks := TrioLinkList{}
+	localTrioDetails := TrioDetailList{}
 	// All base trio first
-	for i, tr := range AllBaseTrio {
+	for i, tr := range allBaseTrio {
 		td := MakeTrioDetails(tr[0], tr[1], tr[2])
 		td.id = i
-		allTDSlice.addUnique(td)
+		localTrioDetails.addUnique(td)
 	}
 	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
-	for a, tA := range AllBaseTrio {
-		for b, tB := range AllBaseTrio {
-			for c, tC := range AllBaseTrio {
+	for a, tA := range allBaseTrio {
+		for b, tB := range allBaseTrio {
+			for c, tC := range allBaseTrio {
 				thisTrio := MakeTrioLink(a,b,c)
-				alreadyDone := allTrioLinks.addUnique(&thisTrio)
+				alreadyDone := localTrioLinks.addUnique(&thisTrio)
 				if !alreadyDone {
 					for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
 						nextTrio.Links.addUnique(&thisTrio)
-						allTDSlice.addWithLinks(nextTrio)
+						localTrioDetails.addWithLinks(nextTrio)
 					}
 				}
 			}
 		}
 	}
 
-	sort.Sort(allTDSlice)
+	sort.Sort(localTrioDetails)
 
 	// Process all the trio details now that order final
-	for i, td := range allTDSlice {
+	for i, td := range localTrioDetails {
 		// For all base trio different process
-		if i < len(AllBaseTrio) {
+		if i < len(allBaseTrio) {
 			// The id should already be set correctly
 			if td.id != i {
 				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
 			}
 			// For all base trio add all links containing them
-			for j, tl := range allTrioLinks {
+			for j, tl := range localTrioLinks {
 				if tl.Contains(i) {
-					td.Links.addUnique(allTrioLinks[j])
+					td.Links.addUnique(localTrioLinks[j])
 				}
 			}
 		} else {
@@ -598,8 +618,8 @@ func fillAllTrioDetails() {
 		// Order the links array
 		sort.Sort(td.Links)
 	}
-	AllTrioDetails = allTDSlice
-	AllTrioLinks = allTrioLinks
+	allTrioDetails = localTrioDetails
+	allTrioLinks = localTrioLinks
 }
 
 // Return the new Trio out of Origin + tA (with next tB or tB/tC)

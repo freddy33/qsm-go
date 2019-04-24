@@ -63,8 +63,8 @@ func GetTrioConnType(conns [6]Point) string {
 
 func GetTrioTransitionTableTxt() map[Int2][7]string {
 	result := make(map[Int2][7]string, 8*8)
-	for a, tA := range AllBaseTrio {
-		for b, tB := range AllBaseTrio {
+	for a, tA := range allBaseTrio {
+		for b, tB := range allBaseTrio {
 			txtOut := [7]string{}
 			conns := GetNonBaseConnections(tA, tB)
 			txtOut[0] = GetTrioConnType(conns)
@@ -81,8 +81,8 @@ func GetTrioTransitionTableTxt() map[Int2][7]string {
 
 func GetTrioTransitionTableCsv() [][]string {
 	csvOutput := make([][]string, 8*8)
-	for a, tA := range AllBaseTrio {
-		for b, tB := range AllBaseTrio {
+	for a, tA := range allBaseTrio {
+		for b, tB := range allBaseTrio {
 			lineNb := a * 8
 			if b == 0 {
 				csvOutput[lineNb] = make([]string, 7*8)
@@ -125,8 +125,8 @@ func GetTrioTransitionTableCsv() [][]string {
 func GetTrioTableCsv() [][]string {
 	nbColumns := 5
 	nbRowsPerTrio := 4
-	csvOutput := make([][]string, len(AllBaseTrio)*nbColumns)
-	for a, trio := range AllBaseTrio {
+	csvOutput := make([][]string, len(allBaseTrio)*nbColumns)
+	for a, trio := range allBaseTrio {
 		lineNb := a * nbRowsPerTrio
 		csvOutput[lineNb] = make([]string, nbColumns)
 		columnNb := 0
@@ -210,7 +210,7 @@ func writeAllTrioDetailsTable() {
 
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
-	for a, td := range AllTrioDetails {
+	for a, td := range allTrioDetails {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v %s\n", a, td.conns[0].Vector, td.conns[0].GetName()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[1].Vector, td.conns[1].GetName()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].GetName()))
@@ -219,13 +219,13 @@ func writeAllTrioDetailsTable() {
 }
 
 func writeAllTrioDetailsLinks() {
-	txtFile, err := os.Create("AllTrioLinks.txt")
+	txtFile, err := os.Create("allTrioLinks.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
 	}
 	defer m3util.CloseFile(txtFile)
 
-	for a, td := range AllTrioDetails {
+	for a, td := range allTrioDetails {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %s\n", a, td.Links.String()))
 	}
 }
@@ -238,7 +238,7 @@ func writeAllTrioPermutationsTable() {
 	defer m3util.CloseFile(txtFile)
 
 	m3util.WriteNextString(txtFile, "Valid next Trio Index permutation 2\n")
-	for i, perm := range ValidNextTrio {
+	for i, perm := range validNextTrio {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}
 	m3util.WriteNextString(txtFile, "\nAll Trio Index permutation 4\n")

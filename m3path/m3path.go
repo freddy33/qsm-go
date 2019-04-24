@@ -1,15 +1,34 @@
 package m3path
 
 import (
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 )
 
 var Log = m3util.NewLogger("m3path", m3util.INFO)
 
-type PathBuilder struct {
-	ctx *GrowthContext
-
+type PathContext struct {
+	ctx           *m3point.TrioIndexContext
+	firstPathIds [3]PathIdNode
+	possiblePathIds map[LastPathIdKey][2]PathId
 }
+
+type LastPathIdKey struct {
+	previous   PathId
+	current   PathId
+}
+
+type PathId struct {
+	trioId   int
+	connId   int
+}
+
+type PathIdNode struct {
+	cur PathId
+	next [2]*PathIdNode
+}
+
+
 
 
 // An element in the path from event base node to latest outgrowth

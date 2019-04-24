@@ -1,10 +1,31 @@
 package m3path
 
 import (
+	"fmt"
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+func TestPathContextFilling(t *testing.T) {
+	for _, ctxType := range m3point.GetAllContextTypes() {
+		nbIndexes := ctxType.GetNbIndexes()
+		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
+			pathCtx := PathContext{}
+			pathCtx.ctx = m3point.GetTrioIndexContext(ctxType, pIdx)
+			fillPathContext(t, &pathCtx, 5)
+			break
+		}
+	}
+
+}
+
+func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
+	trIdx := pathCtx.ctx.GetBaseTrioIndex(0, 0)
+	fmt.Println(trIdx)
+}
+
 
 func TestNilPathElement(t *testing.T) {
 	nsp := EndPathElement(-3)

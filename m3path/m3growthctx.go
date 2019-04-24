@@ -13,16 +13,6 @@ type GrowthContext struct {
 	offset int
 }
 
-type PathContext struct {
-	ctx           *GrowthContext
-	trioSequences []PathContextElement
-}
-
-type PathContextElement struct {
-	srcTrio   *m3point.TrioDetails
-	nextTrios []*m3point.TrioDetails
-}
-
 func CreateGrowthContext(center m3point.Point, permType m3point.ContextType, index int, offset int) *GrowthContext {
 	return &GrowthContext{*m3point.GetTrioIndexContext(permType, index), center, offset}
 }
@@ -75,7 +65,7 @@ func (ctx *GrowthContext) GetDivByThree(p m3point.Point) uint64 {
 }
 
 func (ctx *GrowthContext) GetTrio(p m3point.Point) m3point.Trio {
-	return m3point.AllBaseTrio[ctx.GetTrioIndex(ctx.GetDivByThree(p))]
+	return m3point.GetBaseTrio(ctx.GetTrioIndex(ctx.GetDivByThree(p)))
 }
 
 // Give the 3 next points of a given node activated in the context of the current event.

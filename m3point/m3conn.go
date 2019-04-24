@@ -99,18 +99,18 @@ func (cd *ConnectionDetails) GetName() string {
 func initConnectionDetails() uint8 {
 	connMap := make(map[Point]*ConnectionDetails)
 	// Going through all Trio and all combination of Trio, to aggregate connection details
-	for _, tr := range AllBaseTrio {
+	for _, tr := range allBaseTrio {
 		for _, vec := range tr {
 			addConnDetail(&connMap, vec)
 		}
-		for _, tB := range AllBaseTrio {
+		for _, tB := range allBaseTrio {
 			connectingVectors := GetNonBaseConnections(tr, tB)
 			for _, conn := range connectingVectors {
 				addConnDetail(&connMap, conn)
 			}
 		}
 	}
-	Log.Info("Number of connection details created", len(connMap))
+	Log.Debug("Number of connection details created", len(connMap))
 	nbConnDetails := int8(len(connMap) / 2)
 
 	// Reordering connection details number by size, and x, y, z

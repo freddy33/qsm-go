@@ -44,12 +44,12 @@ func TestPosMod8(t *testing.T) {
 
 func TestAllTrioLinks(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	assert.Equal(t, 8*8*(1+8)/2, len(AllTrioLinks), "%v", AllTrioLinks)
+	assert.Equal(t, 8*8*(1+8)/2, len(allTrioLinks), "%v", allTrioLinks)
 	for a := 0; a < 8; a++ {
 		for b := 0; b < 8; b++ {
 			for c := 0; c < 8; c++ {
 				count := 0
-				for _, tl := range AllTrioLinks {
+				for _, tl := range allTrioLinks {
 					if a == tl.a && b == tl.b && c == tl.c {
 						count++
 					}
@@ -67,8 +67,8 @@ func TestAllTrioLinks(t *testing.T) {
 func TestAllTrioDetails(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
-	assert.Equal(t, 200, len(AllTrioDetails))
-	for i, td := range AllTrioDetails {
+	assert.Equal(t, 200, len(allTrioDetails))
+	for i, td := range allTrioDetails {
 		// All vec should have conn details
 		cds := td.conns
 		// Conn ID increase always
@@ -77,9 +77,9 @@ func TestAllTrioDetails(t *testing.T) {
 	}
 
 	// Check that All trio is ordered correctly
-	for i, tr := range AllTrioDetails {
+	for i, tr := range allTrioDetails {
 		if i > 0 {
-			assert.True(t, AllTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, tr)
+			assert.True(t, allTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, allTrioDetails[i-1], i, tr)
 		}
 	}
 }
@@ -90,8 +90,8 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
 	PossibleDSArray := [NbTrioDsIndex][3]int64{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
 
-	indexInPossDS := make([]int, len(AllTrioDetails))
-	for i, td := range AllTrioDetails {
+	indexInPossDS := make([]int, len(allTrioDetails))
+	for i, td := range allTrioDetails {
 		cds := td.conns
 		dsArray := [3]int64{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
@@ -108,9 +108,9 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	// Check that All trio is ordered correctly
 	countPerIndex := [NbTrioDsIndex]int{}
 	countPerIndexPerFirstConnPosId := [NbTrioDsIndex][10]int{}
-	for i, td := range AllTrioDetails {
+	for i, td := range allTrioDetails {
 		if i > 0 {
-			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, AllTrioDetails[i-1], i, td)
+			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, allTrioDetails[i-1], i, td)
 		}
 		dsIndex := td.GetDSIndex()
 		countPerIndex[dsIndex]++
@@ -179,7 +179,7 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 func TestTrioDetailsLinks(t *testing.T) {
 	countPerTrioLinks := make(map[TrioLink]int)
 
-	for _, td := range AllTrioDetails {
+	for _, td := range allTrioDetails {
 		switch td.GetDSIndex() {
 		case 0:
 			assert.Equal(t, 92, len(td.Links), "Nb links wrong for %v", td.String())
@@ -241,20 +241,20 @@ func TestTrioDetailsLinks(t *testing.T) {
 
 func TestInitialTrioConnectingVectors(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	assert.Equal(t, AllBaseTrio[0][0], Point{1, 1, 0})
-	assert.Equal(t, AllBaseTrio[0][1], Point{-1, 0, -1})
-	assert.Equal(t, AllBaseTrio[0][1], AllBaseTrio[0][0].PlusX().PlusY().PlusY())
-	assert.Equal(t, AllBaseTrio[0][2], Point{0, -1, 1})
-	assert.Equal(t, AllBaseTrio[0][2], AllBaseTrio[0][0].PlusY().PlusX().PlusX())
+	assert.Equal(t, allBaseTrio[0][0], Point{1, 1, 0})
+	assert.Equal(t, allBaseTrio[0][1], Point{-1, 0, -1})
+	assert.Equal(t, allBaseTrio[0][1], allBaseTrio[0][0].PlusX().PlusY().PlusY())
+	assert.Equal(t, allBaseTrio[0][2], Point{0, -1, 1})
+	assert.Equal(t, allBaseTrio[0][2], allBaseTrio[0][0].PlusY().PlusX().PlusX())
 
-	assert.Equal(t, AllBaseTrio[4][0], Point{-1, -1, 0})
-	assert.Equal(t, AllBaseTrio[4][1], Point{1, 0, 1})
-	assert.Equal(t, AllBaseTrio[4][2], Point{0, 1, -1})
+	assert.Equal(t, allBaseTrio[4][0], Point{-1, -1, 0})
+	assert.Equal(t, allBaseTrio[4][1], Point{1, 0, 1})
+	assert.Equal(t, allBaseTrio[4][2], Point{0, 1, -1})
 }
 
 func TestAllBaseTrio(t *testing.T) {
 	Log.Level = m3util.DEBUG
-	for i, tr := range AllBaseTrio {
+	for i, tr := range allBaseTrio {
 		assert.Equal(t, int64(0), tr[0][2], "Failed on Trio %d", i)
 		assert.Equal(t, int64(0), tr[1][1], "Failed on Trio %d", i)
 		assert.Equal(t, int64(0), tr[2][0], "Failed on Trio %d", i)
@@ -269,7 +269,7 @@ func TestAllBaseTrio(t *testing.T) {
 			BackToOrig = BackToOrig.Add(vec)
 		}
 		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of Trio %d %v", i, tr)
-		for j, tB := range AllBaseTrio {
+		for j, tB := range allBaseTrio {
 			assertIsGenericNonBaseConnectingVector(t, GetNonBaseConnections(tr, tB), i, j)
 		}
 	}
@@ -284,7 +284,7 @@ func TestAllFull5Trio(t *testing.T) {
 		assertValidNextTrio(t, nextTrio, i)
 
 		// All conns are only 5
-		assertIsFull5NonBaseConnectingVector(t, GetNonBaseConnections(AllBaseTrio[nextTrio[0]], AllBaseTrio[nextTrio[1]]), i, -1)
+		assertIsFull5NonBaseConnectingVector(t, GetNonBaseConnections(allBaseTrio[nextTrio[0]], allBaseTrio[nextTrio[1]]), i, -1)
 		idxMap[nextTrio[0]]++
 		idxMap[nextTrio[1]]++
 	}
@@ -293,11 +293,11 @@ func TestAllFull5Trio(t *testing.T) {
 
 func TestAllValidTrio(t *testing.T) {
 	idxMap := createAll8IndexMap()
-	for i, nextTrio := range ValidNextTrio {
+	for i, nextTrio := range validNextTrio {
 		assertValidNextTrio(t, nextTrio, i)
 
 		// All conns are 3 or 1, no more 5
-		assertIsThreeOr1NonBaseConnectingVector(t, GetNonBaseConnections(AllBaseTrio[nextTrio[0]], AllBaseTrio[nextTrio[1]]), i, -1)
+		assertIsThreeOr1NonBaseConnectingVector(t, GetNonBaseConnections(allBaseTrio[nextTrio[0]], allBaseTrio[nextTrio[1]]), i, -1)
 		idxMap[nextTrio[0]]++
 		idxMap[nextTrio[1]]++
 	}
@@ -350,7 +350,7 @@ func assertExistsInValidNextTrio(t *testing.T, startIdx int, endIdx int, msg str
 	assert.True(t, trioToFind[1] >= 4 && trioToFind[1] <= 7, "Something wrong with trioToFind second value for %s", msg)
 
 	foundNextTrio := false
-	for _, nextTrio := range ValidNextTrio {
+	for _, nextTrio := range validNextTrio {
 		if trioToFind == nextTrio {
 			foundNextTrio = true
 		}

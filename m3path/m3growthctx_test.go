@@ -66,7 +66,7 @@ func runForCtxType(N, nbRound int, pType m3point.ContextType) {
 				maxLatest = nL
 			}
 		}
-		Log.Infof("Max size for all context of type %d: %d, %d with %d runs", pType, maxUsed, maxLatest, nbRound)
+		Log.Debugf("Max size for all context of type %d: %d, %d with %d runs", pType, maxUsed, maxLatest, nbRound)
 	}
 }
 
@@ -301,7 +301,7 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 
 	for _, ctx := range growthContexts[2] {
 		assert.Equal(t, m3point.ContextType(2), ctx.GetType())
-		oneTwo := m3point.ValidNextTrio[ctx.GetIndex()]
+		oneTwo := m3point.GetValidNextTrioPair(ctx.GetIndex())
 		twoIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
 			assert.Equal(t, oneTwo[twoIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d twoIdx=%d in %v", ctx.String(), d, twoIdx, oneTwo)
@@ -394,9 +394,11 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 
 		for _, p := range latestPoints {
 			nextPoints := ctx.GetNextPoints(p)
-			tdIdx, link := findTrioIndex(p, nextPoints, ctx)
-			assert.True(t, tdIdx >= 0 && tdIdx < len(m3point.AllTrioDetails), "wrong trio detail index=%d for %v, %v, %s", tdIdx, p, nextPoints, ctx.String())
-			td := m3point.AllTrioDetails[tdIdx]
+			var trCtx *m3point.TrioIndexContext
+			trCtx = m3point.GetTrioIndexContext(ctx.GetType(), ctx.GetIndex())
+			tdIdx, link := m3point.FindTrioIndex(p, nextPoints, trCtx, ctx.offset)
+			assert.True(t, tdIdx >= 0 && tdIdx < m3point.GetNumberOfTrioDetails(), "wrong trio detail index=%d for %v, %v, %s", tdIdx, p, nextPoints, ctx.String())
+			td := m3point.GetTrioDetails(tdIdx)
 
 			idExists := possibleTrios.ExistsById(td)
 			if !idExists && !inError[td.GetId()] {
@@ -404,9 +406,8 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 				inError[td.GetId()] = true
 			}
 
-			if !p.IsMainPoint() {
-				assert.True(t, td.Links.Exists(&link), "did not find for ctx %s link in idx=%d %v in %v", ctx.String(), tdIdx, link, td.Links)
-			}
+			assert.True(t, td.Links.Exists(&link), "did not find for ctx %s link in idx=%d %v in %v", ctx.String(), tdIdx, link, td.Links)
+
 			countUsedIdx[tdIdx]++
 			stepCountIdx[tdIdx]++
 
@@ -469,23 +470,5 @@ func EqualIntSlice(a, b []int) bool {
 		}
 	}
 	return true
-}
-
-// Stupid reverse engineering of trio index that works for main and non main points
-func findTrioIndex(c m3point.Point, np [3]m3point.Point, ctx *GrowthContext) (int, m3point.TrioLink) {
-	link := m3point.MakeTrioLink(getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx))
-	toFind := m3point.MakeTrioDetails(m3point.MakeVector(c, np[0]), m3point.MakeVector(c, np[1]), m3point.MakeVector(c, np[2]))
-	for trIdx, td := range m3point.AllTrioDetails {
-		if toFind.GetTrio() == td.GetTrio() {
-			return trIdx, link
-		}
-	}
-	Log.Errorf("did not find any trio for %v %v %v", c, np, toFind)
-	Log.Errorf("All trio index %d %d %d %d", getTrioIdxNearestMain(c, ctx), getTrioIdxNearestMain(np[0], ctx), getTrioIdxNearestMain(np[1], ctx), getTrioIdxNearestMain(np[2], ctx))
-	return -1, link
-}
-
-func getTrioIdxNearestMain(p m3point.Point, ctx *GrowthContext) int {
-	return ctx.GetTrioIndex(ctx.GetDivByThree(p.GetNearMainPoint()))
 }
 

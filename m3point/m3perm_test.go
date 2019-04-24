@@ -1,7 +1,6 @@
 package m3point
 
 import (
-	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -21,10 +20,10 @@ func TestPermBuilder(t *testing.T) {
 	Log.Level = m3util.DEBUG
 	p := PermBuilder{4, 0, make([][]int, 12)}
 	p.fill(0, make([]int, p.size))
-	fmt.Println(p.collector)
+	//fmt.Println(p.collector)
 	assert.Equal(t, 12, len(p.collector))
 	for i, c := range p.collector {
-		assert.Equal(t, 4, len(c), "population failed for %d %v", i, c)
+		assert.Equal(t, 4, len(c), "population failed for %d %v in %v", i, c, p.collector)
 	}
 }
 

@@ -41,7 +41,7 @@ func init() {
 		}
 	}
 	trioDetailsPerContext = make(map[ContextType][]*TrioDetailList)
-	Log.Info(count)
+	Log.Debug(count)
 }
 
 /***************************************************************/
@@ -121,10 +121,10 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 	if trCtx.ctxType == 1 {
 		// Always same index so all details where links are this
 		tlToFind = MakeTrioLink(trCtx.ctxIndex,trCtx.ctxIndex,trCtx.ctxIndex)
-		for i, td := range AllTrioDetails {
+		for i, td := range allTrioDetails {
 			if td.Links.Exists(&tlToFind) {
 				// Add the pointer from list not from iteration
-				toAdd := AllTrioDetails[i]
+				toAdd := allTrioDetails[i]
 				res.addUnique(toAdd)
 			}
 		}
@@ -150,10 +150,10 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 
 	// Now extract all trio details associated with given links
 	for _, tl := range possLinks {
-		for i, td := range AllTrioDetails {
+		for i, td := range allTrioDetails {
 			if td.Links.Exists(tl) {
 				// Add the pointer from list not from iteration
-				res.addUnique(AllTrioDetails[i])
+				res.addUnique(allTrioDetails[i])
 			}
 		}
 	}
@@ -164,7 +164,7 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 }
 
 func (trCtx *TrioIndexContext) GetBaseTrio(p Point, offset int) Trio {
-	return AllBaseTrio[trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(p), offset)]
+	return GetBaseTrio(trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(p), offset))
 }
 
 func (trCtx *TrioIndexContext) GetBaseDivByThree(p Point) uint64 {
@@ -187,10 +187,10 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) i
 		}
 		mod3 := int(((divByThree-1)/2 + uint64(offset)) % 3)
 		if trCtx.ctxIndex < 4 {
-			return ValidNextTrio[3*trCtx.ctxIndex+mod3][1]
+			return validNextTrio[3*trCtx.ctxIndex+mod3][1]
 		}
 		count := 0
-		for _, validTrio := range ValidNextTrio {
+		for _, validTrio := range validNextTrio {
 			if validTrio[1] == trCtx.ctxIndex {
 				if count == mod3 {
 					return validTrio[0]
@@ -204,7 +204,7 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) i
 	divByThreeWithOffset := uint64(offset) + divByThree
 	switch trCtx.ctxType {
 	case 2:
-		permutationMap := ValidNextTrio[trCtx.ctxIndex]
+		permutationMap := validNextTrio[trCtx.ctxIndex]
 		idx := int(PosMod2(divByThreeWithOffset))
 		return permutationMap[idx]
 	case 4:
@@ -218,3 +218,22 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) i
 	}
 	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", trCtx.ctxIndex, trCtx.String()))
 }
+
+// Stupid reverse engineering of trio index that works for main and non main points
+func FindTrioIndex(c Point, np [3]Point, ctx *TrioIndexContext, offset int) (int, TrioLink) {
+	link := MakeTrioLink(getTrioIdxNearestMain(c, ctx, offset), getTrioIdxNearestMain(np[1], ctx, offset), getTrioIdxNearestMain(np[2], ctx, offset))
+	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
+	for trIdx, td := range allTrioDetails {
+		if toFind.GetTrio() == td.GetTrio() {
+			return trIdx, link
+		}
+	}
+	Log.Errorf("did not find any trio for %v %v %v", c, np, toFind)
+	Log.Errorf("All trio index %s", link.String())
+	return -1, link
+}
+
+func getTrioIdxNearestMain(p Point, ctx *TrioIndexContext, offset int) int {
+	return ctx.GetBaseTrioIndex(ctx.GetBaseDivByThree(p.GetNearMainPoint()), offset)
+}
+

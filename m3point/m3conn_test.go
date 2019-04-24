@@ -7,7 +7,7 @@ import (
 )
 
 func TestConnectionDetails(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.Level = m3util.INFO
 	for k, v := range AllConnectionsPossible {
 		assert.Equal(t, k, v.Vector)
 		assert.Equal(t, k.DistanceSquared(), v.DistanceSquared())
@@ -26,8 +26,8 @@ func TestConnectionDetails(t *testing.T) {
 	}
 
 	countConnId := make(map[int8]int)
-	for i, tA := range AllBaseTrio {
-		for j, tB := range AllBaseTrio {
+	for i, tA := range allBaseTrio {
+		for j, tB := range allBaseTrio {
 			connVectors := GetNonBaseConnections(tA, tB)
 			for k, connVector := range connVectors {
 				connDetails, ok := AllConnectionsPossible[connVector]
@@ -37,6 +37,5 @@ func TestConnectionDetails(t *testing.T) {
 			}
 		}
 	}
-	Log.Info("ConnId usage:", countConnId)
-
+	Log.Debug("ConnId usage:", countConnId)
 }
