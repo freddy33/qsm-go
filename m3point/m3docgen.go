@@ -69,9 +69,9 @@ func GetTrioTransitionTableTxt() map[Int2][7]string {
 			conns := GetNonBaseConnections(tA, tB)
 			txtOut[0] = GetTrioConnType(conns)
 			for i, conn := range conns {
-				cd := AllConnectionsPossible[conn]
+				cd := allConnectionsByVector[conn]
 				// Total size 18
-				txtOut[i+1] = fmt.Sprintf("%v %s", conn, cd.GetName())
+				txtOut[i+1] = fmt.Sprintf("%v %s", conn, cd.String())
 			}
 			result[Int2{a, b}] = txtOut
 		}
@@ -147,7 +147,7 @@ func GetTrioTableCsv() [][]string {
 			columnNb++
 			csvOutput[lineNb][columnNb] = fmt.Sprintf("%d", bv[2])
 			columnNb++
-			csvOutput[lineNb][columnNb] = AllConnectionsPossible[bv].GetName()
+			csvOutput[lineNb][columnNb] = allConnectionsByVector[bv].String()
 		}
 	}
 	return csvOutput
@@ -211,9 +211,9 @@ func writeAllTrioDetailsTable() {
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
 	for a, td := range allTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v %s\n", a, td.conns[0].Vector, td.conns[0].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[1].Vector, td.conns[1].GetName()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].GetName()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v %s\n", a, td.conns[0].Vector, td.conns[0].String()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf(" L%3d %v %s\n", len(td.Links), td.conns[1].Vector, td.conns[1].String()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].String()))
 		m3util.WriteNextString(txtFile, "\n")
 	}
 }
@@ -264,10 +264,10 @@ func writeAllConnectionDetails() {
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
-	nbConnDetails := int8(len(AllConnectionsPossible) / 2)
+	nbConnDetails := int8(len(allConnectionsByVector) / 2)
 	csvWriter := csv.NewWriter(csvFile)
 	for cdNb := int8(1); cdNb <= nbConnDetails; cdNb++ {
-		for _, v := range AllConnectionsPossible {
+		for _, v := range allConnectionsByVector {
 			if v.GetIntId() == cdNb {
 				ds := v.ConnDS
 				posVec := v.Vector
@@ -286,9 +286,9 @@ func writeAllConnectionDetails() {
 					fmt.Sprintf("% d", negVec[2]),
 					fmt.Sprintf("% d", ds),
 				})
-				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", v.GetName(), posVec, ds))
-				negCD := AllConnectionsPossible[negVec]
-				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", negCD.GetName(), negVec, ds))
+				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", v.String(), posVec, ds))
+				negCD := allConnectionsByVector[negVec]
+				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", negCD.String(), negVec, ds))
 				break
 			}
 		}

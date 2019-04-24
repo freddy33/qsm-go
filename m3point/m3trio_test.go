@@ -176,6 +176,20 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	}
 }
 
+func TestTrioDetailsConnectionsMethods(t *testing.T) {
+	td0 := GetTrioDetails(0)
+	assert.True(t, td0.HasConnection(4))
+	assert.True(t, td0.HasConnection(-6))
+	assert.True(t, td0.HasConnection(-9))
+	failedOc := td0.OtherConnectionsFrom(4)
+	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[0])
+	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[1])
+
+	oc := td0.OtherConnectionsFrom(-4)
+	assert.Equal(t, *GetConnDetailsById(-6) , *oc[0])
+	assert.Equal(t, *GetConnDetailsById(-9) , *oc[1])
+}
+
 func TestTrioDetailsLinks(t *testing.T) {
 	countPerTrioLinks := make(map[TrioLink]int)
 

@@ -220,17 +220,17 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) i
 }
 
 // Stupid reverse engineering of trio index that works for main and non main points
-func FindTrioIndex(c Point, np [3]Point, ctx *TrioIndexContext, offset int) (int, TrioLink) {
+func FindTrioIndex(c Point, np [3]Point, ctx *TrioIndexContext, offset int) (uint8, TrioLink) {
 	link := MakeTrioLink(getTrioIdxNearestMain(c, ctx, offset), getTrioIdxNearestMain(np[1], ctx, offset), getTrioIdxNearestMain(np[2], ctx, offset))
 	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
-	for trIdx, td := range allTrioDetails {
+	for _, td := range allTrioDetails {
 		if toFind.GetTrio() == td.GetTrio() {
-			return trIdx, link
+			return td.id, link
 		}
 	}
 	Log.Errorf("did not find any trio for %v %v %v", c, np, toFind)
 	Log.Errorf("All trio index %s", link.String())
-	return -1, link
+	return uint8(255), link
 }
 
 func getTrioIdxNearestMain(p Point, ctx *TrioIndexContext, offset int) int {

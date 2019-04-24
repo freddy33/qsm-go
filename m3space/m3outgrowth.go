@@ -157,7 +157,7 @@ func (eo *EventOutgrowth) GetState() EventOutgrowthState {
 
 func (eo *EventOutgrowth) AddFrom(point m3point.Point) {
 	bv := m3point.MakeVector(eo.pos, point)
-	connId := m3point.AllConnectionsPossible[bv].Id
+	connId := m3point.GetConnDetailsByVector(bv).Id
 	if eo.fromConnections == nil {
 		eo.fromConnections = []int8{connId}
 	} else {

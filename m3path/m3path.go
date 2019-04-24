@@ -1,6 +1,7 @@
 package m3path
 
 import (
+	"fmt"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 )
@@ -19,8 +20,8 @@ type LastPathIdKey struct {
 }
 
 type PathId struct {
-	trioId   int
-	connId   int
+	trioId   uint8
+	connId   int8
 }
 
 type PathIdNode struct {
@@ -28,7 +29,22 @@ type PathIdNode struct {
 	next [2]*PathIdNode
 }
 
+/***************************************************************/
+// PathId Functions
+/***************************************************************/
 
+func MakePathId(trIdx int, connId int8) PathId {
+	td := m3point.GetTrioDetails(uint8(trIdx))
+	if !td.HasConnection(connId) {
+		Log.Errorf("trying to create a path id from T%03d but connection %d is not here", trIdx, connId)
+		return PathId{0, 0}
+	}
+	return PathId{td.GetId(), connId}
+}
+
+func (pid *PathId) String() string {
+	return fmt.Sprintf("T%03d-%s", pid.trioId, m3point.GetConnectionName(pid.connId))
+}
 
 
 // An element in the path from event base node to latest outgrowth

@@ -23,7 +23,7 @@ type TrioLinkList []*TrioLink
 
 // A bigger struct than Trio to keep more info on how points grow from a trio index
 type TrioDetails struct {
-	id    int
+	id    uint8
 	conns [3]*ConnectionDetails
 	Links TrioLinkList
 }
@@ -483,11 +483,11 @@ func (t Trio) getMinusZVector() Point {
 /***************************************************************/
 var _traceCounter = 0
 
-func GetNumberOfTrioDetails() int {
-	return len(allTrioDetails)
+func GetNumberOfTrioDetails() uint8 {
+	return uint8(len(allTrioDetails))
 }
 
-func GetTrioDetails(trioIdx int) *TrioDetails {
+func GetTrioDetails(trioIdx uint8) *TrioDetails {
 	return allTrioDetails[trioIdx]
 }
 
@@ -495,7 +495,7 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 	// All points should be a connection details
 	cds := make([]*ConnectionDetails, 3)
 	for i, p := range points {
-		cd, ok := AllConnectionsPossible[p]
+		cd, ok := allConnectionsByVector[p]
 		if !ok {
 			Log.Fatalf("trying to create trio with vector not a connection %v", p)
 		} else {
@@ -511,26 +511,51 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 		return absDiff < 0
 	})
 	res := TrioDetails{}
-	res.id = -1
+	res.id = uint8(255)
 	for i, cd := range cds {
 		res.conns[i] = cd
 	}
 	if Log.Level <= m3util.TRACE {
-		fmt.Println(_traceCounter, res.conns[0].GetName(), res.conns[1].GetName(), res.conns[2].GetName())
+		fmt.Println(_traceCounter, res.conns[0].String(), res.conns[1].String(), res.conns[2].String())
 		_traceCounter++
 	}
 	return &res
 }
 
 func (td *TrioDetails) String() string {
-	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName())
+	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.id, td.conns[0].String(), td.conns[1].String(), td.conns[2].String())
+}
+
+func (td *TrioDetails) HasConnection(connId int8) bool {
+	for _, c := range td.conns {
+		if c.Id == connId {
+			return true
+		}
+	}
+	return false
+}
+
+// The passed connId is where come from so is neg in here
+func (td *TrioDetails) OtherConnectionsFrom(connId int8) [2]*ConnectionDetails {
+	res := [2]*ConnectionDetails{nil, nil}
+	idx := 0
+	if td.HasConnection(-connId) {
+		for _, c := range td.conns {
+			if c.Id != -connId {
+				res[idx] = c
+				idx++
+			}
+		}
+	}
+
+	return res
 }
 
 func (td *TrioDetails) GetTrio() Trio {
 	return Trio{td.conns[0].Vector, td.conns[1].Vector, td.conns[2].Vector}
 }
 
-func (td *TrioDetails) GetId() int {
+func (td *TrioDetails) GetId() uint8 {
 	return td.id
 }
 
@@ -572,7 +597,7 @@ func fillAllTrioDetails() {
 	// All base trio first
 	for i, tr := range allBaseTrio {
 		td := MakeTrioDetails(tr[0], tr[1], tr[2])
-		td.id = i
+		td.id = uint8(i)
 		localTrioDetails.addUnique(td)
 	}
 	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
@@ -598,7 +623,7 @@ func fillAllTrioDetails() {
 		// For all base trio different process
 		if i < len(allBaseTrio) {
 			// The id should already be set correctly
-			if td.id != i {
+			if td.id != uint8(i) {
 				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
 			}
 			// For all base trio add all links containing them
@@ -609,10 +634,10 @@ func fillAllTrioDetails() {
 			}
 		} else {
 			// The id should not have been set. Adding it now
-			if td.id != -1 {
+			if td.id != uint8(255) {
 				Log.Fatalf("incorrect Id for non base trio details %v at %d", *td, i)
 			}
-			td.id = i
+			td.id = uint8(i)
 		}
 
 		// Order the links array

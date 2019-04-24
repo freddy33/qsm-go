@@ -326,13 +326,12 @@ func (t *TriangleFiller) drawNodes() {
 }
 
 func (t *TriangleFiller) drawConnections() {
-	connDone := make(map[int8]bool)
-	for _, cd := range m3point.AllConnectionsPossible {
-		cdId := cd.GetIntId()
-		if !connDone[cdId] {
-			t.fill(MakeSegment(m3point.Origin, cd.Vector, getConnectionObjectType(cd)))
-			connDone[cdId] = true
-		}
+	maxConnId := m3point.GetMaxConnId()
+	for connId := int8(1); connId <= maxConnId; connId++ {
+		posConn := m3point.GetConnDetailsById(connId)
+		t.fill(MakeSegment(m3point.Origin, posConn.Vector, getConnectionObjectType(posConn)))
+		negConn := m3point.GetConnDetailsById(-connId)
+		t.fill(MakeSegment(m3point.Origin, negConn.Vector, getConnectionObjectType(negConn)))
 	}
 }
 

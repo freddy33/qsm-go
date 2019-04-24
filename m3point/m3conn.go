@@ -5,8 +5,8 @@ import (
 	"sort"
 )
 
-var AllConnectionsPossible map[Point]*ConnectionDetails
-var AllConnectionsIds []*ConnectionDetails
+var allConnectionsByVector map[Point]*ConnectionDetails
+var allConnections []*ConnectionDetails
 
 type ConnectionDetails struct {
 	Id     int8
@@ -65,6 +65,15 @@ func IsLessConnId(cd1, cd2 *ConnectionDetails) bool {
 // ConnectionDetails Functions
 /***************************************************************/
 
+func GetMaxConnId() int8 {
+	// The pos conn Id of the last one
+	return allConnections[len(allConnections)-1].GetPosIntId()
+}
+
+func (cd *ConnectionDetails) IsValid() bool {
+	return cd.Id != 0
+}
+
 func (cd *ConnectionDetails) GetIntId() int8 {
 	return cd.Id
 }
@@ -88,11 +97,15 @@ func (cd *ConnectionDetails) DistanceSquared() int64 {
 	return int64(0)
 }
 
-func (cd *ConnectionDetails) GetName() string {
-	if cd.Id < 0 {
-		return fmt.Sprintf("CN%02d", -cd.Id)
+func (cd *ConnectionDetails) String() string {
+	return GetConnectionName(cd.Id)
+}
+
+func GetConnectionName(connId int8) string {
+	if connId < 0 {
+		return fmt.Sprintf("CN%02d", -connId)
 	} else {
-		return fmt.Sprintf("CP%02d", cd.Id)
+		return fmt.Sprintf("CP%02d", connId)
 	}
 }
 
@@ -114,16 +127,16 @@ func initConnectionDetails() uint8 {
 	nbConnDetails := int8(len(connMap) / 2)
 
 	// Reordering connection details number by size, and x, y, z
-	AllConnectionsIds = make([]*ConnectionDetails, len(connMap))
+	allConnections = make([]*ConnectionDetails, len(connMap))
 	idx := 0
 	for _, cd := range connMap {
-		AllConnectionsIds[idx] = cd
+		allConnections[idx] = cd
 		idx++
 	}
-	sort.Sort(ByConnVector(AllConnectionsIds))
+	sort.Sort(ByConnVector(allConnections))
 
 	currentConnNumber := int8(1)
-	for _, cd := range AllConnectionsIds {
+	for _, cd := range allConnections {
 		if cd.Id == 0 {
 			vec1 := cd.Vector
 			vec2 := vec1.Neg()
@@ -147,8 +160,8 @@ func initConnectionDetails() uint8 {
 			currentConnNumber++
 		}
 	}
-	sort.Sort(ByConnId(AllConnectionsIds))
-	AllConnectionsPossible = connMap
+	sort.Sort(ByConnId(allConnections))
+	allConnectionsByVector = connMap
 
 	return uint8(nbConnDetails)
 }
@@ -175,17 +188,26 @@ func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
 
 func GetConnDetailsById(id int8) *ConnectionDetails {
 	if id > 0 {
-		return AllConnectionsIds[2*id-2]
+		return allConnections[2*id-2]
 	} else {
-		return AllConnectionsIds[-2*id-1]
+		return allConnections[-2*id-1]
 	}
 }
 
 func GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails {
 	vector := MakeVector(p1, p2)
-	cd, ok := AllConnectionsPossible[vector]
+	cd, ok := allConnectionsByVector[vector]
 	if !ok {
 		Log.Error("Trying to connect to Pos", p1, p2, "that cannot be connected with any known connection details")
+		return &EmptyConnDetails
+	}
+	return cd
+}
+
+func GetConnDetailsByVector(vector Point) *ConnectionDetails {
+	cd, ok := allConnectionsByVector[vector]
+	if !ok {
+		Log.Error("Vector", vector, "is not a known connection details")
 		return &EmptyConnDetails
 	}
 	return cd

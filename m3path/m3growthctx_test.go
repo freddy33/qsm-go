@@ -368,8 +368,8 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 	// The result list of trio index used
 	var currentIndexList []int
 
-	countUsedIdx := make(map[int]int)
-	usedPoints := make(map[m3point.Point]int)
+	countUsedIdx := make(map[uint8]int)
+	usedPoints := make(map[m3point.Point]uint8)
 	latestPoints := make([]m3point.Point, 1)
 	latestPoints[0] = ctx.center
 
@@ -378,9 +378,9 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 	stableIndexList := 0
 	stepStable := 0
 
-	inError := make(map[int]bool)
+	inError := make(map[uint8]bool)
 	possibleTrios := ctx.GetPossibleTrioList()
-	possIds := make([]int, len(*possibleTrios))
+	possIds := make([]uint8, len(*possibleTrios))
 	for i, td := range *possibleTrios {
 		possIds[i] = td.GetId()
 	}
@@ -389,7 +389,7 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 	for d := uint64(0); d < 30; d++ {
 		stepStable = int(d)
 		newPoints := make([]m3point.Point, 0, 2*len(latestPoints))
-		stepCountIdx := make(map[int]int)
+		stepCountIdx := make(map[uint8]int)
 		stepConflictCount := make(map[m3point.Point]int)
 
 		for _, p := range latestPoints {
@@ -397,7 +397,7 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 			var trCtx *m3point.TrioIndexContext
 			trCtx = m3point.GetTrioIndexContext(ctx.GetType(), ctx.GetIndex())
 			tdIdx, link := m3point.FindTrioIndex(p, nextPoints, trCtx, ctx.offset)
-			assert.True(t, tdIdx >= 0 && tdIdx < m3point.GetNumberOfTrioDetails(), "wrong trio detail index=%d for %v, %v, %s", tdIdx, p, nextPoints, ctx.String())
+			assert.True(t, tdIdx < m3point.GetNumberOfTrioDetails(), "wrong trio detail index=%d for %v, %v, %s", tdIdx, p, nextPoints, ctx.String())
 			td := m3point.GetTrioDetails(tdIdx)
 
 			idExists := possibleTrios.ExistsById(td)
@@ -436,7 +436,7 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 
 		newIndexList := make([]int, 0, len(countUsedIdx))
 		for trIdx := range countUsedIdx {
-			newIndexList = append(newIndexList, trIdx)
+			newIndexList = append(newIndexList, int(trIdx))
 		}
 		sort.Ints(newIndexList)
 

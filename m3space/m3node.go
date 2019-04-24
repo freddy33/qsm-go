@@ -162,8 +162,8 @@ func (node *ActiveNode) AddConnection(conn *Connection, space *Space) int {
 
 func (node *ActiveNode) IsAlreadyConnected(otherNode *ActiveNode) bool {
 	bv := m3point.MakeVector(node.Pos, otherNode.Pos)
-	cd, ok := m3point.AllConnectionsPossible[bv]
-	if !ok {
+	cd := m3point.GetConnDetailsByVector(bv)
+	if !cd.IsValid() {
 		Log.Errorf("Cannot determine an already connected nodes P1=%v P2=%v that is not reachable by a base connection %v",
 			node.Pos, otherNode.Pos, bv)
 		return false
@@ -250,7 +250,7 @@ func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 	}
 	// All good create connection
 	bv := m3point.MakeVector(n1.Pos, n2.Pos)
-	cd := m3point.AllConnectionsPossible[bv]
+	cd := m3point.GetConnDetailsByVector(bv)
 	c1 := makeConnection(cd.GetIntId(), n1, n2)
 	space.activeConnections = append(space.activeConnections, c1)
 	n1done := n1.AddConnection(c1, space)
@@ -352,7 +352,7 @@ func (node *SavedNode) String() string {
 func (node *SavedNode) GetStateString() string {
 	connIds := make([]string, len(node.connections))
 	for i, connId := range node.connections {
-		connIds[i] = m3point.GetConnDetailsById(connId).GetName()
+		connIds[i] = m3point.GetConnDetailsById(connId).String()
 	}
 	if node.root {
 		return fmt.Sprintf("%s: root %v, %v", "Saved", node.accessedEventIDS, connIds)

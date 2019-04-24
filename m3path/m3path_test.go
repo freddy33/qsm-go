@@ -23,7 +23,7 @@ func TestPathContextFilling(t *testing.T) {
 
 func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 	trIdx := pathCtx.ctx.GetBaseTrioIndex(0, 0)
-	fmt.Println(trIdx)
+	fmt.Println(pathCtx.ctx.String(), trIdx)
 }
 
 
