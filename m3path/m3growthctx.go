@@ -71,10 +71,7 @@ func (ctx *GrowthContext) GetTrioIndex(divByThree uint64) int {
 }
 
 func (ctx *GrowthContext) GetDivByThree(p m3point.Point) uint64 {
-	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Trio index on non main Pos %v in context %v!", p, ctx))
-	}
-	return uint64(m3point.Abs64(p[0]-ctx.center[0])/3 + m3point.Abs64(p[1]-ctx.center[1])/3 + m3point.Abs64(p[2]-ctx.center[2])/3)
+	return ctx.GetBaseDivByThree(m3point.MakeVector(ctx.center, p))
 }
 
 func (ctx *GrowthContext) GetTrio(p m3point.Point) m3point.Trio {

@@ -1,7 +1,6 @@
 package m3path
 
 import (
-	"fmt"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
@@ -379,6 +378,14 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 	stableIndexList := 0
 	stepStable := 0
 
+	inError := make(map[int]bool)
+	possibleTrios := ctx.GetPossibleTrioList()
+	possIds := make([]int, len(*possibleTrios))
+	for i, td := range *possibleTrios {
+		possIds[i] = td.GetId()
+	}
+	assert.True(t, possibleTrios.Len() > 2, "wrong possible trio for %v", ctx.String())
+
 	for d := uint64(0); d < 30; d++ {
 		stepStable = int(d)
 		newPoints := make([]m3point.Point, 0, 2*len(latestPoints))
@@ -388,16 +395,17 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 		for _, p := range latestPoints {
 			nextPoints := ctx.GetNextPoints(p)
 			tdIdx, link := findTrioIndex(p, nextPoints, ctx)
+			assert.True(t, tdIdx >= 0 && tdIdx < len(m3point.AllTrioDetails), "wrong trio detail index=%d for %v, %v, %s", tdIdx, p, nextPoints, ctx.String())
+			td := m3point.AllTrioDetails[tdIdx]
+
+			idExists := possibleTrios.ExistsById(td)
+			if !idExists && !inError[td.GetId()] {
+				assert.True(t, idExists, "did not find for ctx %s trio %s in %v", ctx.String(), td.String(), possIds)
+				inError[td.GetId()] = true
+			}
+
 			if !p.IsMainPoint() {
-				td := m3point.AllTrioDetails[tdIdx]
-				foundLink := false
-				for _, l := range td.Links {
-					if *l == link {
-						foundLink = true
-						break
-					}
-				}
-				assert.True(t, foundLink, "did not find link in idx=%d %v in %v", tdIdx, link, td.Links)
+				assert.True(t, td.Links.Exists(&link), "did not find for ctx %s link in idx=%d %v in %v", ctx.String(), tdIdx, link, td.Links)
 			}
 			countUsedIdx[tdIdx]++
 			stepCountIdx[tdIdx]++
@@ -481,111 +489,3 @@ func getTrioIdxNearestMain(p m3point.Point, ctx *GrowthContext) int {
 	return ctx.GetTrioIndex(ctx.GetDivByThree(p.GetNearMainPoint()))
 }
 
-func TestConnectionDetailsInGrowthContext(t *testing.T) {
-	allCtx := getAllTestContexts()
-	assert.Equal(t, 5, len(allCtx))
-
-	nbCtx := 0
-	for _, contextList := range allCtx {
-		nbCtx += len(contextList)
-	}
-	Log.Info("Created", nbCtx, "contexts")
-	Log.Info("Using", len(allCtx[8]), " contexts from the 8 context")
-	// For all trioIndex rotations, any 2 close main points there should be a connection details
-	min := int64(-2) // -5
-	max := int64(2)  // 5
-	for _, ctx := range allCtx[8] {
-		for x := min; x < max; x++ {
-			for y := min; y < max; y++ {
-				for z := min; z < max; z++ {
-					mainPoint := m3point.Point{x, y, z}.Mul(3)
-					connectingVectors := ctx.GetTrio(mainPoint)
-					for _, cVec := range connectingVectors {
-
-						assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Pos", mainPoint, "base vector", cVec))
-
-						nextMain := m3point.Origin
-						switch cVec.X() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(m3point.XFirst)
-						case -1:
-							nextMain = mainPoint.Sub(m3point.XFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with x value %d", cVec.X())
-						}
-						if nextMain != m3point.Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.X() == -cVec.X() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = m3point.Origin
-						switch cVec.Y() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(m3point.YFirst)
-						case -1:
-							nextMain = mainPoint.Sub(m3point.YFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with y value %d", cVec.Y())
-						}
-						if nextMain != m3point.Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Y() == -cVec.Y() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-
-						nextMain = m3point.Origin
-						switch cVec.Z() {
-						case 0:
-							// Nothing out
-						case 1:
-							nextMain = mainPoint.Add(m3point.ZFirst)
-						case -1:
-							nextMain = mainPoint.Sub(m3point.ZFirst)
-						default:
-							assert.Fail(t, "There should not be a connecting vector with Z value %d", cVec.Z())
-						}
-						if nextMain != m3point.Origin {
-							// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-							nextConnectingVectors := ctx.GetTrio(nextMain)
-							for _, nbp := range nextConnectingVectors {
-								if nbp.Z() == -cVec.Z() {
-									assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-										"next Pos=", nextMain, "trio index=", ctx.GetTrioIndex(ctx.GetDivByThree(mainPoint)),
-										"main base vector", cVec, "next base vector", nbp))
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-}
-
-func assertValidConnDetails(t *testing.T, p1, p2 m3point.Point, msg string) {
-	connDetails1 := m3point.GetConnDetailsByPoints(p1, p2)
-	assert.NotEqual(t, m3point.EmptyConnDetails, connDetails1, msg)
-	assert.Equal(t, m3point.MakeVector(p1, p2), connDetails1.Vector, msg)
-
-	connDetails2 := m3point.GetConnDetailsByPoints(p2, p1)
-	assert.NotEqual(t, m3point.EmptyConnDetails, connDetails2, msg)
-	assert.Equal(t, m3point.MakeVector(p2, p1), connDetails2.Vector, msg)
-}

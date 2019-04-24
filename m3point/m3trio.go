@@ -87,13 +87,17 @@ func (tl *TrioLink) String() string {
 	return fmt.Sprintf("[%d %d %d]", tl.a, tl.b, tl.c)
 }
 
+func (tl *TrioLink) Contains(i int) bool {
+	return tl.a == i || tl.b == i || tl.c == i
+}
+
 /***************************************************************/
 // TrioLinkList Functions
 /***************************************************************/
 
-func (l *TrioLinkList) exists(tl *TrioLink) bool {
+func (l TrioLinkList) Exists(tl *TrioLink) bool {
 	present := false
-	for _, trL := range *l {
+	for _, trL := range l {
 		if *trL == *tl {
 			present = true
 			break
@@ -103,7 +107,7 @@ func (l *TrioLinkList) exists(tl *TrioLink) bool {
 }
 
 func (l *TrioLinkList) addUnique(tl *TrioLink) bool {
-	b := l.exists(tl)
+	b := l.Exists(tl)
 	if !b {
 		*l = append(*l, tl)
 	}
@@ -157,7 +161,7 @@ func (l TrioLinkList) Less(i, j int) bool {
 // TrioDetailsList Functions
 /***************************************************************/
 
-func (l *TrioDetailList) exists(tr *TrioDetails) bool {
+func (l *TrioDetailList) ExistsByTrio(tr *TrioDetails) bool {
 	present := false
 	for _, trL := range *l {
 		if trL.GetTrio() == tr.GetTrio() {
@@ -168,8 +172,19 @@ func (l *TrioDetailList) exists(tr *TrioDetails) bool {
 	return present
 }
 
+func (l *TrioDetailList) ExistsById(tr *TrioDetails) bool {
+	present := false
+	for _, trL := range *l {
+		if trL.id == tr.id {
+			present = true
+			break
+		}
+	}
+	return present
+}
+
 func (l *TrioDetailList) addUnique(td *TrioDetails) bool {
-	b := l.exists(td)
+	b := l.ExistsByTrio(td)
 	if !b {
 		*l = append(*l, td)
 	}
@@ -488,11 +503,15 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 }
 
 func (td *TrioDetails) String() string {
-	return fmt.Sprintf("T%02d: (%s, %s, %s) l=%3d", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName(), len(td.Links))
+	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.id, td.conns[0].GetName(), td.conns[1].GetName(), td.conns[2].GetName())
 }
 
 func (td *TrioDetails) GetTrio() Trio {
 	return Trio{td.conns[0].Vector, td.conns[1].Vector, td.conns[2].Vector}
+}
+
+func (td *TrioDetails) GetId() int {
+	return td.id
 }
 
 func (td *TrioDetails) GetDSIndex() int {
@@ -554,11 +573,28 @@ func fillAllTrioDetails() {
 
 	sort.Sort(allTDSlice)
 
+	// Process all the trio details now that order final
 	for i, td := range allTDSlice {
-		if td.id != -1 && td.id != i {
-			Log.Fatalf("incorrect Id for trio details %v at %d", *td, i)
+		// For all base trio different process
+		if i < len(AllBaseTrio) {
+			// The id should already be set correctly
+			if td.id != i {
+				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
+			}
+			// For all base trio add all links containing them
+			for j, tl := range allTrioLinks {
+				if tl.Contains(i) {
+					td.Links.addUnique(allTrioLinks[j])
+				}
+			}
+		} else {
+			// The id should not have been set. Adding it now
+			if td.id != -1 {
+				Log.Fatalf("incorrect Id for non base trio details %v at %d", *td, i)
+			}
+			td.id = i
 		}
-		td.id = i
+
 		// Order the links array
 		sort.Sort(td.Links)
 	}

@@ -1,6 +1,9 @@
 package m3point
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 /*
 Define how outgrowth and path evolve from the center. There are 6 types of growth depending of the value of ctxType:
@@ -37,6 +40,7 @@ func init() {
 			count[ctxType]++
 		}
 	}
+	trioDetailsPerContext = make(map[ContextType][]*TrioDetailList)
 	Log.Info(count)
 }
 
@@ -118,18 +122,19 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 		// Always same index so all details where links are this
 		tlToFind = MakeTrioLink(trCtx.ctxIndex,trCtx.ctxIndex,trCtx.ctxIndex)
 		for i, td := range AllTrioDetails {
-			if td.Links.exists(&tlToFind) {
+			if td.Links.Exists(&tlToFind) {
 				// Add the pointer from list not from iteration
 				toAdd := AllTrioDetails[i]
 				res.addUnique(toAdd)
 			}
 		}
+		sort.Sort(&res)
 		return &res
 	}
 
 	// Now use context to create possible trio links
 	possLinks := TrioLinkList{}
-	for divByThree := uint64(1); divByThree < 8; divByThree++ {
+	for divByThree := uint64(1); divByThree < 23; divByThree++ {
 		a := trCtx.GetBaseTrioIndex(divByThree-1, 0)
 		b := trCtx.GetBaseTrioIndex(divByThree, 0)
 		c := trCtx.GetBaseTrioIndex(divByThree+1, 0)
@@ -137,20 +142,36 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 		possLinks.addUnique(&toAdd1)
 		toAdd2 := MakeTrioLink(a, b, c)
 		possLinks.addUnique(&toAdd2)
+		toAdd3 := MakeTrioLink(b, a, a)
+		possLinks.addUnique(&toAdd3)
+		toAdd4 := MakeTrioLink(b, a, c)
+		possLinks.addUnique(&toAdd4)
 	}
 
 	// Now extract all trio details associated with given links
 	for _, tl := range possLinks {
 		for i, td := range AllTrioDetails {
-			if td.Links.exists(tl) {
+			if td.Links.Exists(tl) {
 				// Add the pointer from list not from iteration
-				toAdd := AllTrioDetails[i]
-				res.addUnique(toAdd)
+				res.addUnique(AllTrioDetails[i])
 			}
 		}
 	}
 
+	sort.Sort(&res)
+
 	return &res
+}
+
+func (trCtx *TrioIndexContext) GetBaseTrio(p Point, offset int) Trio {
+	return AllBaseTrio[trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(p), offset)]
+}
+
+func (trCtx *TrioIndexContext) GetBaseDivByThree(p Point) uint64 {
+	if !p.IsMainPoint() {
+		panic(fmt.Sprintf("cannot ask for Trio index on non main Pos %v in context %v!", p, trCtx.String()))
+	}
+	return uint64(Abs64(p[0])/3 + Abs64(p[1])/3 + Abs64(p[2])/3)
 }
 
 func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) int {
@@ -165,9 +186,6 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) i
 			return trCtx.ctxIndex
 		}
 		mod3 := int(((divByThree-1)/2 + uint64(offset)) % 3)
-		if mod3 < 0 {
-			mod3 += 3
-		}
 		if trCtx.ctxIndex < 4 {
 			return ValidNextTrio[3*trCtx.ctxIndex+mod3][1]
 		}

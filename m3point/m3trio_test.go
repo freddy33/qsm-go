@@ -182,7 +182,7 @@ func TestTrioDetailsLinks(t *testing.T) {
 	for _, td := range AllTrioDetails {
 		switch td.GetDSIndex() {
 		case 0:
-			assert.Equal(t, 0, len(td.Links), "Nb links wrong for %v", td.String())
+			assert.Equal(t, 92, len(td.Links), "Nb links wrong for %v", td.String())
 		case 6:
 			assert.Equal(t, 6, len(td.Links), "Nb links wrong for %v", td.String())
 		default:
@@ -206,31 +206,35 @@ func TestTrioDetailsLinks(t *testing.T) {
 	for _, tll := range collPerCount {
 		sort.Sort(tll)
 	}
-	assert.Equal(t, 8*8, collPerCount[3].Len(), "wrong number of 3 times in td %v", *collPerCount[3])
-	assert.Equal(t, 8*3, collPerCount[5].Len(), "wrong number of 5 times in td %v", *collPerCount[5])
-	assert.Equal(t, 8*25, collPerCount[6].Len(), "wrong number of 6 times in td %v", *collPerCount[6])
+	//fmt.Println(collPerCount)
+	assert.Equal(t, 8, collPerCount[4].Len(), "wrong number of 4 times in td %v", *collPerCount[4])
+	assert.Equal(t, 8*7, collPerCount[5].Len(), "wrong number of 5 times in td %v", *collPerCount[5])
+	assert.Equal(t, 8*10, collPerCount[8].Len(), "wrong number of 8 times in td %v", *collPerCount[8])
+	assert.Equal(t, 8*18, collPerCount[9].Len(), "wrong number of 9 times in td %v", *collPerCount[9])
 
-	// The size 5 are due to going to a prime when the other is on my side
-	for _, td := range *collPerCount[5] {
-		if td.a < 4 {
-			assert.True(t, isPrime(td.a, td.c), "not prime on 5 %v", td.String())
-			assert.True(t, td.b < 4 && td.b != td.a, "wrong side on 5 %v", td.String())
-		} else {
-			assert.True(t, isPrime(td.a, td.b), "not prime on 5 %v", td.String())
-			assert.True(t, td.c >= 4 && td.c != td.a, "wrong side on 5 %v", td.String())
-		}
+	// The size 4 are when a,b,c are equals
+	for _, td := range *collPerCount[4] {
+		assert.True(t, td.a == td.b && td.a == td.c, "not all equal on 4 %v", td.String())
 	}
 
-	for _, tl := range AllTrioLinks {
-		c, ok := countPerTrioLinks[*tl]
-		assert.True(t, ok, "did not find %v", tl.String())
-		if tl.b == tl.c {
-			assert.Equal(t, 3, c, "wrong amount of presence of %v", tl.String())
-		} else if (tl.a < 4 && isPrime(tl.a,tl.c) && tl.b < 4 && tl.a != tl.b) ||
-		(tl.a >= 4 && isPrime(tl.a,tl.b) && tl.c >= 4 && tl.a != tl.c) {
-			assert.Equal(t, 5, c, "wrong amount of presence of %v", tl.String())
+	// The size 5 are when b and c are equals
+	for _, td := range *collPerCount[5] {
+		assert.True(t, td.b == td.c, "not b = c equal on 5 %v", td.String())
+	}
+
+	// Size on 8 are either a is equal to b or c, or b or c is prime of a and the other on same side
+	for _, td := range *collPerCount[8] {
+		if td.a != td.b && td.a != td.c {
+			if td.a < 4 {
+				assert.True(t, isPrime(td.a, td.c), "not prime on 8 %v", td.String())
+				assert.True(t, td.b < 4 && td.b != td.a, "wrong side on 8 %v", td.String())
+			} else {
+				assert.True(t, isPrime(td.a, td.b), "not prime on 8 %v", td.String())
+				assert.True(t, td.c >= 4 && td.c != td.a, "wrong side on 8 %v", td.String())
+			}
 		} else {
-			assert.Equal(t, 6, c, "wrong amount of presence of %v", tl.String())
+			// a is equal to b or c but not all equal
+			assert.False(t, td.a == td.b && td.a == td.c, "all equal on 8 %v", td.String())
 		}
 	}
 }
