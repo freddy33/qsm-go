@@ -238,7 +238,7 @@ func runDivByThree(t assert.TestingT) {
 
 	// Verify trio index unaffected
 	for d := uint64(0); d < 30; d++ {
-		assert.Equal(t, 1, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
+		assert.Equal(t, m3point.TrioIndex(1), ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
 	}
 
 }
@@ -250,7 +250,7 @@ func TestGrowthContext1(t *testing.T) {
 	assert.Equal(t, 3, ctx.GetIndex())
 	assert.Equal(t, 0, ctx.offset)
 	for d := uint64(0); d < 30; d++ {
-		assert.Equal(t, 3, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
+		assert.Equal(t, m3point.TrioIndex(3), ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
 	}
 	ctx.SetIndex(4)
 	ctx.offset = 2
@@ -258,23 +258,23 @@ func TestGrowthContext1(t *testing.T) {
 	assert.Equal(t, 4, ctx.GetIndex())
 	assert.Equal(t, 2, ctx.offset)
 	for d := uint64(0); d < 30; d++ {
-		assert.Equal(t, 4, ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
+		assert.Equal(t, m3point.TrioIndex(4), ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx, d)
 	}
 }
 
 func TestGrowthContext3(t *testing.T) {
 	Log.Level = m3util.DEBUG
 
-	for idx := 0; idx < 4; idx++ {
-		ctx := CreateGrowthContext(m3point.Origin, 3, idx, 0)
+	for idx := m3point.TrioIndex(0); idx < 4; idx++ {
+		ctx := CreateGrowthContext(m3point.Origin, 3, int(idx), 0)
 		assert.Equal(t, m3point.ContextType(3), ctx.GetType())
-		assert.Equal(t, idx, ctx.GetIndex())
+		assert.Equal(t, int(idx), ctx.GetIndex())
 		assert.Equal(t, 0, ctx.offset)
 		for d := uint64(0); d < 9; d++ {
 			if d%2 == 0 {
 				assert.Equal(t, idx, ctx.GetTrioIndex(d), "failed trio index for ctx %v step %d", ctx, d)
 			} else {
-				expected := 4 + (int(d/2) % 3)
+				expected := m3point.TrioIndex(4 + (int(d/2) % 3))
 				if expected >= idx+4 {
 					expected++
 				}
@@ -295,13 +295,13 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 	for _, ctx := range growthContexts[1] {
 		assert.Equal(t, m3point.ContextType(1), ctx.GetType())
 		for d := uint64(0); d < 30; d++ {
-			assert.Equal(t, ctx.GetIndex(), ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx.String(), d)
+			assert.Equal(t, m3point.TrioIndex(ctx.GetIndex()), ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d", ctx.String(), d)
 		}
 	}
 
 	for _, ctx := range growthContexts[2] {
 		assert.Equal(t, m3point.ContextType(2), ctx.GetType())
-		oneTwo := m3point.GetValidNextTrioPair(ctx.GetIndex())
+		oneTwo := m3point.GetValidNextTrioPair(m3point.TrioIndex(ctx.GetIndex()))
 		twoIdx := ctx.offset
 		for d := uint64(0); d < 30; d++ {
 			assert.Equal(t, oneTwo[twoIdx], ctx.GetTrioIndex(d), "failed trio index for ctx %v and divByThree=%d twoIdx=%d in %v", ctx.String(), d, twoIdx, oneTwo)
@@ -368,8 +368,8 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 	// The result list of trio index used
 	var currentIndexList []int
 
-	countUsedIdx := make(map[uint8]int)
-	usedPoints := make(map[m3point.Point]uint8)
+	countUsedIdx := make(map[m3point.TrioIndex]int)
+	usedPoints := make(map[m3point.Point]m3point.TrioIndex)
 	latestPoints := make([]m3point.Point, 1)
 	latestPoints[0] = ctx.center
 
@@ -378,18 +378,15 @@ func runAllTrioList(t *testing.T, ctx *GrowthContext) (stableStep int, indexList
 	stableIndexList := 0
 	stepStable := 0
 
-	inError := make(map[uint8]bool)
+	inError := make(map[m3point.TrioIndex]bool)
 	possibleTrios := ctx.GetPossibleTrioList()
-	possIds := make([]uint8, len(*possibleTrios))
-	for i, td := range *possibleTrios {
-		possIds[i] = td.GetId()
-	}
+	possIds := possibleTrios.IdList()
 	assert.True(t, possibleTrios.Len() > 2, "wrong possible trio for %v", ctx.String())
 
 	for d := uint64(0); d < 30; d++ {
 		stepStable = int(d)
 		newPoints := make([]m3point.Point, 0, 2*len(latestPoints))
-		stepCountIdx := make(map[uint8]int)
+		stepCountIdx := make(map[m3point.TrioIndex]int)
 		stepConflictCount := make(map[m3point.Point]int)
 
 		for _, p := range latestPoints {

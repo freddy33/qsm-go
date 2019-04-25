@@ -120,7 +120,7 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 	var tlToFind TrioLink
 	if trCtx.ctxType == 1 {
 		// Always same index so all details where links are this
-		tlToFind = MakeTrioLink(trCtx.ctxIndex,trCtx.ctxIndex,trCtx.ctxIndex)
+		tlToFind = makeTrioLinkFromInt(trCtx.ctxIndex, trCtx.ctxIndex, trCtx.ctxIndex)
 		for i, td := range allTrioDetails {
 			if td.Links.Exists(&tlToFind) {
 				// Add the pointer from list not from iteration
@@ -138,13 +138,13 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 		a := trCtx.GetBaseTrioIndex(divByThree-1, 0)
 		b := trCtx.GetBaseTrioIndex(divByThree, 0)
 		c := trCtx.GetBaseTrioIndex(divByThree+1, 0)
-		toAdd1 := MakeTrioLink(a, b, b)
+		toAdd1 := makeTrioLink(a, b, b)
 		possLinks.addUnique(&toAdd1)
-		toAdd2 := MakeTrioLink(a, b, c)
+		toAdd2 := makeTrioLink(a, b, c)
 		possLinks.addUnique(&toAdd2)
-		toAdd3 := MakeTrioLink(b, a, a)
+		toAdd3 := makeTrioLink(b, a, a)
 		possLinks.addUnique(&toAdd3)
-		toAdd4 := MakeTrioLink(b, a, c)
+		toAdd4 := makeTrioLink(b, a, c)
 		possLinks.addUnique(&toAdd4)
 	}
 
@@ -174,24 +174,26 @@ func (trCtx *TrioIndexContext) GetBaseDivByThree(p Point) uint64 {
 	return uint64(Abs64(p[0])/3 + Abs64(p[1])/3 + Abs64(p[2])/3)
 }
 
-func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) int {
+// TODO: Change returned value to uint8
+func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) TrioIndex {
+	ctxTrIdx := TrioIndex(trCtx.ctxIndex)
 	if trCtx.ctxType == 1 {
 		// Always same value
-		return trCtx.ctxIndex
+		return ctxTrIdx
 	}
 	if trCtx.ctxType == 3 {
 		// Center on Trio index ctx.GetIndex() and then use X, Y, Z where conn are 1
 		mod2 := PosMod2(divByThree)
 		if mod2 == 0 {
-			return trCtx.ctxIndex
+			return ctxTrIdx
 		}
 		mod3 := int(((divByThree-1)/2 + uint64(offset)) % 3)
 		if trCtx.ctxIndex < 4 {
-			return validNextTrio[3*trCtx.ctxIndex+mod3][1]
+			return TrioIndex(validNextTrio[3*trCtx.ctxIndex+mod3][1])
 		}
 		count := 0
 		for _, validTrio := range validNextTrio {
-			if validTrio[1] == trCtx.ctxIndex {
+			if validTrio[1] == ctxTrIdx {
 				if count == mod3 {
 					return validTrio[0]
 				}
@@ -219,9 +221,115 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) i
 	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", trCtx.ctxIndex, trCtx.String()))
 }
 
+var AssertState = true
+
+func (trCtx *TrioIndexContext) GetNextTrio(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId) TrioIndex {
+	if AssertState {
+		// mainPoint should be main
+		if !mainPoint.IsMainPoint() {
+			Log.Errorf("in context %s current point %v is not main, while looking on %s for %s", trCtx.String(), mainPoint, trioDetails.String(), connId.String())
+			return NilTrioIndex
+		}
+	}
+	return NilTrioIndex
+}
+
+func (trCtx *TrioIndexContext) GetNextTrios(current Point, currentTrioIdx TrioIndex, fromConnId ConnectionId) (nextConnIds [2]ConnectionId, nextTrios [2]TrioIndex) {
+	possibleTrios := *trCtx.GetPossibleTrioList()
+
+	td := GetTrioDetails(currentTrioIdx)
+	oc := td.OtherConnectionsFrom(-fromConnId)
+
+	for i := 0; i < 2; i++ {
+		nextConnIds[i] = oc[i].Id
+		np := current.Add(oc[i].Vector)
+		if np.IsMainPoint() {
+			nextTrios[i] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(np), 0)
+		} else {
+			// Find trio by finding conn id for next point np
+			// First connId where np came from
+			nextFrommConn := oc[i]
+			nextFromConnId := -(nextFrommConn.Id)
+			// Second harder to find
+			var nextConnId ConnectionId
+			// need to find the next next point
+			var nnp Point
+
+			if current.IsMainPoint() {
+				// So td is a base vector
+				if !td.IsBaseTrio() {
+					Log.Errorf("current point %v is main and trio associated %s is not base", current, td.String())
+				}
+				// So oc[i] is a base connection and so has 2 extensions from +X, -X, +Y, -Y, +Z, -Z
+				x := nextFrommConn.Vector.X()
+				if x != 0 {
+					// Use X
+					// next point should connect to next main point toward X + base vector there
+					var nextMain Point
+					if x > 0 {
+						nextMain = current.Add(XFirst)
+					} else {
+						nextMain = current.Sub(XFirst)
+					}
+					nextMainTrioIdx := trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(nextMain), 0)
+					nextMainTd := GetTrioDetails(nextMainTrioIdx)
+					if x > 0 {
+						// TODO: Should be direct from td
+						nnp = nextMain.Sub(nextMainTd.GetTrio().getMinusXVector())
+					} else {
+						nnp = nextMain.Add(nextMainTd.GetTrio().getPlusXVector())
+					}
+				} else {
+					// Use Y
+					y := nextFrommConn.Vector.Y()
+					if y == 0 {
+						Log.Errorf("something wrong with base vector %v", nextFrommConn.String())
+					}
+					// next point should connect to next main point toward Y + base vector there
+					var nextMain Point
+					if y > 0 {
+						nextMain = current.Add(YFirst)
+					} else {
+						nextMain = current.Sub(YFirst)
+					}
+					nextMainTrioIdx := trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(nextMain), 0)
+					nextMainTd := GetTrioDetails(nextMainTrioIdx)
+					if y > 0 {
+						// TODO: Should be direct from td
+						nnp = nextMain.Sub(nextMainTd.GetTrio().getMinusYVector())
+					} else {
+						nnp = nextMain.Add(nextMainTd.GetTrio().getPlusYVector())
+					}
+				}
+			} else {
+				// If current is not main, than np is close to the next main point. Get the nearest main point of np is where it goes
+				// TODO: Verify above assumption is correct!
+				nnp = np.GetNearMainPoint()
+			}
+
+			nextConnId = GetConnDetailsByPoints(np, nnp).Id
+			// We have 2 connId let's see if we find one (and only one) in the list of possible trios
+			solutions := make([]TrioIndex, 0, 1)
+			for _, possTr := range possibleTrios {
+				if possTr.HasConnections(nextConnId, nextFromConnId) {
+					solutions = append(solutions, possTr.GetId())
+				}
+			}
+			if len(solutions) == 0 {
+				Log.Errorf("did not find for context %s any trio with %s and %s in %v", trCtx.String(), nextConnId.String(), nextFromConnId.String(), possibleTrios)
+			}
+			if len(solutions) > 1 {
+				Log.Errorf("found more than one for context %s trio %v with %s and %s in %v", trCtx.String(), solutions, nextConnId.String(), nextFromConnId.String(), possibleTrios)
+			}
+			nextTrios[i] = solutions[0]
+		}
+	}
+	return
+}
+
 // Stupid reverse engineering of trio index that works for main and non main points
-func FindTrioIndex(c Point, np [3]Point, ctx *TrioIndexContext, offset int) (uint8, TrioLink) {
-	link := MakeTrioLink(getTrioIdxNearestMain(c, ctx, offset), getTrioIdxNearestMain(np[1], ctx, offset), getTrioIdxNearestMain(np[2], ctx, offset))
+func FindTrioIndex(c Point, np [3]Point, ctx *TrioIndexContext, offset int) (TrioIndex, TrioLink) {
+	link := makeTrioLink(getTrioIdxNearestMain(c, ctx, offset), getTrioIdxNearestMain(np[1], ctx, offset), getTrioIdxNearestMain(np[2], ctx, offset))
 	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
 	for _, td := range allTrioDetails {
 		if toFind.GetTrio() == td.GetTrio() {
@@ -230,10 +338,9 @@ func FindTrioIndex(c Point, np [3]Point, ctx *TrioIndexContext, offset int) (uin
 	}
 	Log.Errorf("did not find any trio for %v %v %v", c, np, toFind)
 	Log.Errorf("All trio index %s", link.String())
-	return uint8(255), link
+	return NilTrioIndex, link
 }
 
-func getTrioIdxNearestMain(p Point, ctx *TrioIndexContext, offset int) int {
+func getTrioIdxNearestMain(p Point, ctx *TrioIndexContext, offset int) TrioIndex {
 	return ctx.GetBaseTrioIndex(ctx.GetBaseDivByThree(p.GetNearMainPoint()), offset)
 }
-

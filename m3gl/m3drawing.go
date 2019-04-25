@@ -275,11 +275,11 @@ func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection
 }
 
 func getConnectionObjectType(cd *m3point.ConnectionDetails) ObjectType {
-	cdId := cd.GetIntId()
+	cdId := cd.GetId()
 	if cdId > 0 {
-		return ObjectType(int8(Connection00) + cdId*2)
+		return ObjectType(m3point.ConnectionId(Connection00) + cdId*2)
 	} else {
-		return ObjectType(int8(Connection00) + 1 - cdId*2)
+		return ObjectType(m3point.ConnectionId(Connection00) + 1 - cdId*2)
 	}
 }
 

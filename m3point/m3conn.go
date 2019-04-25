@@ -5,16 +5,19 @@ import (
 	"sort"
 )
 
-var allConnectionsByVector map[Point]*ConnectionDetails
-var allConnections []*ConnectionDetails
+type ConnectionId int8
 
 type ConnectionDetails struct {
-	Id     int8
+	Id     ConnectionId
 	Vector Point
 	ConnDS int64
 }
 
 var EmptyConnDetails = ConnectionDetails{0, Origin, 0,}
+
+var allConnectionsByVector map[Point]*ConnectionDetails
+var allConnections []*ConnectionDetails
+
 
 type ByConnVector []*ConnectionDetails
 type ByConnId []*ConnectionDetails
@@ -51,7 +54,7 @@ func (cds ByConnId) Less(i, j int) bool {
 }
 
 func IsLessConnId(cd1, cd2 *ConnectionDetails) bool {
-	absDiff := cd1.GetPosIntId() - cd2.GetPosIntId()
+	absDiff := cd1.GetPosId() - cd2.GetPosId()
 	if absDiff < 0 {
 		return true
 	} else if absDiff > 0 {
@@ -62,28 +65,51 @@ func IsLessConnId(cd1, cd2 *ConnectionDetails) bool {
 }
 
 /***************************************************************/
+// ConnectionId Functions
+/***************************************************************/
+func (connId ConnectionId) GetPosConnectionId() ConnectionId {
+	if connId < 0 {
+		return ConnectionId(-connId)
+	}
+	return connId
+}
+
+func (connId ConnectionId) IsBaseConnection() bool {
+	posConnId := connId.GetPosConnectionId()
+	return posConnId >= 4 && posConnId <=8
+}
+
+func (connId ConnectionId) String() string {
+	if connId < 0 {
+		return fmt.Sprintf("CN%02d", -connId)
+	} else {
+		return fmt.Sprintf("CP%02d", connId)
+	}
+}
+
+/***************************************************************/
 // ConnectionDetails Functions
 /***************************************************************/
 
-func GetMaxConnId() int8 {
+func GetMaxConnId() ConnectionId {
 	// The pos conn Id of the last one
-	return allConnections[len(allConnections)-1].GetPosIntId()
+	return allConnections[len(allConnections)-1].GetPosId()
 }
 
 func (cd *ConnectionDetails) IsValid() bool {
 	return cd.Id != 0
 }
 
-func (cd *ConnectionDetails) GetIntId() int8 {
+func (cd *ConnectionDetails) GetId() ConnectionId {
 	return cd.Id
 }
 
-func (cd *ConnectionDetails) GetPosIntId() int8 {
-	return Abs8(cd.Id)
+func (cd *ConnectionDetails) GetPosId() ConnectionId {
+	return cd.Id.GetPosConnectionId()
 }
 
 func (cd *ConnectionDetails) DistanceSquared() int64 {
-	absId := Abs8(cd.Id)
+	absId := cd.GetPosId()
 	if absId <= 3 {
 		return int64(1)
 	} else if absId <= 9 {
@@ -98,18 +124,10 @@ func (cd *ConnectionDetails) DistanceSquared() int64 {
 }
 
 func (cd *ConnectionDetails) String() string {
-	return GetConnectionName(cd.Id)
+	return cd.Id.String()
 }
 
-func GetConnectionName(connId int8) string {
-	if connId < 0 {
-		return fmt.Sprintf("CN%02d", -connId)
-	} else {
-		return fmt.Sprintf("CP%02d", connId)
-	}
-}
-
-func initConnectionDetails() uint8 {
+func initConnectionDetails() ConnectionId {
 	connMap := make(map[Point]*ConnectionDetails)
 	// Going through all Trio and all combination of Trio, to aggregate connection details
 	for _, tr := range allBaseTrio {
@@ -135,7 +153,7 @@ func initConnectionDetails() uint8 {
 	}
 	sort.Sort(ByConnVector(allConnections))
 
-	currentConnNumber := int8(1)
+	currentConnNumber := ConnectionId(1)
 	for _, cd := range allConnections {
 		if cd.Id == 0 {
 			vec1 := cd.Vector
@@ -163,7 +181,7 @@ func initConnectionDetails() uint8 {
 	sort.Sort(ByConnId(allConnections))
 	allConnectionsByVector = connMap
 
-	return uint8(nbConnDetails)
+	return ConnectionId(nbConnDetails)
 }
 
 func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
@@ -186,7 +204,7 @@ func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
 	}
 }
 
-func GetConnDetailsById(id int8) *ConnectionDetails {
+func GetConnDetailsById(id ConnectionId) *ConnectionDetails {
 	if id > 0 {
 		return allConnections[2*id-2]
 	} else {

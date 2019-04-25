@@ -35,7 +35,7 @@ var newPosOutgrowthPool = sync.Pool{
 
 type EventOutgrowth struct {
 	pos             m3point.Point
-	fromConnections []int8
+	fromConnections []m3point.ConnectionId
 	distance        Distance
 	state           EventOutgrowthState
 	rootPath        m3path.PathElement
@@ -49,7 +49,7 @@ var eventOutgrowthPool = sync.Pool{
 
 type SavedEventOutgrowth struct {
 	pos             m3point.Point
-	fromConnections []int8
+	fromConnections []m3point.ConnectionId
 	distance        Distance
 	rootPath        m3path.PathElement
 }
@@ -67,7 +67,7 @@ type Outgrowth interface {
 	HasFrom() bool
 	FromLength() int
 
-	GetFromConnIds() []int8
+	GetFromConnIds() []m3point.ConnectionId
 	CameFromPoint(point m3point.Point) bool
 
 	AddFrom(point m3point.Point)
@@ -159,7 +159,7 @@ func (eo *EventOutgrowth) AddFrom(point m3point.Point) {
 	bv := m3point.MakeVector(eo.pos, point)
 	connId := m3point.GetConnDetailsByVector(bv).Id
 	if eo.fromConnections == nil {
-		eo.fromConnections = []int8{connId}
+		eo.fromConnections = []m3point.ConnectionId{connId}
 	} else {
 		eo.fromConnections = append(eo.fromConnections, connId)
 	}
@@ -173,7 +173,7 @@ func (eo *EventOutgrowth) FromLength() int {
 	return len(eo.fromConnections)
 }
 
-func (eo *EventOutgrowth) GetFromConnIds() []int8 {
+func (eo *EventOutgrowth) GetFromConnIds() []m3point.ConnectionId {
 	return eo.fromConnections
 }
 
@@ -250,7 +250,7 @@ func (seo *SavedEventOutgrowth) FromLength() int {
 	return len(seo.fromConnections)
 }
 
-func (seo *SavedEventOutgrowth) GetFromConnIds() []int8 {
+func (seo *SavedEventOutgrowth) GetFromConnIds() []m3point.ConnectionId {
 	return seo.fromConnections
 }
 

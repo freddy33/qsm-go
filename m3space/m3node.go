@@ -29,7 +29,7 @@ type Node interface {
 type SavedNode struct {
 	root             bool
 	accessedEventIDS []AccessedEventID
-	connections      []int8
+	connections      []m3point.ConnectionId
 }
 
 type ActiveNode struct {
@@ -38,7 +38,7 @@ type ActiveNode struct {
 }
 
 type Connection struct {
-	Id     int8
+	Id     m3point.ConnectionId
 	P1, P2 m3point.Point
 }
 
@@ -194,7 +194,7 @@ var connectionsPool = sync.Pool{
 	},
 }
 
-func (conn *Connection) GetConnId() int8 {
+func (conn *Connection) GetConnId() m3point.ConnectionId {
 	return conn.Id
 }
 
@@ -251,10 +251,10 @@ func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 	// All good create connection
 	bv := m3point.MakeVector(n1.Pos, n2.Pos)
 	cd := m3point.GetConnDetailsByVector(bv)
-	c1 := makeConnection(cd.GetIntId(), n1, n2)
+	c1 := makeConnection(cd.GetId(), n1, n2)
 	space.activeConnections = append(space.activeConnections, c1)
 	n1done := n1.AddConnection(c1, space)
-	c2 := makeConnection(-cd.GetIntId(), n2, n1)
+	c2 := makeConnection(-cd.GetId(), n2, n1)
 	n2done := n2.AddConnection(c2, space)
 	if n1done < 0 || n2done < 0 {
 		Log.Error("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
@@ -263,7 +263,7 @@ func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
 	return c1
 }
 
-func makeConnection(Id int8, n1, n2 *ActiveNode) *Connection {
+func makeConnection(Id m3point.ConnectionId, n1, n2 *ActiveNode) *Connection {
 	var c *Connection
 	if ActivatePooling {
 		c = connectionsPool.Get().(*Connection)

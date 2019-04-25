@@ -22,10 +22,24 @@ func TestPathContextFilling(t *testing.T) {
 }
 
 func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
-	trIdx := pathCtx.ctx.GetBaseTrioIndex(0, 0)
-	fmt.Println(pathCtx.ctx.String(), trIdx)
-}
+	trCtx := pathCtx.ctx
+	trIdx := trCtx.GetBaseTrioIndex(0, 0)
+	td := m3point.GetTrioDetails(trIdx)
+	fmt.Println(trCtx.String())
+	for i, c := range td.GetConnections() {
+		newNode := PathIdNode{}
+		newNode.cur = MakePathId(trIdx, c.GetId())
+		pathCtx.firstPathIds[i] = newNode
+/*		nextConnIds, nextTrioIdxs := trCtx.GetNextTrios(m3point.Origin.Add(c.Vector), trIdx, c.Id)
+		for j := 0; j < 2; j++ {
+			nextNewNode := PathIdNode{}
+			nextNewNode.cur = MakePathId(nextTrioIdxs[j], nextConnIds[j])
+			pathCtx.firstPathIds[i].next[j] = &nextNewNode
+		}
 
+ */
+	}
+}
 
 func TestNilPathElement(t *testing.T) {
 	nsp := EndPathElement(-3)
@@ -220,19 +234,19 @@ func TestPathMerging(t *testing.T) {
 		assert.Equal(t, pLength-4, c.GetLength(), "wrong length at %d", j)
 	}
 
-	assertSameConnList(t, currentList[0], map[int8]bool{3:true})
-	assertSameConnList(t, currentList[1], map[int8]bool{5:true})
-	assertSameConnList(t, currentList[2], map[int8]bool{6:true})
-	assertSameConnList(t, currentList[3], map[int8]bool{3:true, 5:true})
-	assertSameConnList(t, currentList[4], map[int8]bool{3:true, 6:true})
-	assertSameConnList(t, currentList[5], map[int8]bool{5:true, 6:true})
-	assertSameConnList(t, currentList[6], map[int8]bool{3:true, 5:true, 6:true})
-	assertSameConnList(t, currentList[7], map[int8]bool{3:true, 5:true, 6:true})
-	assertSameConnList(t, currentList[8], map[int8]bool{3:true, 5:true, 6:true})
+	assertSameConnList(t, currentList[0], map[int8]bool{3: true})
+	assertSameConnList(t, currentList[1], map[int8]bool{5: true})
+	assertSameConnList(t, currentList[2], map[int8]bool{6: true})
+	assertSameConnList(t, currentList[3], map[int8]bool{3: true, 5: true})
+	assertSameConnList(t, currentList[4], map[int8]bool{3: true, 6: true})
+	assertSameConnList(t, currentList[5], map[int8]bool{5: true, 6: true})
+	assertSameConnList(t, currentList[6], map[int8]bool{3: true, 5: true, 6: true})
+	assertSameConnList(t, currentList[7], map[int8]bool{3: true, 5: true, 6: true})
+	assertSameConnList(t, currentList[8], map[int8]bool{3: true, 5: true, 6: true})
 
 	for j, c := range currentList {
 		nbNext := c.NbForwardElements()
-		for i:=0;i<nbNext;i++ {
+		for i := 0; i < nbNext; i++ {
 			currentConnId := c.GetForwardConnId(i)
 			next := c.GetForwardElement(i)
 			assert.NotEqual(t, nil, next, "c nil at %d %d", i, j)
@@ -245,7 +259,7 @@ func TestPathMerging(t *testing.T) {
 
 func assertSameConnList(t *testing.T, path PathElement, ids map[int8]bool) {
 	assert.Equal(t, len(ids), path.NbForwardElements())
-	for i:=0;i<len(ids);i++ {
+	for i := 0; i < len(ids); i++ {
 		connId := path.GetForwardConnId(i)
 		_, ok := ids[connId]
 		assert.True(t, ok, "did not find connId %d from path %v in %v", connId, path, ids)

@@ -1,13 +1,13 @@
 package m3point
 
 
-type PermBuilder struct {
+type TrioIndexPermBuilder struct {
 	size      int
 	colIdx    int
-	collector [][]int
+	collector [][]TrioIndex
 }
 
-func samePermutation(p1, p2 []int) bool {
+func samePermutation(p1, p2 []TrioIndex) bool {
 	if len(p1) != len(p2) {
 		Log.Fatalf("cannot test 2 permutation of different sizes %v %v", p1, p2)
 	}
@@ -34,7 +34,7 @@ func samePermutation(p1, p2 []int) bool {
 	return true
 }
 
-func (p *PermBuilder) fill(pos int, current []int) {
+func (p *TrioIndexPermBuilder) fill(pos int, current []TrioIndex) {
 	if pos == p.size {
 		exists := false
 		for i := 0; i < p.colIdx; i++ {
@@ -51,10 +51,10 @@ func (p *PermBuilder) fill(pos int, current []int) {
 	}
 	for i := 0; i < 4; i++ {
 		// non prime index
-		newIndex := i
+		newIndex := TrioIndex(i)
 		if pos%2 == 1 {
 			// prime index
-			newIndex = i + 4
+			newIndex = TrioIndex(i + 4)
 		}
 		usable := true
 		if pos-1 >= 0 {
@@ -76,7 +76,7 @@ func (p *PermBuilder) fill(pos int, current []int) {
 			}
 		}
 		if usable {
-			perm := make([]int, p.size)
+			perm := make([]TrioIndex, p.size)
 			copy(perm, current)
 			perm[pos] = newIndex
 			p.fill(pos+1, perm)

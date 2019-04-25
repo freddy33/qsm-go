@@ -327,7 +327,7 @@ func (t *TriangleFiller) drawNodes() {
 
 func (t *TriangleFiller) drawConnections() {
 	maxConnId := m3point.GetMaxConnId()
-	for connId := int8(1); connId <= maxConnId; connId++ {
+	for connId := m3point.ConnectionId(1); connId <= maxConnId; connId++ {
 		posConn := m3point.GetConnDetailsById(connId)
 		t.fill(MakeSegment(m3point.Origin, posConn.Vector, getConnectionObjectType(posConn)))
 		negConn := m3point.GetConnDetailsById(-connId)

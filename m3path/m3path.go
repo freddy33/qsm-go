@@ -20,8 +20,8 @@ type LastPathIdKey struct {
 }
 
 type PathId struct {
-	trioId   uint8
-	connId   int8
+	trioId   m3point.TrioIndex
+	connId   m3point.ConnectionId
 }
 
 type PathIdNode struct {
@@ -33,17 +33,17 @@ type PathIdNode struct {
 // PathId Functions
 /***************************************************************/
 
-func MakePathId(trIdx int, connId int8) PathId {
-	td := m3point.GetTrioDetails(uint8(trIdx))
+func MakePathId(trIdx m3point.TrioIndex, connId  m3point.ConnectionId) PathId {
+	td := m3point.GetTrioDetails(trIdx)
 	if !td.HasConnection(connId) {
-		Log.Errorf("trying to create a path id from T%03d but connection %d is not here", trIdx, connId)
+		Log.Errorf("trying to create a path id from %s but connection %d is not here", trIdx.String(), connId)
 		return PathId{0, 0}
 	}
 	return PathId{td.GetId(), connId}
 }
 
 func (pid *PathId) String() string {
-	return fmt.Sprintf("T%03d-%s", pid.trioId, m3point.GetConnectionName(pid.connId))
+	return fmt.Sprintf("%s-%s", pid.trioId.String(), pid.connId.String())
 }
 
 

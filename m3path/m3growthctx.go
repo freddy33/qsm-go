@@ -56,7 +56,7 @@ func (ctx *GrowthContext) String() string {
 	return fmt.Sprintf("GrowthType%d-Idx%d-Offset%d", ctx.GetType(), ctx.GetIndex(), ctx.offset)
 }
 
-func (ctx *GrowthContext) GetTrioIndex(divByThree uint64) int {
+func (ctx *GrowthContext) GetTrioIndex(divByThree uint64) m3point.TrioIndex {
 	return ctx.GetBaseTrioIndex(divByThree, ctx.offset)
 }
 

@@ -45,9 +45,9 @@ func TestPosMod8(t *testing.T) {
 func TestAllTrioLinks(t *testing.T) {
 	Log.Level = m3util.DEBUG
 	assert.Equal(t, 8*8*(1+8)/2, len(allTrioLinks), "%v", allTrioLinks)
-	for a := 0; a < 8; a++ {
-		for b := 0; b < 8; b++ {
-			for c := 0; c < 8; c++ {
+	for a := TrioIndex(0); a < 8; a++ {
+		for b := TrioIndex(0); b < 8; b++ {
+			for c := TrioIndex(0); c < 8; c++ {
 				count := 0
 				for _, tl := range allTrioLinks {
 					if a == tl.a && b == tl.b && c == tl.c {
@@ -55,9 +55,9 @@ func TestAllTrioLinks(t *testing.T) {
 					}
 				}
 				if b <= c {
-					assert.Equal(t, 1, count, "sould have found one instance of %d %d %d",a,b,c)
+					assert.Equal(t, 1, count, "sould have found one instance of %d %d %d", a, b, c)
 				} else {
-					assert.Equal(t, 0, count, "sould have found no instances of %d %d %d",a,b,c)
+					assert.Equal(t, 0, count, "sould have found no instances of %d %d %d", a, b, c)
 				}
 			}
 		}
@@ -72,8 +72,8 @@ func TestAllTrioDetails(t *testing.T) {
 		// All vec should have conn details
 		cds := td.conns
 		// Conn ID increase always
-		assert.True(t, cds[0].GetPosIntId() <= cds[1].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
-		assert.True(t, cds[1].GetPosIntId() <= cds[2].GetPosIntId(), "Mess in %v for trio %d = %v", cds, i, td)
+		assert.True(t, cds[0].GetPosId() <= cds[1].GetPosId(), "Mess in %v for trio %d = %v", cds, i, td)
+		assert.True(t, cds[1].GetPosId() <= cds[2].GetPosId(), "Mess in %v for trio %d = %v", cds, i, td)
 	}
 
 	// Check that All trio is ordered correctly
@@ -114,7 +114,7 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 		}
 		dsIndex := td.GetDSIndex()
 		countPerIndex[dsIndex]++
-		countPerIndexPerFirstConnPosId[dsIndex][td.conns[0].GetPosIntId()]++
+		countPerIndexPerFirstConnPosId[dsIndex][td.conns[0].GetPosId()]++
 	}
 	assert.Equal(t, 8, countPerIndex[0])
 	assert.Equal(t, 3*2*2, countPerIndex[1])
@@ -179,15 +179,28 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	td0 := GetTrioDetails(0)
 	assert.True(t, td0.HasConnection(4))
+	assert.False(t, td0.HasConnection(-4))
 	assert.True(t, td0.HasConnection(-6))
+	assert.False(t, td0.HasConnection(6))
 	assert.True(t, td0.HasConnection(-9))
+	assert.False(t, td0.HasConnection(9))
 	failedOc := td0.OtherConnectionsFrom(4)
 	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[0])
 	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[1])
 
 	oc := td0.OtherConnectionsFrom(-4)
-	assert.Equal(t, *GetConnDetailsById(-6) , *oc[0])
-	assert.Equal(t, *GetConnDetailsById(-9) , *oc[1])
+	assert.Equal(t, *GetConnDetailsById(-6), *oc[0])
+	assert.Equal(t, *GetConnDetailsById(-9), *oc[1])
+
+	td92 := GetTrioDetails(92)
+	assert.True(t, td92.HasConnection(4))
+	assert.False(t, td92.HasConnection(-4))
+	assert.True(t, td92.HasConnection(12))
+	assert.True(t, td92.HasConnection(-12))
+
+	oc = td92.OtherConnectionsFrom(-4)
+	assert.Equal(t, *GetConnDetailsById(12), *oc[0])
+	assert.Equal(t, *GetConnDetailsById(-12), *oc[1])
 }
 
 func TestTrioDetailsLinks(t *testing.T) {
@@ -214,7 +227,7 @@ func TestTrioDetailsLinks(t *testing.T) {
 			coll = &TrioLinkList{}
 			collPerCount[c] = coll
 		}
-		copyTl := MakeTrioLink(tl.a, tl.b, tl.c)
+		copyTl := makeTrioLink(tl.a, tl.b, tl.c)
 		coll.addUnique(&copyTl)
 	}
 	for _, tll := range collPerCount {
@@ -294,7 +307,7 @@ func TestAllFull5Trio(t *testing.T) {
 	idxMap := createAll8IndexMap()
 	// All trio with prime (neg of all vec) will have a full 5 connection length
 	for i := 0; i < 4; i++ {
-		nextTrio := [2]int{i, i + 4}
+		nextTrio := [2]TrioIndex{TrioIndex(i), TrioIndex(i + 4)}
 		assertValidNextTrio(t, nextTrio, i)
 
 		// All conns are only 5
@@ -345,10 +358,10 @@ func TestAllMod8Permutations(t *testing.T) {
 	}
 }
 
-func assertExistsInValidNextTrio(t *testing.T, startIdx int, endIdx int, msg string) {
+func assertExistsInValidNextTrio(t *testing.T, startIdx TrioIndex, endIdx TrioIndex, msg string) {
 	assert.NotEqual(t, startIdx, endIdx, "start and end index cannot be equal for %s", msg)
 	// Order the indexes
-	trioToFind := [2]int{-1, -1}
+	trioToFind := [2]TrioIndex{NilTrioIndex, NilTrioIndex}
 	if startIdx >= 4 {
 		trioToFind[1] = startIdx
 	} else {
@@ -360,8 +373,8 @@ func assertExistsInValidNextTrio(t *testing.T, startIdx int, endIdx int, msg str
 		trioToFind[0] = endIdx
 	}
 
-	assert.True(t, trioToFind[0] >= 0 && trioToFind[0] <= 3, "Something wrong with trioToFind first value for %s", msg)
-	assert.True(t, trioToFind[1] >= 4 && trioToFind[1] <= 7, "Something wrong with trioToFind second value for %s", msg)
+	assert.True(t, trioToFind[0] != NilTrioIndex && trioToFind[0] <= 3, "Something wrong with trioToFind first value for %s", msg)
+	assert.True(t, trioToFind[1] != NilTrioIndex && trioToFind[1] >= 4 && trioToFind[1] <= 7, "Something wrong with trioToFind second value for %s", msg)
 
 	foundNextTrio := false
 	for _, nextTrio := range validNextTrio {
@@ -372,23 +385,23 @@ func assertExistsInValidNextTrio(t *testing.T, startIdx int, endIdx int, msg str
 	assert.True(t, foundNextTrio, "Did not find trio %v in list of valid trio for %s", trioToFind, msg)
 }
 
-func assertValidNextTrio(t *testing.T, nextTrio [2]int, i int) {
+func assertValidNextTrio(t *testing.T, nextTrio [2]TrioIndex, i int) {
 	assert.NotEqual(t, nextTrio[0], nextTrio[1], "Something wrong with nextTrio index %d %v", i, nextTrio)
-	assert.True(t, nextTrio[0] >= 0 && nextTrio[0] <= 3, "Something wrong with nextTrio first value index %d %v", i, nextTrio)
-	assert.True(t, nextTrio[1] >= 4 && nextTrio[1] <= 7, "Something wrong with nextTrio second value index %d %v", i, nextTrio)
+	assert.True(t, nextTrio[0] != NilTrioIndex && nextTrio[0] <= 3, "Something wrong with nextTrio first value index %d %v", i, nextTrio)
+	assert.True(t, nextTrio[1] != NilTrioIndex && nextTrio[1] >= 4 && nextTrio[1] <= 7, "Something wrong with nextTrio second value index %d %v", i, nextTrio)
 }
 
-func createAll8IndexMap() map[int]int {
-	res := make(map[int]int)
-	for i := 0; i < 8; i++ {
+func createAll8IndexMap() map[TrioIndex]int {
+	res := make(map[TrioIndex]int)
+	for i := TrioIndex(0); i < 8; i++ {
 		res[i] = 0
 	}
 	return res
 }
 
-func assertAllIndexUsed(t *testing.T, idxMap map[int]int, expectedTimes int, msg string) {
+func assertAllIndexUsed(t *testing.T, idxMap map[TrioIndex]int, expectedTimes int, msg string) {
 	assert.Equal(t, 8, len(idxMap))
-	for i := 0; i < 8; i++ {
+	for i := TrioIndex(0); i < 8; i++ {
 		v, ok := idxMap[i]
 		assert.True(t, ok, "did not find index %d in %v for %s", i, idxMap, msg)
 		assert.Equal(t, expectedTimes, v, "failed nb times at index %d in %v for %s", i, idxMap, msg)

@@ -11,13 +11,13 @@ func TestConnectionDetails(t *testing.T) {
 	for k, v := range allConnectionsByVector {
 		assert.Equal(t, k, v.Vector)
 		assert.Equal(t, k.DistanceSquared(), v.DistanceSquared())
-		currentNumber := v.GetPosIntId()
+		currentNumber := v.GetPosId()
 		sameNumber := 0
 		for _, nv := range allConnectionsByVector {
-			if nv.GetPosIntId() == currentNumber {
+			if nv.GetPosId() == currentNumber {
 				sameNumber++
 				if nv.Vector != v.Vector {
-					assert.Equal(t, nv.GetIntId(), -v.GetIntId(), "Should have opposite id")
+					assert.Equal(t, nv.GetId(), -v.GetId(), "Should have opposite id")
 					assert.Equal(t, nv.Vector.Neg(), v.Vector, "Should have neg vector")
 				}
 			}
@@ -25,7 +25,7 @@ func TestConnectionDetails(t *testing.T) {
 		assert.Equal(t, 2, sameNumber, "Should have 2 with same conn number for %d", currentNumber)
 	}
 
-	countConnId := make(map[int8]int)
+	countConnId := make(map[ConnectionId]int)
 	for i, tA := range allBaseTrio {
 		for j, tB := range allBaseTrio {
 			connVectors := GetNonBaseConnections(tA, tB)
@@ -33,7 +33,7 @@ func TestConnectionDetails(t *testing.T) {
 				connDetails, ok := allConnectionsByVector[connVector]
 				assert.True(t, ok, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
 				assert.Equal(t, connVector, connDetails.Vector, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
-				countConnId[connDetails.GetIntId()]++
+				countConnId[connDetails.GetId()]++
 			}
 		}
 	}

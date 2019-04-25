@@ -210,8 +210,8 @@ func writeAllTrioDetailsTable() {
 
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
-	for a, td := range allTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %v %s\n", a, td.conns[0].Vector, td.conns[0].String()))
+	for _, td := range allTrioDetails {
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v %s\n", td.id.String(), td.conns[0].Vector, td.conns[0].String()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf(" L%3d %v %s\n", len(td.Links), td.conns[1].Vector, td.conns[1].String()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].String()))
 		m3util.WriteNextString(txtFile, "\n")
@@ -219,14 +219,14 @@ func writeAllTrioDetailsTable() {
 }
 
 func writeAllTrioDetailsLinks() {
-	txtFile, err := os.Create("allTrioLinks.txt")
+	txtFile, err := os.Create("AllTrioLinks.txt")
 	if err != nil {
 		log.Fatal("Cannot create text file", err)
 	}
 	defer m3util.CloseFile(txtFile)
 
-	for a, td := range allTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("T%03d: %s\n", a, td.Links.String()))
+	for _, td := range allTrioDetails {
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %s\n", td.id.String(), td.Links.String()))
 	}
 }
 
@@ -264,11 +264,11 @@ func writeAllConnectionDetails() {
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
-	nbConnDetails := int8(len(allConnectionsByVector) / 2)
+	nbConnDetails := ConnectionId(len(allConnectionsByVector) / 2)
 	csvWriter := csv.NewWriter(csvFile)
-	for cdNb := int8(1); cdNb <= nbConnDetails; cdNb++ {
+	for cdNb := ConnectionId(1); cdNb <= nbConnDetails; cdNb++ {
 		for _, v := range allConnectionsByVector {
-			if v.GetIntId() == cdNb {
+			if v.GetId() == cdNb {
 				ds := v.ConnDS
 				posVec := v.Vector
 				negVec := v.Vector.Neg()
