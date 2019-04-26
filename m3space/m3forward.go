@@ -72,7 +72,7 @@ func (space *Space) ForwardTime() *FullOutgrowthCollector {
 	for _, evt := range space.events {
 		nbLatest += len(evt.latestOutgrowths)
 	}
-	if Log.Level <= m3util.INFO {
+	if Log.IsInfo() {
 		Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn, %d reactivated, %d died",
 			space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
 			len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
@@ -120,12 +120,12 @@ func (evt *Event) createNewPossibleOutgrowthsForLatestOutgrowth(c chan *NewPossi
 			nodeThere := evt.space.GetNode(nextPoint)
 			if nodeThere != nil {
 				sendOutgrowth = !nodeThere.IsEventAlreadyPresent(evt.id)
-				if Log.Level <= m3util.TRACE {
+				if Log.IsTrace() {
 					Log.Trace("New EO on existing node", nodeThere.GetStateString(), "can receive=", sendOutgrowth)
 				}
 			}
 			if sendOutgrowth {
-				if Log.Level <= m3util.TRACE {
+				if Log.IsTrace() {
 					Log.Trace("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
 				}
 				c <- makeNewPossibleOutgrowth(nextPoint, evt, eg, eg.distance+1, EventOutgrowthNew)
@@ -463,7 +463,7 @@ func (colStat *OutgrowthCollectorStatSingle) displayStat() {
 		return
 	}
 	// Only debug
-	if LogStat.Level > m3util.DEBUG {
+	if LogStat.IsDebug() {
 		return
 	}
 	LogStat.Debugf("%12s  : %6d / %6d / %6d", colStat.name,
@@ -476,7 +476,7 @@ func (colStat *OutgrowthCollectorStatSameEvent) displayStat() {
 		return
 	}
 	// Only debug
-	if LogStat.Level > m3util.DEBUG {
+	if LogStat.IsDebug() {
 		return
 	}
 	buf := bytes.NewBufferString("")
@@ -499,7 +499,7 @@ func (col *OutgrowthCollectorMultiEvent) displayStat() {
 	}
 
 	// Only debug
-	if LogStat.Level <= m3util.DEBUG {
+	if LogStat.IsDebug() {
 		buf := bytes.NewBufferString("")
 		fmt.Fprintf(buf, "%12s  : %6d / %6d / %6d | %6d / %6d / %6d", col.name,
 			col.originalPoints, col.occupiedPoints, col.noMoreConnPoints,
@@ -592,7 +592,7 @@ func (col *OutgrowthCollectorMultiEvent) displayTrace() {
 }
 
 func (collector *FullOutgrowthCollector) displayTrace() {
-	if Log.Level <= m3util.TRACE {
+	if Log.IsTrace() {
 		collector.sameEvent.displayTrace()
 		collector.multiEvents.displayTrace()
 	}
@@ -712,12 +712,12 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	fromPoint := newPosEo.from.pos
 	fromNode := space.getOrCreateNode(fromPoint)
 	if !fromNode.IsAlreadyConnected(newNode) {
-		if Log.Level <= m3util.TRACE {
+		if Log.IsTrace() {
 			Log.Trace("Need to connect the two nodes", fromNode.GetStateString(), newNode.GetStateString())
 		}
 		if space.makeConnection(fromNode, newNode) == nil {
 			// No more connections
-			if Log.Level <= m3util.DEBUG {
+			if Log.IsDebug() {
 				Log.Debug("Two nodes", fromNode.GetStateString(), newNode.GetStateString(), "cannot be connected without exceeding", newPosEo.event.space.MaxConnections, "connections")
 			}
 			return nil, &NoMoreConnectionsError{newNode.Pos, fromPoint}
@@ -727,7 +727,7 @@ func (newPosEo *NewPossibleOutgrowth) realize() (*EventOutgrowth, error) {
 	newEo.AddFrom(newPosEo.from.pos)
 	evt.latestOutgrowths = append(evt.latestOutgrowths, newEo)
 	newNode.AddOutgrowth(evt.id, space.currentTime)
-	if Log.Level <= m3util.TRACE {
+	if Log.IsTrace() {
 		Log.Trace("Created new outgrowth", newEo.String())
 	}
 	newPosOutgrowthPool.Put(newPosEo)

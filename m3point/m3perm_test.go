@@ -1,7 +1,6 @@
 package m3point
 
 import (
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -17,7 +16,7 @@ func TestSamePermutation(t *testing.T) {
 }
 
 func TestPermBuilder(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	p := TrioIndexPermBuilder{4, 0, make([][]TrioIndex, 12)}
 	p.fill(0, make([]TrioIndex, p.size))
 	//fmt.Println(p.collector)

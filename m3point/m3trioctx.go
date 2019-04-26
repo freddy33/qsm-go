@@ -174,7 +174,6 @@ func (trCtx *TrioIndexContext) GetBaseDivByThree(p Point) uint64 {
 	return uint64(Abs64(p[0])/3 + Abs64(p[1])/3 + Abs64(p[2])/3)
 }
 
-// TODO: Change returned value to uint8
 func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) TrioIndex {
 	ctxTrIdx := TrioIndex(trCtx.ctxIndex)
 	if trCtx.ctxType == 1 {
@@ -221,10 +220,10 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) T
 	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", trCtx.ctxIndex, trCtx.String()))
 }
 
-var AssertState = true
+var EvaluateAssertions = true
 
 func (trCtx *TrioIndexContext) GetNextTrio(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId) TrioIndex {
-	if AssertState {
+	if EvaluateAssertions {
 		// mainPoint should be main
 		if !mainPoint.IsMainPoint() {
 			Log.Errorf("in context %s current point %v is not main, while looking on %s for %s", trCtx.String(), mainPoint, trioDetails.String(), connId.String())
@@ -317,11 +316,13 @@ func (trCtx *TrioIndexContext) GetNextTrios(current Point, currentTrioIdx TrioIn
 			}
 			if len(solutions) == 0 {
 				Log.Errorf("did not find for context %s any trio with %s and %s in %v", trCtx.String(), nextConnId.String(), nextFromConnId.String(), possibleTrios)
-			}
-			if len(solutions) > 1 {
+				nextTrios[i] = NilTrioIndex
+			} else if len(solutions) > 1 {
 				Log.Errorf("found more than one for context %s trio %v with %s and %s in %v", trCtx.String(), solutions, nextConnId.String(), nextFromConnId.String(), possibleTrios)
+				nextTrios[i] = NilTrioIndex
+			} else {
+				nextTrios[i] = solutions[0]
 			}
-			nextTrios[i] = solutions[0]
 		}
 	}
 	return

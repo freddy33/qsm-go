@@ -197,7 +197,7 @@ func (fpe *ForkPathElement) SetLastNext(path PathElement) {
 
 func (fpe *ForkPathElement) GetLength() int {
 	length := fpe.simplePaths[0].GetLength()
-	if Log.Level <= m3util.DEBUG {
+	if Log.IsDebug() {
 		// All length should be identical
 		for i := 1; i < len(fpe.simplePaths); i++ {
 			otherLength := fpe.simplePaths[i].GetLength()

@@ -131,7 +131,7 @@ func (space *Space) getAndActivateNode(p m3point.Point) *ActiveNode {
 	}
 	sn, ok := space.oldNodesMap[p]
 	if ok {
-		if Log.Level <= m3util.DEBUG {
+		if Log.IsDebug() {
 			Log.Debugf("Recovering node %s from storage to active", sn.GetStateString())
 		}
 		space.nbOldNodesReactivated++

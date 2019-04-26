@@ -3,13 +3,12 @@ package m3space
 import (
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestActiveEventOutgrowth(t *testing.T) {
-	Log.Level = m3util.TRACE
+	Log.SetTrace()
 	var o Outgrowth
 	aeo := MakeActiveOutgrowth(m3point.Point{1, 2, 3}, Distance(0), EventOutgrowthLatest)
 	o = aeo
@@ -46,7 +45,7 @@ func TestActiveEventOutgrowth(t *testing.T) {
 }
 
 func TestSavedEventOutgrowth(t *testing.T) {
-	Log.Level = m3util.TRACE
+	Log.SetTrace()
 	var o Outgrowth
 	o = &SavedEventOutgrowth{m3point.Point{1, 2, 3}, nil, Distance(0), m3path.TheEnd}
 
@@ -67,7 +66,7 @@ func TestSavedEventOutgrowth(t *testing.T) {
 }
 
 func TestActiveEventOutgrowthPath(t *testing.T) {
-	Log.Level = m3util.TRACE
+	Log.SetTrace()
 	space := MakeSpace(3 * 9)
 	assertEmptySpace(t, &space, 3*9)
 	space.SetEventOutgrowthThreshold(Distance(0))
@@ -174,8 +173,8 @@ func TestActiveEventOutgrowthPath(t *testing.T) {
 }
 
 func TestOverlapSameEvent(t *testing.T) {
-	LogStat.Level = m3util.WARN
-	Log.Level = m3util.TRACE
+	LogStat.SetWarn()
+	Log.SetTrace()
 	space := MakeSpace(3 * 9)
 
 	assertEmptySpace(t, &space, 3*9)

@@ -3,7 +3,6 @@ package m3space
 import (
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -33,8 +32,8 @@ func deadState(newNodes int, deadNodes int) ExpectedSpaceState {
 }
 
 func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+	Log.SetWarn()
+	LogStat.SetInfo()
 	for trioIdx := 0; trioIdx < 12; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
@@ -83,8 +82,8 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 }
 
 func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+	Log.SetWarn()
+	LogStat.SetInfo()
 	for trioIdx := 0; trioIdx < 8; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
@@ -139,8 +138,8 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 }
 
 func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+	Log.SetWarn()
+	LogStat.SetInfo()
 	for trioIdx := 0; trioIdx < 8; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
@@ -194,8 +193,8 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 }
 
 func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+	Log.SetWarn()
+	LogStat.SetInfo()
 	for trioIdx := 0; trioIdx < 8; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
@@ -235,8 +234,8 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 }
 
 func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+	Log.SetWarn()
+	LogStat.SetInfo()
 	for trioIdx := 0; trioIdx < 8; trioIdx++ {
 		space := MakeSpace(3 * 9)
 
@@ -277,7 +276,7 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 }
 
 func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
-	Log.Level = m3util.INFO
+	Log.SetInfo()
 
 	space := MakeSpace(3 * 9)
 

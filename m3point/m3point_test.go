@@ -1,14 +1,13 @@
 package m3point
 
 import (
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 )
 
 func TestDS(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	assert.Equal(t, int64(0), DS(Point{1,2,3}, Point{1,2,3}))
 	assert.Equal(t, int64(1), DS(Point{1,2,3}, Point{0,2,3}))
 	assert.Equal(t, int64(1), DS(Point{1,2,3}, Point{2,2,3}))
@@ -30,7 +29,7 @@ func TestDS(t *testing.T) {
 }
 
 func TestNbPosCoord(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	assert.Equal(t, int64(0), Origin.SumOfPositiveCoord())
 	assert.Equal(t, int64(0), Point{-1,0,0}.SumOfPositiveCoord())
 	assert.Equal(t, int64(0), Point{0,-1,0}.SumOfPositiveCoord())
@@ -43,7 +42,7 @@ func TestNbPosCoord(t *testing.T) {
 }
 
 func TestPoint(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 
 	Orig := Point{0, 0, 0}
 	OneTwoThree := Point{1, 2, 3}

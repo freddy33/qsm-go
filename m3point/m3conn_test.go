@@ -1,13 +1,12 @@
 package m3point
 
 import (
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestConnectionDetails(t *testing.T) {
-	Log.Level = m3util.INFO
+	Log.SetInfo()
 	for k, v := range allConnectionsByVector {
 		assert.Equal(t, k, v.Vector)
 		assert.Equal(t, k.DistanceSquared(), v.DistanceSquared())

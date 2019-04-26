@@ -2,7 +2,6 @@ package m3point
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/m3util"
 	"sort"
 	"strings"
 )
@@ -552,7 +551,7 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 	for i, cd := range cds {
 		res.conns[i] = cd
 	}
-	if Log.Level <= m3util.TRACE {
+	if Log.IsTrace() {
 		fmt.Println(_traceCounter, res.conns[0].String(), res.conns[1].String(), res.conns[2].String())
 		_traceCounter++
 	}

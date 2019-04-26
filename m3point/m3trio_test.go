@@ -2,14 +2,13 @@ package m3point
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"sort"
 	"testing"
 )
 
 func TestPosMod2(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	assert.Equal(t, uint64(1), PosMod2(5))
 	assert.Equal(t, uint64(0), PosMod2(4))
 	assert.Equal(t, uint64(1), PosMod2(3))
@@ -19,7 +18,7 @@ func TestPosMod2(t *testing.T) {
 }
 
 func TestPosMod4(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	assert.Equal(t, uint64(1), PosMod4(5))
 	assert.Equal(t, uint64(0), PosMod4(4))
 	assert.Equal(t, uint64(3), PosMod4(3))
@@ -29,7 +28,7 @@ func TestPosMod4(t *testing.T) {
 }
 
 func TestPosMod8(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	assert.Equal(t, uint64(1), PosMod8(9))
 	assert.Equal(t, uint64(0), PosMod8(8))
 	assert.Equal(t, uint64(7), PosMod8(7))
@@ -43,7 +42,7 @@ func TestPosMod8(t *testing.T) {
 }
 
 func TestAllTrioLinks(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	assert.Equal(t, 8*8*(1+8)/2, len(allTrioLinks), "%v", allTrioLinks)
 	for a := TrioIndex(0); a < 8; a++ {
 		for b := TrioIndex(0); b < 8; b++ {
@@ -65,7 +64,7 @@ func TestAllTrioLinks(t *testing.T) {
 }
 
 func TestAllTrioDetails(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 
 	assert.Equal(t, 200, len(allTrioDetails))
 	for i, td := range allTrioDetails {
@@ -85,7 +84,7 @@ func TestAllTrioDetails(t *testing.T) {
 }
 
 func TestTrioDetailsPerDSIndex(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
 	PossibleDSArray := [NbTrioDsIndex][3]int64{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
@@ -267,7 +266,7 @@ func TestTrioDetailsLinks(t *testing.T) {
 }
 
 func TestInitialTrioConnectingVectors(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	assert.Equal(t, allBaseTrio[0][0], Point{1, 1, 0})
 	assert.Equal(t, allBaseTrio[0][1], Point{-1, 0, -1})
 	assert.Equal(t, allBaseTrio[0][1], allBaseTrio[0][0].PlusX().PlusY().PlusY())
@@ -280,7 +279,7 @@ func TestInitialTrioConnectingVectors(t *testing.T) {
 }
 
 func TestAllBaseTrio(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	for i, tr := range allBaseTrio {
 		assert.Equal(t, int64(0), tr[0][2], "Failed on Trio %d", i)
 		assert.Equal(t, int64(0), tr[1][1], "Failed on Trio %d", i)
@@ -303,7 +302,7 @@ func TestAllBaseTrio(t *testing.T) {
 }
 
 func TestAllFull5Trio(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	idxMap := createAll8IndexMap()
 	// All trio with prime (neg of all vec) will have a full 5 connection length
 	for i := 0; i < 4; i++ {

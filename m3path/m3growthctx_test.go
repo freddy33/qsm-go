@@ -2,7 +2,6 @@ package m3path
 
 import (
 	"github.com/freddy33/qsm-go/m3point"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"sort"
 	"sync"
@@ -16,37 +15,37 @@ const (
 )
 
 func BenchmarkCtx1(b *testing.B) {
-	Log.Level = m3util.WARN
+	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 1)
 }
 
 func BenchmarkCtx2(b *testing.B) {
-	Log.Level = m3util.WARN
+	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 2)
 }
 
 func BenchmarkCtx3(b *testing.B) {
-	Log.Level = m3util.WARN
+	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 3)
 }
 
 func BenchmarkCtx4(b *testing.B) {
-	Log.Level = m3util.WARN
+	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 4)
 }
 
 func BenchmarkCtx8(b *testing.B) {
-	Log.Level = m3util.WARN
+	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 8)
 }
 
 func TestCtx2(t *testing.T) {
-	Log.Level = m3util.INFO
+	Log.SetInfo()
 	runForCtxType(1, TEST_NB_ROUND, 2)
 }
 
 func TestCtxPerType(t *testing.T) {
-	Log.Level = m3util.INFO
+	Log.SetInfo()
 	for _, pType := range m3point.GetAllContextTypes() {
 		runForCtxType(1, TEST_NB_ROUND, pType)
 	}
@@ -71,7 +70,7 @@ func runForCtxType(N, nbRound int, pType m3point.ContextType) {
 }
 
 func BenchmarkAllGrowth(b *testing.B) {
-	Log.Level = m3util.WARN
+	Log.SetWarn()
 	nbRound := 50
 	allCtx := getAllTestContexts()
 	for r := 0; r < b.N; r++ {
@@ -219,7 +218,7 @@ func TestDivByThree(t *testing.T) {
 }
 
 func runDivByThree(t assert.TestingT) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	someCenter1 := m3point.Point{3, -6, 9}
 	ctx := CreateGrowthContext(someCenter1, 1, 1, 0)
 	assert.Equal(t, someCenter1, ctx.center)
@@ -244,7 +243,7 @@ func runDivByThree(t assert.TestingT) {
 }
 
 func TestGrowthContext1(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	ctx := CreateGrowthContext(m3point.Origin, 1, 3, 0)
 	assert.Equal(t, m3point.ContextType(1), ctx.GetType())
 	assert.Equal(t, 3, ctx.GetIndex())
@@ -263,7 +262,7 @@ func TestGrowthContext1(t *testing.T) {
 }
 
 func TestGrowthContext3(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 
 	for idx := m3point.TrioIndex(0); idx < 4; idx++ {
 		ctx := CreateGrowthContext(m3point.Origin, 3, int(idx), 0)
@@ -289,7 +288,7 @@ func TestGrowthContextsExpectType3(t *testing.T) {
 }
 
 func runGrowthContextsExpectType3(t assert.TestingT) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 
 	growthContexts := getAllTestContexts()
 	for _, ctx := range growthContexts[1] {
@@ -341,7 +340,7 @@ func runGrowthContextsExpectType3(t assert.TestingT) {
 }
 
 func TestTrioListPerContext(t *testing.T) {
-	Log.Level = m3util.INFO
+	Log.SetInfo()
 	contexts := getAllTestContexts()
 	for _, ctxs := range contexts {
 		stableStep := -1

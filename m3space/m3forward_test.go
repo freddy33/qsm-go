@@ -76,23 +76,23 @@ func BenchmarkPack20(b *testing.B) {
 }
 
 func benchSpaceTest(b *testing.B, pSize int64) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.WARN
-	LogTest.Level = m3util.WARN
+	Log.SetWarn()
+	LogStat.SetWarn()
+	LogTest.SetWarn()
 	for r := 0; r < b.N; r++ {
 		runSpaceTest(pSize, b)
 	}
 }
 
 func TestSpaceRunPySize5(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+	Log.SetWarn()
+	LogStat.SetInfo()
 	runSpaceTest(5, t)
 }
 
 func TestSpaceRunPySize2(t *testing.T) {
-	Log.Level = m3util.WARN
-	LogStat.Level = m3util.INFO
+	Log.SetWarn()
+	LogStat.SetInfo()
 	runSpaceTest(2, t)
 }
 

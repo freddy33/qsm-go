@@ -3,7 +3,6 @@ package m3path
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3point"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -54,7 +53,7 @@ func TestNilPathElement(t *testing.T) {
 }
 
 func TestSimplePathElement(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	sp1 := SimplePathElement{-2, nil,}
 	assert.Equal(t, 1, sp1.NbForwardElements())
 	assert.Equal(t, int8(-2), sp1.GetForwardConnId(0))
@@ -89,7 +88,7 @@ func TestSimplePathElement(t *testing.T) {
 }
 
 func TestForkPathElement(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 	fp1 := ForkPathElement{make([]*SimplePathElement, 2)}
 	fp1.simplePaths[0] = &SimplePathElement{-2, nil,}
 	fp1.simplePaths[1] = &SimplePathElement{-3, nil,}
@@ -129,7 +128,7 @@ func TestPathMergingErrors(t *testing.T) {
 }
 
 func TestPathMerging(t *testing.T) {
-	Log.Level = m3util.DEBUG
+	Log.SetDebug()
 
 	// Test Simple Merge
 	path1Ids := []int8{-2, -3, -2, 4, 1, 1}

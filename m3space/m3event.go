@@ -3,7 +3,6 @@ package m3space
 import (
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
-	"github.com/freddy33/qsm-go/m3util"
 )
 
 type EventID uint64
@@ -64,7 +63,7 @@ func (space *Space) CreateEventWithGrowthContext(p m3point.Point, k EventColor, 
 	n := space.getOrCreateNode(p)
 	id := space.currentId
 	n.SetRoot(id, space.currentTime)
-	if Log.Level <= m3util.INFO {
+	if Log.IsInfo() {
 		Log.Info("Creating new event at node", n.GetStateString())
 	}
 	space.currentId++
