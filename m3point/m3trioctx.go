@@ -247,12 +247,16 @@ func makeNewNpe() *NextPathElement {
 	return &res
 }
 
-func (npe *NextPathElement) GetP2IConn() *ConnectionDetails {
-	return npe.p2iConn
-}
-
 func (npe *NextPathElement) IsValid() bool {
 	return npe.valid
+}
+
+func (npe *NextPathElement) GetTrioId() TrioIndex {
+	return npe.td.id
+}
+
+func (npe *NextPathElement) GetP2IConn() *ConnectionDetails {
+	return npe.p2iConn
 }
 
 // This is +X, find the -X on the other side

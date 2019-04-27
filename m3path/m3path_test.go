@@ -42,11 +42,13 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 	for _, pl := range pathCtx.rootPathLinks {
 		p, nextTrio, nextPathEl := trCtx.GetNextTrio(m3point.Origin, td, pl.connId)
 		assert.NotNil(t, nextTrio, "Failed getting next trio for %s %s %s %v", trCtx.String(), td.String(), pl.String(), p)
+		pl.dst = makePathNode(pl, nextTrio.GetId())
 		for j := 0; j < 2; j++ {
 			assert.True(t, nextPathEl[j].IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *nextPathEl[j])
-			pl.dst = makePathNode(pl, td.GetId())
+			pl.dst.next[j] = makePathLink(pl.dst, nextPathEl[j].GetP2IConn().GetId())
 		}
 	}
+	Log.Debug(pathCtx.dumpInfo())
 }
 
 func TestNilPathElement(t *testing.T) {

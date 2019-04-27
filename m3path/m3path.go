@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"strings"
 )
 
 var Log = m3util.NewLogger("m3path", m3util.INFO)
@@ -54,7 +55,18 @@ type PathNode struct {
 /***************************************************************/
 
 func (pathCtx *PathContext) dumpInfo() string {
-	return fmt.Sprintf("%s, %s: %v", pathCtx.ctx.String(), pathCtx.rootTrioId.String(), pathCtx.rootPathLinks)
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s, %s: [", pathCtx.ctx.String(), pathCtx.rootTrioId.String()))
+	for i, pl := range pathCtx.rootPathLinks {
+		sb.WriteString("\n")
+		if pl != nil {
+			sb.WriteString(fmt.Sprintf("%d:%s,", i, pl.dumpInfo(0)))
+		} else {
+			sb.WriteString(fmt.Sprintf("%d:nil,", i))
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 /***************************************************************/
@@ -68,8 +80,43 @@ func makeRootPathLink(connId m3point.ConnectionId) *PathLink {
 	return &res
 }
 
+func makePathLink(src *PathNode, connId m3point.ConnectionId) *PathLink {
+	if src == nil {
+		Log.Errorf("creating a path link with nil source node")
+		return nil
+	}
+	if Log.DoAssert() {
+		td := m3point.GetTrioDetails(src.trioId)
+		if td == nil {
+			Log.Errorf("creating a path link with source node %s pointing to non existent trio index", src.String())
+			return nil
+		}
+		if !td.HasConnection(connId) {
+			Log.Errorf("creating a path link with source node %s using connection %s not present in trio", src.String(), connId.String())
+			return nil
+		}
+	}
+	res := PathLink{}
+	res.src = src
+	res.connId = connId
+	return &res
+}
+
 func (pl *PathLink) String() string {
 	return fmt.Sprintf("PL-%s", pl.connId.String())
+}
+
+func (pl *PathLink) dumpInfo(ident int) string {
+	var sb strings.Builder
+	sb.WriteString(pl.String())
+	if pl.dst != nil {
+		sb.WriteString(":{")
+		sb.WriteString(pl.dst.dumpInfo(ident+1))
+		sb.WriteString("}")
+	} else {
+		sb.WriteString(":{nil}")
+	}
+	return sb.String()
 }
 
 /***************************************************************/
@@ -85,6 +132,25 @@ func makePathNode(from *PathLink, tdId m3point.TrioIndex) *PathNode {
 
 func (pn *PathNode) String() string {
 	return fmt.Sprintf("PN-%s", pn.trioId.String())
+}
+
+func (pn *PathNode) dumpInfo(ident int) string {
+	var sb strings.Builder
+	sb.WriteString(pn.String())
+	sb.WriteString("[")
+	for i, pl := range pn.next {
+		sb.WriteString("\n")
+		for k := 0; k < ident; k++ {
+			sb.WriteString("  ")
+		}
+		if pl != nil {
+			sb.WriteString(fmt.Sprintf("%d:%s,", i, pl.dumpInfo(ident)))
+		} else {
+			sb.WriteString(fmt.Sprintf("%d:nil,", i))
+		}
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 
