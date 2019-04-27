@@ -163,15 +163,19 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 	return &res
 }
 
-func (trCtx *TrioIndexContext) GetBaseTrio(p Point, offset int) Trio {
-	return GetBaseTrio(trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(p), offset))
+func (trCtx *TrioIndexContext) GetBaseTrioDetails(mainPoint Point) *TrioDetails {
+	return GetTrioDetails(trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0))
 }
 
-func (trCtx *TrioIndexContext) GetBaseDivByThree(p Point) uint64 {
-	if !p.IsMainPoint() {
-		panic(fmt.Sprintf("cannot ask for Trio index on non main Pos %v in context %v!", p, trCtx.String()))
+func (trCtx *TrioIndexContext) GetBaseTrio(mainPoint Point, offset int) Trio {
+	return GetBaseTrio(trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), offset))
+}
+
+func (trCtx *TrioIndexContext) GetBaseDivByThree(mainPoint Point) uint64 {
+	if !mainPoint.IsMainPoint() {
+		panic(fmt.Sprintf("cannot ask for Trio index on non main Pos %v in context %v!", mainPoint, trCtx.String()))
 	}
-	return uint64(Abs64(p[0])/3 + Abs64(p[1])/3 + Abs64(p[2])/3)
+	return uint64(Abs64(mainPoint[0])/3 + Abs64(mainPoint[1])/3 + Abs64(mainPoint[2])/3)
 }
 
 func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) TrioIndex {
@@ -220,17 +224,183 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) T
 	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", trCtx.ctxIndex, trCtx.String()))
 }
 
-var EvaluateAssertions = true
+// A struct representing one next main point where a path is going toward
+type NextPathElement struct {
+	valid bool
+	// The next main points where p path is going to go to
+	main Point
+	// The trio details for this specific next main point
+	td *TrioDetails
 
-func (trCtx *TrioIndexContext) GetNextTrio(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId) TrioIndex {
-	if EvaluateAssertions {
+	// The intermediate point before p path will reach before going to the main point
+	ip Point
+	// The connection used on main point to reach the previous intermediate point
+	m2iConn *ConnectionDetails
+
+	// The connection used between the 2 intermediate points
+	p2iConn *ConnectionDetails
+}
+
+func makeNewNpe() *NextPathElement {
+	res := NextPathElement{}
+	res.valid = false
+	return &res
+}
+
+func (npe *NextPathElement) GetP2IConn() *ConnectionDetails {
+	return npe.p2iConn
+}
+
+func (npe *NextPathElement) IsValid() bool {
+	return npe.valid
+}
+
+// This is +X, find the -X on the other side
+func (npe *NextPathElement) fillPlusX(trCtx *TrioIndexContext, mainPoint Point) {
+	npe.main = mainPoint.Add(XFirst)
+	npe.td = trCtx.GetBaseTrioDetails(npe.main)
+	npe.m2iConn = npe.td.getMinusXConn()
+	npe.ip = npe.main.Add(npe.m2iConn.Vector)
+	npe.valid = true
+}
+
+// This is -X, find the +X on the other side
+func (npe *NextPathElement) fillMinusX(trCtx *TrioIndexContext, mainPoint Point) {
+	npe.main = mainPoint.Add(XFirst.Neg())
+	npe.td = trCtx.GetBaseTrioDetails(npe.main)
+	npe.m2iConn = npe.td.getPlusXConn()
+	npe.ip = npe.main.Add(npe.m2iConn.Vector)
+	npe.valid = true
+}
+
+// This is +Y, find the -Y on the other side
+func (npe *NextPathElement) fillPlusY(trCtx *TrioIndexContext, mainPoint Point) {
+	npe.main = mainPoint.Add(YFirst)
+	npe.td = trCtx.GetBaseTrioDetails(npe.main)
+	npe.m2iConn = npe.td.getMinusYConn()
+	npe.ip = npe.main.Add(npe.m2iConn.Vector)
+	npe.valid = true
+}
+
+// This is -Y, find the +Y on the other side
+func (npe *NextPathElement) fillMinusY(trCtx *TrioIndexContext, mainPoint Point) {
+	npe.main = mainPoint.Add(YFirst.Neg())
+	npe.td = trCtx.GetBaseTrioDetails(npe.main)
+	npe.m2iConn = npe.td.getPlusYConn()
+	npe.ip = npe.main.Add(npe.m2iConn.Vector)
+	npe.valid = true
+}
+
+// This is +Z, find the -Z on the other side
+func (npe *NextPathElement) fillPlusZ(trCtx *TrioIndexContext, mainPoint Point) {
+	npe.main = mainPoint.Add(ZFirst)
+	npe.td = trCtx.GetBaseTrioDetails(npe.main)
+	npe.m2iConn = npe.td.getMinusZConn()
+	npe.ip = npe.main.Add(npe.m2iConn.Vector)
+	npe.valid = true
+}
+
+// This is -Z, find the +Z on the other side
+func (npe *NextPathElement) fillMinusZ(trCtx *TrioIndexContext, mainPoint Point) {
+	npe.main = mainPoint.Add(ZFirst.Neg())
+	npe.td = trCtx.GetBaseTrioDetails(npe.main)
+	npe.m2iConn = npe.td.getPlusZConn()
+	npe.ip = npe.main.Add(npe.m2iConn.Vector)
+	npe.valid = true
+}
+
+// Out of a main point with the given trio details, what is the trio details of the point at the end of connection connId
+// npe: The next path element saved during calculation and returned in this method
+func (trCtx *TrioIndexContext) GetNextTrio(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId) (p Point, td *TrioDetails, npes [2]*NextPathElement) {
+	p = Origin
+	if Log.DoAssert() {
 		// mainPoint should be main
 		if !mainPoint.IsMainPoint() {
 			Log.Errorf("in context %s current point %v is not main, while looking on %s for %s", trCtx.String(), mainPoint, trioDetails.String(), connId.String())
-			return NilTrioIndex
+			return
+		}
+		// Trio Details should have the connection connId given
+		if !trioDetails.HasConnection(connId) {
+			Log.Errorf("in context %s trio details %s, does not have the given connection %s", trCtx.String(), trioDetails.String(), connId.String())
+			return
+		}
+		// The trio details index should be the one of this context
+		indexFromContext := trCtx.GetBaseTrioDetails(mainPoint).id
+		if indexFromContext != trioDetails.id {
+			Log.Errorf("in context %s current point %v has a trio index from context %d, which not the one in %s", trCtx.String(), mainPoint, indexFromContext, trioDetails.String())
+			return
 		}
 	}
-	return NilTrioIndex
+	// The connection details from main point
+	cd := GetConnDetailsById(connId)
+	// The actual point that we work on
+	cVec := cd.Vector
+	p = mainPoint.Add(cVec)
+
+	// We calculate part of the path out of a main point in one go and the output will be PathId for all the way to next main points
+	// nmp and nip are create out of which of the 6 connections possible +X, -X, +Y, -Y, +Z, -Z vectors
+	cNpe := makeNewNpe()
+
+	idx := 0
+	switch cVec.X() {
+	case 0:
+		// Nothing connect
+	case 1:
+		cNpe.fillPlusX(trCtx, mainPoint)
+	case -1:
+		cNpe.fillMinusX(trCtx, mainPoint)
+	}
+	if cNpe.IsValid() {
+		npes[idx] = cNpe
+		idx++
+		cNpe = makeNewNpe()
+	}
+
+	switch cVec.Y() {
+	case 0:
+		// Nothing connect
+	case 1:
+		cNpe.fillPlusY(trCtx, mainPoint)
+	case -1:
+		cNpe.fillMinusY(trCtx, mainPoint)
+	}
+	if cNpe.IsValid() {
+		npes[idx] = cNpe
+		idx++
+		cNpe = makeNewNpe()
+	}
+
+	switch cVec.Z() {
+	case 0:
+		// Nothing connect
+	case 1:
+		cNpe.fillPlusZ(trCtx, mainPoint)
+	case -1:
+		cNpe.fillMinusZ(trCtx, mainPoint)
+	}
+	if cNpe.IsValid() {
+		npes[idx] = cNpe
+		idx++
+		cNpe = makeNewNpe()
+	}
+
+	// First fill the connection details between p and the npe intermediate points
+	for _, npe := range npes {
+		npe.p2iConn = GetConnDetailsByPoints(p, npe.ip)
+	}
+
+	// We have all we need to find the actual trio of the point of interest p
+	for _, possTd := range *trCtx.GetPossibleTrioList() {
+		if possTd.HasConnections(-cd.Id, npes[0].p2iConn.Id, npes[1].p2iConn.Id) {
+			td = possTd
+			break
+		}
+	}
+	if td == nil {
+		Log.Errorf("did not find any trio details matching %s %s %s", -cd.Id, npes[0].p2iConn.Id, npes[1].p2iConn.Id)
+	}
+
+	return
 }
 
 func (trCtx *TrioIndexContext) GetNextTrios(current Point, currentTrioIdx TrioIndex, fromConnId ConnectionId) (nextConnIds [2]ConnectionId, nextTrios [2]TrioIndex) {
@@ -273,10 +443,9 @@ func (trCtx *TrioIndexContext) GetNextTrios(current Point, currentTrioIdx TrioIn
 					nextMainTrioIdx := trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(nextMain), 0)
 					nextMainTd := GetTrioDetails(nextMainTrioIdx)
 					if x > 0 {
-						// TODO: Should be direct from td
-						nnp = nextMain.Sub(nextMainTd.GetTrio().getMinusXVector())
+						nnp = nextMain.Sub(nextMainTd.getMinusXConn().Vector)
 					} else {
-						nnp = nextMain.Add(nextMainTd.GetTrio().getPlusXVector())
+						nnp = nextMain.Add(nextMainTd.getPlusXConn().Vector)
 					}
 				} else {
 					// Use Y
@@ -294,10 +463,9 @@ func (trCtx *TrioIndexContext) GetNextTrios(current Point, currentTrioIdx TrioIn
 					nextMainTrioIdx := trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(nextMain), 0)
 					nextMainTd := GetTrioDetails(nextMainTrioIdx)
 					if y > 0 {
-						// TODO: Should be direct from td
-						nnp = nextMain.Sub(nextMainTd.GetTrio().getMinusYVector())
+						nnp = nextMain.Sub(nextMainTd.getMinusYConn().Vector)
 					} else {
-						nnp = nextMain.Add(nextMainTd.GetTrio().getPlusYVector())
+						nnp = nextMain.Add(nextMainTd.getPlusYConn().Vector)
 					}
 				}
 			} else {

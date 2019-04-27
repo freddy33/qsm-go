@@ -65,14 +65,39 @@ func TestAllTrioLinks(t *testing.T) {
 
 func TestAllTrioDetails(t *testing.T) {
 	Log.SetDebug()
+	Log.SetAssert(true)
 
 	assert.Equal(t, 200, len(allTrioDetails))
 	for i, td := range allTrioDetails {
 		// All vec should have conn details
-		cds := td.conns
+		cds := td.GetConnections()
 		// Conn ID increase always
-		assert.True(t, cds[0].GetPosId() <= cds[1].GetPosId(), "Mess in %v for trio %d = %v", cds, i, td)
-		assert.True(t, cds[1].GetPosId() <= cds[2].GetPosId(), "Mess in %v for trio %d = %v", cds, i, td)
+		assert.True(t, cds[0].GetPosId() <= cds[1].GetPosId(), "Mess in order for %v for trio %d = %s", cds, i, td.String())
+		assert.True(t, cds[1].GetPosId() <= cds[2].GetPosId(), "Mess in order for %v for trio %d = %s", cds, i, td.String())
+		// For base trio verify we have all good
+		assert.Equal(t, td.IsBaseTrio(), i < 8, "trio %d = %s should be or not base", i, td.String())
+		if i < 8 {
+			// All connections are base connection
+			for _, c := range cds {
+				assert.True(t, c.IsBaseConnection(), "found non base connection %s in %d = %s", c.String(), i, td.String())
+			}
+			// all find connection with assertion are good
+			assert.NotNil(t, td.getPlusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getMinusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getPlusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getMinusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getPlusZConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getMinusZConn(), "trio %d = %s did not find conn", i, td.String())
+			// all find connection without assertion are good
+			Log.SetAssert(false)
+			assert.NotNil(t, td.getPlusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getMinusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getPlusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getMinusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getPlusZConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.getMinusZConn(), "trio %d = %s did not find conn", i, td.String())
+			Log.SetAssert(true)
+		}
 	}
 
 	// Check that All trio is ordered correctly

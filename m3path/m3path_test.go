@@ -1,7 +1,6 @@
 package m3path
 
 import (
-	"fmt"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -21,22 +20,32 @@ func TestPathContextFilling(t *testing.T) {
 }
 
 func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
+	Log.SetTrace()
+	Log.SetAssert(true)
+	m3point.Log.SetTrace()
+	m3point.Log.SetAssert(true)
+
 	trCtx := pathCtx.ctx
 	trIdx := trCtx.GetBaseTrioIndex(0, 0)
-	td := m3point.GetTrioDetails(trIdx)
-	fmt.Println(trCtx.String())
-	for i, c := range td.GetConnections() {
-		newNode := PathIdNode{}
-		newNode.cur = MakePathId(trIdx, c.GetId())
-		pathCtx.firstPathIds[i] = newNode
-/*		nextConnIds, nextTrioIdxs := trCtx.GetNextTrios(m3point.Origin.Add(c.Vector), trIdx, c.Id)
-		for j := 0; j < 2; j++ {
-			nextNewNode := PathIdNode{}
-			nextNewNode.cur = MakePathId(nextTrioIdxs[j], nextConnIds[j])
-			pathCtx.firstPathIds[i].next[j] = &nextNewNode
-		}
+	assert.NotEqual(t, m3point.NilTrioIndex, trIdx)
 
- */
+	td := m3point.GetTrioDetails(trIdx)
+	assert.NotNil(t, td)
+	assert.Equal(t, trIdx, td.GetId())
+
+	Log.Debug(trCtx.String(), td.String())
+
+	pathCtx.rootTrioId = trIdx
+	for i, c := range td.GetConnections() {
+		pathCtx.rootPathLinks[i] = makeRootPathLink(c.GetId())
+	}
+	for _, pl := range pathCtx.rootPathLinks {
+		p, nextTrio, nextPathEl := trCtx.GetNextTrio(m3point.Origin, td, pl.connId)
+		assert.NotNil(t, nextTrio, "Failed getting next trio for %s %s %s %v", trCtx.String(), td.String(), pl.String(), p)
+		for j := 0; j < 2; j++ {
+			assert.True(t, nextPathEl[j].IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *nextPathEl[j])
+			pl.dst = makePathNode(pl, td.GetId())
+		}
 	}
 }
 

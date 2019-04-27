@@ -9,42 +9,97 @@ import (
 var Log = m3util.NewLogger("m3path", m3util.INFO)
 
 type PathContext struct {
-	ctx           *m3point.TrioIndexContext
-	firstPathIds [3]PathIdNode
-	possiblePathIds map[LastPathIdKey][2]PathId
+	ctx             *m3point.TrioIndexContext
+	rootTrioId      m3point.TrioIndex
+	rootPathLinks   [3]*PathLink
+	possiblePathIds map[PathIdKey][2]NextPathLink
 }
 
-type LastPathIdKey struct {
-	previous   PathId
-	current   PathId
+type PathIdKey struct {
+	previousMainDivThree uint64
+	previousMainTrioId   m3point.TrioIndex
+	previousMainConnId   m3point.ConnectionId
+	previousTrioId       m3point.TrioIndex
+	previousConnId       m3point.ConnectionId
 }
 
-type PathId struct {
-	trioId   m3point.TrioIndex
-	connId   m3point.ConnectionId
+type NextPathLink struct {
+	connId     m3point.ConnectionId
+	nextTrioId m3point.TrioIndex
 }
 
-type PathIdNode struct {
-	cur PathId
-	next [2]*PathIdNode
+// A single path link between *src* node to one of the next path node *dst* using the connection Id
+type PathLink struct {
+	// After travelling the connId of the above cur.connId there will be 2 new path possible for
+	src *PathNode
+	// The connection used by the link path
+	connId m3point.ConnectionId
+	// After travelling the connId the pointer to the next path node
+	dst *PathNode
+}
+
+// The link graph node of a path, representing one point on the graph
+// Points to the 2 path links usable from here
+type PathNode struct {
+	// From which link this node came from
+	from *PathLink
+	// The current trio index of the path point
+	trioId m3point.TrioIndex
+	// After travelling the connId of the above cur.connId there will be 2 new path possible for
+	next [2]*PathLink
 }
 
 /***************************************************************/
-// PathId Functions
+// PathContext Functions
 /***************************************************************/
 
-func MakePathId(trIdx m3point.TrioIndex, connId  m3point.ConnectionId) PathId {
-	td := m3point.GetTrioDetails(trIdx)
-	if !td.HasConnection(connId) {
-		Log.Errorf("trying to create a path id from %s but connection %d is not here", trIdx.String(), connId)
-		return PathId{0, 0}
-	}
-	return PathId{td.GetId(), connId}
+func (pathCtx *PathContext) dumpInfo() string {
+	return fmt.Sprintf("%s, %s: %v", pathCtx.ctx.String(), pathCtx.rootTrioId.String(), pathCtx.rootPathLinks)
 }
 
-func (pid *PathId) String() string {
-	return fmt.Sprintf("%s-%s", pid.trioId.String(), pid.connId.String())
+/***************************************************************/
+// PathLink Functions
+/***************************************************************/
+
+func makeRootPathLink(connId m3point.ConnectionId) *PathLink {
+	res := PathLink{}
+	res.src = nil
+	res.connId = connId
+	return &res
 }
+
+func (pl *PathLink) String() string {
+	return fmt.Sprintf("PL-%s", pl.connId.String())
+}
+
+/***************************************************************/
+// PathNode Functions
+/***************************************************************/
+
+func makePathNode(from *PathLink, tdId m3point.TrioIndex) *PathNode {
+	res := PathNode{}
+	res.from = from
+	res.trioId = tdId
+	return &res
+}
+
+func (pn *PathNode) String() string {
+	return fmt.Sprintf("PN-%s", pn.trioId.String())
+}
+
+
+
+
+
+
+
+
+
+
+
+/***************************************************************/
+// LEGACY Path Functions
+/***************************************************************/
 
 
 // An element in the path from event base node to latest outgrowth

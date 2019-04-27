@@ -38,15 +38,14 @@ var validNextTrio [12][2]TrioIndex
 var AllMod4Permutations [12][4]TrioIndex
 var AllMod8Permutations [12][8]TrioIndex
 
-const(
+const (
 	NbTrioDsIndex = 7
-    NilTrioIndex = TrioIndex(255)
+	NilTrioIndex  = TrioIndex(255)
 )
 
 // All the possible Trio details used
 var allTrioDetails TrioDetailList
 var allTrioLinks TrioLinkList
-
 
 /***************************************************************/
 // Util Functions
@@ -83,10 +82,10 @@ func isPrime(i1, i2 TrioIndex) bool {
 		return false
 	}
 	if i1 > i2 {
-		return i1 == i2 + 4
+		return i1 == i2+4
 	}
 	if i2 > i1 {
-		return i2 == i1 + 4
+		return i2 == i1+4
 	}
 	return false
 }
@@ -95,15 +94,15 @@ func isPrime(i1, i2 TrioIndex) bool {
 // TrioLink Functions
 /***************************************************************/
 
-func makeTrioLink(a,b,c TrioIndex) TrioLink {
+func makeTrioLink(a, b, c TrioIndex) TrioLink {
 	// The destination should be ordered by smaller first
 	if c < b {
-		return TrioLink{a,c,b,}
+		return TrioLink{a, c, b,}
 	}
-	return TrioLink{a,b,c,}
+	return TrioLink{a, b, c,}
 }
 
-func makeTrioLinkFromInt(a,b,c int) TrioLink {
+func makeTrioLinkFromInt(a, b, c int) TrioLink {
 	return makeTrioLink(TrioIndex(a), TrioIndex(b), TrioIndex(c))
 }
 
@@ -150,7 +149,7 @@ func (l *TrioLinkList) addAll(l2 *TrioLinkList) {
 
 func (l TrioLinkList) String() string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf( "%d : ", len(l)))
+	b.WriteString(fmt.Sprintf("%d : ", len(l)))
 	for _, tl := range l {
 		b.WriteString(tl.String())
 		b.WriteString(" ")
@@ -183,7 +182,6 @@ func (l TrioLinkList) Less(i, j int) bool {
 	}
 	return false
 }
-
 
 /***************************************************************/
 // TrioDetailsList Functions
@@ -460,7 +458,7 @@ func (t Trio) getPlusXVector() Point {
 			return vec
 		}
 	}
-	Log.Error("Impossible! For all trio there should be a +X vector")
+	Log.Error("Impossible! For all base trio there should be a +X vector")
 	return Origin
 }
 
@@ -470,7 +468,7 @@ func (t Trio) getMinusXVector() Point {
 			return vec
 		}
 	}
-	Log.Error("Impossible! For all trio there should be a -X vector")
+	Log.Error("Impossible! For all base trio there should be a -X vector")
 	return Origin
 }
 
@@ -480,7 +478,7 @@ func (t Trio) getPlusYVector() Point {
 			return vec
 		}
 	}
-	Log.Error("Impossible! For all trio there should be a +Y vector")
+	Log.Error("Impossible! For all base trio there should be a +Y vector")
 	return Origin
 }
 
@@ -490,7 +488,7 @@ func (t Trio) getMinusYVector() Point {
 			return vec
 		}
 	}
-	Log.Error("Impossible! For all trio there should be a -Y vector")
+	Log.Error("Impossible! For all base trio there should be a -Y vector")
 	return Origin
 }
 
@@ -500,7 +498,7 @@ func (t Trio) getPlusZVector() Point {
 			return vec
 		}
 	}
-	Log.Error("Impossible! For all trio there should be a +Z vector")
+	Log.Error("Impossible! For all base trio there should be a +Z vector")
 	return Origin
 }
 
@@ -510,7 +508,7 @@ func (t Trio) getMinusZVector() Point {
 			return vec
 		}
 	}
-	Log.Error("Impossible! For all trio there should be a -Z vector")
+	Log.Error("Impossible! For all base trio there should be a -Z vector")
 	return Origin
 }
 
@@ -603,6 +601,68 @@ func (td *TrioDetails) IsBaseTrio() bool {
 	return td.id < 8
 }
 
+func (td *TrioDetails) findConn(vecName string, toFind ...ConnectionId) *ConnectionDetails {
+	if !td.IsBaseTrio() {
+		Log.Errorf("cannot look for %s conn on non base trio %s", vecName, td.String())
+		return nil
+	}
+	if Log.DoAssert() {
+		// verify only one found
+		count := 0
+		var res *ConnectionDetails
+		for _, c := range td.conns {
+			for _, ct := range toFind {
+				if c.Id == ct {
+					res = c
+					count++
+				}
+			}
+		}
+		if count == 0 {
+			Log.Errorf("Impossible! Did not find %s vector using %v in base trio %s", vecName, toFind, td.String())
+			return nil
+		} else if count > 1 {
+			Log.Errorf("Found %d which is more than one %s vector using %v in base trio %s", count, vecName, toFind, td.String())
+			return nil
+		}
+		return res
+	} else {
+		for _, c := range td.conns {
+			for _, ct := range toFind {
+				if c.Id == ct {
+					return c
+				}
+			}
+		}
+		Log.Errorf("Impossible! Did not find %s vector using %v in base trio %s", vecName, toFind, td.String())
+		return nil
+	}
+}
+
+func (td *TrioDetails) getPlusXConn() *ConnectionDetails {
+	return td.findConn("+X", 4, 5, 6, 7)
+}
+
+func (td *TrioDetails) getMinusXConn() *ConnectionDetails {
+	return td.findConn("-X", -4, -5, -6, -7)
+}
+
+func (td *TrioDetails) getPlusYConn() *ConnectionDetails {
+	return td.findConn("+Y", 4, -5, 8, 9)
+}
+
+func (td *TrioDetails) getMinusYConn() *ConnectionDetails {
+	return td.findConn("-Y", -4, 5, -8, -9)
+}
+
+func (td *TrioDetails) getPlusZConn() *ConnectionDetails {
+	return td.findConn("+Z", 6, -7, 8, -9)
+}
+
+func (td *TrioDetails) getMinusZConn() *ConnectionDetails {
+	return td.findConn("-Z", -6, 7, -8, 9)
+}
+
 func (td *TrioDetails) GetDSIndex() int {
 	if td.conns[0].DistanceSquared() == int64(1) {
 		switch td.conns[1].DistanceSquared() {
@@ -635,7 +695,7 @@ func (td *TrioDetails) GetDSIndex() int {
 	return -1
 }
 
-func (td *TrioDetails) HasConnections(cIds... ConnectionId) bool {
+func (td *TrioDetails) HasConnections(cIds ...ConnectionId) bool {
 	for _, cId := range cIds {
 		if !td.HasConnection(cId) {
 			return false
@@ -657,7 +717,7 @@ func fillAllTrioDetails() {
 	for a, tA := range allBaseTrio {
 		for b, tB := range allBaseTrio {
 			for c, tC := range allBaseTrio {
-				thisTrio := makeTrioLinkFromInt(a,b,c)
+				thisTrio := makeTrioLinkFromInt(a, b, c)
 				alreadyDone := localTrioLinks.addUnique(&thisTrio)
 				if !alreadyDone {
 					for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {

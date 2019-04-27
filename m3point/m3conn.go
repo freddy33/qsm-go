@@ -18,7 +18,6 @@ var EmptyConnDetails = ConnectionDetails{0, Origin, 0,}
 var allConnectionsByVector map[Point]*ConnectionDetails
 var allConnections []*ConnectionDetails
 
-
 type ByConnVector []*ConnectionDetails
 type ByConnId []*ConnectionDetails
 
@@ -76,7 +75,7 @@ func (connId ConnectionId) GetPosConnectionId() ConnectionId {
 
 func (connId ConnectionId) IsBaseConnection() bool {
 	posConnId := connId.GetPosConnectionId()
-	return posConnId >= 4 && posConnId <=8
+	return posConnId >= 4 && posConnId <= 9
 }
 
 func (connId ConnectionId) String() string {
@@ -106,6 +105,10 @@ func (cd *ConnectionDetails) GetId() ConnectionId {
 
 func (cd *ConnectionDetails) GetPosId() ConnectionId {
 	return cd.Id.GetPosConnectionId()
+}
+
+func (cd *ConnectionDetails) IsBaseConnection() bool {
+	return cd.Id.IsBaseConnection()
 }
 
 func (cd *ConnectionDetails) DistanceSquared() int64 {
