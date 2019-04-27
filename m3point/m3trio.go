@@ -118,6 +118,10 @@ func (tl *TrioLink) Contains(i TrioIndex) bool {
 	return tl.a == i || tl.b == i || tl.c == i
 }
 
+func (tl *TrioLink) ContainsAB(a, b TrioIndex) bool {
+	return tl.a == a && (tl.b == b || tl.c == b)
+}
+
 /***************************************************************/
 // TrioLinkList Functions
 /***************************************************************/
@@ -702,6 +706,15 @@ func (td *TrioDetails) HasConnections(cIds ...ConnectionId) bool {
 		}
 	}
 	return true
+}
+
+func (td *TrioDetails) HasLinkWith(a, b TrioIndex) bool {
+	for _, l := range td.Links {
+		if l.ContainsAB(a, b) {
+			return true
+		}
+	}
+	return false
 }
 
 func fillAllTrioDetails() {

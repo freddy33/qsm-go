@@ -45,7 +45,7 @@ func DS(p1, p2 Point) int64 {
 }
 
 /***************************************************************/
-// Point Functions for ALL points not only main
+// Point Functions for ALL points not only nextMainPoint
 // TODO: Make MainPoint a type
 /***************************************************************/
 

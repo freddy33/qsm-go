@@ -103,6 +103,10 @@ func (cd *ConnectionDetails) GetId() ConnectionId {
 	return cd.Id
 }
 
+func (cd *ConnectionDetails) GetNegId() ConnectionId {
+	return -cd.Id
+}
+
 func (cd *ConnectionDetails) GetPosId() ConnectionId {
 	return cd.Id.GetPosConnectionId()
 }

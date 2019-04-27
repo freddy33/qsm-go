@@ -17,7 +17,7 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 }
 
 func runConnectionDetailsCheck(t *testing.T, trCtx *TrioIndexContext) {
-	// For all trioIndex rotations, any 2 close main points there should be a connection details
+	// For all trioIndex rotations, any 2 close nextMainPoint points there should be a connection details
 	min := int64(-5)
 	max := int64(5)
 	for x := min; x < max; x++ {
@@ -47,7 +47,7 @@ func runConnectionDetailsCheck(t *testing.T, trCtx *TrioIndexContext) {
 							if nbp.X() == -cVec.X() {
 								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
 									"next Pos=", nextMain, "trio index=", trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0),
-									"main base vector", cVec, "next base vector", nbp))
+									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
 					}
@@ -70,7 +70,7 @@ func runConnectionDetailsCheck(t *testing.T, trCtx *TrioIndexContext) {
 							if nbp.Y() == -cVec.Y() {
 								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
 									"next Pos=", nextMain, "trio index=", trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0),
-									"main base vector", cVec, "next base vector", nbp))
+									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
 					}
@@ -93,7 +93,7 @@ func runConnectionDetailsCheck(t *testing.T, trCtx *TrioIndexContext) {
 							if nbp.Z() == -cVec.Z() {
 								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
 									"next Pos=", nextMain, "trio index=", trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0),
-									"main base vector", cVec, "next base vector", nbp))
+									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
 					}

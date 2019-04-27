@@ -42,6 +42,9 @@ type PathLink struct {
 // The link graph node of a path, representing one point on the graph
 // Points to the 2 path links usable from here
 type PathNode struct {
+	p m3point.Point
+	// Distance from root
+	d int
 	// From which link this node came from
 	from *PathLink
 	// The current trio index of the path point
@@ -56,7 +59,7 @@ type PathNode struct {
 
 func (pathCtx *PathContext) dumpInfo() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s, %s: [", pathCtx.ctx.String(), pathCtx.rootTrioId.String()))
+	sb.WriteString(fmt.Sprintf("%s\n%s: [", pathCtx.ctx.String(), pathCtx.rootTrioId.String()))
 	for i, pl := range pathCtx.rootPathLinks {
 		sb.WriteString("\n")
 		if pl != nil {
@@ -80,26 +83,17 @@ func makeRootPathLink(connId m3point.ConnectionId) *PathLink {
 	return &res
 }
 
-func makePathLink(src *PathNode, connId m3point.ConnectionId) *PathLink {
-	if src == nil {
-		Log.Errorf("creating a path link with nil source node")
-		return nil
+func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) {
+	res := PathNode{}
+	res.p = p
+	if pl.src != nil {
+		res.d = pl.src.d + 1
+	} else {
+		res.d = 1
 	}
-	if Log.DoAssert() {
-		td := m3point.GetTrioDetails(src.trioId)
-		if td == nil {
-			Log.Errorf("creating a path link with source node %s pointing to non existent trio index", src.String())
-			return nil
-		}
-		if !td.HasConnection(connId) {
-			Log.Errorf("creating a path link with source node %s using connection %s not present in trio", src.String(), connId.String())
-			return nil
-		}
-	}
-	res := PathLink{}
-	res.src = src
-	res.connId = connId
-	return &res
+	res.from = pl
+	res.trioId = tdId
+	pl.dst = &res
 }
 
 func (pl *PathLink) String() string {
@@ -123,33 +117,50 @@ func (pl *PathLink) dumpInfo(ident int) string {
 // PathNode Functions
 /***************************************************************/
 
-func makePathNode(from *PathLink, tdId m3point.TrioIndex) *PathNode {
-	res := PathNode{}
-	res.from = from
-	res.trioId = tdId
-	return &res
+func (pn *PathNode) addPathLinks(connIds... m3point.ConnectionId) {
+	if Log.DoAssert() {
+		td := m3point.GetTrioDetails(pn.trioId)
+		if td == nil {
+			Log.Errorf("creating a path link with source node %s pointing to non existent trio index", pn.String())
+			return
+		}
+		if !td.HasConnections(connIds[0], connIds[1]) {
+			Log.Errorf("creating a path link with source node %s using connections %v not present in trio", pn.String(), connIds)
+			return
+		}
+	}
+	for j := 0; j < 2; j++ {
+		res := PathLink{}
+		res.src = pn
+		res.connId = connIds[j]
+		pn.next[j] = &res
+	}
 }
 
 func (pn *PathNode) String() string {
-	return fmt.Sprintf("PN-%s", pn.trioId.String())
+	return fmt.Sprintf("PN%v-%3d-%s", pn.p, pn.d, pn.trioId.String())
 }
 
 func (pn *PathNode) dumpInfo(ident int) string {
 	var sb strings.Builder
 	sb.WriteString(pn.String())
-	sb.WriteString("[")
-	for i, pl := range pn.next {
-		sb.WriteString("\n")
-		for k := 0; k < ident; k++ {
-			sb.WriteString("  ")
+	if pn.trioId != m3point.NilTrioIndex && (pn.next[0] != nil || pn.next[1] != nil) {
+		sb.WriteString("[")
+		for i, pl := range pn.next {
+			sb.WriteString("\n")
+			for k := 0; k < ident; k++ {
+				sb.WriteString("  ")
+			}
+			if pl != nil {
+				sb.WriteString(fmt.Sprintf("%d:%s,", i, pl.dumpInfo(ident)))
+			} else {
+				sb.WriteString(fmt.Sprintf("%d:nil,", i))
+			}
 		}
-		if pl != nil {
-			sb.WriteString(fmt.Sprintf("%d:%s,", i, pl.dumpInfo(ident)))
-		} else {
-			sb.WriteString(fmt.Sprintf("%d:nil,", i))
-		}
+		sb.WriteString("]")
+	} else {
+		sb.WriteString("[]")
 	}
-	sb.WriteString("]")
 	return sb.String()
 }
 

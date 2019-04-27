@@ -258,10 +258,10 @@ func TestTrioDetailsLinks(t *testing.T) {
 		sort.Sort(tll)
 	}
 	//fmt.Println(collPerCount)
-	assert.Equal(t, 8, collPerCount[4].Len(), "wrong number of 4 times in td %v", *collPerCount[4])
-	assert.Equal(t, 8*7, collPerCount[5].Len(), "wrong number of 5 times in td %v", *collPerCount[5])
-	assert.Equal(t, 8*10, collPerCount[8].Len(), "wrong number of 8 times in td %v", *collPerCount[8])
-	assert.Equal(t, 8*18, collPerCount[9].Len(), "wrong number of 9 times in td %v", *collPerCount[9])
+	assert.Equal(t, 8, collPerCount[4].Len(), "wrong number of 4 times in nextMainTd %v", *collPerCount[4])
+	assert.Equal(t, 8*7, collPerCount[5].Len(), "wrong number of 5 times in nextMainTd %v", *collPerCount[5])
+	assert.Equal(t, 8*10, collPerCount[8].Len(), "wrong number of 8 times in nextMainTd %v", *collPerCount[8])
+	assert.Equal(t, 8*18, collPerCount[9].Len(), "wrong number of 9 times in nextMainTd %v", *collPerCount[9])
 
 	// The size 4 are when a,b,c are equals
 	for _, td := range *collPerCount[4] {

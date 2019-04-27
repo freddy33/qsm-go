@@ -39,17 +39,62 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 	for i, c := range td.GetConnections() {
 		pathCtx.rootPathLinks[i] = makeRootPathLink(c.GetId())
 	}
+	lastPathLinks := make([]*PathLink, 0, 6)
 	for _, pl := range pathCtx.rootPathLinks {
-		p, nextTrio, nextPathEl := trCtx.GetNextTrio(m3point.Origin, td, pl.connId)
+		mainPoint := m3point.Origin
+		p, nextTrio, nextPathEls := trCtx.GetNextTrio(mainPoint, td, pl.connId)
 		assert.NotNil(t, nextTrio, "Failed getting next trio for %s %s %s %v", trCtx.String(), td.String(), pl.String(), p)
-		pl.dst = makePathNode(pl, nextTrio.GetId())
+		pl.setDestTrioIdx(p, nextTrio.GetId())
 		for j := 0; j < 2; j++ {
-			assert.True(t, nextPathEl[j].IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *nextPathEl[j])
-			pl.dst.next[j] = makePathLink(pl.dst, nextPathEl[j].GetP2IConn().GetId())
+			assert.True(t, nextPathEls[j].IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *nextPathEls[j])
 		}
+		pl.dst.addPathLinks(nextPathEls[0].GetP2IConn().GetId(), nextPathEls[1].GetP2IConn().GetId())
+		for j := 0; j < 2; j++ {
+			npel := nextPathEls[j]
+			npl := pl.dst.next[j]
+			assert.True(t, npel.IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *npel)
+
+			ipTd, backPathEls := npel.GetBackTrioOnInterPoint(trCtx)
+			assert.NotNil(t, ipTd, "did not find trio for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *npel)
+			npl.setDestTrioIdx(npel.GetIntermediatePoint(), ipTd.GetId())
+
+			// One of the back path el should go back to main point
+			found := -1
+			for k := 0; k < 2; k++ {
+				backNpe := backPathEls[k]
+				if backNpe.GetNextMainPoint() == mainPoint {
+					assert.Equal(t, -1, found, "should find only one")
+					found = k
+				} else {
+					npl.dst.addPathLinks(backNpe.GetP2IConn().GetId(), npel.GetNmp2IConn().GetNegId())
+				}
+			}
+			assert.True(t, found != -1, "Back npels %v, %v did not find any going back to %v", *backPathEls[0], *backPathEls[1], mainPoint)
+			for k := 0; k < 2; k++ {
+				backNpe := backPathEls[k]
+				nnpl := npl.dst.next[k]
+				if k != found {
+					nnpl.setDestTrioIdx(backNpe.GetIntermediatePoint(), m3point.NilTrioIndex)
+				} else {
+					nnpl.setDestTrioIdx(npel.GetNextMainPoint(), npel.GetNextMainTrioId())
+				}
+			}
+		}
+
+		lastPathLinks = append(lastPathLinks, pl.dst.next[0], pl.dst.next[1])
 	}
+
 	Log.Debug(pathCtx.dumpInfo())
 }
+
+
+
+
+
+/***************************************************************/
+// LEGACY Path Functions Tests
+/***************************************************************/
+
 
 func TestNilPathElement(t *testing.T) {
 	nsp := EndPathElement(-3)
