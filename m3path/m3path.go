@@ -83,7 +83,7 @@ func makeRootPathLink(connId m3point.ConnectionId) *PathLink {
 	return &res
 }
 
-func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) {
+func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) *PathNode {
 	res := PathNode{}
 	res.p = p
 	if pl.src != nil {
@@ -94,6 +94,7 @@ func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) {
 	res.from = pl
 	res.trioId = tdId
 	pl.dst = &res
+	return pl.dst
 }
 
 func (pl *PathLink) String() string {
@@ -139,6 +140,13 @@ func (pn *PathNode) addPathLinks(connIds... m3point.ConnectionId) {
 
 func (pn *PathNode) String() string {
 	return fmt.Sprintf("PN%v-%3d-%s", pn.p, pn.d, pn.trioId.String())
+}
+
+func (pn *PathNode) calcDist() int {
+	if pn.from.src == nil {
+		return 1
+	}
+	return pn.from.src.calcDist() + 1
 }
 
 func (pn *PathNode) dumpInfo(ident int) string {

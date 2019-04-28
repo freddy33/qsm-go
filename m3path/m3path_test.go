@@ -19,6 +19,13 @@ func TestPathContextFilling(t *testing.T) {
 
 }
 
+type OpenEndPath struct {
+	main bool
+	p    m3point.Point
+	pn   *PathNode
+	npel *m3point.NextPathElement
+}
+
 func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 	Log.SetTrace()
 	Log.SetAssert(true)
@@ -39,7 +46,7 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 	for i, c := range td.GetConnections() {
 		pathCtx.rootPathLinks[i] = makeRootPathLink(c.GetId())
 	}
-	lastPathLinks := make([]*PathLink, 0, 6)
+	openEndPaths := make([]OpenEndPath, 0, 12)
 	for _, pl := range pathCtx.rootPathLinks {
 		mainPoint := m3point.Origin
 		p, nextTrio, nextPathEls := trCtx.GetNextTrio(mainPoint, td, pl.connId)
@@ -73,28 +80,47 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 			for k := 0; k < 2; k++ {
 				backNpe := backPathEls[k]
 				nnpl := npl.dst.next[k]
+				newEndPath := OpenEndPath{}
+				newEndPath.npel = backNpe
 				if k != found {
-					nnpl.setDestTrioIdx(backNpe.GetIntermediatePoint(), m3point.NilTrioIndex)
+					newEndPath.main = false
+					newEndPath.p = backNpe.GetIntermediatePoint()
+					newEndPath.pn = nnpl.setDestTrioIdx(backNpe.GetIntermediatePoint(), m3point.NilTrioIndex)
 				} else {
-					nnpl.setDestTrioIdx(npel.GetNextMainPoint(), npel.GetNextMainTrioId())
+					newEndPath.main = true
+					newEndPath.p = npel.GetNextMainPoint()
+					newEndPath.pn = nnpl.setDestTrioIdx(npel.GetNextMainPoint(), npel.GetNextMainTrioId())
 				}
+				openEndPaths = append(openEndPaths, newEndPath)
 			}
 		}
-
-		lastPathLinks = append(lastPathLinks, pl.dst.next[0], pl.dst.next[1])
 	}
+
+	//pathNodesPerPoint := make(map[m3point.Point]*PathNode)
+
+	assert.Equal(t, 12, len(openEndPaths), "not all ends here %v", openEndPaths)
+	countMains := 0
+	countNonMains := 0
+	for _, oep := range openEndPaths {
+		if oep.main {
+			countMains++
+			assert.NotEqual(t, m3point.NilTrioIndex, oep.pn.trioId, "main %v should have trio already", *oep.pn)
+		} else {
+			countNonMains++
+			assert.Equal(t, m3point.NilTrioIndex, oep.pn.trioId, "non main %v should not have trio already", *oep.pn)
+		}
+		assert.Equal(t, 3, oep.pn.d, "open end path %v should have distance of three", *oep.pn)
+		assert.Equal(t, oep.pn.calcDist(), oep.pn.d, "open end path %v should have d and calcDist equal", *oep.pn)
+	}
+	assert.Equal(t, 6, countMains, "not all main ends here %v", openEndPaths)
+	assert.Equal(t, 6, countNonMains, "not all non main ends here %v", openEndPaths)
 
 	Log.Debug(pathCtx.dumpInfo())
 }
 
-
-
-
-
 /***************************************************************/
 // LEGACY Path Functions Tests
 /***************************************************************/
-
 
 func TestNilPathElement(t *testing.T) {
 	nsp := EndPathElement(-3)
