@@ -13,7 +13,9 @@ type PathContext struct {
 	ctx             *m3point.TrioIndexContext
 	rootTrioId      m3point.TrioIndex
 	rootPathLinks   [3]*PathLink
+	openEndPaths	[]OpenEndPath
 	possiblePathIds map[PathIdKey][2]NextPathLink
+	pathNodesPerPoint map[m3point.Point]*PathNode
 }
 
 type PathIdKey struct {
@@ -31,6 +33,8 @@ type NextPathLink struct {
 
 // A single path link between *src* node to one of the next path node *dst* using the connection Id
 type PathLink struct {
+	// The path context the link belongs to
+	pathCtx *PathContext
 	// After travelling the connId of the above cur.connId there will be 2 new path possible for
 	src *PathNode
 	// The connection used by the link path
@@ -51,11 +55,47 @@ type PathNode struct {
 	trioId m3point.TrioIndex
 	// After travelling the connId of the above cur.connId there will be 2 new path possible for
 	next [2]*PathLink
+	// If this node came from a combined link
+	otherFrom *PathLink
 }
+
+// Struct left at the end of a path builder where next round of building should be done
+type OpenEndPath struct {
+	// true if path node point is a main point
+	main bool
+	// The path node with trio index and next left to be build
+	pn   *PathNode
+	// The next path element used to build the path node above
+	npel *m3point.NextPathElement
+}
+
 
 /***************************************************************/
 // PathContext Functions
 /***************************************************************/
+
+func MakePathContext(ctxType m3point.ContextType, pIdx int) *PathContext {
+	pathCtx := PathContext{}
+	pathCtx.ctx = m3point.GetTrioIndexContext(ctxType, pIdx)
+	pathCtx.openEndPaths = make([]OpenEndPath, 0, 12)
+	pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode)
+
+	// Hack since only node with three next set all to nil, but still need to be filled in the map
+	rootPathNode := PathNode{}
+	rootPathNode.p = m3point.Origin
+	rootPathNode.d = 0
+	pathCtx.pathNodesPerPoint[m3point.Origin] = &rootPathNode
+	return &pathCtx
+}
+
+func (pathCtx *PathContext) makeRootPathLink(idx int, connId m3point.ConnectionId) *PathLink {
+	res := PathLink{}
+	res.pathCtx = pathCtx
+	res.src = nil
+	res.connId = connId
+	pathCtx.rootPathLinks[idx] = &res
+	return &res
+}
 
 func (pathCtx *PathContext) dumpInfo() string {
 	var sb strings.Builder
@@ -76,24 +116,42 @@ func (pathCtx *PathContext) dumpInfo() string {
 // PathLink Functions
 /***************************************************************/
 
-func makeRootPathLink(connId m3point.ConnectionId) *PathLink {
-	res := PathLink{}
-	res.src = nil
-	res.connId = connId
-	return &res
-}
-
 func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) *PathNode {
+	var dstDistance int
+	if pl.src != nil {
+		dstDistance = pl.src.d + 1
+	} else {
+		dstDistance = 1
+	}
+	existingPn, ok := pl.pathCtx.pathNodesPerPoint[p]
+	if ok {
+		if Log.IsTrace() {
+			Log.Trace("adding node at %v to path link %v which already has node %v", p, *pl, *existingPn)
+		}
+		if existingPn.trioId != tdId {
+			Log.Errorf("setting a new node at %v to path link %v on existing one %v with not same trio id %d",
+				p, *pl, *existingPn, tdId)
+		}
+		if existingPn.d == dstDistance {
+			// Merging path
+			existingPn.otherFrom = pl
+		} else {
+			Log.Infof("setting a new node at %v to path link %v on existing one %v with not same dist %d != %d",
+				p, *pl, *existingPn, existingPn.d, dstDistance)
+		}
+		return existingPn
+	}
+
+	// Create the new node
 	res := PathNode{}
 	res.p = p
-	if pl.src != nil {
-		res.d = pl.src.d + 1
-	} else {
-		res.d = 1
-	}
+	res.d = dstDistance
 	res.from = pl
 	res.trioId = tdId
 	pl.dst = &res
+
+	pl.pathCtx.pathNodesPerPoint[p] = pl.dst
+
 	return pl.dst
 }
 
@@ -118,24 +176,34 @@ func (pl *PathLink) dumpInfo(ident int) string {
 // PathNode Functions
 /***************************************************************/
 
-func (pn *PathNode) addPathLinks(connIds... m3point.ConnectionId) {
+func (pn *PathNode) addPathLink(connId m3point.ConnectionId) *PathLink {
 	if Log.DoAssert() {
 		td := m3point.GetTrioDetails(pn.trioId)
 		if td == nil {
 			Log.Errorf("creating a path link with source node %s pointing to non existent trio index", pn.String())
-			return
+			return nil
 		}
-		if !td.HasConnections(connIds[0], connIds[1]) {
-			Log.Errorf("creating a path link with source node %s using connections %v not present in trio", pn.String(), connIds)
-			return
+		if !td.HasConnections(connId) {
+			Log.Errorf("creating a path link with source node %s using connections %v not present in trio", pn.String(), connId)
+			return nil
 		}
 	}
-	for j := 0; j < 2; j++ {
-		res := PathLink{}
-		res.src = pn
-		res.connId = connIds[j]
-		pn.next[j] = &res
+	if pn.next[0] != nil && pn.next[1] != nil {
+		Log.Errorf("creating a path link with source node %s having no next left open %v", pn.String(), connId, pn.next)
+		return nil
 	}
+
+	res := PathLink{}
+	res.pathCtx = pn.from.pathCtx
+	res.src = pn
+	res.connId = connId
+
+	if pn.next[0] == nil {
+		pn.next[0] = &res
+	} else {
+		pn.next[1] = &res
+	}
+	return &res
 }
 
 func (pn *PathNode) String() string {

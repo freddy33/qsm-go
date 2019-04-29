@@ -577,6 +577,7 @@ func (td *TrioDetails) HasConnection(connId ConnectionId) bool {
 func (td *TrioDetails) OtherConnectionsFrom(connId ConnectionId) [2]*ConnectionDetails {
 	res := [2]*ConnectionDetails{nil, nil}
 	idx := 0
+
 	if td.HasConnection(-connId) {
 		for _, c := range td.conns {
 			if c.Id != -connId {
@@ -584,9 +585,40 @@ func (td *TrioDetails) OtherConnectionsFrom(connId ConnectionId) [2]*ConnectionD
 				idx++
 			}
 		}
+	} else {
+		Log.Errorf("connection %s is not part of %s and cannot return other connections", connId.String(), td.String())
 	}
 
 	return res
+}
+
+func (td *TrioDetails) LastOtherConnection(cIds ...ConnectionId) *ConnectionDetails {
+	for _, c := range td.conns {
+		for _, cId := range cIds {
+			if c.Id != cId {
+				return c
+			}
+		}
+	}
+	return nil
+}
+
+func (td *TrioDetails) HasConnections(cIds ...ConnectionId) bool {
+	for _, cId := range cIds {
+		if !td.HasConnection(cId) {
+			return false
+		}
+	}
+	return true
+}
+
+func (td *TrioDetails) HasLinkWith(a, b TrioIndex) bool {
+	for _, l := range td.Links {
+		if l.ContainsAB(a, b) {
+			return true
+		}
+	}
+	return false
 }
 
 func (td *TrioDetails) GetTrio() Trio {
@@ -697,24 +729,6 @@ func (td *TrioDetails) GetDSIndex() int {
 	}
 	Log.Errorf("Did not find correct index for %v", *td)
 	return -1
-}
-
-func (td *TrioDetails) HasConnections(cIds ...ConnectionId) bool {
-	for _, cId := range cIds {
-		if !td.HasConnection(cId) {
-			return false
-		}
-	}
-	return true
-}
-
-func (td *TrioDetails) HasLinkWith(a, b TrioIndex) bool {
-	for _, l := range td.Links {
-		if l.ContainsAB(a, b) {
-			return true
-		}
-	}
-	return false
 }
 
 func fillAllTrioDetails() {

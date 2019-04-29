@@ -66,9 +66,13 @@ func IsLessConnId(cd1, cd2 *ConnectionDetails) bool {
 /***************************************************************/
 // ConnectionId Functions
 /***************************************************************/
+func (connId ConnectionId) GetNegId() ConnectionId {
+	return -connId
+}
+
 func (connId ConnectionId) GetPosConnectionId() ConnectionId {
 	if connId < 0 {
-		return ConnectionId(-connId)
+		return -connId
 	}
 	return connId
 }
@@ -104,7 +108,7 @@ func (cd *ConnectionDetails) GetId() ConnectionId {
 }
 
 func (cd *ConnectionDetails) GetNegId() ConnectionId {
-	return -cd.Id
+	return cd.Id.GetNegId()
 }
 
 func (cd *ConnectionDetails) GetPosId() ConnectionId {

@@ -10,20 +10,12 @@ func TestPathContextFilling(t *testing.T) {
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			pathCtx := PathContext{}
-			pathCtx.ctx = m3point.GetTrioIndexContext(ctxType, pIdx)
-			fillPathContext(t, &pathCtx, 5)
+			pathCtx := MakePathContext(ctxType, pIdx)
+			fillPathContext(t, pathCtx, 3)
 			break
 		}
 	}
 
-}
-
-type OpenEndPath struct {
-	main bool
-	p    m3point.Point
-	pn   *PathNode
-	npel *m3point.NextPathElement
 }
 
 func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
@@ -44,22 +36,18 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 
 	pathCtx.rootTrioId = trIdx
 	for i, c := range td.GetConnections() {
-		pathCtx.rootPathLinks[i] = makeRootPathLink(c.GetId())
+		pathCtx.makeRootPathLink(i, c.GetId())
 	}
-	openEndPaths := make([]OpenEndPath, 0, 12)
+
 	for _, pl := range pathCtx.rootPathLinks {
 		mainPoint := m3point.Origin
 		p, nextTrio, nextPathEls := trCtx.GetNextTrio(mainPoint, td, pl.connId)
 		assert.NotNil(t, nextTrio, "Failed getting next trio for %s %s %s %v", trCtx.String(), td.String(), pl.String(), p)
-		pl.setDestTrioIdx(p, nextTrio.GetId())
-		for j := 0; j < 2; j++ {
-			assert.True(t, nextPathEls[j].IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *nextPathEls[j])
-		}
-		pl.dst.addPathLinks(nextPathEls[0].GetP2IConn().GetId(), nextPathEls[1].GetP2IConn().GetId())
+		pn := pl.setDestTrioIdx(p, nextTrio.GetId())
 		for j := 0; j < 2; j++ {
 			npel := nextPathEls[j]
-			npl := pl.dst.next[j]
 			assert.True(t, npel.IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *npel)
+			npl := pn.addPathLink(npel.GetP2IConn().GetId())
 
 			ipTd, backPathEls := npel.GetBackTrioOnInterPoint(trCtx)
 			assert.NotNil(t, ipTd, "did not find trio for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *npel)
@@ -73,35 +61,37 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 					assert.Equal(t, -1, found, "should find only one")
 					found = k
 				} else {
-					npl.dst.addPathLinks(backNpe.GetP2IConn().GetId(), npel.GetNmp2IConn().GetNegId())
+					npl.dst.addPathLink(backNpe.GetP2IConn().GetId())
+					npl.dst.addPathLink(npel.GetNmp2IConn().GetNegId())
 				}
 			}
 			assert.True(t, found != -1, "Back npels %v, %v did not find any going back to %v", *backPathEls[0], *backPathEls[1], mainPoint)
 			for k := 0; k < 2; k++ {
 				backNpe := backPathEls[k]
-				nnpl := npl.dst.next[k]
 				newEndPath := OpenEndPath{}
 				newEndPath.npel = backNpe
 				if k != found {
 					newEndPath.main = false
-					newEndPath.p = backNpe.GetIntermediatePoint()
+					nnpl := npl.dst.next[0]
 					newEndPath.pn = nnpl.setDestTrioIdx(backNpe.GetIntermediatePoint(), m3point.NilTrioIndex)
 				} else {
 					newEndPath.main = true
-					newEndPath.p = npel.GetNextMainPoint()
+					nnpl := npl.dst.next[1]
 					newEndPath.pn = nnpl.setDestTrioIdx(npel.GetNextMainPoint(), npel.GetNextMainTrioId())
 				}
-				openEndPaths = append(openEndPaths, newEndPath)
+				pathCtx.openEndPaths = append(pathCtx.openEndPaths, newEndPath)
 			}
 		}
 	}
 
 	//pathNodesPerPoint := make(map[m3point.Point]*PathNode)
 
-	assert.Equal(t, 12, len(openEndPaths), "not all ends here %v", openEndPaths)
+	assert.Equal(t, 1+3+6+12, len(pathCtx.pathNodesPerPoint), "not all points are here %v",pathCtx.openEndPaths)
+	assert.Equal(t, 12, len(pathCtx.openEndPaths), "not all ends here %v",pathCtx.openEndPaths)
 	countMains := 0
 	countNonMains := 0
-	for _, oep := range openEndPaths {
+	for _, oep := range pathCtx.openEndPaths {
+		assert.Equal(t, oep.main, oep.pn.p.IsMainPoint(), "main bool for %v should be equal to point is main()", *oep.pn)
 		if oep.main {
 			countMains++
 			assert.NotEqual(t, m3point.NilTrioIndex, oep.pn.trioId, "main %v should have trio already", *oep.pn)
@@ -112,10 +102,46 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 		assert.Equal(t, 3, oep.pn.d, "open end path %v should have distance of three", *oep.pn)
 		assert.Equal(t, oep.pn.calcDist(), oep.pn.d, "open end path %v should have d and calcDist equal", *oep.pn)
 	}
-	assert.Equal(t, 6, countMains, "not all main ends here %v", openEndPaths)
-	assert.Equal(t, 6, countNonMains, "not all non main ends here %v", openEndPaths)
+	assert.Equal(t, 6, countMains, "not all main ends here %v", pathCtx.openEndPaths)
+	assert.Equal(t, 6, countNonMains, "not all non main ends here %v", pathCtx.openEndPaths)
 
-	Log.Debug(pathCtx.dumpInfo())
+	Log.Debug("*************** First round *************\n",pathCtx.dumpInfo())
+
+	for _, oep := range pathCtx.openEndPaths {
+		pn := oep.pn
+		if oep.main {
+			td := m3point.GetTrioDetails(pn.trioId)
+			if oep.pn.otherFrom == nil {
+				ocs := td.OtherConnectionsFrom(oep.pn.from.connId)
+				for _, oc := range ocs {
+					pl := pn.addPathLink(oc.GetId())
+					p, nextTrio, nextPathEls := trCtx.GetNextTrio(pn.p, td, oc.GetId())
+					assert.NotNil(t, nextTrio, "Failed getting next trio for %s %s %s %v %s", trCtx.String(), td.String(), pl.String(), pn.p, oc.String())
+					npn := pl.setDestTrioIdx(p, nextTrio.GetId())
+					for j := 0; j < 2 ; j++ {
+						npel := nextPathEls[j]
+						assert.True(t, npel.IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *npel)
+						/*npl :=*/ npn.addPathLink(npel.GetP2IConn().GetId())
+					}
+				}
+			} else {
+				oc := td.LastOtherConnection(oep.pn.from.connId.GetNegId(), oep.pn.otherFrom.connId.GetNegId())
+				pl := pn.addPathLink(oc.GetId())
+				p, nextTrio, nextPathEls := trCtx.GetNextTrio(oep.pn.p, td, oc.GetId())
+				assert.NotNil(t, nextTrio, "Failed getting next trio for %s %s %s %v %s", trCtx.String(), td.String(), pl.String(), pn.p, oc.String())
+				npn := pl.setDestTrioIdx(p, nextTrio.GetId())
+				for j := 0; j < 2 ; j++ {
+					npel := nextPathEls[j]
+					assert.True(t, npel.IsValid(), "Got invalid next path element for %s %s %s %v %v", trCtx.String(), td.String(), pl.String(), p, *npel)
+					/*npl :=*/ npn.addPathLink(npel.GetP2IConn().GetId())
+				}
+			}
+		}
+
+	}
+
+	Log.Debug("*************** Second round *************\n",pathCtx.dumpInfo())
+
 }
 
 /***************************************************************/

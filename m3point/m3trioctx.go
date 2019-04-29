@@ -352,6 +352,10 @@ func (npe *NextPathElement) GetNextMainPoint() Point {
 	return npe.nextMainPoint
 }
 
+func (npe *NextPathElement) GetNextMainTrioDetails() *TrioDetails {
+	return npe.nextMainTd
+}
+
 func (npe *NextPathElement) GetNextMainTrioId() TrioIndex {
 	return npe.nextMainTd.id
 }
