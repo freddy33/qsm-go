@@ -161,7 +161,7 @@ func (l *Logger) Infof(format string, v ...interface{}) {
 // Warn Level
 
 func (l *Logger) SetWarn() {
-	l.level = DEBUG
+	l.level = WARN
 }
 
 func (l *Logger) IsWarn() bool {

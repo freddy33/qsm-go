@@ -243,7 +243,7 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) T
 
 // Out of a nextMainPoint point with the given trio details, what is the trio details of the point at the end of connection connId
 // npe: The next path element saved during calculation and returned in this method
-func (trCtx *TrioIndexContext) GetNextTrio(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId) (p Point, td *TrioDetails, npes [2]*NextPathElement) {
+func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId) (p Point, td *TrioDetails, npes [2]*NextPathElement) {
 	p = Origin
 	if Log.DoAssert() {
 		// mainPoint should be nextMainPoint
@@ -458,8 +458,8 @@ func (npe *NextPathElement) FindBestTrioOnInterPoint(trCtx *TrioIndexContext, or
 
 // Find the trio index that apply to the ipNearNm
 func (npe *NextPathElement) GetBackTrioOnInterPoint(trCtx *TrioIndexContext) (*TrioDetails, [2]*NextPathElement) {
-	// Use the GetNextTrio() method on the next main point
-	checkIP, resultTD, backNpel := trCtx.GetNextTrio(npe.nextMainPoint, npe.nextMainTd, npe.nmp2ipConn.GetId())
+	// Use the GetForwardTrioFromMain() method on the next main point
+	checkIP, resultTD, backNpel := trCtx.GetForwardTrioFromMain(npe.nextMainPoint, npe.nextMainTd, npe.nmp2ipConn.GetId())
 	if checkIP != npe.ipNearNm {
 		Log.Errorf("Did not find same point %v != %v in brute force for %s on npe=%v", checkIP, npe.ipNearNm, trCtx.String(), *npe)
 		return nil, [2]*NextPathElement{nil,nil}

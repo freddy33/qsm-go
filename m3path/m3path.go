@@ -10,11 +10,11 @@ import (
 var Log = m3util.NewLogger("m3path", m3util.INFO)
 
 type PathContext struct {
-	ctx             *m3point.TrioIndexContext
-	rootTrioId      m3point.TrioIndex
-	rootPathLinks   [3]*PathLink
-	openEndPaths	[]OpenEndPath
-	possiblePathIds map[PathIdKey][2]NextPathLink
+	ctx               *m3point.TrioIndexContext
+	rootTrioId        m3point.TrioIndex
+	rootPathLinks     [3]*PathLink
+	openEndPaths      []OpenEndPath
+	possiblePathIds   map[PathIdKey][2]NextPathLink
 	pathNodesPerPoint map[m3point.Point]*PathNode
 }
 
@@ -59,16 +59,24 @@ type PathNode struct {
 	otherFrom *PathLink
 }
 
+type OpenPathType int8
+
+const(
+	RootOpenPath OpenPathType = iota
+	MainPointOpenPath
+	InterPointOpenPath
+
+)
+
 // Struct left at the end of a path builder where next round of building should be done
 type OpenEndPath struct {
-	// true if path node point is a main point
-	main bool
+	// The type of open path
+	kind OpenPathType
 	// The path node with trio index and next left to be build
-	pn   *PathNode
+	pn *PathNode
 	// The next path element used to build the path node above
 	npel *m3point.NextPathElement
 }
-
 
 /***************************************************************/
 // PathContext Functions
@@ -77,15 +85,33 @@ type OpenEndPath struct {
 func MakePathContext(ctxType m3point.ContextType, pIdx int) *PathContext {
 	pathCtx := PathContext{}
 	pathCtx.ctx = m3point.GetTrioIndexContext(ctxType, pIdx)
-	pathCtx.openEndPaths = make([]OpenEndPath, 0, 12)
 	pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode)
+
+	return &pathCtx
+}
+
+func (pathCtx *PathContext) initRootLinks() {
+	trIdx := pathCtx.ctx.GetBaseTrioIndex(0, 0)
+	pathCtx.rootTrioId = trIdx
+
+	td := m3point.GetTrioDetails(trIdx)
+	for i, c := range td.GetConnections() {
+		pathCtx.makeRootPathLink(i, c.GetId())
+	}
 
 	// Hack since only node with three next set all to nil, but still need to be filled in the map
 	rootPathNode := PathNode{}
 	rootPathNode.p = m3point.Origin
 	rootPathNode.d = 0
+	rootPathNode.trioId = trIdx
 	pathCtx.pathNodesPerPoint[m3point.Origin] = &rootPathNode
-	return &pathCtx
+
+	pathCtx.openEndPaths = make([]OpenEndPath, 1)
+	pathCtx.openEndPaths[0] = OpenEndPath{
+		RootOpenPath,
+		&rootPathNode,
+		nil,
+	}
 }
 
 func (pathCtx *PathContext) makeRootPathLink(idx int, connId m3point.ConnectionId) *PathLink {
@@ -95,6 +121,120 @@ func (pathCtx *PathContext) makeRootPathLink(idx int, connId m3point.ConnectionI
 	res.connId = connId
 	pathCtx.rootPathLinks[idx] = &res
 	return &res
+}
+
+func (pn *PathNode) addInterOpenEndPath(backNpe *m3point.NextPathElement) OpenEndPath {
+	nnpl := pn.addPathLink(backNpe.GetP2IConn().GetId())
+	newEndPath := OpenEndPath{}
+	newEndPath.kind = InterPointOpenPath
+	newEndPath.npel = backNpe
+	newEndPath.pn = nnpl.setDestTrioIdx(backNpe.GetIntermediatePoint(), m3point.NilTrioIndex)
+
+	return newEndPath
+}
+
+func (pn *PathNode) addMainOpenEndPath(npel *m3point.NextPathElement) OpenEndPath {
+	nnpl := pn.addPathLink(npel.GetNmp2IConn().GetNegId())
+	newEndPath := OpenEndPath{}
+	newEndPath.kind = MainPointOpenPath
+	newEndPath.npel = npel
+	newEndPath.pn = nnpl.setDestTrioIdx(npel.GetNextMainPoint(), npel.GetNextMainTrioId())
+
+	return newEndPath
+}
+
+func (pl *PathLink) addAllPaths(mainPoint m3point.Point, td *m3point.TrioDetails) []OpenEndPath {
+	res := make([]OpenEndPath, 0, 4)
+	trCtx := pl.pathCtx.ctx
+	p, nextTrio, nextPathEls := trCtx.GetForwardTrioFromMain(mainPoint, td, pl.connId)
+	pn := pl.setDestTrioIdx(p, nextTrio.GetId())
+	if pn == nil {
+		// nothing left
+		return res
+	}
+	for j := 0; j < 2; j++ {
+		npel := nextPathEls[j]
+		ipTd, backPathEls := npel.GetBackTrioOnInterPoint(trCtx)
+		npl := pn.addPathLink(npel.GetP2IConn().GetId())
+		if npl == nil {
+			break
+		}
+		npn := npl.setDestTrioIdx(npel.GetIntermediatePoint(), ipTd.GetId())
+		if npn != nil {
+			for k := 0; k < 2; k++ {
+				backNpe := backPathEls[k]
+				// One of the back path el should go back to main point => not interesting
+				if backNpe.GetNextMainPoint() != mainPoint {
+					res= append(res, npn.addInterOpenEndPath(backNpe))
+					res = append(res, npn.addMainOpenEndPath(npel))
+				}
+			}
+		}
+	}
+	return res
+}
+
+func (pathCtx *PathContext) moveToNextMainPoints() {
+	var newOpenPaths []OpenEndPath
+	trCtx := pathCtx.ctx
+	for _, oep := range pathCtx.openEndPaths {
+		mpn := oep.pn
+		if oep.kind == RootOpenPath {
+			newOpenPaths = make([]OpenEndPath, 12)
+			idx := 0
+			mainPoint := mpn.p
+			td := m3point.GetTrioDetails(mpn.trioId)
+			if Log.DoAssert() {
+				if len(pathCtx.openEndPaths) != 1 {
+					Log.Errorf("Got more than one (%d) open path and one is a root open path for %s", len(pathCtx.openEndPaths), trCtx.String())
+					return
+				}
+				if !mainPoint.IsMainPoint() {
+					Log.Errorf("The root open path has a non main point %v for %s", mainPoint, trCtx.String())
+					return
+				}
+			}
+			for _, pl := range pathCtx.rootPathLinks {
+				oeps := pl.addAllPaths(mainPoint, td)
+				for _, oep := range oeps {
+					newOpenPaths[idx] = oep
+					idx++
+				}
+			}
+		} else if oep.kind == MainPointOpenPath {
+			if cap(newOpenPaths) == 0 {
+				newOpenPaths = make([]OpenEndPath, 0, 2*len(pathCtx.openEndPaths))
+			}
+			mainPoint := mpn.p
+			td := m3point.GetTrioDetails(mpn.trioId)
+			if Log.DoAssert() {
+				if !mainPoint.IsMainPoint() {
+					Log.Errorf("The main open path has a non main point %v for %s", mainPoint, trCtx.String())
+					return
+				}
+			}
+			if oep.pn.otherFrom == nil {
+				ocs := td.OtherConnectionsFrom(mpn.from.connId)
+				for _, oc := range ocs {
+					pl := mpn.addPathLink(oc.GetId())
+					oeps := pl.addAllPaths(mainPoint, td)
+					for _, oep := range oeps {
+						newOpenPaths = append(newOpenPaths, oep)
+					}
+				}
+			} else {
+				oc := td.LastOtherConnection(oep.pn.from.connId.GetNegId(), oep.pn.otherFrom.connId.GetNegId())
+				pl := mpn.addPathLink(oc.GetId())
+				oeps := pl.addAllPaths(mainPoint, td)
+				for _, oep := range oeps {
+					newOpenPaths = append(newOpenPaths, oep)
+				}
+			}
+		} else {
+
+		}
+	}
+	pathCtx.openEndPaths = newOpenPaths
 }
 
 func (pathCtx *PathContext) dumpInfo() string {
@@ -124,12 +264,16 @@ func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) *Pat
 		dstDistance = 1
 	}
 	existingPn, ok := pl.pathCtx.pathNodesPerPoint[p]
+
 	if ok {
 		if Log.IsTrace() {
-			Log.Trace("adding node at %v to path link %v which already has node %v", p, *pl, *existingPn)
+			Log.Trace("adding node at %v to path link %v with tdId %s which already has node %v", p, *pl, tdId, *existingPn)
+		}
+		if existingPn.trioId == m3point.NilTrioIndex {
+			existingPn.trioId = tdId
 		}
 		if existingPn.trioId != tdId {
-			Log.Errorf("setting a new node at %v to path link %v on existing one %v with not same trio id %d",
+			Log.Fatalf("setting a new node at %v to path link %v on existing one %v with not same trio id %d",
 				p, *pl, *existingPn, tdId)
 		}
 		if existingPn.d == dstDistance {
@@ -138,6 +282,7 @@ func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) *Pat
 		} else {
 			Log.Infof("setting a new node at %v to path link %v on existing one %v with not same dist %d != %d",
 				p, *pl, *existingPn, existingPn.d, dstDistance)
+			return nil
 		}
 		return existingPn
 	}
@@ -164,7 +309,7 @@ func (pl *PathLink) dumpInfo(ident int) string {
 	sb.WriteString(pl.String())
 	if pl.dst != nil {
 		sb.WriteString(":{")
-		sb.WriteString(pl.dst.dumpInfo(ident+1))
+		sb.WriteString(pl.dst.dumpInfo(ident + 1))
 		sb.WriteString("}")
 	} else {
 		sb.WriteString(":{nil}")
@@ -178,6 +323,10 @@ func (pl *PathLink) dumpInfo(ident int) string {
 
 func (pn *PathNode) addPathLink(connId m3point.ConnectionId) *PathLink {
 	if Log.DoAssert() {
+		if pn.trioId == m3point.NilTrioIndex {
+			Log.Errorf("creating a path link with source node %s pointing to non existent trio index", pn.String())
+			return nil
+		}
 		td := m3point.GetTrioDetails(pn.trioId)
 		if td == nil {
 			Log.Errorf("creating a path link with source node %s pointing to non existent trio index", pn.String())
@@ -238,258 +387,4 @@ func (pn *PathNode) dumpInfo(ident int) string {
 		sb.WriteString("[]")
 	}
 	return sb.String()
-}
-
-
-
-
-
-
-
-
-
-
-
-/***************************************************************/
-// LEGACY Path Functions
-/***************************************************************/
-
-
-// An element in the path from event base node to latest outgrowth
-// Forward is from event to outgrowth
-// Backwards is from latest outgrowth to event
-type PathElement interface {
-	IsEnd() bool
-	NbForwardElements() int
-	GetForwardConnId(idx int) int8
-	GetForwardElement(idx int) PathElement
-	Copy() PathElement
-	SetLastNext(path PathElement)
-	GetLength() int
-}
-
-// End of path marker
-type EndPathElement int8
-
-// The int8 here is the forward connection Id
-type SimplePathElement struct {
-	forwardConnId int8
-	next          PathElement
-}
-
-// We count only forward fork
-type ForkPathElement struct {
-	simplePaths []*SimplePathElement
-}
-
-var TheEnd = EndPathElement(0)
-
-/***************************************************************/
-// Simple Path Functions
-/***************************************************************/
-
-func (spe EndPathElement) IsEnd() bool {
-	return true
-}
-
-func (spe EndPathElement) NbForwardElements() int {
-	return 0
-}
-
-func (spe EndPathElement) GetForwardConnId(idx int) int8 {
-	return int8(spe)
-}
-
-func (spe EndPathElement) GetForwardElement(idx int) PathElement {
-	return nil
-}
-
-func (spe EndPathElement) Copy() PathElement {
-	return spe
-}
-
-func (spe EndPathElement) SetLastNext(path PathElement) {
-	Log.Fatalf("cannot set last on end element")
-}
-
-func (spe EndPathElement) GetLength() int {
-	return 0
-}
-
-/***************************************************************/
-// Simple Path Functions
-/***************************************************************/
-
-func (spe *SimplePathElement) IsEnd() bool {
-	return false
-}
-
-func (spe *SimplePathElement) NbForwardElements() int {
-	return 1
-}
-
-func (spe *SimplePathElement) GetForwardConnId(idx int) int8 {
-	if idx != 0 {
-		Log.Fatalf("index out of bound for %d", idx)
-	}
-	return spe.forwardConnId
-}
-
-func (spe *SimplePathElement) GetForwardElement(idx int) PathElement {
-	if idx != 0 {
-		Log.Fatalf("index out of bound for %d", idx)
-	}
-	return spe.next
-}
-
-func (spe *SimplePathElement) Copy() PathElement {
-	return spe.internalCopy()
-}
-
-func (spe *SimplePathElement) internalCopy() *SimplePathElement {
-	if spe.next == nil {
-		return &SimplePathElement{spe.forwardConnId, nil}
-	}
-	return &SimplePathElement{spe.forwardConnId, spe.next.Copy()}
-}
-
-func (spe *SimplePathElement) SetLastNext(path PathElement) {
-	if spe.next == nil {
-		spe.next = path
-	} else {
-		spe.next.SetLastNext(path)
-	}
-}
-
-func (spe *SimplePathElement) GetLength() int {
-	if spe.next == nil {
-		return 1
-	} else {
-		return 1 + spe.next.GetLength()
-	}
-}
-
-/***************************************************************/
-// Forked Path Functions
-/***************************************************************/
-
-func (fpe *ForkPathElement) IsEnd() bool {
-	return false
-}
-
-func (fpe *ForkPathElement) NbForwardElements() int {
-	return len(fpe.simplePaths)
-}
-
-func (fpe *ForkPathElement) GetForwardConnId(idx int) int8 {
-	return fpe.simplePaths[idx].GetForwardConnId(0)
-}
-
-func (fpe *ForkPathElement) GetForwardElement(idx int) PathElement {
-	return fpe.simplePaths[idx].GetForwardElement(0)
-}
-
-func (fpe *ForkPathElement) Copy() PathElement {
-	res := ForkPathElement{make([]*SimplePathElement, len(fpe.simplePaths))}
-	for i, spe := range fpe.simplePaths {
-		res.simplePaths[i] = spe.internalCopy()
-	}
-	return &res
-}
-
-func (fpe *ForkPathElement) SetLastNext(path PathElement) {
-	for _, spe := range fpe.simplePaths {
-		spe.SetLastNext(path)
-	}
-}
-
-func (fpe *ForkPathElement) GetLength() int {
-	length := fpe.simplePaths[0].GetLength()
-	if Log.IsDebug() {
-		// All length should be identical
-		for i := 1; i < len(fpe.simplePaths); i++ {
-			otherLength := fpe.simplePaths[i].GetLength()
-			if otherLength != length {
-				Log.Errorf("fork points to 2 path with diff length %d != %d", length, otherLength)
-			}
-		}
-	}
-	return length
-}
-
-/***************************************************************/
-// Merge Path Functions
-/***************************************************************/
-
-func MergePath(path1, path2 PathElement) PathElement {
-	if path1 == nil && path2 == nil {
-		return nil
-	}
-	if (path1 != nil && path2 == nil) || (path1 == nil && path2 != nil) {
-		Log.Errorf("cannot merge path if one nil and not the other")
-		return nil
-	}
-	if path1.GetLength() != path2.GetLength() {
-		Log.Errorf("cannot merge path of different length")
-		return nil
-	}
-	nb1 := path1.NbForwardElements()
-	nb2 := path2.NbForwardElements()
-	if nb1 == 1 && nb2 == 1 {
-		p1ConnId := path1.GetForwardConnId(0)
-		p2ConnId := path2.GetForwardConnId(0)
-		p1Next := path1.GetForwardElement(0)
-		p2Next := path2.GetForwardElement(0)
-		if p1ConnId == p2ConnId {
-			return &SimplePathElement{p1ConnId, MergePath(p1Next, p2Next)}
-		}
-		if p1Next != nil {
-			p1Next = p1Next.Copy()
-		}
-		if p2Next != nil {
-			p2Next = p2Next.Copy()
-		}
-		fpe := ForkPathElement{make([]*SimplePathElement, 2)}
-		fpe.simplePaths[0] = &SimplePathElement{p1ConnId, p1Next}
-		fpe.simplePaths[1] = &SimplePathElement{p2ConnId, p2Next}
-		return &fpe
-	}
-	pathsPerConnId := make(map[int8][]*SimplePathElement)
-	for i := 0; i < nb1; i++ {
-		addCopyToMap(path1, i, &pathsPerConnId)
-	}
-	for i := 0; i < nb2; i++ {
-		addCopyToMap(path2, i, &pathsPerConnId)
-	}
-	i := 0
-	res := ForkPathElement{make([]*SimplePathElement, len(pathsPerConnId))}
-	for connId, paths := range pathsPerConnId {
-		if len(paths) == 1 {
-			res.simplePaths[i] = paths[0]
-			i++
-		} else if len(paths) == 2 {
-			res.simplePaths[i] = &SimplePathElement{connId, MergePath(paths[0].GetForwardElement(0), paths[1].GetForwardElement(0))}
-			i++
-		} else {
-			Log.Errorf("Cannot have paths in merge for same connection ids not 1 or 2 for %d %d", connId, len(paths))
-		}
-	}
-	return &res
-}
-
-func addCopyToMap(path PathElement, idx int, pathsPerConnId *map[int8][]*SimplePathElement) {
-	connId := path.GetForwardConnId(idx)
-	next := path.GetForwardElement(idx)
-	if next != nil {
-		next = next.Copy()
-	}
-	paths, ok := (*pathsPerConnId)[connId]
-	newPath := &SimplePathElement{connId, next}
-	if !ok {
-		paths = make([]*SimplePathElement, 1)
-		paths[0] = newPath
-	} else {
-		paths = append(paths, newPath)
-	}
-	(*pathsPerConnId)[connId] = paths
 }
