@@ -19,8 +19,17 @@ runAndSave() {
     go tool pprof --text perf-data/mem-${packageName}.prof > ./docs/${packageName}-BenchPprofMemResults.txt
 }
 
+runSimple() {
+    local packageName="$1"
+    go test -parallel 4 -run='^$' -bench=. ./m3${packageName}/ >> ./docs/${packageName}-BenchResults.txt
+}
+
 if [ "$pack" == "path" ] || [ "$pack" == "space" ]; then
-    runAndSave ${pack}
+    if [ "$2" == "-s" ]; then
+        runSimple ${pack}
+    else
+        runAndSave ${pack}
+    fi
     exit $?
 fi
 

@@ -29,6 +29,7 @@ type TrioIndexContext struct {
 // A struct representing one next nextMainPoint point where a path is going toward
 type NextPathElement struct {
 	valid bool
+	offset int
 	// The next nextMainPoint points where p path is going to go to
 	nextMainPoint Point
 	// The trio details for this specific next nextMainPoint point
@@ -180,8 +181,8 @@ func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
 	return &res
 }
 
-func (trCtx *TrioIndexContext) GetBaseTrioDetails(mainPoint Point) *TrioDetails {
-	return GetTrioDetails(trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0))
+func (trCtx *TrioIndexContext) GetBaseTrioDetails(mainPoint Point, offset int) *TrioDetails {
+	return GetTrioDetails(trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), offset))
 }
 
 func (trCtx *TrioIndexContext) GetBaseTrio(mainPoint Point, offset int) Trio {
@@ -220,7 +221,7 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) T
 				count++
 			}
 		}
-		panic(fmt.Sprintf("did not find valid Trio for div by three value %d in context %v!", divByThree, trCtx.String()))
+		panic(fmt.Sprintf("did not find valid Trio for div by three value %d in context %s-%d!", divByThree, trCtx.String(), offset))
 	}
 
 	divByThreeWithOffset := uint64(offset) + divByThree
@@ -238,12 +239,12 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) T
 		idx := int(PosMod8(divByThreeWithOffset))
 		return permutationMap[idx]
 	}
-	panic(fmt.Sprintf("event permutation type %d in context %v is invalid!", trCtx.ctxIndex, trCtx.String()))
+	panic(fmt.Sprintf("event permutation type %d in context %s-%d is invalid!", trCtx.ctxIndex, trCtx.String(), offset))
 }
 
 // Out of a nextMainPoint point with the given trio details, what is the trio details of the point at the end of connection connId
 // npe: The next path element saved during calculation and returned in this method
-func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId) (p Point, td *TrioDetails, npes [2]*NextPathElement) {
+func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId, offset int) (p Point, td *TrioDetails, npes [2]*NextPathElement) {
 	p = Origin
 	if Log.DoAssert() {
 		// mainPoint should be nextMainPoint
@@ -253,13 +254,13 @@ func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetai
 		}
 		// Trio Details should have the connection connId given
 		if !trioDetails.HasConnection(connId) {
-			Log.Errorf("in context %s trio details %s, does not have the given connection %s", trCtx.String(), trioDetails.String(), connId.String())
+			Log.Errorf("in context %s-%d trio details %s, does not have the given connection %s", trCtx.String(), offset, trioDetails.String(), connId.String())
 			return
 		}
 		// The trio details index should be the one of this context
-		indexFromContext := trCtx.GetBaseTrioDetails(mainPoint).id
+		indexFromContext := trCtx.GetBaseTrioDetails(mainPoint, offset).id
 		if indexFromContext != trioDetails.id {
-			Log.Errorf("in context %s current point %v has a trio index from context %d, which not the one in %s", trCtx.String(), mainPoint, indexFromContext, trioDetails.String())
+			Log.Errorf("in context %s-%d current point %v has a trio index %d from context, which not the one in %s", trCtx.String(), offset, mainPoint, indexFromContext, trioDetails.String())
 			return
 		}
 	}
@@ -271,7 +272,7 @@ func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetai
 
 	// We calculate part of the path out of a nextMainPoint point in one go and the output will be PathId for all the way to next nextMainPoint points
 	// nmp and nip are create out of which of the 6 connections possible +X, -X, +Y, -Y, +Z, -Z vectors
-	cNpe := makeNewNpe()
+	cNpe := makeNewNpe(offset)
 
 	idx := 0
 	switch cVec.X() {
@@ -285,7 +286,7 @@ func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetai
 	if cNpe.IsValid() {
 		npes[idx] = cNpe
 		idx++
-		cNpe = makeNewNpe()
+		cNpe = makeNewNpe(offset)
 	}
 
 	switch cVec.Y() {
@@ -299,7 +300,7 @@ func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetai
 	if cNpe.IsValid() {
 		npes[idx] = cNpe
 		idx++
-		cNpe = makeNewNpe()
+		cNpe = makeNewNpe(offset)
 	}
 
 	switch cVec.Z() {
@@ -338,9 +339,10 @@ func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetai
 // NextPathElement Functions
 /***************************************************************/
 
-func makeNewNpe() *NextPathElement {
+func makeNewNpe(offset int) *NextPathElement {
 	res := NextPathElement{}
 	res.valid = false
+	res.offset = offset
 	return &res
 }
 
@@ -375,7 +377,7 @@ func (npe *NextPathElement) GetNmp2IConn() *ConnectionDetails {
 // This is +X, find the -X on the other side
 func (npe *NextPathElement) fillPlusX(trCtx *TrioIndexContext, mainPoint Point) {
 	npe.nextMainPoint = mainPoint.Add(XFirst)
-	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint)
+	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint, npe.offset)
 	npe.nmp2ipConn = npe.nextMainTd.getMinusXConn()
 	npe.ipNearNm = npe.nextMainPoint.Add(npe.nmp2ipConn.Vector)
 	npe.valid = true
@@ -384,7 +386,7 @@ func (npe *NextPathElement) fillPlusX(trCtx *TrioIndexContext, mainPoint Point) 
 // This is -X, find the +X on the other side
 func (npe *NextPathElement) fillMinusX(trCtx *TrioIndexContext, mainPoint Point) {
 	npe.nextMainPoint = mainPoint.Add(XFirst.Neg())
-	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint)
+	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint, npe.offset)
 	npe.nmp2ipConn = npe.nextMainTd.getPlusXConn()
 	npe.ipNearNm = npe.nextMainPoint.Add(npe.nmp2ipConn.Vector)
 	npe.valid = true
@@ -393,7 +395,7 @@ func (npe *NextPathElement) fillMinusX(trCtx *TrioIndexContext, mainPoint Point)
 // This is +Y, find the -Y on the other side
 func (npe *NextPathElement) fillPlusY(trCtx *TrioIndexContext, mainPoint Point) {
 	npe.nextMainPoint = mainPoint.Add(YFirst)
-	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint)
+	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint, npe.offset)
 	npe.nmp2ipConn = npe.nextMainTd.getMinusYConn()
 	npe.ipNearNm = npe.nextMainPoint.Add(npe.nmp2ipConn.Vector)
 	npe.valid = true
@@ -402,7 +404,7 @@ func (npe *NextPathElement) fillPlusY(trCtx *TrioIndexContext, mainPoint Point) 
 // This is -Y, find the +Y on the other side
 func (npe *NextPathElement) fillMinusY(trCtx *TrioIndexContext, mainPoint Point) {
 	npe.nextMainPoint = mainPoint.Add(YFirst.Neg())
-	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint)
+	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint, npe.offset)
 	npe.nmp2ipConn = npe.nextMainTd.getPlusYConn()
 	npe.ipNearNm = npe.nextMainPoint.Add(npe.nmp2ipConn.Vector)
 	npe.valid = true
@@ -411,7 +413,7 @@ func (npe *NextPathElement) fillMinusY(trCtx *TrioIndexContext, mainPoint Point)
 // This is +Z, find the -Z on the other side
 func (npe *NextPathElement) fillPlusZ(trCtx *TrioIndexContext, mainPoint Point) {
 	npe.nextMainPoint = mainPoint.Add(ZFirst)
-	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint)
+	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint, npe.offset)
 	npe.nmp2ipConn = npe.nextMainTd.getMinusZConn()
 	npe.ipNearNm = npe.nextMainPoint.Add(npe.nmp2ipConn.Vector)
 	npe.valid = true
@@ -420,7 +422,7 @@ func (npe *NextPathElement) fillPlusZ(trCtx *TrioIndexContext, mainPoint Point) 
 // This is -Z, find the +Z on the other side
 func (npe *NextPathElement) fillMinusZ(trCtx *TrioIndexContext, mainPoint Point) {
 	npe.nextMainPoint = mainPoint.Add(ZFirst.Neg())
-	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint)
+	npe.nextMainTd = trCtx.GetBaseTrioDetails(npe.nextMainPoint, npe.offset)
 	npe.nmp2ipConn = npe.nextMainTd.getPlusZConn()
 	npe.ipNearNm = npe.nextMainPoint.Add(npe.nmp2ipConn.Vector)
 	npe.valid = true
@@ -459,7 +461,7 @@ func (npe *NextPathElement) FindBestTrioOnInterPoint(trCtx *TrioIndexContext, or
 // Find the trio index that apply to the ipNearNm
 func (npe *NextPathElement) GetBackTrioOnInterPoint(trCtx *TrioIndexContext) (*TrioDetails, [2]*NextPathElement) {
 	// Use the GetForwardTrioFromMain() method on the next main point
-	checkIP, resultTD, backNpel := trCtx.GetForwardTrioFromMain(npe.nextMainPoint, npe.nextMainTd, npe.nmp2ipConn.GetId())
+	checkIP, resultTD, backNpel := trCtx.GetForwardTrioFromMain(npe.nextMainPoint, npe.nextMainTd, npe.nmp2ipConn.GetId(), npe.offset)
 	if checkIP != npe.ipNearNm {
 		Log.Errorf("Did not find same point %v != %v in brute force for %s on npe=%v", checkIP, npe.ipNearNm, trCtx.String(), *npe)
 		return nil, [2]*NextPathElement{nil,nil}

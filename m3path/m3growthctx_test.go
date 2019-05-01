@@ -10,31 +10,33 @@ import (
 
 const (
 	SPLIT          = 4
-	BENCH_NB_ROUND = 100
+	BENCH_NB_ROUND = 90
 	TEST_NB_ROUND  = 25
 )
 
-func BenchmarkCtx1(b *testing.B) {
+/*
+func BenchmarkGrowthCtx1(b *testing.B) {
 	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 1)
 }
 
-func BenchmarkCtx2(b *testing.B) {
+func BenchmarkGrowthCtx2(b *testing.B) {
 	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 2)
 }
+*/
 
-func BenchmarkCtx3(b *testing.B) {
+func BenchmarkGrowthCtx3(b *testing.B) {
 	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 3)
 }
 
-func BenchmarkCtx4(b *testing.B) {
+func BenchmarkGrowthCtx4(b *testing.B) {
 	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 4)
 }
 
-func BenchmarkCtx8(b *testing.B) {
+func BenchmarkGrowthCtx8(b *testing.B) {
 	Log.SetWarn()
 	runForCtxType(b.N, BENCH_NB_ROUND, 8)
 }
@@ -92,7 +94,7 @@ func BenchmarkAllGrowth(b *testing.B) {
 }
 
 func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
-	usedPoints := make(map[m3point.Point]bool, 10*nbRound*nbRound)
+	usedPoints := make(map[m3point.Point]bool, 5*nbRound*nbRound)
 	totalUsedPoints := 1
 	latestPoints := make([]m3point.Point, 1)
 	latestPoints[0] = m3point.Origin

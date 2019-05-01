@@ -11,6 +11,7 @@ var Log = m3util.NewLogger("m3path", m3util.INFO)
 
 type PathContext struct {
 	ctx               *m3point.TrioIndexContext
+	offset            int
 	rootTrioId        m3point.TrioIndex
 	rootPathLinks     [3]*PathLink
 	openEndPaths      []OpenEndPath
@@ -84,16 +85,17 @@ var NilOpenEndPath = OpenEndPath{NilOpenPath, nil, nil,}
 // PathContext Functions
 /***************************************************************/
 
-func MakePathContext(ctxType m3point.ContextType, pIdx int) *PathContext {
+func MakePathContext(ctxType m3point.ContextType, pIdx int, offset int) *PathContext {
 	pathCtx := PathContext{}
 	pathCtx.ctx = m3point.GetTrioIndexContext(ctxType, pIdx)
+	pathCtx.offset = offset
 	pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode)
 
 	return &pathCtx
 }
 
 func (pathCtx *PathContext) initRootLinks() {
-	trIdx := pathCtx.ctx.GetBaseTrioIndex(0, 0)
+	trIdx := pathCtx.ctx.GetBaseTrioIndex(0, pathCtx.offset)
 	pathCtx.rootTrioId = trIdx
 
 	td := m3point.GetTrioDetails(trIdx)
@@ -163,7 +165,7 @@ func (pn *PathNode) addMainOpenEndPath(npel *m3point.NextPathElement) OpenEndPat
 func (pl *PathLink) addAllPaths(mainPoint m3point.Point, td *m3point.TrioDetails) []OpenEndPath {
 	res := make([]OpenEndPath, 0, 4)
 	trCtx := pl.pathCtx.ctx
-	p, nextTrio, nextPathEls := trCtx.GetForwardTrioFromMain(mainPoint, td, pl.connId)
+	p, nextTrio, nextPathEls := trCtx.GetForwardTrioFromMain(mainPoint, td, pl.connId, pl.pathCtx.offset)
 	pn := pl.setDestTrioIdx(p, nextTrio.GetId())
 	if pn == nil {
 		// nothing left
@@ -258,6 +260,10 @@ func (pathCtx *PathContext) moveToNextMainPoints() {
 		}
 	}
 	pathCtx.openEndPaths = newOpenPaths
+}
+
+func (pathCtx *PathContext) String() string {
+	return fmt.Sprintf("Path-%s-%d", pathCtx.ctx.String(), pathCtx.offset)
 }
 
 func (pathCtx *PathContext) dumpInfo() string {

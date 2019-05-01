@@ -116,3 +116,12 @@ BenchmarkPack12-8   	       1	3278300528 ns/op
 BenchmarkPack20-8   	       1	19157530335 ns/op
 PASS
 ok  	github.com/freddy33/qsm-go/m3space	25.806s
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3space
+BenchmarkPack1-8    	       3	 598812036 ns/op
+BenchmarkPack2-8    	       2	 564099168 ns/op
+BenchmarkPack12-8   	       1	9368158596 ns/op
+BenchmarkPack20-8   	       1	50442341345 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3space	65.226s
