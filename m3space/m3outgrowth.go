@@ -2,7 +2,6 @@ package m3space
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"sync"
 )
@@ -38,7 +37,6 @@ type EventOutgrowth struct {
 	fromConnections []m3point.ConnectionId
 	distance        Distance
 	state           EventOutgrowthState
-	rootPath        m3path.PathElement
 }
 
 var eventOutgrowthPool = sync.Pool{
@@ -51,7 +49,6 @@ type SavedEventOutgrowth struct {
 	pos             m3point.Point
 	fromConnections []m3point.ConnectionId
 	distance        Distance
-	rootPath        m3path.PathElement
 }
 
 type Outgrowth interface {
@@ -134,7 +131,6 @@ func MakeActiveOutgrowth(pos m3point.Point, d Distance, state EventOutgrowthStat
 	r.pos = pos
 	r.fromConnections = r.fromConnections[:0]
 	r.distance = d
-	r.rootPath = nil
 	r.state = state
 	return r
 }

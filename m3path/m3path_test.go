@@ -31,7 +31,7 @@ func TestAllPathContextFilling(t *testing.T) {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			pathCtx := MakePathContext(ctxType, pIdx)
-			fillPathContext(t, pathCtx, 5)
+			fillPathContext(t, pathCtx, 15)
 		}
 	}
 }

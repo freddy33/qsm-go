@@ -29,7 +29,6 @@ func TestActiveEventOutgrowth(t *testing.T) {
 	assert.Equal(t, false, o.CameFromPoint(m3point.Origin))
 
 	o.AddFrom(m3point.Point{2, 2, 3})
-	aeo.rootPath = nil
 
 	assert.Equal(t, m3point.Point{1, 2, 3}, o.GetPoint())
 	assert.Equal(t, Distance(0), o.GetDistance())
@@ -47,7 +46,7 @@ func TestActiveEventOutgrowth(t *testing.T) {
 func TestSavedEventOutgrowth(t *testing.T) {
 	Log.SetTrace()
 	var o Outgrowth
-	o = &SavedEventOutgrowth{m3point.Point{1, 2, 3}, nil, Distance(0), m3path.TheEnd}
+	o = &SavedEventOutgrowth{m3point.Point{1, 2, 3}, nil, Distance(0)}
 
 	assert.Equal(t, m3point.Point{1, 2, 3}, o.GetPoint())
 	assert.Equal(t, Distance(0), o.GetDistance())
