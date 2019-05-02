@@ -8,39 +8,6 @@ import (
 	"testing"
 )
 
-const (
-	SPLIT          = 4
-	BENCH_NB_ROUND = 90
-	TEST_NB_ROUND  = 25
-)
-
-/*
-func BenchmarkGrowthCtx1(b *testing.B) {
-	Log.SetWarn()
-	runForCtxType(b.N, BENCH_NB_ROUND, 1)
-}
-
-func BenchmarkGrowthCtx2(b *testing.B) {
-	Log.SetWarn()
-	runForCtxType(b.N, BENCH_NB_ROUND, 2)
-}
-*/
-
-func BenchmarkGrowthCtx3(b *testing.B) {
-	Log.SetWarn()
-	runForCtxType(b.N, BENCH_NB_ROUND, 3)
-}
-
-func BenchmarkGrowthCtx4(b *testing.B) {
-	Log.SetWarn()
-	runForCtxType(b.N, BENCH_NB_ROUND, 4)
-}
-
-func BenchmarkGrowthCtx8(b *testing.B) {
-	Log.SetWarn()
-	runForCtxType(b.N, BENCH_NB_ROUND, 8)
-}
-
 func TestCtx2(t *testing.T) {
 	Log.SetInfo()
 	runForCtxType(1, TEST_NB_ROUND, 2)
@@ -71,26 +38,25 @@ func runForCtxType(N, nbRound int, pType m3point.ContextType) {
 	}
 }
 
-func BenchmarkAllGrowth(b *testing.B) {
-	Log.SetWarn()
+func TestAllGrowth(t *testing.T) {
+	Log.SetInfo()
+	Log.SetAssert(true)
 	nbRound := 50
 	allCtx := getAllTestContexts()
-	for r := 0; r < b.N; r++ {
-		maxUsed := 0
-		maxLatest := 0
-		for _, pType := range m3point.GetAllContextTypes() {
-			for _, ctx := range allCtx[pType] {
-				nU, nL := runNextPoints(&ctx, nbRound)
-				if nU > maxUsed {
-					maxUsed = nU
-				}
-				if nL > maxLatest {
-					maxLatest = nL
-				}
+	maxUsed := 0
+	maxLatest := 0
+	for _, pType := range m3point.GetAllContextTypes() {
+		for _, ctx := range allCtx[pType] {
+			nU, nL := runNextPoints(&ctx, nbRound)
+			if nU > maxUsed {
+				maxUsed = nU
+			}
+			if nL > maxLatest {
+				maxLatest = nL
 			}
 		}
-		Log.Infof("Max size for all context %d, %d with %d runs", maxUsed, maxLatest, nbRound)
 	}
+	Log.Infof("Max size for all context %d, %d with %d runs", maxUsed, maxLatest, nbRound)
 }
 
 func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
@@ -469,4 +435,3 @@ func EqualIntSlice(a, b []int) bool {
 	}
 	return true
 }
-

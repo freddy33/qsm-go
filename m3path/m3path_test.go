@@ -6,69 +6,21 @@ import (
 	"testing"
 )
 
-func BenchmarkPathCtx3(b *testing.B) {
-	runForPathCtxType(b.N, BENCH_NB_ROUND, 3)
-}
-
-func BenchmarkPathCtx4(b *testing.B) {
-	runForPathCtxType(b.N, BENCH_NB_ROUND, 4)
-}
-
-func BenchmarkPathCtx8(b *testing.B) {
-	runForPathCtxType(b.N, BENCH_NB_ROUND, 8)
-}
-
 func TestFirstPathContextFilling(t *testing.T) {
-	Log.SetTrace()
+	Log.SetInfo()
 	Log.SetAssert(true)
-	m3point.Log.SetTrace()
-	m3point.Log.SetAssert(true)
-	for _, ctxType := range m3point.GetAllContextTypes() {
-		nbIndexes := ctxType.GetNbIndexes()
-		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			pathCtx := MakePathContext(ctxType, pIdx, 0)
-			fillPathContext(t, pathCtx, 2)
-			break
-		}
-	}
-}
-
-func TestAllPathContextFilling(t *testing.T) {
-	Log.SetWarn()
-	Log.SetAssert(true)
-	m3point.Log.SetWarn()
-	m3point.Log.SetAssert(true)
-	for _, ctxType := range m3point.GetAllContextTypes() {
-		nbIndexes := ctxType.GetNbIndexes()
-		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			pathCtx := MakePathContext(ctxType, pIdx, 0)
-			fillPathContext(t, pathCtx, 8*2)
-			Log.Warnf("Run for %s got %d points %d last open end path", pathCtx.String(), len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndPaths))
-		}
-	}
-}
-
-func runForPathCtxType(N, until int, pType m3point.ContextType) {
-	Log.SetWarn()
-	Log.SetAssert(true)
-	m3point.Log.SetWarn()
+	m3point.Log.SetInfo()
 	m3point.Log.SetAssert(true)
 
 	allCtx := getAllTestContexts()
-	for r := 0; r < N; r++ {
-		for _, ctx := range allCtx[pType] {
-			pathCtx := MakePathContext(ctx.GetType(), ctx.GetIndex(), ctx.offset)
-			pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode, 5*until*until)
-			runPathContext(pathCtx, until/3)
+	for _, ctxType := range m3point.GetAllContextTypes() {
+		for _, ctx := range allCtx[ctxType] {
+			pathCtx := MakePathContext(ctxType, ctx.GetIndex(), ctx.offset)
+			fillPathContext(t, pathCtx, 3)
 			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndPaths))
+			Log.Debug( pathCtx.dumpInfo())
+			break
 		}
-	}
-}
-
-func runPathContext(pathCtx *PathContext, until int) {
-	pathCtx.initRootLinks()
-	for d := 0; d < until; d++ {
-		pathCtx.moveToNextMainPoints()
 	}
 }
 

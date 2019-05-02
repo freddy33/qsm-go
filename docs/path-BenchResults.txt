@@ -23,3 +23,16 @@ BenchmarkPathCtx4-8     	       1	27343301374 ns/op
 BenchmarkPathCtx8-8     	       1	54375916611 ns/op
 PASS
 ok  	github.com/freddy33/qsm-go/m3path	455.880s
+signal: interrupt
+FAIL	github.com/freddy33/qsm-go/m3path	87.672s
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3path
+BenchmarkGrowthCtx3-8   	       1	75125629413 ns/op
+BenchmarkGrowthCtx4-8   	       1	118871052958 ns/op
+BenchmarkGrowthCtx8-8   	       1	249490485598 ns/op
+BenchmarkPathCtx3-8     	       1	28487780917 ns/op
+BenchmarkPathCtx4-8     	       1	36770867780 ns/op
+BenchmarkPathCtx8-8     	       1	90926296932 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3path	599.845s
