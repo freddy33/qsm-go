@@ -4,156 +4,12 @@ import (
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/stretchr/testify/assert"
 	"sort"
-	"sync"
 	"testing"
 )
 
-func TestCtx2(t *testing.T) {
-	Log.SetInfo()
-	runForCtxType(1, TEST_NB_ROUND, 2)
-}
-
-func TestCtxPerType(t *testing.T) {
-	Log.SetInfo()
-	for _, pType := range m3point.GetAllContextTypes() {
-		runForCtxType(1, TEST_NB_ROUND, pType)
-	}
-}
-
-func runForCtxType(N, nbRound int, pType m3point.ContextType) {
-	allCtx := getAllTestContexts()
-	for r := 0; r < N; r++ {
-		maxUsed := 0
-		maxLatest := 0
-		for _, ctx := range allCtx[pType] {
-			nU, nL := runNextPoints(&ctx, nbRound)
-			if nU > maxUsed {
-				maxUsed = nU
-			}
-			if nL > maxLatest {
-				maxLatest = nL
-			}
-		}
-		Log.Debugf("Max size for all context of type %d: %d, %d with %d runs", pType, maxUsed, maxLatest, nbRound)
-	}
-}
-
-func TestAllGrowth(t *testing.T) {
-	Log.SetInfo()
-	Log.SetAssert(true)
-	nbRound := 50
-	allCtx := getAllTestContexts()
-	maxUsed := 0
-	maxLatest := 0
-	for _, pType := range m3point.GetAllContextTypes() {
-		for _, ctx := range allCtx[pType] {
-			nU, nL := runNextPoints(&ctx, nbRound)
-			if nU > maxUsed {
-				maxUsed = nU
-			}
-			if nL > maxLatest {
-				maxLatest = nL
-			}
-		}
-	}
-	Log.Infof("Max size for all context %d, %d with %d runs", maxUsed, maxLatest, nbRound)
-}
-
-func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
-	usedPoints := make(map[m3point.Point]bool, 5*nbRound*nbRound)
-	totalUsedPoints := 1
-	latestPoints := make([]m3point.Point, 1)
-	latestPoints[0] = m3point.Origin
-	usedPoints[m3point.Origin] = true
-	for d := 0; d < nbRound; d++ {
-		nbLatestPoints := len(latestPoints)
-		// Send all orig new points
-		origNewPoints := make(chan m3point.Point, 4*SPLIT)
-		wg := sync.WaitGroup{}
-		if nbLatestPoints < 4*SPLIT {
-			// too small for split send all
-			wg.Add(1)
-			go nextPointsSplit(&latestPoints, 0, nbLatestPoints, ctx, origNewPoints, &wg)
-		} else {
-			sizePerSplit := int(nbLatestPoints / SPLIT)
-			for currentPos := 0; currentPos < nbLatestPoints; currentPos += sizePerSplit {
-				wg.Add(1)
-				go nextPointsSplit(&latestPoints, currentPos, sizePerSplit, ctx, origNewPoints, &wg)
-			}
-		}
-		go func(step int) {
-			wg.Wait()
-			close(origNewPoints)
-		}(d)
-
-		finalPoints := make([]m3point.Point, 0, int(1.7*float32(nbLatestPoints)))
-		for p := range origNewPoints {
-			_, ok := usedPoints[p]
-			if !ok {
-				finalPoints = append(finalPoints, p)
-				usedPoints[p] = true
-			}
-		}
-
-		totalUsedPoints += len(finalPoints)
-		latestPoints = finalPoints
-	}
-	return totalUsedPoints, len(latestPoints)
-}
-
-func runNextPointsAsync(ctx *GrowthContext, nbRound int) (int, int) {
-	//usedPoints := make(map[m3point.Point]bool, 10*nbRound*nbRound)
-	usedPoints := new(sync.Map)
-	totalUsedPoints := 1
-	latestPoints := make([]m3point.Point, 1)
-	latestPoints[0] = m3point.Origin
-	usedPoints.Store(m3point.Origin, true)
-	o := make(chan m3point.Point, 100)
-	for d := 0; d < nbRound; d++ {
-		finalPoints := make([]m3point.Point, 0, int(1.2*float32(len(latestPoints))))
-		for _, p := range latestPoints {
-			go asyncNextPoints(p, ctx, o, nil)
-		}
-		// I'll always get 3 tines the amount of latest points
-		newPoints := 3 * len(latestPoints)
-		for i := 0; i < newPoints; i++ {
-			p, ok := <-o
-			if !ok {
-				break
-			} else {
-				_, ok := usedPoints.LoadOrStore(p, true)
-				if !ok {
-					finalPoints = append(finalPoints, p)
-				}
-			}
-		}
-		latestPoints = finalPoints
-		totalUsedPoints += len(latestPoints)
-	}
-	return totalUsedPoints, len(latestPoints)
-}
-
-func nextPointsSplit(lps *[]m3point.Point, currentPos, nb int, ctx *GrowthContext, o chan m3point.Point, wg *sync.WaitGroup) {
-	c := 0
-	for i := currentPos; i < len(*lps); i++ {
-		p := (*lps)[i]
-		for _, np := range ctx.GetNextPoints(p) {
-			o <- np
-		}
-		c++
-		if c == nb {
-			break
-		}
-	}
-	wg.Done()
-}
-
-func asyncNextPoints(p m3point.Point, ctx *GrowthContext, o chan m3point.Point, wg *sync.WaitGroup) {
-	for _, np := range ctx.GetNextPoints(p) {
-		o <- np
-	}
-	wg.Done()
-}
+const (
+	TestNbRound = 8*3+1
+)
 
 var allTestContexts map[m3point.ContextType][]GrowthContext
 
@@ -179,6 +35,79 @@ func getAllTestContexts() map[m3point.ContextType][]GrowthContext {
 
 	allTestContexts = res
 	return res
+}
+
+func TestCtx2(t *testing.T) {
+	Log.SetInfo()
+	runForCtxType(1, TestNbRound, 2)
+}
+
+func TestCtxPerType(t *testing.T) {
+	Log.SetInfo()
+	for _, pType := range m3point.GetAllContextTypes() {
+		runForCtxType(1, TestNbRound, pType)
+	}
+}
+
+func TestAllGrowth(t *testing.T) {
+	Log.SetInfo()
+	Log.SetAssert(true)
+	nbRound := TestNbRound
+	allCtx := getAllTestContexts()
+	maxUsed := 0
+	maxLatest := 0
+	for _, pType := range m3point.GetAllContextTypes() {
+		for _, ctx := range allCtx[pType] {
+			nU, nL := runNextPoints(&ctx, nbRound)
+			if nU > maxUsed {
+				maxUsed = nU
+			}
+			if nL > maxLatest {
+				maxLatest = nL
+			}
+		}
+	}
+	Log.Infof("Max size for all context %d, %d with %d runs", maxUsed, maxLatest, nbRound)
+}
+
+func runForCtxType(N, nbRound int, pType m3point.ContextType) {
+	allCtx := getAllTestContexts()
+	for r := 0; r < N; r++ {
+		maxUsed := 0
+		maxLatest := 0
+		for _, ctx := range allCtx[pType] {
+			nU, nL := runNextPoints(&ctx, nbRound)
+			if nU > maxUsed {
+				maxUsed = nU
+			}
+			if nL > maxLatest {
+				maxLatest = nL
+			}
+		}
+		Log.Debugf("Max size for all context of type %d: %d, %d with %d runs", pType, maxUsed, maxLatest, nbRound)
+	}
+}
+
+func runNextPoints(ctx *GrowthContext, nbRound int) (int, int) {
+	usedPoints := make(map[m3point.Point]bool, 5*nbRound*nbRound)
+	latestPoints := make([]m3point.Point, 1)
+	latestPoints[0] = m3point.Origin
+	usedPoints[m3point.Origin] = true
+	for d := 0; d < nbRound; d++ {
+		nbLatestPoints := len(latestPoints)
+		finalPoints := make([]m3point.Point, 0, int(1.7*float32(nbLatestPoints)))
+		for _, lp := range latestPoints {
+			for _, np := range ctx.GetNextPoints(lp) {
+				_, ok := usedPoints[np]
+				if !ok {
+					finalPoints = append(finalPoints, np)
+					usedPoints[np] = true
+				}
+			}
+		}
+		latestPoints = finalPoints
+	}
+	return len(usedPoints), len(latestPoints)
 }
 
 func TestDivByThree(t *testing.T) {

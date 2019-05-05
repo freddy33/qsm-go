@@ -12,6 +12,9 @@ if [[ -z "$pack" ]]; then
     usage
 fi
 
+dt=$(date '+%Y%m%d_%H%M%S');
+echo "$dt"
+
 runAndSave() {
     local packageName="$1"
     go test -parallel 4 -cpuprofile perf-data/cpu-${packageName}.prof -memprofile perf-data/mem-${packageName}.prof -run='^$' -bench=. ./m3${packageName}/ >> ./docs/${packageName}-BenchResults.txt
@@ -21,7 +24,7 @@ runAndSave() {
 
 runSimple() {
     local packageName="$1"
-    go test -parallel 4 -run='^$' -bench=. ./m3${packageName}/ >> ./docs/${packageName}-BenchResults.txt
+    go test -parallel 4 -run='^$' -bench=. ./m3${packageName}/ >> ./docs/generated/${packageName}-Bench-$dt.log
 }
 
 if [ "$pack" == "path" ] || [ "$pack" == "space" ]; then

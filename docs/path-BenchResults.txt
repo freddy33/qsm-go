@@ -36,3 +36,20 @@ BenchmarkPathCtx4-8     	       1	36770867780 ns/op
 BenchmarkPathCtx8-8     	       1	90926296932 ns/op
 PASS
 ok  	github.com/freddy33/qsm-go/m3path	599.845s
+goos: darwin
+goarch: amd64
+pkg: github.com/freddy33/qsm-go/m3path
+BenchmarkPathCtx3-8            	       2	 902503014 ns/op
+BenchmarkPathCtx4-8            	       1	1294841928 ns/op
+BenchmarkPathCtx8-8            	       1	2887155983 ns/op
+BenchmarkGrowthCtx3Split4-8    	       1	2904516035 ns/op
+BenchmarkGrowthCtx4Split4-8    	       1	4737668077 ns/op
+BenchmarkGrowthCtx8Split4-8    	       1	10687648846 ns/op
+BenchmarkGrowthCtx3Split8-8    	       1	4677207506 ns/op
+BenchmarkGrowthCtx4Split8-8    	       1	6874056831 ns/op
+BenchmarkGrowthCtx8Split8-8    	       1	13876046535 ns/op
+BenchmarkGrowthCtx3Split12-8   	       1	4935181547 ns/op
+BenchmarkGrowthCtx4Split12-8   	       1	7150342530 ns/op
+BenchmarkGrowthCtx8Split12-8   	       1	15034158426 ns/op
+PASS
+ok  	github.com/freddy33/qsm-go/m3path	77.822s
