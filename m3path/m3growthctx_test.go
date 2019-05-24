@@ -21,7 +21,7 @@ func getAllTestContexts() map[m3point.ContextType][]GrowthContext {
 
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
-		maxOffset := maxOffsetPerType[ctxType]
+		maxOffset := m3point.MaxOffsetPerType[ctxType]
 		res[ctxType] = make([]GrowthContext, nbIndexes*maxOffset)
 		idx := 0
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {

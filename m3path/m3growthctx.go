@@ -17,16 +17,8 @@ func CreateGrowthContext(center m3point.Point, permType m3point.ContextType, ind
 	return &GrowthContext{*m3point.GetTrioIndexContext(permType, index), center, offset}
 }
 
-var maxOffsetPerType = map[m3point.ContextType]int{
-	m3point.ContextType(1): 1,
-	m3point.ContextType(3): 4,
-	m3point.ContextType(2): 2,
-	m3point.ContextType(4): 4,
-	m3point.ContextType(8): 8,
-}
-
 func CreateFromRoot(trioIndexCtx *m3point.TrioIndexContext, center m3point.Point, offset int) *GrowthContext {
-	if offset < 0 || offset >= maxOffsetPerType[trioIndexCtx.GetType()] {
+	if offset < 0 || offset >= m3point.MaxOffsetPerType[trioIndexCtx.GetType()] {
 		Log.Error("Offset value %d invalid for context type", offset, trioIndexCtx.GetType())
 		return nil
 	}
