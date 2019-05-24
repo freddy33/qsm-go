@@ -329,7 +329,7 @@ func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetai
 		}
 	}
 	if td == nil {
-		Log.Errorf("did not find any trio details matching %s %s %s", -cd.Id, npes[0].p2iConn.Id, npes[1].p2iConn.Id)
+		Log.Errorf("did not find any trio details matching %s %s %s in %s offset %d", -cd.Id, npes[0].p2iConn.Id, npes[1].p2iConn.Id, trCtx.String(), offset)
 	}
 
 	return
