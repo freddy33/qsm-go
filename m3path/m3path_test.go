@@ -16,7 +16,7 @@ func TestFirstPathContextFilling(t *testing.T) {
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {
 			pathCtx := MakePathContext(ctxType, ctx.GetIndex(), ctx.offset)
-			fillPathContext(t, pathCtx, 3)
+			fillPathContext(t, pathCtx, 1)
 			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndPaths))
 			Log.Debug( pathCtx.dumpInfo())
 			break

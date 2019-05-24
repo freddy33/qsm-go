@@ -3,6 +3,7 @@ package m3path
 import (
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,61 @@ const (
 	BenchNbRound    = 51
 	MinSizePerSplit = 16
 )
+
+/***************************************************************/
+// Compare PathContext to Growth Context
+/***************************************************************/
+
+func TestComparePathToGrowth(t *testing.T) {
+	contextType := m3point.ContextType(4)
+	contextIndex := 0
+	contextOffset := 0
+
+	// Create the 2 kind of context identical
+	trioCtx := m3point.GetTrioIndexContext(contextType, contextIndex)
+	growthCtx := CreateFromRoot(trioCtx, m3point.Origin, contextOffset)
+	pathCtx := MakePathContextFromTrioContext(trioCtx, contextOffset)
+
+	// Initialize the big map
+	nbRound := 3
+	pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode, 5*nbRound*nbRound)
+	usedPoints := make(map[m3point.Point]int, 5*nbRound*nbRound)
+
+	// Initialize the first entries
+	latestPoints := make([]m3point.Point, 1)
+	latestPoints[0] = m3point.Origin
+	usedPoints[m3point.Origin] = 0
+
+	pathCtx.initRootLinks()
+
+	for d := 1; d < nbRound; d++ {
+		for p, pp := range pathCtx.pathNodesPerPoint {
+			opd, ok := usedPoints[p]
+			assert.True(t, ok, "did not find point %v at %d in used points %v", p, d, usedPoints)
+			assert.Equal(t, opd, pp.d, "dist of point %v not equal at %d", p, d)
+		}
+		if d % 3 == 0 {
+			pathCtx.moveToNextMainPoints()
+		}
+
+		nbLatestPoints := len(latestPoints)
+		finalPoints := make([]m3point.Point, 0, int(1.7*float32(nbLatestPoints)))
+		for _, lp := range latestPoints {
+			for _, np := range growthCtx.GetNextPoints(lp) {
+				existingD, ok := usedPoints[np]
+				if !ok {
+					finalPoints = append(finalPoints, np)
+					usedPoints[np] = d
+				} else {
+					if d - existingD > 2 {
+						Log.Infof("New point %v on existing one with not same dist %d != %d", np, existingD, d)
+					}
+				}
+			}
+		}
+		latestPoints = finalPoints
+	}
+}
 
 /***************************************************************/
 // PathContext Bench

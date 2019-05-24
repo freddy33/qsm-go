@@ -86,8 +86,12 @@ var NilOpenEndPath = OpenEndPath{NilOpenPath, nil, nil,}
 /***************************************************************/
 
 func MakePathContext(ctxType m3point.ContextType, pIdx int, offset int) *PathContext {
+	return MakePathContextFromTrioContext(m3point.GetTrioIndexContext(ctxType, pIdx), offset)
+}
+
+func MakePathContextFromTrioContext(trCtx *m3point.TrioIndexContext, offset int) *PathContext {
 	pathCtx := PathContext{}
-	pathCtx.ctx = m3point.GetTrioIndexContext(ctxType, pIdx)
+	pathCtx.ctx = trCtx
 	pathCtx.offset = offset
 	pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode)
 
@@ -129,10 +133,10 @@ func (pathCtx *PathContext) makeRootPathLink(idx int, connId m3point.ConnectionI
 
 func (pn *PathNode) addInterOpenEndPath(backNpe *m3point.NextPathElement) OpenEndPath {
 	nnpl := pn.addPathLink(backNpe.GetP2IConn().GetId())
-	if nnpl == nil {
+	if nnpl == nil || nnpl.dst != nil {
 		return NilOpenEndPath
 	}
-	npn := nnpl.setDestTrioIdx(backNpe.GetIntermediatePoint(), m3point.NilTrioIndex)
+	npn := nnpl.createDstNode(backNpe.GetIntermediatePoint(), m3point.NilTrioIndex)
 	if npn == nil {
 		return NilOpenEndPath
 	}
@@ -146,10 +150,10 @@ func (pn *PathNode) addInterOpenEndPath(backNpe *m3point.NextPathElement) OpenEn
 
 func (pn *PathNode) addMainOpenEndPath(npel *m3point.NextPathElement) OpenEndPath {
 	nnpl := pn.addPathLink(npel.GetNmp2IConn().GetNegId())
-	if nnpl == nil {
+	if nnpl == nil || nnpl.dst != nil {
 		return NilOpenEndPath
 	}
-	npn := nnpl.setDestTrioIdx(npel.GetNextMainPoint(), npel.GetNextMainTrioId())
+	npn := nnpl.createDstNode(npel.GetNextMainPoint(), npel.GetNextMainTrioId())
 	if npn == nil {
 		return NilOpenEndPath
 	}
@@ -166,31 +170,30 @@ func (pl *PathLink) addAllPaths(mainPoint m3point.Point, td *m3point.TrioDetails
 	res := make([]OpenEndPath, 0, 4)
 	trCtx := pl.pathCtx.ctx
 	p, nextTrio, nextPathEls := trCtx.GetForwardTrioFromMain(mainPoint, td, pl.connId, pl.pathCtx.offset)
-	pn := pl.setDestTrioIdx(p, nextTrio.GetId())
+	pn := pl.createDstNode(p, nextTrio.GetId())
 	if pn == nil {
 		// nothing left
 		return res
 	}
 	for j := 0; j < 2; j++ {
 		npel := nextPathEls[j]
-		ipTd, backPathEls := npel.GetBackTrioOnInterPoint(trCtx)
 		npl := pn.addPathLink(npel.GetP2IConn().GetId())
-		if npl == nil {
+		if npl == nil || npl.dst != nil {
 			break
 		}
-		npn := npl.setDestTrioIdx(npel.GetIntermediatePoint(), ipTd.GetId())
+		ipTd, backPathEls := npel.GetBackTrioOnInterPoint(trCtx)
+		npn := npl.createDstNode(npel.GetIntermediatePoint(), ipTd.GetId())
 		if npn != nil {
-			for k := 0; k < 2; k++ {
-				backNpe := backPathEls[k]
+			mop := npn.addMainOpenEndPath(npel)
+			if mop != NilOpenEndPath {
+				res = append(res, mop)
+			}
+			for _, backNpe := range backPathEls {
 				// One of the back path el should go back to main point => not interesting
 				if backNpe.GetNextMainPoint() != mainPoint {
-					oep := npn.addInterOpenEndPath(backNpe)
-					if oep != NilOpenEndPath {
-						res = append(res, oep)
-					}
-					oep = npn.addMainOpenEndPath(npel)
-					if oep != NilOpenEndPath {
-						res = append(res, oep)
+					iop := npn.addInterOpenEndPath(backNpe)
+					if iop != NilOpenEndPath {
+						res = append(res, iop)
 					}
 				}
 			}
@@ -203,8 +206,8 @@ func (pathCtx *PathContext) moveToNextMainPoints() {
 	var newOpenPaths []OpenEndPath
 	trCtx := pathCtx.ctx
 	for _, oep := range pathCtx.openEndPaths {
-		mpn := oep.pn
 		if oep.kind == RootOpenPath {
+			mpn := oep.pn
 			newOpenPaths = make([]OpenEndPath, 12)
 			idx := 0
 			mainPoint := mpn.p
@@ -230,6 +233,7 @@ func (pathCtx *PathContext) moveToNextMainPoints() {
 			if cap(newOpenPaths) == 0 {
 				newOpenPaths = make([]OpenEndPath, 0, 2*len(pathCtx.openEndPaths))
 			}
+			mpn := oep.pn
 			mainPoint := mpn.p
 			td := m3point.GetTrioDetails(mpn.trioId)
 			if Log.DoAssert() {
@@ -238,25 +242,59 @@ func (pathCtx *PathContext) moveToNextMainPoints() {
 					return
 				}
 			}
-			if oep.pn.otherFrom == nil {
+			if mpn.otherFrom == nil {
 				ocs := td.OtherConnectionsFrom(mpn.from.connId)
 				for _, oc := range ocs {
 					pl := mpn.addPathLink(oc.GetId())
-					oeps := pl.addAllPaths(mainPoint, td)
-					for _, oep := range oeps {
-						newOpenPaths = append(newOpenPaths, oep)
+					if pl != nil && pl.dst == nil {
+						oeps := pl.addAllPaths(mainPoint, td)
+						for _, oep := range oeps {
+							newOpenPaths = append(newOpenPaths, oep)
+						}
 					}
 				}
 			} else {
 				oc := td.LastOtherConnection(oep.pn.from.connId.GetNegId(), oep.pn.otherFrom.connId.GetNegId())
 				pl := mpn.addPathLink(oc.GetId())
-				oeps := pl.addAllPaths(mainPoint, td)
-				for _, oep := range oeps {
-					newOpenPaths = append(newOpenPaths, oep)
+				if pl != nil && pl.dst == nil {
+					oeps := pl.addAllPaths(mainPoint, td)
+					for _, oep := range oeps {
+						newOpenPaths = append(newOpenPaths, oep)
+					}
+				}
+			}
+		} else if oep.kind == InterPointOpenPath {
+			ipn := oep.pn
+			intPoint := ipn.p
+			if Log.DoAssert() {
+				if intPoint.IsMainPoint() {
+					Log.Errorf("The intermediate open path has a main point %v for %s", intPoint, trCtx.String())
+					return
+				}
+			}
+			ipTd, backPathEls := oep.npel.GetBackTrioOnInterPoint(trCtx)
+			if oep.pn.trioId == m3point.NilTrioIndex {
+				oep.pn.trioId = ipTd.GetId()
+			} else {
+				if oep.pn.trioId != ipTd.GetId() {
+					Log.Fatalf("Open end path inter %v has tid %s diff from %s using %v",
+						oep, oep.pn.trioId.String(), ipTd.String(), *oep.npel)
+				}
+			}
+			mop := ipn.addMainOpenEndPath(oep.npel)
+			if mop != NilOpenEndPath {
+				newOpenPaths = append(newOpenPaths, mop)
+			}
+			for _, backNpe := range backPathEls {
+				if backNpe.GetNextMainPoint() != oep.npel.GetNextMainPoint() {
+					iop := ipn.addInterOpenEndPath(backNpe)
+					if iop != NilOpenEndPath {
+						newOpenPaths = append(newOpenPaths, iop)
+					}
 				}
 			}
 		} else {
-
+			Log.Errorf("got a wrong kind of open path %v", oep)
 		}
 	}
 	pathCtx.openEndPaths = newOpenPaths
@@ -285,7 +323,7 @@ func (pathCtx *PathContext) dumpInfo() string {
 // PathLink Functions
 /***************************************************************/
 
-func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) *PathNode {
+func (pl *PathLink) createDstNode(p m3point.Point, tdId m3point.TrioIndex) *PathNode {
 	var dstDistance int
 	if pl.src != nil {
 		dstDistance = pl.src.d + 1
@@ -308,12 +346,23 @@ func (pl *PathLink) setDestTrioIdx(p m3point.Point, tdId m3point.TrioIndex) *Pat
 			Log.Fatalf("setting a new node at %v to path link %v on existing one %v with not same trio id %d",
 				p, *pl, *existingPn, tdId)
 		}
-		if existingPn.d == dstDistance {
+		distDiff := existingPn.d - dstDistance
+		if distDiff == 0 {
 			// Merging path
 			existingPn.otherFrom = pl
+		} else if distDiff == 2 {
+			// Taking over since this is a shorter path
+			Log.Infof("Resetting path link %s setting a new node at %v on existing one %s since existing dist %d longer than %d",
+				pl.String(), p, existingPn.String(), existingPn.d, dstDistance)
+			return nil
+		} else if distDiff == -2 {
+			// Ignoring longer path
+			Log.Infof("Ignoring setting a new node at %v to path link %s on existing one %s since existing dist %d shorter than %d",
+				p, pl.String(), existingPn.String(), existingPn.d, dstDistance)
+			return nil
 		} else {
-			Log.Infof("setting a new node at %v to path link %v on existing one %v with not same dist %d != %d",
-				p, *pl, *existingPn, existingPn.d, dstDistance)
+			Log.Fatalf("setting a new node at %v to path link %s on existing one %s fatal since dist %d completely out of range of %d",
+				p, pl.String(), existingPn.String(), existingPn.d, dstDistance)
 			return nil
 		}
 		return existingPn
@@ -354,6 +403,12 @@ func (pl *PathLink) dumpInfo(ident int) string {
 /***************************************************************/
 
 func (pn *PathNode) addPathLink(connId m3point.ConnectionId) *PathLink {
+	if pn.from.connId == connId.GetNegId() {
+		if Log.IsTrace() {
+			Log.Tracef("creating a path link for conn %s on node %s having from already matching", connId.String(), pn.String())
+		}
+		return pn.from
+	}
 	if Log.DoAssert() {
 		if pn.trioId == m3point.NilTrioIndex {
 			Log.Errorf("creating a path link with source node %s pointing to non existent trio index", pn.String())
@@ -379,7 +434,7 @@ func (pn *PathNode) addPathLink(connId m3point.ConnectionId) *PathLink {
 				return npl
 			}
 		}
-		Log.Errorf("creating a path link for conn %s on node %s having no next left %s, %s", connId.String(), pn.String(), pn.next[0].String(), pn.next[1].String())
+		Log.Fatalf("creating a path link for conn %s on node %s having no next left %s, %s", connId.String(), pn.String(), pn.next[0].String(), pn.next[1].String())
 		return nil
 	}
 
@@ -397,7 +452,7 @@ func (pn *PathNode) addPathLink(connId m3point.ConnectionId) *PathLink {
 }
 
 func (pn *PathNode) String() string {
-	return fmt.Sprintf("PN%v-%3d-%s", pn.p, pn.d, pn.trioId.String())
+	return fmt.Sprintf("PN%v-%s-%s:%04d", pn.p, pn.trioId, pn.from, pn.d)
 }
 
 func (pn *PathNode) calcDist() int {
