@@ -15,13 +15,21 @@ func ChangeToDocsDataDir() {
 }
 
 func changeToDocsSubdir(subDir string) {
-	if _, err := os.Stat("docs"); !os.IsNotExist(err) {
-		ExitOnError(os.Chdir("docs"))
-		if _, err := os.Stat(subDir); os.IsNotExist(err) {
-			ExitOnError(os.Mkdir(subDir, os.ModePerm))
+	_, err := os.Stat("docs")
+	if os.IsNotExist(err) {
+		_, err = os.Stat("../docs")
+		if os.IsNotExist(err) {
+			log.Fatal(err)
 		}
-		ExitOnError(os.Chdir(subDir))
+		ExitOnError(os.Chdir("../docs"))
+	} else {
+		ExitOnError(os.Chdir("docs"))
 	}
+
+	if _, err := os.Stat(subDir); os.IsNotExist(err) {
+		ExitOnError(os.Mkdir(subDir, os.ModePerm))
+	}
+	ExitOnError(os.Chdir(subDir))
 }
 
 func ExitOnError(err error) {

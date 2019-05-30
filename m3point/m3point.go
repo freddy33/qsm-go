@@ -172,30 +172,6 @@ func (p Point) IsOnlyTwoOneAndZero() bool {
 	return true
 }
 
-func (p Point) IsBorder(max int64) bool {
-	for _, c := range p {
-		if c > 0 && c >= max-1 {
-			return true
-		}
-		if c < 0 && c <= -max+1 {
-			return true
-		}
-	}
-	return false
-}
-
-func (p Point) IsOutBorder(max int64) bool {
-	for _, c := range p {
-		if c > 0 && c > max {
-			return true
-		}
-		if c < 0 && c < -max {
-			return true
-		}
-	}
-	return false
-}
-
 func (p Point) GetNearMainPoint() Point {
 	res := Point{}
 	for i, c := range p {

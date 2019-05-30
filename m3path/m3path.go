@@ -181,7 +181,7 @@ func (pl *PathLink) addAllPaths(mainPoint m3point.Point, td *m3point.TrioDetails
 		if npl == nil || npl.dst != nil {
 			break
 		}
-		ipTd, backPathEls := npel.GetBackTrioOnInterPoint(trCtx)
+		ipTd, backPathEls := trCtx.GetBackTrioOnInterPoint(npel)
 		npn := npl.createDstNode(npel.GetIntermediatePoint(), ipTd.GetId())
 		if npn != nil {
 			mop := npn.addMainOpenEndPath(npel)
@@ -272,7 +272,7 @@ func (pathCtx *PathContext) moveToNextMainPoints() {
 					return
 				}
 			}
-			ipTd, backPathEls := oep.npel.GetBackTrioOnInterPoint(trCtx)
+			ipTd, backPathEls := trCtx.GetBackTrioOnInterPoint(oep.npel)
 			if oep.pn.trioId == m3point.NilTrioIndex {
 				oep.pn.trioId = ipTd.GetId()
 			} else {

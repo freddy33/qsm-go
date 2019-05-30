@@ -23,7 +23,7 @@ var world m3gl.DisplayWorld
 func DisplayPlay1() {
 	runtime.LockOSThread()
 	if err := glfw.Init(); err != nil {
-		panic(fmt.Errorf("could not initialize glfw: %v", err))
+		Log.Fatalf("could not initialize glfw: %v", err)
 	}
 	glfw.WindowHint(glfw.ContextVersionMajor, 4)
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
@@ -33,13 +33,13 @@ func DisplayPlay1() {
 
 	win, err := glfw.CreateWindow(windowWidth, windowHeight, "Hello world", nil, nil)
 	if err != nil {
-		panic(fmt.Errorf("could not create opengl renderer: %v", err))
+		Log.Fatalf("could not create opengl renderer: %v", err)
 	}
 	defer glfw.Terminate()
 	win.MakeContextCurrent()
 
 	if err := gl.Init(); err != nil {
-		panic(err)
+		Log.Fatal(err)
 	}
 
 	Log.Info("Renderer:", gl.GoStr(gl.GetString(gl.RENDERER)))
@@ -60,7 +60,7 @@ func DisplayPlay1() {
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)
 	if err != nil {
-		panic(err)
+		Log.Fatal(err)
 	}
 
 	win.SetKeyCallback(onKey)

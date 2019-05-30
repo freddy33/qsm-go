@@ -119,7 +119,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 		for j, npe := range npes {
 			lipnb := LastIntermediatePathNodeBuilder{}
 			lipnb.ctx = rpnb.ctx
-			ipTd, _ := npe.GetBackTrioOnInterPoint(trCtx)
+			ipTd, _ := trCtx.GetBackTrioOnInterPoint(npe)
 			lipnb.trIdx = ipTd.GetId()
 			lipnb.nextDiv = PosMod8(rpnb.ctx.div + 1)
 			lipnb.nextMainConnId = npe.nmp2ipConn.GetNegId()

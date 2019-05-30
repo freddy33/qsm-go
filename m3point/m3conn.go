@@ -198,10 +198,10 @@ func initConnectionDetails() ConnectionId {
 func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
 	ds := connVector.DistanceSquared()
 	if ds == 0 {
-		panic("zero vector cannot be a connection")
+		Log.Fatalf("zero vector cannot be a connection")
 	}
 	if !(ds == 1 || ds == 2 || ds == 3 || ds == 5) {
-		panic(fmt.Sprintf("vector %v of ds=%d cannot be a connection", connVector, ds))
+		Log.Fatalf("vector %v of ds=%d cannot be a connection", connVector, ds)
 	}
 	_, ok := (*connMap)[connVector]
 	if !ok {

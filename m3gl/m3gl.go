@@ -140,7 +140,7 @@ var CircleForSphere = make([]mgl64.Vec2, circlePartsSphere)
 func verifyData() {
 	// Verify we capture the equator
 	if nbMiddleCircles%2 == 0 {
-		panic(fmt.Errorf("something fishy with circle parts %d since %d should be odd", circlePartsSphere, nbMiddleCircles))
+		Log.Fatalf("something fishy with circle parts %d since %d should be odd", circlePartsSphere, nbMiddleCircles)
 	}
 	deltaAngle := 2.0 * math.Pi / circlePartsLine
 	angle := 0.0
