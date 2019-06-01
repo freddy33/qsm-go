@@ -208,11 +208,11 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	assert.False(t, td0.HasConnection(6))
 	assert.True(t, td0.HasConnection(-9))
 	assert.False(t, td0.HasConnection(9))
-	failedOc := td0.OtherConnectionsFrom(4)
+	failedOc := td0.OtherConnectionsFrom(-4)
 	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[0])
 	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[1])
 
-	oc := td0.OtherConnectionsFrom(-4)
+	oc := td0.OtherConnectionsFrom(4)
 	assert.Equal(t, *GetConnDetailsById(-6), *oc[0])
 	assert.Equal(t, *GetConnDetailsById(-9), *oc[1])
 
@@ -222,7 +222,7 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	assert.True(t, td92.HasConnection(12))
 	assert.True(t, td92.HasConnection(-12))
 
-	oc = td92.OtherConnectionsFrom(-4)
+	oc = td92.OtherConnectionsFrom(4)
 	assert.Equal(t, *GetConnDetailsById(12), *oc[0])
 	assert.Equal(t, *GetConnDetailsById(-12), *oc[1])
 }

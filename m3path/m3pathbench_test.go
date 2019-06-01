@@ -31,9 +31,8 @@ func TestComparePathToGrowth(t *testing.T) {
 	pathCtx := MakePathContextFromTrioContext(trioCtx, contextOffset)
 
 	// Initialize the big map
-	//nbRound := 8*3
-	nbRound := 3
-	pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode, 5*nbRound*nbRound)
+	nbRound := 8*3
+	pathCtx.pathNodesPerPoint = make(map[m3point.Point]PathNode, 5*nbRound*nbRound)
 	usedPoints := make(map[m3point.Point]int, 5*nbRound*nbRound)
 
 	// Initialize the first entries
@@ -41,17 +40,15 @@ func TestComparePathToGrowth(t *testing.T) {
 	latestPoints[0] = m3point.Origin
 	usedPoints[m3point.Origin] = 0
 
-	pathCtx.initRootLinks()
+	pathCtx.initRootNode(m3point.Origin)
 
 	for d := 1; d < nbRound; d++ {
 		for p, pp := range pathCtx.pathNodesPerPoint {
 			opd, ok := usedPoints[p]
 			assert.True(t, ok, "did not find point %v at %d in used points %v", p, d, usedPoints)
-			assert.Equal(t, opd, pp.d, "dist of point %v not equal at %d", p, d)
+			assert.Equal(t, opd, pp.D(), "dist of point %v not equal at %d", p, d)
 		}
-		if d % 3 == 0 {
-			pathCtx.moveToNextMainPoints()
-		}
+		pathCtx.moveToNextNodes()
 
 		nbLatestPoints := len(latestPoints)
 		finalPoints := make([]m3point.Point, 0, int(1.7*float32(nbLatestPoints)))
@@ -99,18 +96,18 @@ func runForPathCtxType(N, until int, pType m3point.ContextType) {
 		for _, ctx := range allCtx[pType] {
 			start := time.Now()
 			pathCtx := MakePathContext(ctx.GetType(), ctx.GetIndex(), ctx.offset)
-			pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode, 5*until*until)
+			pathCtx.pathNodesPerPoint = make(map[m3point.Point]PathNode, 5*until*until)
 			runPathContext(pathCtx, until/3)
 			t := time.Since(start)
-			LogDataTest.Infof("%s %s %d %d %d", t, pathCtx, len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndPaths), pathCtx.openEndPaths[0].pn.d)
+			LogDataTest.Infof("%s %s %d %d %d", t, pathCtx, len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndNodes), pathCtx.openEndNodes[0].pn.D())
 		}
 	}
 }
 
 func runPathContext(pathCtx *PathContext, until int) {
-	pathCtx.initRootLinks()
+	pathCtx.initRootNode(m3point.Origin)
 	for d := 0; d < until; d++ {
-		pathCtx.moveToNextMainPoints()
+		pathCtx.moveToNextNodes()
 	}
 }
 

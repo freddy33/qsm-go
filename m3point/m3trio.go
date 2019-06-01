@@ -578,9 +578,9 @@ func (td *TrioDetails) OtherConnectionsFrom(connId ConnectionId) [2]*ConnectionD
 	res := [2]*ConnectionDetails{nil, nil}
 	idx := 0
 
-	if td.HasConnection(-connId) {
+	if td.HasConnection(connId) {
 		for _, c := range td.conns {
-			if c.Id != -connId {
+			if c.Id != connId {
 				res[idx] = c
 				idx++
 			}

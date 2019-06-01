@@ -81,6 +81,9 @@ func createAllPathBuilders() int {
 }
 
 func GetPathNodeBuilder(trCtx *TrioIndexContext, offset int, c Point) PathNodeBuilder {
+	if len(pathBuilders) == 0 {
+		createAllPathBuilders()
+	}
 	return pathBuilders[PathBuilderContext{trCtx, createTrioCube(trCtx, offset, c)}]
 }
 

@@ -16,8 +16,8 @@ func TestFirstPathContextFilling(t *testing.T) {
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {
 			pathCtx := MakePathContext(ctxType, ctx.GetIndex(), ctx.offset)
-			fillPathContext(t, pathCtx, 1)
-			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndPaths))
+			fillPathContext(t, pathCtx, 4)
+			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndNodes))
 			Log.Debug( pathCtx.dumpInfo())
 			break
 		}
@@ -35,35 +35,33 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 
 	Log.Debug(trCtx.String(), td.String())
 
-	pathCtx.initRootLinks()
-	pathCtx.moveToNextMainPoints()
+	pathCtx.initRootNode(m3point.Origin)
+	pathCtx.moveToNextNodes()
 
-	assert.Equal(t, 1+3+6+12, len(pathCtx.pathNodesPerPoint), "not all points are here %v", pathCtx.openEndPaths)
-	assert.Equal(t, 12, len(pathCtx.openEndPaths), "not all ends here %v", pathCtx.openEndPaths)
+	assert.Equal(t, 1+3, len(pathCtx.pathNodesPerPoint), "not all points are here %v", pathCtx.openEndNodes)
+	assert.Equal(t, 3, len(pathCtx.openEndNodes), "not all ends here %v", pathCtx.openEndNodes)
 	countMains := 0
 	countNonMains := 0
-	for _, oep := range pathCtx.openEndPaths {
-		assert.Equal(t, oep.kind == MainPointOpenPath, oep.pn.p.IsMainPoint(), "main bool for %v should be equal to point is main()", *oep.pn)
-		if oep.kind == MainPointOpenPath {
+	for _, oep := range pathCtx.openEndNodes {
+		assert.NotEqual(t, m3point.NilTrioIndex, oep.pn.GetTrioIndex(), "%v should have trio already", oep.pn)
+		if oep.pn.P().IsMainPoint() {
 			countMains++
-			assert.NotEqual(t, m3point.NilTrioIndex, oep.pn.trioId, "main %v should have trio already", *oep.pn)
 		} else {
 			countNonMains++
-			assert.Equal(t, m3point.NilTrioIndex, oep.pn.trioId, "non main %v should not have trio already", *oep.pn)
 		}
-		assert.Equal(t, 3, oep.pn.d, "open end path %v should have distance of three", *oep.pn)
-		assert.Equal(t, oep.pn.calcDist(), oep.pn.d, "open end path %v should have d and calcDist equal", *oep.pn)
+		assert.Equal(t, 1, oep.pn.D(), "open end path %v should have distance of three", oep.pn)
+		assert.Equal(t, oep.pn.calcDist(), oep.pn.D(), "open end path %v should have d and calcDist equal", oep.pn)
 	}
-	assert.Equal(t, 6, countMains, "not all main ends here %v", pathCtx.openEndPaths)
-	assert.Equal(t, 6, countNonMains, "not all non main ends here %v", pathCtx.openEndPaths)
+	assert.Equal(t, 0, countMains, "not all main ends here %v", pathCtx.openEndNodes)
+	assert.Equal(t, 3, countNonMains, "not all non main ends here %v", pathCtx.openEndNodes)
 
 	if until == 2 {
 		Log.Debug("*************** First round *************\n", pathCtx.dumpInfo())
-		pathCtx.moveToNextMainPoints()
+		pathCtx.moveToNextNodes()
 		Log.Debug("*************** Second round *************\n", pathCtx.dumpInfo())
 	} else {
 		for d := 1; d < until; d++ {
-			pathCtx.moveToNextMainPoints()
+			pathCtx.moveToNextNodes()
 		}
 	}
 }
