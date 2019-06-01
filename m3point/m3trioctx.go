@@ -45,21 +45,18 @@ type NextPathElement struct {
 }
 
 var trioIndexContexts [][]*TrioIndexContext
-var trioDetailsPerContext map[ContextType][]*TrioDetailList
+var trioDetailsPerContext [][]*TrioDetailList
 
 func init() {
-	count := make(map[ContextType]int)
 	trioIndexContexts = make([][]*TrioIndexContext, 9)
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		trioIndexContexts[ctxType] = make([]*TrioIndexContext, nbIndexes)
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			trioIndexContexts[ctxType][pIdx] = createTrioIndexContext(ctxType, pIdx)
-			count[ctxType]++
 		}
 	}
-	trioDetailsPerContext = make(map[ContextType][]*TrioDetailList)
-	Log.Debug(count)
+	trioDetailsPerContext = make([][]*TrioDetailList, 9)
 }
 
 /***************************************************************/
@@ -118,8 +115,8 @@ func (trCtx *TrioIndexContext) SetIndex(idx int) {
 
 func (trCtx *TrioIndexContext) GetPossibleTrioList() *TrioDetailList {
 	var r *TrioDetailList
-	l, ok := trioDetailsPerContext[trCtx.ctxType]
-	if !ok {
+	l := trioDetailsPerContext[trCtx.ctxType]
+	if len(l) == 0 {
 		l = make([]*TrioDetailList, trCtx.ctxType.GetNbIndexes())
 		trioDetailsPerContext[trCtx.ctxType] = l
 	}

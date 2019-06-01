@@ -22,9 +22,68 @@ func createAllTrioCubes() {
 		return
 	}
 	allTrioCubes = make([][]*CubeListPerContext, 9)
-
+	for _, ctxType := range GetAllContextTypes() {
+		nbIndexes := ctxType.GetNbIndexes()
+		allTrioCubes[ctxType] = make([]*CubeListPerContext, nbIndexes)
+		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
+			trCtx := GetTrioIndexContext(ctxType, pIdx)
+			cl := CubeListPerContext{trCtx, nil, }
+			switch ctxType {
+			case 1:
+				cl.populate(1)
+			case 3:
+				cl.populate(6)
+			case 2:
+				cl.populate(1)
+			case 4:
+				cl.populate(4)
+			case 8:
+				cl.populate(8)
+			}
+			allTrioCubes[ctxType][pIdx] = &cl
+		}
+	}
 }
 
+func (cl *CubeListPerContext) populate(max int64) {
+	allCubesMap := make(map[TrioIndexCubeKey]int)
+	// For center populate for all offsets
+	maxOffset := MaxOffsetPerType[cl.trCtx.ctxType]
+	for offset := 0; offset < maxOffset; offset++ {
+		cube := createTrioCube(cl.trCtx, offset, Origin)
+		allCubesMap[cube]++
+	}
+	// Go through space
+	for x := -max; x <= max; x++ {
+		for y := -max; y <= max; y++ {
+			for z := -max; z <= max; z++ {
+				cube := createTrioCube(cl.trCtx, 0, Point{x,y,z}.Mul(THREE))
+				allCubesMap[cube]++
+			}
+		}
+	}
+	cl.allCubes = make([]TrioIndexCubeKey, len(allCubesMap))
+	idx := 0
+	for c := range allCubesMap {
+		cl.allCubes[idx] = c
+		idx++
+	}
+}
+
+func (cl *CubeListPerContext) exists(offset int, c Point) bool {
+	toFind := createTrioCube(cl.trCtx, offset, c)
+	for _, c := range cl.allCubes {
+		if c == toFind {
+			return true
+		}
+	}
+	return false
+}
+
+func GetCubeList(ctxType ContextType, index int) *CubeListPerContext {
+	createAllTrioCubes()
+	return allTrioCubes[ctxType][index]
+}
 
 // Fill all the indexes assuming the distance of c from origin used in div by three
 func createTrioCube(trCtx *TrioIndexContext, offset int, c Point) TrioIndexCubeKey {

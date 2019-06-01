@@ -14,7 +14,7 @@ func TestDisplayPathBuilders(t *testing.T) {
 	assert.NotNil(t, pnb, "did not find builder for %v", *trCtx)
 	rpnb, tok := pnb.(*RootPathNodeBuilder)
 	assert.True(t, tok, "%s is not a root builder", pnb.String())
-	Log.Info(rpnb.dumpInfo())
+	Log.Debug(rpnb.dumpInfo())
 }
 
 func TestAllPathBuilders(t *testing.T) {
