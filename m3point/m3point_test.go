@@ -222,13 +222,13 @@ func TestPointRotations(t *testing.T) {
 	Orig := Point{0, 0, 0}
 	OneTwoThree := Point{1, 2, 3}
 
-	// Test PlusX, NegX, PlusY, NegY, PlusZ, NegZ
-	assert.Equal(t, OneTwoThree.PlusX(), Point{1, -3, 2})
-	assert.Equal(t, OneTwoThree.NegX(), Point{1, 3, -2})
-	assert.Equal(t, OneTwoThree.PlusY(), Point{3, 2, -1})
-	assert.Equal(t, OneTwoThree.NegY(), Point{-3, 2, 1})
-	assert.Equal(t, OneTwoThree.PlusZ(), Point{-2, 1, 3})
-	assert.Equal(t, OneTwoThree.NegZ(), Point{2, -1, 3})
+	// Test RotPlusX, RotNegX, RotPlusY, RotNegY, RotPlusZ, RotNegZ
+	assert.Equal(t, OneTwoThree.RotPlusX(), Point{1, -3, 2})
+	assert.Equal(t, OneTwoThree.RotNegX(), Point{1, 3, -2})
+	assert.Equal(t, OneTwoThree.RotPlusY(), Point{3, 2, -1})
+	assert.Equal(t, OneTwoThree.RotNegY(), Point{-3, 2, 1})
+	assert.Equal(t, OneTwoThree.RotPlusZ(), Point{-2, 1, 3})
+	assert.Equal(t, OneTwoThree.RotNegZ(), Point{2, -1, 3})
 
 	// Test bunch of equations using random points
 	nbRun := 100
@@ -241,23 +241,23 @@ func TestPointRotations(t *testing.T) {
 		assert.Equal(t, randomPoint.Add(randomPoint.Neg()), Orig)
 		assert.Equal(t, randomPoint.Add(randomPoint.Mul(-1)), Orig)
 
-		assert.Equal(t, randomPoint.PlusX().NegX(), randomPoint)
-		assert.Equal(t, randomPoint.NegX().PlusX(), randomPoint)
-		assert.Equal(t, randomPoint.PlusY().NegY(), randomPoint)
-		assert.Equal(t, randomPoint.NegY().PlusY(), randomPoint)
-		assert.Equal(t, randomPoint.PlusZ().NegZ(), randomPoint)
-		assert.Equal(t, randomPoint.NegZ().PlusZ(), randomPoint)
+		assert.Equal(t, randomPoint.RotPlusX().RotNegX(), randomPoint)
+		assert.Equal(t, randomPoint.RotNegX().RotPlusX(), randomPoint)
+		assert.Equal(t, randomPoint.RotPlusY().RotNegY(), randomPoint)
+		assert.Equal(t, randomPoint.RotNegY().RotPlusY(), randomPoint)
+		assert.Equal(t, randomPoint.RotPlusZ().RotNegZ(), randomPoint)
+		assert.Equal(t, randomPoint.RotNegZ().RotPlusZ(), randomPoint)
 
-		assert.Equal(t, randomPoint.PlusX().PlusX().PlusX().PlusX(), randomPoint)
-		assert.Equal(t, randomPoint.PlusY().PlusY().PlusY().PlusY(), randomPoint)
-		assert.Equal(t, randomPoint.PlusZ().PlusZ().PlusZ().PlusZ(), randomPoint)
-		assert.Equal(t, randomPoint.NegX().NegX().NegX().NegX(), randomPoint)
-		assert.Equal(t, randomPoint.NegY().NegY().NegY().NegY(), randomPoint)
-		assert.Equal(t, randomPoint.NegZ().NegZ().NegZ().NegZ(), randomPoint)
+		assert.Equal(t, randomPoint.RotPlusX().RotPlusX().RotPlusX().RotPlusX(), randomPoint)
+		assert.Equal(t, randomPoint.RotPlusY().RotPlusY().RotPlusY().RotPlusY(), randomPoint)
+		assert.Equal(t, randomPoint.RotPlusZ().RotPlusZ().RotPlusZ().RotPlusZ(), randomPoint)
+		assert.Equal(t, randomPoint.RotNegX().RotNegX().RotNegX().RotNegX(), randomPoint)
+		assert.Equal(t, randomPoint.RotNegY().RotNegY().RotNegY().RotNegY(), randomPoint)
+		assert.Equal(t, randomPoint.RotNegZ().RotNegZ().RotNegZ().RotNegZ(), randomPoint)
 
-		assert.Equal(t, randomPoint.NegX().NegX(), randomPoint.PlusX().PlusX())
-		assert.Equal(t, randomPoint.NegY().NegY(), randomPoint.PlusY().PlusY())
-		assert.Equal(t, randomPoint.NegZ().NegZ(), randomPoint.PlusZ().PlusZ())
+		assert.Equal(t, randomPoint.RotNegX().RotNegX(), randomPoint.RotPlusX().RotPlusX())
+		assert.Equal(t, randomPoint.RotNegY().RotNegY(), randomPoint.RotPlusY().RotPlusY())
+		assert.Equal(t, randomPoint.RotNegZ().RotNegZ(), randomPoint.RotPlusZ().RotPlusZ())
 	}
 }
 

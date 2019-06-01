@@ -405,7 +405,7 @@ func (t Trio) GetDSIndex() int {
 }
 
 func (t Trio) PlusX() Trio {
-	return MakeBaseConnectingVectorsTrio([3]Point{t[0].PlusX(), t[1].PlusX(), t[2].PlusX()})
+	return MakeBaseConnectingVectorsTrio([3]Point{t[0].RotPlusX(), t[1].RotPlusX(), t[2].RotPlusX()})
 }
 
 func (t Trio) Neg() Trio {
@@ -691,6 +691,29 @@ func (td *TrioDetails) findConn(vecName string, toFind ...ConnectionId) *Connect
 		Log.Errorf("Impossible! Did not find %s vector using %v in base trio %s", vecName, toFind, td.String())
 		return nil
 	}
+}
+
+func (td *TrioDetails) getConn(ud UnitDirection) *ConnectionDetails {
+	switch ud {
+	case PlusX:
+		return td.getPlusXConn()
+	case MinusX:
+		return td.getMinusXConn()
+	case PlusY:
+		return td.getPlusYConn()
+	case MinusY:
+		return td.getMinusYConn()
+	case PlusZ:
+		return td.getPlusZConn()
+	case MinusZ:
+		return td.getMinusZConn()
+	}
+	Log.Fatalf("Impossible! Did not find %d unit direction", ud)
+	return nil
+}
+
+func (td *TrioDetails) getOppositeConn(ud UnitDirection) *ConnectionDetails {
+	return td.getConn(ud.GetOpposite())
 }
 
 func (td *TrioDetails) getPlusXConn() *ConnectionDetails {

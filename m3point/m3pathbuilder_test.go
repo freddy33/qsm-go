@@ -8,9 +8,9 @@ import (
 func TestDisplayPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
 	nb := createAllPathBuilders()
-	assert.Equal(t, 1664, nb)
+	assert.Equal(t, 5192, nb)
 	trCtx := GetTrioIndexContext(ContextType(8), 0)
-	pnb := GetPathNodeBuilder(trCtx, 0, 3)
+	pnb := GetPathNodeBuilder(trCtx, 0, Origin)
 	assert.NotNil(t, pnb, "did not find builder for %v", *trCtx)
 	rpnb, tok := pnb.(*RootPathNodeBuilder)
 	assert.True(t, tok, "%s is not a root builder", pnb.String())
@@ -20,15 +20,27 @@ func TestDisplayPathBuilders(t *testing.T) {
 func TestAllPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
 	nb := createAllPathBuilders()
-	assert.Equal(t, 1664, nb)
+	assert.Equal(t, 5192, nb)
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			trCtx := GetTrioIndexContext(ctxType, pIdx)
 			maxOffset := MaxOffsetPerType[ctxType]
 			for offset := 0; offset < maxOffset; offset++ {
-				for div := uint64(0); div < 12; div++ {
-					pnb := GetPathNodeBuilder(trCtx, offset, div)
+				centerPoint := Origin
+				for div := uint64(0); div < 8*3; div++ {
+					if div != 0 {
+						switch div%3 {
+						case 0:
+							centerPoint = centerPoint.Add(XFirst)
+						case 1:
+							centerPoint = centerPoint.Add(YFirst)
+						case 2:
+							centerPoint = centerPoint.Add(ZFirst)
+						}
+					}
+					assert.Equal(t, div, trCtx.GetBaseDivByThree(centerPoint), "something wrong with div by three for %s", trCtx.String())
+					pnb := GetPathNodeBuilder(trCtx, offset, centerPoint)
 					assert.NotNil(t, pnb, "did not find builder for %v %v %v", *trCtx, offset, div)
 					rpnb, tok := pnb.(*RootPathNodeBuilder)
 					assert.True(t, tok, "%s is not a root builder", pnb.String())
@@ -59,10 +71,11 @@ func TestAllPathBuilders(t *testing.T) {
 					assert.NotNil(t, td, "did not find trio index %s for path builder %s", trioIdx.String(), pnb.String())
 					for i, cd := range td.conns {
 						assert.Equal(t, cd.Id, rpnb.pathLinks[i].connId, "connId mismatch at %d for %s", i, pnb.String())
-						npnb := pnb.GetNextPathNodeBuilder(cd.Id)
+						npnb, np := pnb.GetNextPathNodeBuilder(centerPoint, cd.Id, offset)
 						assert.NotNil(t, npnb, "nil next path node at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 						assert.NotEqual(t, NilTrioIndex, npnb.GetTrioIndex(), "no trio index for next path node at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 						assert.False(t, npnb.GetTrioIndex().IsBaseTrio(), "trio index should not a base one for builder %s", npnb.String())
+						assert.Equal(t, centerPoint.Add(cd.Vector), np, "failed next point for builder %s", npnb.String())
 						ntd := GetTrioDetails(npnb.GetTrioIndex())
 						ipnb, iok := npnb.(*IntermediatePathNodeBuilder)
 						assert.True(t, iok, "next path node not an intermediate at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
@@ -81,28 +94,30 @@ func TestAllPathBuilders(t *testing.T) {
 									}
 								}
 								assert.True(t, found, "not found inter cid %s for connId %s and pnb %s", ncd.GetId(), i, cd.Id.String(), pnb.String())
-								lastIpnb := ipnb.GetNextPathNodeBuilder(ncd.GetId())
+								lastIpnb, lip := ipnb.GetNextPathNodeBuilder(np, ncd.GetId(), offset)
 								olipnb, liok := lastIpnb.(*LastIntermediatePathNodeBuilder)
 								assert.True(t, liok, "next path node not an intermediate at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 								assert.Equal(t, lipnb, olipnb, "next path node not an intermediate at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 								assert.NotEqual(t, NilTrioIndex, lastIpnb.GetTrioIndex(), "no trio index for next path node at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
+								assert.Equal(t, np.Add(ncd.Vector), lip, "next path node failed points at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 
-								nextMainPB := lastIpnb.GetNextPathNodeBuilder(olipnb.nextMainConnId)
-								nextRpnb, tok := nextMainPB.(*RootPathNodeBuilder)
+								nextMainPB, nmp := lastIpnb.GetNextPathNodeBuilder(lip, olipnb.nextMainConnId, offset)
+								_, tok := nextMainPB.(*RootPathNodeBuilder)
 								assert.True(t, tok, "%s is not a root builder", nextMainPB.String())
-								assert.Equal(t, PosMod8(rpnb.ctx.div+1), nextRpnb.ctx.div, "%s next root builder div is not plus one", nextMainPB.String())
+								assert.True(t, nmp.IsMainPoint(), "last node builder main does not give main for builder %s", nextMainPB.String())
 								assert.True(t, nextMainPB.GetTrioIndex().IsBaseTrio(), "trio index is not a base one for builder %s", nextMainPB.String())
+								assert.Equal(t, lip.GetNearMainPoint(), nmp, "next path node failed points at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 
 								// Make sure the way back get same trio
-								//backIpnb := nextMainPB.GetNextPathNodeBuilder(olipnb.nextMainConnId.GetNegId())
-								//assert.NotNil(t, backIpnb, "%s next root builder is nil", nextMainPB.String())
-//								assert.Equal(t, lastIpnb.GetTrioIndex(), backIpnb.GetTrioIndex(), "%s next root builder does not point back to same trio index", nextMainPB.String())
+								backIpnb, oLip := nextMainPB.GetNextPathNodeBuilder(nmp, olipnb.nextMainConnId.GetNegId(), offset)
+								assert.NotNil(t, backIpnb, "%s next root builder is nil", nextMainPB.String())
+								assert.Equal(t, lip, oLip, "%s next root builder does not point back to same point", nextMainPB.String())
+								assert.Equal(t, lastIpnb.GetTrioIndex(), backIpnb.GetTrioIndex(), "%s next root builder does not point back to same trio index", nextMainPB.String())
 
-//								nextInterPB := lastIpnb.GetNextPathNodeBuilder(olipnb.nextInterConnId)
-//								nextIPB, tiok := nextInterPB.(*LastIntermediatePathNodeBuilder)
-//								assert.True(t, tiok, "%s is not a last inter builder", nextInterPB.String())
-//								assert.Equal(t, PosMod8(rpnb.ctx.div+1), nextIPB.ctx.div, "%s next root builder div is not plus one", nextIPB.String())
-//								assert.False(t, nextIPB.GetTrioIndex().IsBaseTrio(), "trio index is not a base one for builder %s", nextIPB.String())
+								nextInterPB, nlip := lastIpnb.GetNextPathNodeBuilder(lip, olipnb.nextInterConnId, offset)
+								_, tiok := nextInterPB.(*LastIntermediatePathNodeBuilder)
+								assert.True(t, tiok, "%s is not a last inter builder", nextInterPB.String())
+								assert.NotEqual(t, nlip.GetNearMainPoint(), nmp, "next path node failed points at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 							}
 						}
 					}

@@ -294,9 +294,9 @@ func TestInitialTrioConnectingVectors(t *testing.T) {
 	Log.SetDebug()
 	assert.Equal(t, allBaseTrio[0][0], Point{1, 1, 0})
 	assert.Equal(t, allBaseTrio[0][1], Point{-1, 0, -1})
-	assert.Equal(t, allBaseTrio[0][1], allBaseTrio[0][0].PlusX().PlusY().PlusY())
+	assert.Equal(t, allBaseTrio[0][1], allBaseTrio[0][0].RotPlusX().RotPlusY().RotPlusY())
 	assert.Equal(t, allBaseTrio[0][2], Point{0, -1, 1})
-	assert.Equal(t, allBaseTrio[0][2], allBaseTrio[0][0].PlusY().PlusX().PlusX())
+	assert.Equal(t, allBaseTrio[0][2], allBaseTrio[0][0].RotPlusY().RotPlusX().RotPlusX())
 
 	assert.Equal(t, allBaseTrio[4][0], Point{-1, -1, 0})
 	assert.Equal(t, allBaseTrio[4][1], Point{1, 0, 1})

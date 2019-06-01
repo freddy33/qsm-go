@@ -1,5 +1,7 @@
 package m3point
 
+import "fmt"
+
 type TrioIndexCubeKey struct {
 	// Index of cube center
 	center TrioIndex
@@ -10,11 +12,92 @@ type TrioIndexCubeKey struct {
 }
 
 type CubeListPerContext struct {
-	trCtx *TrioIndexContext
+	trCtx    *TrioIndexContext
 	allCubes []TrioIndexCubeKey
 }
 
 var allTrioCubes [][]*CubeListPerContext
+
+/***************************************************************/
+// TrioIndexCubeKey Functions
+/***************************************************************/
+
+func GetMiddleEdgeIndex(ud1 UnitDirection, ud2 UnitDirection) int {
+	if ud1 == ud2 {
+		Log.Fatalf("Cannot find middle edge for 2 identical unit direction %d", ud1)
+		return -1
+	}
+	// Order the 2
+	if ud1 > ud2 {
+		ud1, ud2 = ud2, ud1
+	}
+	if ud1%2 == 0 && ud1 == ud2-1 {
+		Log.Fatalf("Cannot find middle edge for unit directions %d and %d since they are on same axis", ud1, ud2)
+		return -1
+	}
+	switch ud1 {
+	case PlusX:
+		return int(ud2 - 2)
+	case MinusX:
+		return int(4 + ud2 - 2)
+	case PlusY:
+		return int(8 + ud2 - 4)
+	case MinusY:
+		return int(8 + 2 + ud2 - 4)
+	}
+	Log.Fatalf("Cannot find middle edge for unit directions %d and %d since they are incoherent", ud1, ud2)
+	return -1
+}
+
+// Fill all the indexes assuming the distance of c from origin used in div by three
+func createTrioCube(trCtx *TrioIndexContext, offset int, c Point) TrioIndexCubeKey {
+	res := TrioIndexCubeKey{}
+	res.center = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c), offset)
+
+	res.centerFaces[PlusX] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst)), offset)
+	res.centerFaces[MinusX] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst)), offset)
+	res.centerFaces[PlusY] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(YFirst)), offset)
+	res.centerFaces[MinusY] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(YFirst)), offset)
+	res.centerFaces[PlusZ] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(ZFirst)), offset)
+	res.centerFaces[MinusZ] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(ZFirst)), offset)
+
+	res.middleEdges[GetMiddleEdgeIndex(PlusX, PlusY)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Add(YFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(PlusX, MinusY)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Sub(YFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(PlusX, PlusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Add(ZFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(PlusX, MinusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Sub(ZFirst)), offset)
+
+	res.middleEdges[GetMiddleEdgeIndex(MinusX, PlusY)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Add(YFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(MinusX, MinusY)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(YFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(MinusX, PlusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Add(ZFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(MinusX, MinusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(ZFirst)), offset)
+
+	res.middleEdges[GetMiddleEdgeIndex(PlusY, PlusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(YFirst).Add(ZFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(PlusY, MinusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(YFirst).Sub(ZFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(MinusY, PlusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(YFirst).Add(ZFirst)), offset)
+	res.middleEdges[GetMiddleEdgeIndex(MinusY, MinusZ)] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(YFirst).Sub(ZFirst)), offset)
+
+	return res
+}
+
+func (ck TrioIndexCubeKey) String() string {
+	return fmt.Sprintf("CK-%s-%s-%s-%s", ck.center.String(), ck.centerFaces[0].String(), ck.centerFaces[1].String(), ck.middleEdges[0].String())
+}
+
+func (ck TrioIndexCubeKey) GetCenterTrio() TrioIndex {
+	return ck.center
+}
+
+func (ck TrioIndexCubeKey) GetCenterFaceTrio(ud UnitDirection) TrioIndex {
+	return ck.centerFaces[ud]
+}
+
+func (ck TrioIndexCubeKey) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirection) TrioIndex {
+	return ck.middleEdges[GetMiddleEdgeIndex(ud1, ud2)]
+}
+
+/***************************************************************/
+// CubeListPerContext Functions
+/***************************************************************/
 
 func createAllTrioCubes() {
 	if len(allTrioCubes) != 0 {
@@ -27,7 +110,7 @@ func createAllTrioCubes() {
 		allTrioCubes[ctxType] = make([]*CubeListPerContext, nbIndexes)
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			trCtx := GetTrioIndexContext(ctxType, pIdx)
-			cl := CubeListPerContext{trCtx, nil, }
+			cl := CubeListPerContext{trCtx, nil,}
 			switch ctxType {
 			case 1:
 				cl.populate(1)
@@ -57,7 +140,7 @@ func (cl *CubeListPerContext) populate(max int64) {
 	for x := -max; x <= max; x++ {
 		for y := -max; y <= max; y++ {
 			for z := -max; z <= max; z++ {
-				cube := createTrioCube(cl.trCtx, 0, Point{x,y,z}.Mul(THREE))
+				cube := createTrioCube(cl.trCtx, 0, Point{x, y, z}.Mul(THREE))
 				allCubesMap[cube]++
 			}
 		}
@@ -83,34 +166,4 @@ func (cl *CubeListPerContext) exists(offset int, c Point) bool {
 func GetCubeList(ctxType ContextType, index int) *CubeListPerContext {
 	createAllTrioCubes()
 	return allTrioCubes[ctxType][index]
-}
-
-// Fill all the indexes assuming the distance of c from origin used in div by three
-func createTrioCube(trCtx *TrioIndexContext, offset int, c Point) TrioIndexCubeKey {
-	res := TrioIndexCubeKey{}
-	res.center = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c), offset)
-
-	res.centerFaces[0] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst)), offset)
-	res.centerFaces[1] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst)), offset)
-	res.centerFaces[2] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(YFirst)), offset)
-	res.centerFaces[3] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(YFirst)), offset)
-	res.centerFaces[4] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(ZFirst)), offset)
-	res.centerFaces[5] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(ZFirst)), offset)
-
-	res.middleEdges[0] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Add(YFirst)), offset)
-	res.middleEdges[1] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Sub(YFirst)), offset)
-	res.middleEdges[2] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Add(ZFirst)), offset)
-	res.middleEdges[3] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst).Sub(ZFirst)), offset)
-
-	res.middleEdges[4] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Add(YFirst)), offset)
-	res.middleEdges[5] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(YFirst)), offset)
-	res.middleEdges[6] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Add(ZFirst)), offset)
-	res.middleEdges[7] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(ZFirst)), offset)
-
-	res.middleEdges[8] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(YFirst).Add(ZFirst)), offset)
-	res.middleEdges[9] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(YFirst).Sub(ZFirst)), offset)
-	res.middleEdges[10] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(YFirst).Add(ZFirst)), offset)
-	res.middleEdges[11] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Sub(YFirst).Sub(ZFirst)), offset)
-
-	return res
 }

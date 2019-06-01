@@ -86,32 +86,32 @@ func (p Point) Neg() Point {
 }
 
 // Positive PI/2 rotation on X
-func (p Point) PlusX() Point {
+func (p Point) RotPlusX() Point {
 	return Point{p[0], -p[2], p[1]}
 }
 
 // Negative PI/2 rotation on X
-func (p Point) NegX() Point {
+func (p Point) RotNegX() Point {
 	return Point{p[0], p[2], -p[1]}
 }
 
 // Positive PI/2 rotation on Y
-func (p Point) PlusY() Point {
+func (p Point) RotPlusY() Point {
 	return Point{p[2], p[1], -p[0]}
 }
 
 // Negative PI/2 rotation on Y
-func (p Point) NegY() Point {
+func (p Point) RotNegY() Point {
 	return Point{-p[2], p[1], p[0]}
 }
 
 // Positive PI/2 rotation on Z
-func (p Point) PlusZ() Point {
+func (p Point) RotPlusZ() Point {
 	return Point{-p[1], p[0], p[2]}
 }
 
 // Negative PI/2 rotation on X
-func (p Point) NegZ() Point {
+func (p Point) RotNegZ() Point {
 	return Point{p[1], -p[0], p[2]}
 }
 

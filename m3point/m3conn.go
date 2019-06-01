@@ -5,6 +5,17 @@ import (
 	"sort"
 )
 
+type UnitDirection int
+
+const (
+	PlusX UnitDirection = iota
+	MinusX
+	PlusY
+	MinusY
+	PlusZ
+	MinusZ
+)
+
 type ConnectionId int8
 
 type ConnectionDetails struct {
@@ -91,6 +102,52 @@ func (connId ConnectionId) String() string {
 }
 
 /***************************************************************/
+// UnitDirection Functions
+/***************************************************************/
+
+var NegXFirst = XFirst.Neg()
+var NegYFirst = YFirst.Neg()
+var NegZFirst = ZFirst.Neg()
+
+func (ud UnitDirection) GetOpposite() UnitDirection {
+	switch ud {
+	case PlusX:
+		return MinusX
+	case MinusX:
+		return PlusX
+	case PlusY:
+		return MinusY
+	case MinusY:
+		return PlusY
+	case PlusZ:
+		return MinusZ
+	case MinusZ:
+		return PlusZ
+	}
+	Log.Fatalf("Impossible! Did not find %d unit direction", ud)
+	return UnitDirection(-1)
+}
+
+func (ud UnitDirection) GetFirstPoint() Point {
+	switch ud {
+	case PlusX:
+		return XFirst
+	case MinusX:
+		return NegXFirst
+	case PlusY:
+		return YFirst
+	case MinusY:
+		return NegYFirst
+	case PlusZ:
+		return ZFirst
+	case MinusZ:
+		return NegZFirst
+	}
+	Log.Fatalf("Impossible! Did not find %d unit direction", ud)
+	return Origin
+}
+
+/***************************************************************/
 // ConnectionDetails Functions
 /***************************************************************/
 
@@ -117,6 +174,52 @@ func (cd *ConnectionDetails) GetPosId() ConnectionId {
 
 func (cd *ConnectionDetails) IsBaseConnection() bool {
 	return cd.Id.IsBaseConnection()
+}
+
+func (cd *ConnectionDetails) GetDirections() [2]UnitDirection {
+	if !cd.IsBaseConnection() {
+		Log.Fatalf("cannot extract unit directions on non base connection %s", cd.String())
+	}
+	idx := 0
+	res := [2]UnitDirection{}
+	cVec := cd.Vector
+	switch cVec.X() {
+	case 0:
+		// Nothing connect
+	case 1:
+		// Going +X
+		res[idx] = PlusX
+		idx++
+	case -1:
+		// Going -X
+		res[idx] = MinusX
+		idx++
+	}
+	switch cVec.Y() {
+	case 0:
+		// Nothing connect
+	case 1:
+		// Going +Y
+		res[idx] = PlusY
+		idx++
+	case -1:
+		// Going -Y
+		res[idx] = MinusY
+		idx++
+	}
+	switch cVec.Z() {
+	case 0:
+		// Nothing connect
+	case 1:
+		// Going +Z
+		res[idx] = PlusZ
+		idx++
+	case -1:
+		// Going -Z
+		res[idx] = MinusZ
+		idx++
+	}
+	return res
 }
 
 func (cd *ConnectionDetails) DistanceSquared() int64 {
@@ -224,13 +327,7 @@ func GetConnDetailsById(id ConnectionId) *ConnectionDetails {
 }
 
 func GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails {
-	vector := MakeVector(p1, p2)
-	cd, ok := allConnectionsByVector[vector]
-	if !ok {
-		Log.Error("Trying to connect to Pos", p1, p2, "that cannot be connected with any known connection details")
-		return &EmptyConnDetails
-	}
-	return cd
+	return GetConnDetailsByVector(MakeVector(p1, p2))
 }
 
 func GetConnDetailsByVector(vector Point) *ConnectionDetails {
