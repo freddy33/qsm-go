@@ -44,12 +44,12 @@ type NextPathElement struct {
 	p2iConn *ConnectionDetails
 }
 
-var trioIndexContexts map[ContextType][]*TrioIndexContext
+var trioIndexContexts [][]*TrioIndexContext
 var trioDetailsPerContext map[ContextType][]*TrioDetailList
 
 func init() {
 	count := make(map[ContextType]int)
-	trioIndexContexts = make(map[ContextType][]*TrioIndexContext)
+	trioIndexContexts = make([][]*TrioIndexContext, 9)
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		trioIndexContexts[ctxType] = make([]*TrioIndexContext, nbIndexes)

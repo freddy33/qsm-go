@@ -31,6 +31,7 @@ func TestComparePathToGrowth(t *testing.T) {
 	pathCtx := MakePathContextFromTrioContext(trioCtx, contextOffset)
 
 	// Initialize the big map
+	//nbRound := 8*3
 	nbRound := 3
 	pathCtx.pathNodesPerPoint = make(map[m3point.Point]*PathNode, 5*nbRound*nbRound)
 	usedPoints := make(map[m3point.Point]int, 5*nbRound*nbRound)

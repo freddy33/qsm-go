@@ -593,13 +593,31 @@ func (td *TrioDetails) OtherConnectionsFrom(connId ConnectionId) [2]*ConnectionD
 }
 
 func (td *TrioDetails) LastOtherConnection(cIds ...ConnectionId) *ConnectionDetails {
-	for _, c := range td.conns {
+	if Log.DoAssert() {
+		if len(cIds) != 2 {
+			Log.Errorf("calling LastOtherConnection on %s not using 2 other connections %v", td.String(), cIds)
+		}
+		if cIds[0] == cIds[1] {
+			Log.Errorf("calling LastOtherConnection on %s with 2 identical connections %v", td.String(), cIds)
+		}
 		for _, cId := range cIds {
-			if c.Id != cId {
-				return c
+			if !td.HasConnection(cId) {
+				Log.Errorf("calling LastOtherConnection on %s with connections %v and %s is not in trio", td.String(), cIds, cId.String())
 			}
 		}
 	}
+	for _, c := range td.conns {
+		found := false
+		for _, cId := range cIds {
+			if c.Id == cId {
+				found = true
+			}
+		}
+		if !found {
+			return c
+		}
+	}
+	Log.Errorf("calling LastOtherConnection on %s with connections %v and nothing found in trio!", td.String(), cIds)
 	return nil
 }
 
