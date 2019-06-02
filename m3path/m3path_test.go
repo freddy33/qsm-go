@@ -15,9 +15,9 @@ func TestFirstPathContextFilling(t *testing.T) {
 	allCtx := getAllTestContexts()
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {
-			pathCtx := MakePathContext(ctxType, ctx.GetIndex(), ctx.offset)
+			pathCtx := MakePathContext(ctxType, ctx.GetIndex(), ctx.offset, MakeSimplePathNodeMap(2^4))
 			fillPathContext(t, pathCtx, 4)
-			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndNodes))
+			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.GetPathNodeMap().GetSize(), len(pathCtx.openEndNodes))
 			Log.Debug( pathCtx.dumpInfo())
 			break
 		}
@@ -35,10 +35,10 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 
 	Log.Debug(trCtx.String(), td.String())
 
-	pathCtx.initRootNode(m3point.Origin)
-	pathCtx.moveToNextNodes()
+	pathCtx.InitRootNode(m3point.Origin)
+	pathCtx.MoveToNextNodes()
 
-	assert.Equal(t, 1+3, len(pathCtx.pathNodesPerPoint), "not all points are here %v", pathCtx.openEndNodes)
+	assert.Equal(t, 1+3, pathCtx.GetPathNodeMap().GetSize(), "not all points are here %v", pathCtx.openEndNodes)
 	assert.Equal(t, 3, len(pathCtx.openEndNodes), "not all ends here %v", pathCtx.openEndNodes)
 	countMains := 0
 	countNonMains := 0
@@ -57,11 +57,11 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 
 	if until == 2 {
 		Log.Debug("*************** First round *************\n", pathCtx.dumpInfo())
-		pathCtx.moveToNextNodes()
+		pathCtx.MoveToNextNodes()
 		Log.Debug("*************** Second round *************\n", pathCtx.dumpInfo())
 	} else {
 		for d := 1; d < until; d++ {
-			pathCtx.moveToNextNodes()
+			pathCtx.MoveToNextNodes()
 		}
 	}
 }

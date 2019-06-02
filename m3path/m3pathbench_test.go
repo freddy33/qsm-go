@@ -24,15 +24,13 @@ func TestComparePathToGrowth(t *testing.T) {
 	contextType := m3point.ContextType(4)
 	contextIndex := 0
 	contextOffset := 0
+	nbRound := 8*3
 
 	// Create the 2 kind of context identical
 	trioCtx := m3point.GetTrioIndexContext(contextType, contextIndex)
 	growthCtx := CreateFromRoot(trioCtx, m3point.Origin, contextOffset)
-	pathCtx := MakePathContextFromTrioContext(trioCtx, contextOffset)
+	pathCtx := MakePathContextFromTrioContext(trioCtx, contextOffset, MakeSimplePathNodeMap(5*nbRound*nbRound))
 
-	// Initialize the big map
-	nbRound := 8*3
-	pathCtx.pathNodesPerPoint = make(map[m3point.Point]PathNode, 5*nbRound*nbRound)
 	usedPoints := make(map[m3point.Point]int, 5*nbRound*nbRound)
 
 	// Initialize the first entries
@@ -40,15 +38,16 @@ func TestComparePathToGrowth(t *testing.T) {
 	latestPoints[0] = m3point.Origin
 	usedPoints[m3point.Origin] = 0
 
-	pathCtx.initRootNode(m3point.Origin)
+	pathCtx.InitRootNode(m3point.Origin)
 
 	for d := 1; d < nbRound; d++ {
-		for p, pp := range pathCtx.pathNodesPerPoint {
+		pnm := *(pathCtx.GetPathNodeMap().(*SimplePathNodeMap))
+		for p, pp := range pnm {
 			opd, ok := usedPoints[p]
 			assert.True(t, ok, "did not find point %v at %d in used points %v", p, d, usedPoints)
 			assert.Equal(t, opd, pp.D(), "dist of point %v not equal at %d", p, d)
 		}
-		pathCtx.moveToNextNodes()
+		pathCtx.MoveToNextNodes()
 
 		nbLatestPoints := len(latestPoints)
 		finalPoints := make([]m3point.Point, 0, int(1.7*float32(nbLatestPoints)))
@@ -95,19 +94,18 @@ func runForPathCtxType(N, until int, pType m3point.ContextType) {
 	for r := 0; r < N; r++ {
 		for _, ctx := range allCtx[pType] {
 			start := time.Now()
-			pathCtx := MakePathContext(ctx.GetType(), ctx.GetIndex(), ctx.offset)
-			pathCtx.pathNodesPerPoint = make(map[m3point.Point]PathNode, 5*until*until)
+			pathCtx := MakePathContext(ctx.GetType(), ctx.GetIndex(), ctx.offset, MakeSimplePathNodeMap(5*until*until))
 			runPathContext(pathCtx, until/3)
 			t := time.Since(start)
-			LogDataTest.Infof("%s %s %d %d %d", t, pathCtx, len(pathCtx.pathNodesPerPoint), len(pathCtx.openEndNodes), pathCtx.openEndNodes[0].pn.D())
+			LogDataTest.Infof("%s %s %d %d %d", t, pathCtx, pathCtx.GetPathNodeMap().GetSize(), len(pathCtx.openEndNodes), pathCtx.openEndNodes[0].pn.D())
 		}
 	}
 }
 
 func runPathContext(pathCtx *PathContext, until int) {
-	pathCtx.initRootNode(m3point.Origin)
+	pathCtx.InitRootNode(m3point.Origin)
 	for d := 0; d < until; d++ {
-		pathCtx.moveToNextNodes()
+		pathCtx.MoveToNextNodes()
 	}
 }
 
