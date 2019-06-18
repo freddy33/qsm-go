@@ -22,7 +22,7 @@ type NewPossibleOutgrowth struct {
 	pos      m3point.Point
 	event    *Event
 	from     *EventOutgrowth
-	distance Distance
+	distance DistAndTime
 	state    EventOutgrowthState
 }
 
@@ -35,7 +35,7 @@ var newPosOutgrowthPool = sync.Pool{
 type EventOutgrowth struct {
 	pos             m3point.Point
 	fromConnections []m3point.ConnectionId
-	distance        Distance
+	distance        DistAndTime
 	state           EventOutgrowthState
 }
 
@@ -48,16 +48,16 @@ var eventOutgrowthPool = sync.Pool{
 type SavedEventOutgrowth struct {
 	pos             m3point.Point
 	fromConnections []m3point.ConnectionId
-	distance        Distance
+	distance        DistAndTime
 }
 
 type Outgrowth interface {
 	GetPoint() m3point.Point
-	GetDistance() Distance
+	GetDistance() DistAndTime
 	GetState() EventOutgrowthState
 	IsRoot() bool
 
-	DistanceFromLatest(evt *Event) Distance
+	DistanceFromLatest(evt *Event) DistAndTime
 	IsActive(evt *Event) bool
 	IsOld(evt *Event) bool
 
@@ -126,7 +126,7 @@ func (newPosEo *NewPossibleOutgrowth) String() string {
 // EventOutgrowth Functions
 /***************************************************************/
 
-func MakeActiveOutgrowth(pos m3point.Point, d Distance, state EventOutgrowthState) *EventOutgrowth {
+func MakeActiveOutgrowth(pos m3point.Point, d DistAndTime, state EventOutgrowthState) *EventOutgrowth {
 	r := eventOutgrowthPool.Get().(*EventOutgrowth)
 	r.pos = pos
 	r.fromConnections = r.fromConnections[:0]
@@ -143,7 +143,7 @@ func (eo *EventOutgrowth) GetPoint() m3point.Point {
 	return eo.pos
 }
 
-func (eo *EventOutgrowth) GetDistance() Distance {
+func (eo *EventOutgrowth) GetDistance() DistAndTime {
 	return eo.distance
 }
 
@@ -190,12 +190,12 @@ func (eo *EventOutgrowth) IsRoot() bool {
 	return !eo.HasFrom()
 }
 
-func (eo *EventOutgrowth) DistanceFromLatest(evt *Event) Distance {
+func (eo *EventOutgrowth) DistanceFromLatest(evt *Event) DistAndTime {
 	if eo.state == EventOutgrowthLatest {
-		return Distance(0)
+		return DistAndTime(0)
 	}
 	space := evt.space
-	return Distance(space.currentTime-evt.created) - eo.distance
+	return DistAndTime(space.currentTime-evt.created) - eo.distance
 }
 
 func (eo *EventOutgrowth) IsOld(evt *Event) bool {
@@ -226,7 +226,7 @@ func (seo *SavedEventOutgrowth) GetPoint() m3point.Point {
 	return seo.pos
 }
 
-func (seo *SavedEventOutgrowth) GetDistance() Distance {
+func (seo *SavedEventOutgrowth) GetDistance() DistAndTime {
 	return seo.distance
 }
 
@@ -267,9 +267,9 @@ func (seo *SavedEventOutgrowth) IsRoot() bool {
 	return !seo.HasFrom()
 }
 
-func (seo *SavedEventOutgrowth) DistanceFromLatest(evt *Event) Distance {
+func (seo *SavedEventOutgrowth) DistanceFromLatest(evt *Event) DistAndTime {
 	space := evt.space
-	return Distance(space.currentTime-evt.created) - seo.distance
+	return DistAndTime(space.currentTime-evt.created) - seo.distance
 }
 
 func (seo *SavedEventOutgrowth) IsOld(evt *Event) bool {

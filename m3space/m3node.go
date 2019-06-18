@@ -2,360 +2,355 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
-	"sync"
 )
 
-type AccessedEventID struct {
-	id     EventID
-	access TickTime
-}
-
-var NilAccessEventID = AccessedEventID{NilEvent, TickTime(0)}
-
 type Node interface {
-	IsRoot() bool
-	GetLatest() AccessedEventID
-	GetLastAccessed() TickTime
-	IsActive(space *Space) bool
+	fmt.Stringer
+	GetNbEvents() int
+	GetPoint() *m3point.Point
+	IsEmpty() bool
+	IsEventAlreadyPresent(id EventID) bool
+	GetPathNode(id EventID) m3path.PathNode
+
+	GetAccessed(evt *Event) DistAndTime
+
+	GetLastAccessed(space *Space) DistAndTime
+	GetLatest(space *Space) m3path.PathNode
+
+	GetEventDistFromCurrent(evt *Event) DistAndTime
+	HasRoot() bool
+	IsEventActive(evt *Event) bool
+	IsEventOld(evt *Event) bool
+	IsEventDead(evt *Event) bool
+
 	HowManyColors(space *Space) uint8
 	GetColorMask(space *Space) uint8
-	IsEventAlreadyPresent(id EventID) bool
+
+	IsActive(space *Space) bool
 	IsOld(space *Space) bool
 	IsDead(space *Space) bool
-	GetStateString() string
+
+	GetStateString(space *Space) string
+
+	addPathNode(id EventID, pn m3path.PathNode)
 }
 
-type SavedNode struct {
-	root             bool
-	accessedEventIDS []AccessedEventID
-	connections      []m3point.ConnectionId
+type UniqueConnectionsList struct {
+	conns []m3point.ConnectionId
 }
 
-type ActiveNode struct {
-	Pos m3point.Point
-	SavedNode
-}
-
-type Connection struct {
-	Id     m3point.ConnectionId
-	P1, P2 m3point.Point
+type PointNode struct {
+	pathNodes []m3path.PathNode
 }
 
 func countOnes(m uint8) uint8 {
 	return ((m >> 7) & 1) + ((m >> 6) & 1) + ((m >> 5) & 1) + ((m >> 4) & 1) + ((m >> 3) & 1) + ((m >> 2) & 1) + ((m >> 1) & 1) + (m & 1)
 }
 
-func (ae AccessedEventID) IsActive(space *Space) bool {
-	return Distance(space.currentTime-ae.access) <= space.EventOutgrowthThreshold
-}
-
 /***************************************************************/
-// Node Functions
+// UniqueConnectionsList Functions
 /***************************************************************/
-var ActivatePooling = false
 
-var activeNodesPool = sync.Pool{
-	New: func() interface{} {
-		return new(ActiveNode)
-	},
+func (cl *UniqueConnectionsList) size() int {
+	return len(cl.conns)
 }
 
-var savedNodesPool = sync.Pool{
-	New: func() interface{} {
-		return new(SavedNode)
-	},
-}
-
-func NewActiveNode(p m3point.Point) *ActiveNode {
-	var an *ActiveNode
-	if ActivatePooling {
-		an = activeNodesPool.Get().(*ActiveNode)
-	} else {
-		an = new(ActiveNode)
-	}
-	an.Pos = p
-	if len(an.accessedEventIDS) > 0 {
-		an.accessedEventIDS = an.accessedEventIDS[:0]
-	}
-	if len(an.connections) > 0 {
-		an.connections = an.connections[:0]
-	}
-	an.root = false
-	return an
-}
-
-func (s *SavedNode) ConvertToActive(p m3point.Point) *ActiveNode {
-	n := NewActiveNode(p)
-	n.root = s.root
-	if len(s.accessedEventIDS) > 0 {
-		for _, ae := range s.accessedEventIDS {
-			n.accessedEventIDS = append(n.accessedEventIDS, ae)
-		}
-	}
-	if len(s.connections) > 0 {
-		for _, c := range s.connections {
-			n.connections = append(n.connections, c)
-		}
-	}
-	if ActivatePooling {
-		savedNodesPool.Put(s)
-	}
-	return n
-}
-
-func (a *ActiveNode) ConvertToSaved() *SavedNode {
-	var s *SavedNode
-	if ActivatePooling {
-		s = savedNodesPool.Get().(*SavedNode)
-	} else {
-		s = new (SavedNode)
-	}
-	s.root = a.root
-	if len(s.accessedEventIDS) > 0 {
-		s.accessedEventIDS = s.accessedEventIDS[:0]
-	}
-	if len(s.connections) > 0 {
-		s.connections = s.connections[:0]
-	}
-	if len(a.accessedEventIDS) > 0 {
-		for _, ae := range a.accessedEventIDS {
-			s.accessedEventIDS = append(s.accessedEventIDS, ae)
-		}
-	}
-	if len(s.connections) > 0 {
-		for _, c := range s.connections {
-			s.connections = append(s.connections, c)
-		}
-	}
-	if ActivatePooling {
-		activeNodesPool.Put(a)
-	}
-	return s
-}
-
-func (node *ActiveNode) SetRoot(id EventID, time TickTime) {
-	node.root = true
-	node.accessedEventIDS = make([]AccessedEventID, 1)
-	node.accessedEventIDS[0] = AccessedEventID{id, time}
-}
-
-func (node *ActiveNode) HasFreeConnections(space *Space) bool {
-	return node.connections == nil || len(node.connections) < space.MaxConnections
-}
-
-func (node *ActiveNode) AddConnection(conn *Connection, space *Space) int {
-	if !node.HasFreeConnections(space) {
-		return -1
-	}
-	index := len(node.connections)
-	if node.Pos == conn.P1 {
-		node.connections = append(node.connections, conn.Id)
-	} else if node.Pos == conn.P2 {
-		node.connections = append(node.connections, -conn.Id)
-	} else {
-		Log.Errorf("Trying to add connection %v that does connect to node %v", *conn, *node)
-		return -1
-	}
-	return index
-}
-
-func (node *ActiveNode) IsAlreadyConnected(otherNode *ActiveNode) bool {
-	bv := m3point.MakeVector(node.Pos, otherNode.Pos)
-	cd := m3point.GetConnDetailsByVector(bv)
-	if !cd.IsValid() {
-		Log.Errorf("Cannot determine an already connected nodes P1=%v P2=%v that is not reachable by a base connection %v",
-			node.Pos, otherNode.Pos, bv)
-		return false
-	}
-	for _, conn := range node.connections {
-		if conn == cd.Id {
+func (cl *UniqueConnectionsList) exist(connId m3point.ConnectionId) bool {
+	for _, cId := range cl.conns {
+		if cId == connId {
 			return true
 		}
 	}
 	return false
 }
 
-func (node *ActiveNode) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
-	return !node.IsEventAlreadyPresent(newPosEo.event.id)
-}
-
-func (node *ActiveNode) AddOutgrowth(id EventID, time TickTime) {
-	node.accessedEventIDS = append(node.accessedEventIDS, AccessedEventID{id, time})
-}
-
-/***************************************************************/
-// Connection Functions
-/***************************************************************/
-
-var connectionsPool = sync.Pool{
-	New: func() interface{} {
-		return new(Connection)
-	},
-}
-
-func (conn *Connection) GetConnId() m3point.ConnectionId {
-	return conn.Id
-}
-
-func (conn *Connection) GetConnectionDetails() *m3point.ConnectionDetails {
-	return m3point.GetConnDetailsById(conn.Id)
-}
-
-func (conn *Connection) IsConnectedTo(point m3point.Point) bool {
-	return conn.P1 == point || conn.P2 == point
-}
-
-func (conn *Connection) GetColorMask(space *Space) uint8 {
-	n1 := space.GetNode(conn.P1)
-	n2 := space.GetNode(conn.P2)
-	// Connection color mask of all event outgrowth that match
-	if n1 != nil && n2 != nil {
-		return n1.GetColorMask(space) & n2.GetColorMask(space)
+func (cl *UniqueConnectionsList) addLink(pl m3path.PathLink) {
+	if pl != nil && pl.HasDestination() {
+		cl.add(pl.GetConnId())
 	}
-	return uint8(0)
 }
 
-func (conn *Connection) HowManyColors(space *Space) uint8 {
-	return countOnes(conn.GetColorMask(space))
+func (cl *UniqueConnectionsList) addFromLink(pl m3path.PathLink) {
+	if pl != nil {
+		cl.add(pl.GetConnId().GetNegId())
+	}
 }
 
-func (conn *Connection) IsOld(space *Space) bool {
-	n1 := space.GetNode(conn.P1)
-	n2 := space.GetNode(conn.P2)
-	if n1 != nil && n2 != nil {
-		return n1.IsOld(space) && n2.IsOld(space)
+func (cl *UniqueConnectionsList) add(connId m3point.ConnectionId) {
+	if !cl.exist(connId) {
+		if cl.conns == nil {
+			cl.conns = make([]m3point.ConnectionId, 1, 3)
+			cl.conns[0] = connId
+		} else {
+			cl.conns = append(cl.conns, connId)
+		}
+	}
+}
+
+/***************************************************************/
+// PointNode Functions
+/***************************************************************/
+
+func (pn *PointNode) String() string {
+	nbEvts := pn.GetNbEvents()
+	if nbEvts == 0 {
+		return "EMPTY NODE"
+	}
+	p := m3point.Origin
+	for _, n := range pn.pathNodes {
+		if n != nil && !n.IsEnd() {
+			p = n.P()
+			break
+		}
+	}
+	return fmt.Sprintf("Node-%v-%d", p, nbEvts)
+}
+
+func (pn *PointNode) GetNbEvents() int {
+	res := 0
+	for _, n := range pn.pathNodes {
+		if n != nil && !n.IsEnd() {
+			res++
+		}
+	}
+	return res
+}
+
+func (pn *PointNode) GetNbActiveEvents() int {
+	res := 0
+	for _, n := range pn.pathNodes {
+		if n.IsActive() {
+			res++
+		}
+	}
+	return res
+}
+
+func (pn *PointNode) GetPoint() *m3point.Point {
+	nbEvts := pn.GetNbEvents()
+	if nbEvts == 0 {
+		return nil
+	}
+	for _, n := range pn.pathNodes {
+		if n != nil && !n.IsEnd() {
+			p := n.P()
+			return &p
+		}
+	}
+	return nil
+}
+
+func (pn *PointNode) IsEmpty() bool {
+	return pn.GetNbEvents() == 0
+}
+
+func (pn *PointNode) IsEventAlreadyPresent(id EventID) bool {
+	return pn.pathNodes[id] != nil && !pn.pathNodes[id].IsEnd()
+}
+
+func (pn *PointNode) GetPathNode(id EventID) m3path.PathNode {
+	return pn.pathNodes[id]
+}
+
+func (pn *PointNode) GetAccessed(evt *Event) DistAndTime {
+	return DistAndTime(pn.pathNodes[evt.id].D()) + evt.created
+}
+
+func (pn *PointNode) GetLastAccessed(space *Space) DistAndTime {
+	maxAccess := DistAndTime(0)
+	for id := range pn.pathNodes {
+		a := pn.GetAccessed(space.GetEvent(EventID(id)))
+		if a > maxAccess {
+			maxAccess = a
+		}
+	}
+	return maxAccess
+}
+
+func (pn *PointNode) GetLatest(space *Space) m3path.PathNode {
+	maxAccess := pn.GetLastAccessed(space)
+	for id, n := range pn.pathNodes {
+		if maxAccess == pn.GetAccessed(space.GetEvent(EventID(id))) {
+			return n
+		}
+	}
+	Log.Errorf("trying to find latest for node %s but did not find max access time %d", pn.String(), maxAccess)
+	return nil
+}
+
+func (pn *PointNode) GetEventDistFromCurrent(evt *Event) DistAndTime {
+	return evt.space.currentTime - pn.GetAccessed(evt)
+}
+
+func (pn *PointNode) HasRoot() bool {
+	for _, n := range pn.pathNodes {
+		if n.IsRoot() {
+			return true
+		}
 	}
 	return false
 }
 
-func (space *Space) makeConnection(n1, n2 *ActiveNode) *Connection {
-	if !n1.HasFreeConnections(space) {
-		Log.Trace("Node 1", n1, "does not have free connections")
-		return nil
-	}
-	if !n2.HasFreeConnections(space) {
-		Log.Trace("Node 2", n2, "does not have free connections")
-		return nil
-	}
-	if n1.IsAlreadyConnected(n2) {
-		Log.Trace("Connection between 2 points", n1.Pos, n2.Pos, "already connected!")
-		return nil
-	}
-
-	d := m3point.DS(n1.Pos, n2.Pos)
-	if !(d == 1 || d == 2 || d == 3 || d == 5) {
-		Log.Error("Connection between 2 points", n1.Pos, n2.Pos, "that are not 1, 2, 3 or 5 DS away!")
-		return nil
-	}
-	// All good create connection
-	bv := m3point.MakeVector(n1.Pos, n2.Pos)
-	cd := m3point.GetConnDetailsByVector(bv)
-	c1 := makeConnection(cd.GetId(), n1, n2)
-	space.activeConnections = append(space.activeConnections, c1)
-	n1done := n1.AddConnection(c1, space)
-	c2 := makeConnection(-cd.GetId(), n2, n1)
-	n2done := n2.AddConnection(c2, space)
-	if n1done < 0 || n2done < 0 {
-		Log.Error("Node1 connection association", n1done, "or Node2", n2done, "did not happen!!")
-		return nil
-	}
-	return c1
-}
-
-func makeConnection(Id m3point.ConnectionId, n1, n2 *ActiveNode) *Connection {
-	var c *Connection
-	if ActivatePooling {
-		c = connectionsPool.Get().(*Connection)
-	} else {
-		c = new (Connection)
-	}
-	c.Id = Id
-	c.P1 = n1.Pos
-	c.P2 = n2.Pos
-	return c
-}
-
-/***************************************************************/
-// Saved Node Functions
-/***************************************************************/
-
-func (node *SavedNode) IsRoot() bool {
-	return node.root
-}
-
-func (node *SavedNode) GetLatest() AccessedEventID {
-	if len(node.accessedEventIDS) > 0 {
-		return node.accessedEventIDS[len(node.accessedEventIDS) - 1]
-	}
-	return NilAccessEventID
-}
-
-func (node *SavedNode) GetLastAccessed() TickTime {
-	return node.GetLatest().access
-}
-
-func (node *SavedNode) IsActive(space *Space) bool {
-	if node.IsRoot() {
+func (pn *PointNode) IsEventActive(evt *Event) bool {
+	n := pn.GetPathNode(evt.id)
+	if n.IsRoot() {
 		return true
 	}
-	if node.GetLatest().IsActive(space) {
+	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthThreshold
+}
+
+func (pn *PointNode) IsEventOld(evt *Event) bool {
+	n := pn.GetPathNode(evt.id)
+	if n.IsRoot() {
 		return true
 	}
-	return false
+	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthOldThreshold
 }
 
-func (node *SavedNode) HowManyColors(space *Space) uint8 {
-	return countOnes(node.GetColorMask(space))
-}
-
-func (node *SavedNode) GetColorMask(space *Space) uint8 {
-	if node.root {
-		return uint8(space.events[node.accessedEventIDS[0].id].color)
+func (pn *PointNode) IsEventDead(evt *Event) bool {
+	n := pn.GetPathNode(evt.id)
+	if n.IsRoot() {
+		return true
 	}
+	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthDeadThreshold
+}
+
+func (pn *PointNode) IsActive(space *Space) bool {
+	if pn.HasRoot() {
+		return true
+	}
+	return space.currentTime-pn.GetLastAccessed(space) >= space.EventOutgrowthThreshold
+}
+
+func (pn *PointNode) HowManyColors(space *Space) uint8 {
+	return countOnes(pn.GetColorMask(space))
+}
+
+func (pn *PointNode) GetColorMask(space *Space) uint8 {
 	m := uint8(0)
-	for _, ae := range node.accessedEventIDS {
-		if ae.IsActive(space) {
-			m |= uint8(space.events[ae.id].color)
+	if pn.IsEmpty() {
+		return m
+	}
+	for id, n := range pn.pathNodes {
+		evt := space.GetEvent(EventID(id))
+		if n.IsRoot() {
+			return uint8(evt.color)
+		}
+		if pn.IsEventActive(evt) {
+			m |= uint8(evt.color)
 		}
 	}
 	return m
 }
 
-func (node *SavedNode) IsEventAlreadyPresent(id EventID) bool {
-	for _, ae := range node.accessedEventIDS {
-		if ae.id == id {
-			return true
+func (pn *PointNode) IsOld(space *Space) bool {
+	if pn.IsEmpty() {
+		return false
+	}
+	for id, n := range pn.pathNodes {
+		if n.IsRoot() {
+			return false
+		}
+		evt := space.GetEvent(EventID(id))
+		if !(pn.IsEventOld(evt) || pn.IsEventDead(evt)) {
+			return false
+		}
+	}
+	return true
+}
+
+func (pn *PointNode) IsDead(space *Space) bool {
+	if pn.IsEmpty() {
+		return false
+	}
+	for id, n := range pn.pathNodes {
+		if n != nil && !n.IsEnd() {
+			if n.IsRoot() {
+				return false
+			}
+			evt := space.GetEvent(EventID(id))
+			if !pn.IsEventDead(evt) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (pn *PointNode) GetStateString(space *Space) string {
+	nbEvts := pn.GetNbEvents()
+	evtIds := make([]EventID, nbEvts)
+	idx := 0
+	for id, n := range pn.pathNodes {
+		if n != nil && !n.IsEnd() {
+			evtIds[idx] = EventID(id)
+			idx++
+		}
+	}
+	latest := pn.GetLatest(space)
+	if pn.HasRoot() {
+		return fmt.Sprintf("root node %v, %s = %v", latest.P(), latest.GetTrioIndex(), evtIds)
+	}
+	return fmt.Sprintf("node %v, %s = %v", latest.P(), latest.GetTrioIndex(), evtIds)
+}
+
+func (pn *PointNode) addPathNode(id EventID, n m3path.PathNode) {
+	if pn.IsEventAlreadyPresent(id) {
+		Log.Errorf("trying to add path node %s for node %s ")
+	}
+	pn.pathNodes[id] = n
+}
+
+func (pn *PointNode) GetConnections() *UniqueConnectionsList {
+	usedConns := UniqueConnectionsList{}
+	for _, n := range pn.pathNodes {
+		if n != nil && !n.IsEnd() {
+			max := 2
+			if n.IsRoot() {
+				max = 3
+			}
+			for j := 0; j < max; j++ {
+				usedConns.addLink(n.GetNext(j))
+			}
+			if !n.IsRoot() {
+				usedConns.addFromLink(n.GetFrom())
+				usedConns.addFromLink(n.GetOtherFrom())
+			}
+		}
+	}
+	return &usedConns
+}
+
+func (pn *PointNode) HasFreeConnections(space *Space) bool {
+	usedConns := pn.GetConnections()
+	return usedConns.size() < space.MaxConnections
+}
+
+func (pn *PointNode) IsAlreadyConnected(opn *PointNode) bool {
+	if pn.IsEmpty() || opn.IsEmpty() {
+		return false
+	}
+	pnp := *pn.GetPoint()
+	opnp := *opn.GetPoint()
+	cd := m3point.GetConnDetailsByPoints(pnp, opnp)
+	if cd == nil || !cd.IsValid() {
+		Log.Errorf("finding if 2 nodes already connected but not separated by possible connection (%v, %v)", pnp, opnp)
+		return false
+	}
+	for id, n := range pn.pathNodes {
+		if n != nil && !n.IsEnd() {
+			pl := n.GetNextConnection(cd.GetId())
+			on := opn.GetPathNode(EventID(id))
+			if on != nil && !on.IsEnd() && pl != nil && pl.GetSrc() == on {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func (node *SavedNode) IsOld(space *Space) bool {
-	if node.IsRoot() {
-		return false
-	}
-	return Distance(space.currentTime-node.GetLastAccessed()) >= space.EventOutgrowthOldThreshold
-}
-
-func (node *SavedNode) IsDead(space *Space) bool {
-	if node.IsRoot() {
-		return false
-	}
-	return Distance(space.currentTime-node.GetLastAccessed()) >= space.EventOutgrowthDeadThreshold
-}
-
-func (node *SavedNode) String() string {
-	return fmt.Sprintf("%s:%d:%d", "Saved", len(node.connections), len(node.accessedEventIDS))
-}
-
-func (node *SavedNode) GetStateString() string {
-	connIds := make([]string, len(node.connections))
-	for i, connId := range node.connections {
-		connIds[i] = m3point.GetConnDetailsById(connId).String()
-	}
-	if node.root {
-		return fmt.Sprintf("%s: root %v, %v", "Saved", node.accessedEventIDS, connIds)
-	}
-	return fmt.Sprintf("%s: %v, %v", "Saved", node.accessedEventIDS, connIds)
+func (node *PointNode) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
+	return !node.IsEventAlreadyPresent(newPosEo.event.id)
 }

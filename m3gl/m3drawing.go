@@ -94,7 +94,7 @@ type SpaceDrawingColor struct {
 type NodeDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	node       *m3space.ActiveNode
+	node       *m3space.PointNode
 }
 
 type ConnectionDrawingElement struct {
@@ -245,7 +245,7 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 	return defaultGreyDimmer
 }
 
-func MakeNodeDrawingElement(space *m3space.Space, node *m3space.ActiveNode) *NodeDrawingElement {
+func MakeNodeDrawingElement(space *m3space.Space, node *m3space.PointNode) *NodeDrawingElement {
 	// Collect all the colors of event outgrowth of this node. Dim if not latest
 	sdc := SpaceDrawingColor{}
 	sdc.objColors = node.GetColorMask(space)

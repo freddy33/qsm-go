@@ -190,7 +190,7 @@ func (creator *DrawingElementsCreator) createAxes(max int64) {
 	}
 }
 
-func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node *m3space.ActiveNode) {
+func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node *m3space.PointNode) {
 	creator.elements[creator.offset] = MakeNodeDrawingElement(space, node)
 	creator.offset++
 }
@@ -208,7 +208,7 @@ func (world *DisplayWorld) ForwardTime() {
 func (world *DisplayWorld) CreateDrawingElements() {
 	space := world.WorldSpace
 	dec := DrawingElementsCreator{}
-	dec.nbElements = 6 + space.GetNbActiveNodes() + space.GetNbActiveConnections()
+	dec.nbElements = 6 + space.GetNbActiveNodes() + space.GetNbActiveLinks()
 	dec.elements = make([]SpaceDrawingElement, dec.nbElements)
 	dec.offset = 0
 	dec.createAxes(world.Max)

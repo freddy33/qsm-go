@@ -31,6 +31,7 @@ type PathLink interface {
 	fmt.Stringer
 	GetSrc() PathNode
 	GetConnId() m3point.ConnectionId
+	HasDestination() bool
 	IsDeadEnd() bool
 	SetDeadEnd()
 	createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder)
@@ -53,12 +54,14 @@ type PathNode interface {
 	GetPathContext() *PathContext
 	IsEnd() bool
 	IsRoot() bool
+	IsActive() bool
 	P() m3point.Point
 	D() int
 	GetTrioIndex() m3point.TrioIndex
 	GetFrom() PathLink
 	GetOtherFrom() PathLink
 	GetNext(i int) PathLink
+	GetNextConnection(connId m3point.ConnectionId) PathLink
 
 	calcDist() int
 	addPathLink(connId m3point.ConnectionId) (PathLink, bool)
@@ -101,6 +104,7 @@ type EndPathNodeT struct {
 }
 
 var EndPathNode = &EndPathNodeT{}
+var EndPathLink = &BasePathLink{EndPathNode, m3point.NilConnectionId, EndPathNode }
 
 /***************************************************************/
 // PathContext Functions
@@ -127,8 +131,8 @@ func (pathCtx *PathContext) GetRootPathNode() PathNode {
 	return pathCtx.rootPathNode
 }
 
-func (pathCtx *PathContext) GetOpenEndPath() []OpenEndPath {
-	return pathCtx.openEndNodes
+func (pathCtx *PathContext) GetNumberOfOpenNodes() int {
+	return len(pathCtx.openEndNodes)
 }
 
 func (pathCtx *PathContext) InitRootNode(center m3point.Point) {
@@ -149,16 +153,50 @@ func (pathCtx *PathContext) InitRootNode(center m3point.Point) {
 	pathCtx.pathNodeMap.AddPathNode(pathCtx.rootPathNode)
 }
 
+func (pathCtx *PathContext) GetNextOpenNodesLen() int {
+	d := 0
+	for _, non := range pathCtx.openEndNodes {
+		if !non.pn.IsEnd() {
+			d = non.pn.D()
+			break
+		}
+	}
+	if d == 0 {
+		return 3
+	}
+	if d == 1 {
+		return 6
+	}
+	// from sphere area growth of d to d+1 the ratio should be 1 + 2/d + 1/d^2
+	origLen := float64(len(pathCtx.openEndNodes))
+	df := float64(d)
+	predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
+	if d <= 16 {
+		predictedRatio = predictedRatio * 1.11
+	} else if d <= 32 {
+		predictedRatio = predictedRatio * 1.04
+	} else {
+		predictedRatio = predictedRatio * 1.02
+	}
+	predictedLen := origLen*predictedRatio
+	return int(predictedLen)
+}
+
 func (pathCtx *PathContext) MoveToNextNodes() {
-	var newOpenNodes []OpenEndPath
+	newOpenNodes := make([]OpenEndPath, 0, pathCtx.GetNextOpenNodesLen())
 	for _, oen := range pathCtx.openEndNodes {
 		pathNode := oen.pn
 		if pathNode.IsEnd() {
 			Log.Errorf("An open end node builder is a dead end at %v", oen.pn.P())
 			continue
 		}
+		if !pathNode.IsActive() {
+			if Log.IsTrace() {
+				Log.Errorf("An open end node builder has no more active links at %v", oen.pn.P())
+			}
+			continue
+		}
 		if pathNode.IsRoot() {
-			newOpenNodes = make([]OpenEndPath, 0, 3)
 			td := m3point.GetTrioDetails(pathNode.GetTrioIndex())
 			for _, c := range td.GetConnections() {
 				pl, created := pathNode.addPathLink(c.GetId())
@@ -170,9 +208,6 @@ func (pathCtx *PathContext) MoveToNextNodes() {
 				}
 			}
 		} else {
-			if cap(newOpenNodes) == 0 {
-				newOpenNodes = make([]OpenEndPath, 0, 2*len(pathCtx.openEndNodes))
-			}
 			td := m3point.GetTrioDetails(pathNode.GetTrioIndex())
 			if td == nil {
 				Log.Fatalf("reached a node without trio %s %s", pathNode.String(), pathNode.GetTrioIndex())
@@ -245,8 +280,12 @@ func (pl *BasePathLink) GetDst() PathNode {
 	return pl.dst
 }
 
+func (pl *BasePathLink) HasDestination() bool {
+	return pl.dst != nil && !pl.dst.IsEnd()
+}
+
 func (pl *BasePathLink) IsDeadEnd() bool {
-	return pl.dst == nil || pl.dst.IsEnd()
+	return pl == EndPathLink || pl.dst == nil || pl.dst.IsEnd()
 }
 
 func (pl *BasePathLink) SetDeadEnd() {
@@ -315,7 +354,7 @@ func (pl *BasePathLink) String() string {
 }
 
 func (pl *BasePathLink) dumpInfo(ident int) string {
-	if pl.IsDeadEnd() {
+	if !pl.HasDestination() {
 		return pl.String()
 	}
 	var sb strings.Builder
@@ -364,6 +403,16 @@ func (rpn *RootPathNode) D() int {
 
 func (rpn *RootPathNode) IsRoot() bool {
 	return true
+}
+
+func (rpn *RootPathNode) IsActive() bool {
+	// Active means some next link open
+	for _, pl := range rpn.next {
+		if pl == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (rpn *RootPathNode) calcDist() int {
@@ -415,6 +464,15 @@ func (rpn *RootPathNode) addPathLink(connId m3point.ConnectionId) (PathLink, boo
 	return &res, true
 }
 
+func (rpn *RootPathNode) GetNextConnection(connId m3point.ConnectionId) PathLink {
+	for _, pl := range rpn.next {
+		if pl != nil && pl.GetConnId() == connId {
+			return pl
+		}
+	}
+	return nil
+}
+
 func (rpn *RootPathNode) GetNext(i int) PathLink {
 	return rpn.next[i]
 }
@@ -428,7 +486,7 @@ func (rpn *RootPathNode) GetOtherFrom() PathLink {
 }
 
 func (rpn *RootPathNode) setOtherFrom(pl PathLink) {
-	panic("implement me")
+	Log.Fatalf("cannot set other from on a root node")
 }
 
 func (rpn *RootPathNode) dumpInfo(ident int) string {
@@ -447,6 +505,16 @@ func (opn *OutPathNode) IsRoot() bool {
 	return false
 }
 
+func (opn *OutPathNode) IsActive() bool {
+	// Active means some next link open
+	for _, pl := range opn.next {
+		if pl == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (opn *OutPathNode) D() int {
 	return opn.d
 }
@@ -457,6 +525,15 @@ func (opn *OutPathNode) GetFrom() PathLink {
 
 func (opn *OutPathNode) GetOtherFrom() PathLink {
 	return opn.otherFrom
+}
+
+func (opn *OutPathNode) GetNextConnection(connId m3point.ConnectionId) PathLink {
+	for _, pl := range opn.next {
+		if pl != nil && !pl.IsDeadEnd() && pl.GetConnId() == connId {
+			return pl
+		}
+	}
+	return nil
 }
 
 func (opn *OutPathNode) GetNext(i int) PathLink {
@@ -523,6 +600,12 @@ func (opn *OutPathNode) calcDist() int {
 
 func (opn *OutPathNode) setOtherFrom(pl PathLink) {
 	opn.otherFrom = pl
+	// block one of next that cannot be used anymore
+	if opn.next[0] == nil {
+		opn.next[0] = EndPathLink
+	} else if opn.next[1] == nil {
+		opn.next[1] = EndPathLink
+	}
 }
 
 func (opn *OutPathNode) dumpInfo(ident int) string {
@@ -568,6 +651,10 @@ func (epn *EndPathNodeT) IsRoot() bool {
 	return false
 }
 
+func (epn *EndPathNodeT) IsActive() bool {
+	return false
+}
+
 func (epn *EndPathNodeT) GetPathContext() *PathContext {
 	Log.Fatalf("trying to get path context from end node")
 	return nil
@@ -595,6 +682,11 @@ func (epn *EndPathNodeT) GetFrom() PathLink {
 
 func (epn *EndPathNodeT) GetOtherFrom() PathLink {
 	Log.Fatalf("trying to get other from end node")
+	return nil
+}
+
+func (epn *EndPathNodeT) GetNextConnection(connId m3point.ConnectionId) PathLink {
+	Log.Fatalf("trying to get next connection from end node")
 	return nil
 }
 

@@ -24,7 +24,8 @@ type ConnectionDetails struct {
 	ConnDS int64
 }
 
-var EmptyConnDetails = ConnectionDetails{0, Origin, 0,}
+var NilConnectionId = ConnectionId(0)
+var EmptyConnDetails = ConnectionDetails{NilConnectionId, Origin, 0,}
 
 var allConnectionsByVector map[Point]*ConnectionDetails
 var allConnections []*ConnectionDetails
@@ -77,6 +78,10 @@ func IsLessConnId(cd1, cd2 *ConnectionDetails) bool {
 /***************************************************************/
 // ConnectionId Functions
 /***************************************************************/
+func (connId ConnectionId) IsValid() bool {
+	return connId != NilConnectionId
+}
+
 func (connId ConnectionId) GetNegId() ConnectionId {
 	return -connId
 }
@@ -157,7 +162,7 @@ func GetMaxConnId() ConnectionId {
 }
 
 func (cd *ConnectionDetails) IsValid() bool {
-	return cd.Id != 0
+	return cd.Id.IsValid()
 }
 
 func (cd *ConnectionDetails) GetId() ConnectionId {

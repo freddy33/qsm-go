@@ -15,74 +15,36 @@ type ThreeIds [3]EventID
 
 var NilThreeIds = ThreeIds{NilEvent, NilEvent, NilEvent}
 
-type OutgrowthCollectorStatSingle struct {
-	name             string
-	originalPoints   int
-	occupiedPoints   int
-	noMoreConnPoints int
-}
-
-type OutgrowthCollectorStatSameEvent struct {
-	OutgrowthCollectorStatSingle
-	originalPossible    int
-	originalHistogram   []int
-	occupiedPossible    int
-	occupiedHistogram   []int
-	noMoreConnPossible  int
-	noMoreConnHistogram []int
-	newPoint            bool
-}
-
-type OutgrowthCollectorStatMultiEvent struct {
-	OutgrowthCollectorStatSingle
-	totalOriginalPossible       int
-	nbEventsOriginalHistogram   []int
-	totalOccupiedPossible       int
-	nbEventsOccupiedHistogram   []int
-	totalNoMoreConnPossible     int
-	nbEventsNoMoreConnHistogram []int
-	newPoint                    bool
-	perEvent                    map[EventID]*OutgrowthCollectorStatSameEvent
-}
-
-type OutgrowthCollectorSingle struct {
-	OutgrowthCollectorStatSingle
-	data map[m3point.Point]*NewPossibleOutgrowth
-}
-
-type OutgrowthCollectorSameEvent struct {
-	OutgrowthCollectorStatSameEvent
-	data map[m3point.Point]*[]*NewPossibleOutgrowth
-}
-
-type OutgrowthCollectorMultiEvent struct {
-	OutgrowthCollectorStatMultiEvent
-	data              map[m3point.Point]*map[EventID]*[]*NewPossibleOutgrowth
+type ForwardResult struct {
 	pointsPerThreeIds map[ThreeIds]*[]m3point.Point
 }
 
-type FullOutgrowthCollector struct {
-	single      OutgrowthCollectorSingle
-	sameEvent   OutgrowthCollectorSameEvent
-	multiEvents OutgrowthCollectorMultiEvent
-}
-
-func (space *Space) ForwardTime() *FullOutgrowthCollector {
+func (space *Space) ForwardTime() *ForwardResult {
 	nbLatest := 0
+	expectedActiveNodes := 0
 	for _, evt := range space.events {
-		nbLatest += len(evt.latestOutgrowths)
+		nbLatest += evt.pathContext.GetNumberOfOpenNodes()
+		expectedActiveNodes += evt.pathContext.GetNextOpenNodesLen()
 	}
 	if Log.IsInfo() {
-		Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestEO, %d oldNodes, %d oldConn, %d reactivated, %d died",
-			space.currentTime+1, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
-			len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
+		Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestOpen, %d expectedOpen",
+			space.currentTime+1, len(space.events), len(space.activeNodes), len(space.activeLinks), nbLatest, expectedActiveNodes)
 	}
-	LogStat.Infof("%4d: LIVE( %d: %d: %d: %d: %d ) REMOVED( %d: %d: %d )",
-		space.currentTime, len(space.events), len(space.activeNodesMap), len(space.activeConnections), nbLatest,
-		len(space.oldNodesMap), space.nbOldConnections, space.nbOldNodesReactivated, space.nbDeadNodes)
-	c := make(chan *NewPossibleOutgrowth, 100)
+	LogStat.Infof("%4d: %d: %d: %d: %d: %d",
+		space.currentTime, len(space.events), len(space.activeNodes), len(space.activeLinks), nbLatest, expectedActiveNodes)
+
+	wg := sync.WaitGroup{}
 	for _, evt := range space.events {
-		go evt.createNewPossibleOutgrowths(c)
+		wg.Add(1)
+		go evt.moveToNext(&wg)
+	}
+	wg.Wait()
+
+	res := ForwardResult{make(map[ThreeIds]*[]m3point.Point, 16)}
+	for _, n := range space.activeNodes {
+		if n.GetNbEvents() > 3 {
+
+		}
 	}
 	collector := space.processNewOutgrowth(c, nbLatest)
 
@@ -97,52 +59,9 @@ func (space *Space) ForwardTime() *FullOutgrowthCollector {
 	return collector
 }
 
-func (evt *Event) createNewPossibleOutgrowths(c chan *NewPossibleOutgrowth) {
-	wg := sync.WaitGroup{}
-	for _, eg := range evt.latestOutgrowths {
-		if eg.state != EventOutgrowthLatest {
-			Log.Fatalf("Wrong state of event! found non latest outgrowth %v at %v in latest list.", eg, eg.pos)
-		} else {
-			wg.Add(1)
-			go evt.createNewPossibleOutgrowthsForLatestOutgrowth(c, eg, &wg)
-		}
-	}
-	wg.Wait()
-	Log.Debug("Finished with event outgrowth for", evt.id, "sending End state possible outgrowth")
-	c <- makeNewPossibleOutgrowth(evt.node.Pos, evt, nil, Distance(0), EventOutgrowthEnd)
-}
-
-func (evt *Event) createNewPossibleOutgrowthsForLatestOutgrowth(c chan *NewPossibleOutgrowth, eg *EventOutgrowth, wg *sync.WaitGroup) {
-	nextPoints := evt.growthContext.GetNextPoints(eg.pos)
-	for _, nextPoint := range nextPoints {
-		if !eg.CameFromPoint(nextPoint) {
-			sendOutgrowth := true
-			nodeThere := evt.space.GetNode(nextPoint)
-			if nodeThere != nil {
-				sendOutgrowth = !nodeThere.IsEventAlreadyPresent(evt.id)
-				if Log.IsTrace() {
-					Log.Trace("New EO on existing node", nodeThere.GetStateString(), "can receive=", sendOutgrowth)
-				}
-			}
-			if sendOutgrowth {
-				if Log.IsTrace() {
-					Log.Trace("Creating new possible event outgrowth for", evt.id, "at", nextPoint)
-				}
-				c <- makeNewPossibleOutgrowth(nextPoint, evt, eg, eg.distance+1, EventOutgrowthNew)
-			}
-		}
-	}
+func (evt *Event) moveToNext(wg *sync.WaitGroup) {
+	evt.pathContext.MoveToNextNodes()
 	wg.Done()
-}
-
-func makeNewPossibleOutgrowth(p m3point.Point, evt *Event, eg *EventOutgrowth, d Distance, s EventOutgrowthState) *NewPossibleOutgrowth {
-	npo := newPosOutgrowthPool.Get().(*NewPossibleOutgrowth)
-	npo.pos = p
-	npo.event = evt
-	npo.from = eg
-	npo.distance = d
-	npo.state = s
-	return npo
 }
 
 func (space *Space) processNewOutgrowth(c chan *NewPossibleOutgrowth, nbLatest int) *FullOutgrowthCollector {

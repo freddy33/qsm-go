@@ -5,13 +5,13 @@ import (
 	"github.com/freddy33/qsm-go/m3point"
 )
 
-type EventID uint64
+type EventID int
 
 const (
-	NilEvent = EventID(0)
+	NilEvent = EventID(-1)
 )
 
-type Distance uint64
+type DistAndTime int
 
 type EventColor uint8
 
@@ -25,58 +25,79 @@ const (
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 
 type Event struct {
-	space             *Space
-	id                EventID
-	node              *ActiveNode
-	created           TickTime
-	color             EventColor
-	growthContext     *m3path.GrowthContext
-	currentOutgrowths []*EventOutgrowth
-	latestOutgrowths  []*EventOutgrowth
+	id          EventID
+	space       *Space
+	node        Node
+	created     DistAndTime
+	color       EventColor
+	pathContext *m3path.PathContext
 }
 
-type SavedEvent struct {
-	id                   EventID
-	node                 SavedNode
-	created              TickTime
-	color                EventColor
-	growthContext        m3path.GrowthContext
-	savedLatestOutgrowth []SavedEventOutgrowth
+type SpacePathNodeMap struct {
+	space *Space
+	id EventID
+	size int
 }
 
-func (space *Space) CreateEvent(p m3point.Point, k EventColor) *Event {
-	ctx := m3path.CreateGrowthContext(m3point.Origin, 8, 0, 0)
-	switch k {
-	case RedEvent:
-		// No change
-	case GreenEvent:
-		ctx.SetIndexOffset(4, 0)
-	case BlueEvent:
-		ctx.SetIndexOffset(8, 0)
-	case YellowEvent:
-		ctx.SetIndexOffset(10, 4)
+/***************************************************************/
+// SpacePathNodeMap Functions
+/***************************************************************/
+
+func (spnm *SpacePathNodeMap) GetSize() int {
+	return spnm.size
+}
+
+func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) (m3path.PathNode, bool) {
+	res, ok := spnm.space.nodesMap[p]
+	if ok {
+		return res.GetPathNode(spnm.id), ok
 	}
-	return space.CreateEventWithGrowthContext(p, k, ctx)
+	return nil, false
 }
 
-func (space *Space) CreateEventWithGrowthContext(p m3point.Point, k EventColor, ctx *m3path.GrowthContext) *Event {
-	n := space.getOrCreateNode(p)
-	id := space.currentId
-	n.SetRoot(id, space.currentTime)
-	if Log.IsInfo() {
-		Log.Info("Creating new event at node", n.GetStateString())
-	}
-	space.currentId++
-	e := Event{space, id, n, space.currentTime, k,
-		ctx,
-		make([]*EventOutgrowth, 0, 100), make([]*EventOutgrowth, 1, 100)}
-	e.latestOutgrowths[0] = MakeActiveOutgrowth(n.Pos, Distance(0), EventOutgrowthLatest)
-	space.events[id] = &e
-	ctx.SetCenter(n.Pos)
+func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) {
+	n := spnm.space.getOrCreateNode(pathNode.P())
+	n.addPathNode(spnm.id, pathNode)
+	spnm.size++
+	spnm.space.activeNodes = append(spnm.space.activeNodes, n)
+}
+
+/***************************************************************/
+// Event Functions
+/***************************************************************/
+
+func (space *Space) CreateEvent(ctxType m3point.ContextType, idx int, offset int, p m3point.Point, k EventColor) *Event {
+	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
+	space.lastIdCounter++
+	ctx := m3path.MakePathContext(ctxType, idx, offset, pnm)
+	e := Event{pnm.id, space, nil, space.currentTime, k, ctx}
+	space.events[pnm.id] = &e
+	ctx.InitRootNode(p)
+	e.node = space.GetNode(p)
 	return &e
 }
 
-func (evt *Event) LatestDistance() Distance {
-	// Distance and time are the same...
-	return Distance(evt.space.currentTime - evt.created)
+func (space *Space) CreateEventFromColor(p m3point.Point, k EventColor) *Event {
+	idx, offset := getIndexAndOffsetForColor(k)
+	return space.CreateEvent(8, idx, offset, p, k)
+}
+
+func getIndexAndOffsetForColor(k EventColor) (int, int) {
+	switch k {
+	case RedEvent:
+		return 0, 0
+	case GreenEvent:
+		return 4, 0
+	case BlueEvent:
+		return 8, 0
+	case YellowEvent:
+		return 10, 4
+	}
+	Log.Errorf("Event color unknown %v", k)
+	return -1, -1
+}
+
+func (evt *Event) LatestDistance() DistAndTime {
+	// DistAndTime and time are the same...
+	return DistAndTime(evt.space.currentTime - evt.created)
 }

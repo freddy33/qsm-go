@@ -42,10 +42,10 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 		// Force to only 3
 		space.MaxConnections = 3
 		// Only latest counting
-		space.SetEventOutgrowthThreshold(Distance(0))
+		space.SetEventOutgrowthThreshold(DistAndTime(0))
 		space.blockOnSameEvent = 4
 		// No test of the old mechanism
-		space.EventOutgrowthOldThreshold = Distance(20)
+		space.EventOutgrowthOldThreshold = DistAndTime(20)
 
 		evt := space.CreateSingleEventCenter()
 		evt.growthContext.SetIndexOffset(trioIdx, 0)
@@ -92,10 +92,10 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 		// Force to only 3
 		space.MaxConnections = 3
 		// Only latest counting
-		space.SetEventOutgrowthThreshold(Distance(0))
+		space.SetEventOutgrowthThreshold(DistAndTime(0))
 		space.blockOnSameEvent = 2
 		// No test of the old mechanism
-		space.EventOutgrowthOldThreshold = Distance(20)
+		space.EventOutgrowthOldThreshold = DistAndTime(20)
 
 		evt := space.CreateSingleEventCenter()
 		evt.growthContext.SetIndexOffset(trioIdx, 0)
@@ -148,10 +148,10 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 		// Force to only 3
 		space.MaxConnections = 3
 		// Only latest counting
-		space.SetEventOutgrowthThreshold(Distance(0))
+		space.SetEventOutgrowthThreshold(DistAndTime(0))
 		space.blockOnSameEvent = 3
 		// No test of the old mechanism
-		space.EventOutgrowthOldThreshold = Distance(20)
+		space.EventOutgrowthOldThreshold = DistAndTime(20)
 
 		evt := space.CreateSingleEventCenter()
 		evt.growthContext.SetIndexOffset(trioIdx, 0)
@@ -204,12 +204,12 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 		space.MaxConnections = 3
 		space.blockOnSameEvent = 4
 		// Only latest counting
-		space.SetEventOutgrowthThreshold(Distance(0))
+		space.SetEventOutgrowthThreshold(DistAndTime(0))
 
 		ctx := m3path.CreateGrowthContext(m3point.Origin, 1, trioIdx, 0)
 		space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
-		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
+		assert.Equal(t, DistAndTime(3), space.EventOutgrowthOldThreshold)
 
 		expectedState := map[TickTime]ExpectedSpaceState{
 			0:  simpleState(0, 0),
@@ -245,13 +245,13 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 		space.MaxConnections = 3
 		space.blockOnSameEvent = 4
 		// Only latest counting
-		space.SetEventOutgrowthThreshold(Distance(0))
-		space.EventOutgrowthDeadThreshold = Distance(20)
+		space.SetEventOutgrowthThreshold(DistAndTime(0))
+		space.EventOutgrowthDeadThreshold = DistAndTime(20)
 
 		ctx := m3path.CreateGrowthContext(m3point.Origin, 1, trioIdx, 0)
 		space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
 
-		assert.Equal(t, Distance(3), space.EventOutgrowthOldThreshold)
+		assert.Equal(t, DistAndTime(3), space.EventOutgrowthOldThreshold)
 
 		expectedState := map[TickTime]ExpectedSpaceState{
 			0:  simpleState(0, 0),
@@ -282,9 +282,9 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 
 	assertEmptySpace(t, &space, 3*9)
 
-	space.SetEventOutgrowthThreshold(Distance(1))
-	assert.Equal(t, Distance(1), space.EventOutgrowthThreshold)
-	assert.Equal(t, Distance(4), space.EventOutgrowthOldThreshold)
+	space.SetEventOutgrowthThreshold(DistAndTime(1))
+	assert.Equal(t, DistAndTime(1), space.EventOutgrowthThreshold)
+	assert.Equal(t, DistAndTime(4), space.EventOutgrowthOldThreshold)
 
 	evt := space.CreateSingleEventCenter()
 	expectedContext := m3path.CreateGrowthContext(m3point.Origin, 8, 0, 0)
@@ -395,7 +395,7 @@ func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, 
 func assertNearMainPoints(t *testing.T, space *Space) {
 	for _, node := range space.activeNodesMap {
 		// Find main Pos attached to node
-		var mainPointNode *ActiveNode
+		var mainPointNode *PointNode
 		if node.Pos.IsMainPoint() {
 			mainPointNode = node
 		} else {

@@ -51,8 +51,8 @@ func DisplayPlay1() {
 	max := int64(30 * m3point.THREE)
 	world = m3gl.MakeWorld(max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()
-	world.WorldSpace.EventOutgrowthThreshold = m3space.Distance(0)
-	world.WorldSpace.EventOutgrowthOldThreshold = m3space.Distance(50)
+	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)
+	world.WorldSpace.EventOutgrowthOldThreshold = m3space.DistAndTime(50)
 	world.WorldSpace.CreatePyramid(20)
 	world.CreateDrawingElements()
 	world.WorldSpace.MaxConnections = 3

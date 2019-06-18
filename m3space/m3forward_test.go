@@ -100,7 +100,7 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3
-	space.SetEventOutgrowthThreshold(Distance(0))
+	space.SetEventOutgrowthThreshold(DistAndTime(0))
 	space.CreatePyramid(pSize)
 	/*
 		i:=0
@@ -115,16 +115,16 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 
 	pyramidPoints := Pyramid{}
 	idx := 0
-	for p := range space.activeNodesMap {
-		pyramidPoints[idx] = p
+	for _, evt := range space.events {
+		pyramidPoints[idx] = *evt.node.GetPoint()
 		idx++
 	}
 	LogTest.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
-	expectedTime := TickTime(0)
-	finalTime := TickTime(5 * pSize)
-	if finalTime < TickTime(25) {
-		finalTime = TickTime(25)
+	expectedTime := DistAndTime(0)
+	finalTime := DistAndTime(5 * pSize)
+	if finalTime < DistAndTime(25) {
+		finalTime = DistAndTime(25)
 	}
 	for expectedTime < finalTime {
 		assert.Equal(t, expectedTime, space.currentTime)

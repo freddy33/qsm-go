@@ -16,7 +16,7 @@ func TestFirstPathContextFilling(t *testing.T) {
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {
 			pathCtx := MakePathContext(ctxType, ctx.GetIndex(), ctx.offset, MakeSimplePathNodeMap(2^4))
-			fillPathContext(t, pathCtx, 4)
+			fillPathContext(t, pathCtx, 8*3)
 			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.GetPathNodeMap().GetSize(), len(pathCtx.openEndNodes))
 			Log.Debug( pathCtx.dumpInfo())
 			break
@@ -38,8 +38,11 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 	pathCtx.InitRootNode(m3point.Origin)
 	pathCtx.MoveToNextNodes()
 
-	assert.Equal(t, 1+3, pathCtx.GetPathNodeMap().GetSize(), "not all points are here %v", pathCtx.openEndNodes)
+	pathNodeMap := pathCtx.GetPathNodeMap()
+	assert.Equal(t, 1+3, pathNodeMap.GetSize(), "not all points are here %v", pathCtx.openEndNodes)
 	assert.Equal(t, 3, len(pathCtx.openEndNodes), "not all ends here %v", pathCtx.openEndNodes)
+	spnm, ok := pathNodeMap.(*SimplePathNodeMap)
+	assert.True(t, ok, "should be a simple path node map for %v", pathNodeMap)
 	countMains := 0
 	countNonMains := 0
 	for _, oep := range pathCtx.openEndNodes {
@@ -51,6 +54,7 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 		}
 		assert.Equal(t, 1, oep.pn.D(), "open end path %v should have distance of three", oep.pn)
 		assert.Equal(t, oep.pn.calcDist(), oep.pn.D(), "open end path %v should have d and calcDist equal", oep.pn)
+		assert.True(t, oep.pn.IsActive(), "open end path %v should be active", oep.pn)
 	}
 	assert.Equal(t, 0, countMains, "not all main ends here %v", pathCtx.openEndNodes)
 	assert.Equal(t, 3, countNonMains, "not all non main ends here %v", pathCtx.openEndNodes)
@@ -58,10 +62,28 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 	if until == 2 {
 		Log.Debug("*************** First round *************\n", pathCtx.dumpInfo())
 		pathCtx.MoveToNextNodes()
+		assertPathContextState(t, pathCtx, spnm)
 		Log.Debug("*************** Second round *************\n", pathCtx.dumpInfo())
 	} else {
 		for d := 1; d < until; d++ {
 			pathCtx.MoveToNextNodes()
+			assertPathContextState(t, pathCtx, spnm)
+		}
+	}
+}
+
+func assertPathContextState(t *testing.T, pathCtx *PathContext, spnm *SimplePathNodeMap) {
+	inOpenEnd := make(map[m3point.Point]bool)
+	for _, oep := range pathCtx.openEndNodes {
+		assert.NotEqual(t, m3point.NilTrioIndex, oep.pn.GetTrioIndex(), "%v should have trio already", oep.pn)
+		assert.Equal(t, oep.pn.calcDist(), oep.pn.D(), "open end path %v should have d and calcDist equal", oep.pn)
+		// TODO: Find a way to test that open end node are mostly active
+		//assert.True(t, oep.pn.IsActive(), "open end path %v should be active", oep.pn)
+		inOpenEnd[oep.pn.P()] = true
+	}
+	for p, n := range *spnm {
+		if !inOpenEnd[p] {
+			assert.False(t, n.IsActive(), "non open end path %v should be active", n)
 		}
 	}
 }
