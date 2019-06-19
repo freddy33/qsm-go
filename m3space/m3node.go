@@ -9,6 +9,8 @@ import (
 type Node interface {
 	fmt.Stringer
 	GetNbEvents() int
+	GetNbActiveEvents() int
+	GetActiveEventIds() []EventID
 	GetPoint() *m3point.Point
 	IsEmpty() bool
 	IsEventAlreadyPresent(id EventID) bool
@@ -121,8 +123,20 @@ func (pn *PointNode) GetNbEvents() int {
 func (pn *PointNode) GetNbActiveEvents() int {
 	res := 0
 	for _, n := range pn.pathNodes {
-		if n.IsActive() {
+		if n != nil && n.IsActive() {
 			res++
+		}
+	}
+	return res
+}
+
+func (pn *PointNode) GetActiveEventIds() []EventID {
+	res := make([]EventID, pn.GetNbActiveEvents())
+	idx := 0
+	for id, n := range pn.pathNodes {
+		if n != nil && n.IsActive() {
+			res[idx] = EventID(id)
+			idx++
 		}
 	}
 	return res
@@ -160,10 +174,13 @@ func (pn *PointNode) GetAccessed(evt *Event) DistAndTime {
 
 func (pn *PointNode) GetLastAccessed(space *Space) DistAndTime {
 	maxAccess := DistAndTime(0)
-	for id := range pn.pathNodes {
-		a := pn.GetAccessed(space.GetEvent(EventID(id)))
-		if a > maxAccess {
-			maxAccess = a
+	for id, n := range pn.pathNodes {
+		if n != nil {
+			a := DistAndTime(n.D()) + space.GetEvent(EventID(id)).created
+			//a := pn.GetAccessed(space.GetEvent(EventID(id)))
+			if a > maxAccess {
+				maxAccess = a
+			}
 		}
 	}
 	return maxAccess
@@ -172,8 +189,10 @@ func (pn *PointNode) GetLastAccessed(space *Space) DistAndTime {
 func (pn *PointNode) GetLatest(space *Space) m3path.PathNode {
 	maxAccess := pn.GetLastAccessed(space)
 	for id, n := range pn.pathNodes {
-		if maxAccess == pn.GetAccessed(space.GetEvent(EventID(id))) {
-			return n
+		if n != nil {
+			if maxAccess == pn.GetAccessed(space.GetEvent(EventID(id))) {
+				return n
+			}
 		}
 	}
 	Log.Errorf("trying to find latest for node %s but did not find max access time %d", pn.String(), maxAccess)
@@ -186,7 +205,7 @@ func (pn *PointNode) GetEventDistFromCurrent(evt *Event) DistAndTime {
 
 func (pn *PointNode) HasRoot() bool {
 	for _, n := range pn.pathNodes {
-		if n.IsRoot() {
+		if n != nil && n.IsRoot() {
 			return true
 		}
 	}
@@ -195,6 +214,9 @@ func (pn *PointNode) HasRoot() bool {
 
 func (pn *PointNode) IsEventActive(evt *Event) bool {
 	n := pn.GetPathNode(evt.id)
+	if n == nil {
+		return false
+	}
 	if n.IsRoot() {
 		return true
 	}
@@ -203,16 +225,22 @@ func (pn *PointNode) IsEventActive(evt *Event) bool {
 
 func (pn *PointNode) IsEventOld(evt *Event) bool {
 	n := pn.GetPathNode(evt.id)
+	if n == nil {
+		return false
+	}
 	if n.IsRoot() {
-		return true
+		return false
 	}
 	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthOldThreshold
 }
 
 func (pn *PointNode) IsEventDead(evt *Event) bool {
 	n := pn.GetPathNode(evt.id)
-	if n.IsRoot() {
+	if n == nil {
 		return true
+	}
+	if n.IsRoot() {
+		return false
 	}
 	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthDeadThreshold
 }
@@ -234,12 +262,14 @@ func (pn *PointNode) GetColorMask(space *Space) uint8 {
 		return m
 	}
 	for id, n := range pn.pathNodes {
-		evt := space.GetEvent(EventID(id))
-		if n.IsRoot() {
-			return uint8(evt.color)
-		}
-		if pn.IsEventActive(evt) {
-			m |= uint8(evt.color)
+		if n != nil {
+			evt := space.GetEvent(EventID(id))
+			if n.IsRoot() {
+				return uint8(evt.color)
+			}
+			if pn.IsEventActive(evt) {
+				m |= uint8(evt.color)
+			}
 		}
 	}
 	return m
@@ -250,12 +280,14 @@ func (pn *PointNode) IsOld(space *Space) bool {
 		return false
 	}
 	for id, n := range pn.pathNodes {
-		if n.IsRoot() {
-			return false
-		}
-		evt := space.GetEvent(EventID(id))
-		if !(pn.IsEventOld(evt) || pn.IsEventDead(evt)) {
-			return false
+		if n != nil {
+			if n.IsRoot() {
+				return false
+			}
+			evt := space.GetEvent(EventID(id))
+			if !(pn.IsEventOld(evt) || pn.IsEventDead(evt)) {
+				return false
+			}
 		}
 	}
 	return true
@@ -349,8 +381,4 @@ func (pn *PointNode) IsAlreadyConnected(opn *PointNode) bool {
 		}
 	}
 	return false
-}
-
-func (node *PointNode) CanReceiveOutgrowth(newPosEo *NewPossibleOutgrowth) bool {
-	return !node.IsEventAlreadyPresent(newPosEo.event.id)
 }

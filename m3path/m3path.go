@@ -123,6 +123,14 @@ func MakePathContextFromTrioContext(trCtx *m3point.TrioIndexContext, offset int,
 	return &pathCtx
 }
 
+func (pathCtx *PathContext) GetType() m3point.ContextType {
+	return pathCtx.ctx.GetType()
+}
+
+func (pathCtx *PathContext) GetIndex() int {
+	return pathCtx.ctx.GetIndex()
+}
+
 func (pathCtx *PathContext) GetPathNodeMap() PathNodeMap {
 	return pathCtx.pathNodeMap
 }

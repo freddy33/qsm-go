@@ -116,8 +116,10 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 	pyramidPoints := Pyramid{}
 	idx := 0
 	for _, evt := range space.events {
-		pyramidPoints[idx] = *evt.node.GetPoint()
-		idx++
+		if evt != nil {
+			pyramidPoints[idx] = *evt.node.GetPoint()
+			idx++
+		}
 	}
 	LogTest.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
@@ -131,7 +133,7 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 		col := space.ForwardTime()
 		expectedTime++
 		// This collection contains all the blocks of three events that have points activated at the same time
-		pointsPer3Ids := col.multiEvents.pointsPerThreeIds
+		pointsPer3Ids := col.pointsPerThreeIds
 		nbThreeIdsActive := len(pointsPer3Ids)
 		if nbThreeIdsActive >= 3 {
 			LogTest.Debugf("Found a 3 match with %d elements", nbThreeIdsActive)
@@ -169,7 +171,7 @@ type PyramidBuilder struct {
 	allPyramids map[Pyramid]int64
 }
 
-func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]m3point.Point, currentPyramid *Pyramid, currentPos int, possibleSkip int) {
+func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds][]m3point.Point, currentPyramid *Pyramid, currentPos int, possibleSkip int) {
 	// Recursive Algorithm:
 	// Find threeIds with smallest list of points (small3Ids),
 	// Iterate though each point in the list of points for this small3Ids -> pickedPoint,
@@ -193,7 +195,7 @@ func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]m3p
 	// TODO: May be allowed bigger structure
 	if currentPos == 3 {
 		for _, points := range currentPointsPer3Ids {
-			for _, pickedPoint := range *(points) {
+			for _, pickedPoint := range points {
 				// Dereference creates a copy
 				newPyramid := *(currentPyramid)
 				newPyramid[currentPos] = pickedPoint
@@ -206,7 +208,7 @@ func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]m3p
 	small3Ids := NilThreeIds
 	minLength := int(math.MaxInt32)
 	for tIds, points := range currentPointsPer3Ids {
-		l := len(*points)
+		l := len(points)
 		if l < minLength {
 			minLength = l
 			small3Ids = tIds
@@ -218,7 +220,7 @@ func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]m3p
 
 	// If there are some possible skips do a skip of this ThreeIds
 	if possibleSkip > 0 {
-		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]m3point.Point, curLength-1)
+		newCurrentPointsPer3Ids := make(map[ThreeIds][]m3point.Point, curLength-1)
 		for tIds, points := range currentPointsPer3Ids {
 			if tIds != small3Ids {
 				newCurrentPointsPer3Ids[tIds] = points
@@ -228,20 +230,20 @@ func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds]*[]m3p
 	}
 
 	// Do the full logic
-	for _, pickedPoint := range *(currentPointsPer3Ids[small3Ids]) {
+	for _, pickedPoint := range currentPointsPer3Ids[small3Ids] {
 		// Dereference creates a copy
 		newPyramid := *(currentPyramid)
 		newPyramid[currentPos] = pickedPoint
-		newCurrentPointsPer3Ids := make(map[ThreeIds]*[]m3point.Point, curLength-1)
+		newCurrentPointsPer3Ids := make(map[ThreeIds][]m3point.Point, curLength-1)
 		for tIds, points := range currentPointsPer3Ids {
 			if tIds != small3Ids {
-				newList := make([]m3point.Point, 0, len(*points))
-				for _, p := range *points {
+				newList := make([]m3point.Point, 0, len(points))
+				for _, p := range points {
 					if p != pickedPoint {
 						newList = append(newList, p)
 					}
 				}
-				newCurrentPointsPer3Ids[tIds] = &newList
+				newCurrentPointsPer3Ids[tIds] = newList
 			}
 		}
 		b.createPyramids(newCurrentPointsPer3Ids, &newPyramid, currentPos+1, possibleSkip)

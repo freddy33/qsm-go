@@ -6,6 +6,31 @@ import (
 	"testing"
 )
 
+var allTestContexts map[m3point.ContextType][]*PathContext
+
+func getAllTestContexts() map[m3point.ContextType][]*PathContext {
+	if allTestContexts != nil {
+		return allTestContexts
+	}
+	res := make(map[m3point.ContextType][]*PathContext)
+
+	for _, ctxType := range m3point.GetAllContextTypes() {
+		nbIndexes := ctxType.GetNbIndexes()
+		maxOffset := m3point.MaxOffsetPerType[ctxType]
+		res[ctxType] = make([]*PathContext, nbIndexes*maxOffset)
+		idx := 0
+		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
+			for offset := 0; offset < maxOffset; offset++ {
+				res[ctxType][idx] = MakePathContext(ctxType, pIdx, offset, nil)
+				idx++
+			}
+		}
+	}
+
+	allTestContexts = res
+	return res
+}
+
 func TestFirstPathContextFilling(t *testing.T) {
 	Log.SetInfo()
 	Log.SetAssert(true)

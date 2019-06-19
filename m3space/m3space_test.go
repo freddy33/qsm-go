@@ -1,7 +1,6 @@
 package m3space
 
 import (
-	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -47,8 +46,7 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 		// No test of the old mechanism
 		space.EventOutgrowthOldThreshold = DistAndTime(20)
 
-		evt := space.CreateSingleEventCenter()
-		evt.growthContext.SetIndexOffset(trioIdx, 0)
+		evt := space.CreateEvent(8, trioIdx, 0, m3point.Origin, RedEvent)
 
 		deltaT8FromIdx0 := 0
 		deltaT9FromIdx0 := 0
@@ -61,7 +59,7 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 			deltaT11FromIdx0 = -22
 		}
 
-		expectedState := map[TickTime]ExpectedSpaceState{
+		expectedState := map[DistAndTime]ExpectedSpaceState{
 			0: simpleState(0, 0),
 			1: simpleState(3, 0),
 			3: simpleState(0, 6),
@@ -75,7 +73,7 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 			10: noMainState(-79 + deltaT10FromIdx0),
 			11: noMainState(-131 + deltaT11FromIdx0),
 		}
-		assertSpaceStates(t, &space, expectedState, 10, evt.growthContext.String())
+		assertSpaceStates(t, &space, expectedState, 10, evt.pathContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -97,8 +95,7 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 		// No test of the old mechanism
 		space.EventOutgrowthOldThreshold = DistAndTime(20)
 
-		evt := space.CreateSingleEventCenter()
-		evt.growthContext.SetIndexOffset(trioIdx, 0)
+		evt := space.CreateEvent(8, trioIdx, 0, m3point.Origin, RedEvent)
 
 		deltaT8FromIdx0 := 0
 		deltaT9FromIdx0 := 0
@@ -117,7 +114,7 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 			deltaT11FromIdx0 += 37
 		}
 
-		expectedState := map[TickTime]ExpectedSpaceState{
+		expectedState := map[DistAndTime]ExpectedSpaceState{
 			0: simpleState(0, 0),
 			1: simpleState(3, 0),
 			3: simpleState(0, 6),
@@ -131,7 +128,7 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 			10: noMainState(-61 + deltaT10FromIdx0),
 			11: noMainState(-102 + deltaT11FromIdx0),
 		}
-		assertSpaceStates(t, &space, expectedState, 11, evt.growthContext.String())
+		assertSpaceStates(t, &space, expectedState, 11, evt.pathContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -153,8 +150,7 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 		// No test of the old mechanism
 		space.EventOutgrowthOldThreshold = DistAndTime(20)
 
-		evt := space.CreateSingleEventCenter()
-		evt.growthContext.SetIndexOffset(trioIdx, 0)
+		evt := space.CreateEvent(8, trioIdx, 0, m3point.Origin, RedEvent)
 
 		deltaT8FromIdx0 := 0
 		deltaT9FromIdx0 := 0
@@ -172,7 +168,7 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 			deltaT11FromIdx0 += 44
 		}
 
-		expectedState := map[TickTime]ExpectedSpaceState{
+		expectedState := map[DistAndTime]ExpectedSpaceState{
 			0: simpleState(0, 0),
 			1: simpleState(3, 0),
 			3: simpleState(0, 6),
@@ -186,7 +182,7 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 			10: noMainState(-80 + deltaT10FromIdx0),
 			11: noMainState(-133 + deltaT11FromIdx0),
 		}
-		assertSpaceStates(t, &space, expectedState, 11, evt.growthContext.String())
+		assertSpaceStates(t, &space, expectedState, 11, evt.pathContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -206,12 +202,11 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 		// Only latest counting
 		space.SetEventOutgrowthThreshold(DistAndTime(0))
 
-		ctx := m3path.CreateGrowthContext(m3point.Origin, 1, trioIdx, 0)
-		space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
+		evt := space.CreateEvent(1, trioIdx, 0, m3point.Origin, RedEvent)
 
 		assert.Equal(t, DistAndTime(3), space.EventOutgrowthOldThreshold)
 
-		expectedState := map[TickTime]ExpectedSpaceState{
+		expectedState := map[DistAndTime]ExpectedSpaceState{
 			0:  simpleState(0, 0),
 			1:  simpleState(3, 0),
 			3:  simpleState(0, 6),
@@ -227,7 +222,7 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 			13: deadState(-153, 24),
 			14: deadState(-202, 35),
 		}
-		assertSpaceStates(t, &space, expectedState, 14, ctx.String())
+		assertSpaceStates(t, &space, expectedState, 14, evt.pathContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -248,12 +243,11 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 		space.SetEventOutgrowthThreshold(DistAndTime(0))
 		space.EventOutgrowthDeadThreshold = DistAndTime(20)
 
-		ctx := m3path.CreateGrowthContext(m3point.Origin, 1, trioIdx, 0)
-		space.CreateEventWithGrowthContext(m3point.Origin, RedEvent, ctx)
+		evt := space.CreateEvent(1, trioIdx, 0, m3point.Origin, RedEvent)
 
 		assert.Equal(t, DistAndTime(3), space.EventOutgrowthOldThreshold)
 
-		expectedState := map[TickTime]ExpectedSpaceState{
+		expectedState := map[DistAndTime]ExpectedSpaceState{
 			0:  simpleState(0, 0),
 			1:  simpleState(3, 0),
 			3:  simpleState(0, 6),
@@ -269,7 +263,7 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 			13: simpleState(-153, -1),
 			14: simpleState(-202, -1),
 		}
-		assertSpaceStates(t, &space, expectedState, 14, ctx.String())
+		assertSpaceStates(t, &space, expectedState, 14, evt.pathContext.String())
 
 		assertNearMainPoints(t, &space)
 	}
@@ -287,10 +281,8 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 	assert.Equal(t, DistAndTime(4), space.EventOutgrowthOldThreshold)
 
 	evt := space.CreateSingleEventCenter()
-	expectedContext := m3path.CreateGrowthContext(m3point.Origin, 8, 0, 0)
-	assert.Equal(t, *expectedContext, *evt.growthContext)
 
-	expectedState := map[TickTime]ExpectedSpaceState{
+	expectedState := map[DistAndTime]ExpectedSpaceState{
 		0: simpleState(0, 0),
 		1: simpleState(3, 0),
 		2: oldActiveState(6, 3, 0),
@@ -298,18 +290,18 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 		4: oldActiveState(-2, 12, 6),
 		5: oldActiveState(-10, 22, 4),
 	}
-	assertSpaceStates(t, &space, expectedState, 5, evt.growthContext.String())
+	assertSpaceStates(t, &space, expectedState, 5, evt.pathContext.String())
 }
 
 func assertEmptySpace(t *testing.T, space *Space, max int64) {
 	assert.Equal(t, max, space.Max)
-	assert.Equal(t, 0, len(space.activeNodesMap))
-	assert.Equal(t, 0, len(space.activeConnections))
-	assert.Equal(t, 0, len(space.events))
+	assert.Equal(t, 0, len(space.activeNodes))
+	assert.Equal(t, 0, len(space.activeLinks))
+	assert.Equal(t, 0, space.GetNbEvents())
 }
 
-func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]ExpectedSpaceState, finalTime TickTime, contextMsg string) {
-	expectedTime := TickTime(0)
+func assertSpaceStates(t *testing.T, space *Space, expectMap map[DistAndTime]ExpectedSpaceState, finalTime DistAndTime, contextMsg string) {
+	expectedTime := DistAndTime(0)
 	expect, ok := expectMap[expectedTime]
 	assert.True(t, ok, "%s: Should have the 0 tick time map entry in %v", contextMsg, expectMap)
 	baseNodes := expect.baseNodes
@@ -362,15 +354,15 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[TickTime]Expect
 	}
 }
 
-func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, nbConnections, nbActive, nbMainPoints, nbActiveMainPoints int, contextMsg string) {
+func assertSpaceSingleEvent(t *testing.T, space *Space, time DistAndTime, nbNodes, nbConnections, nbActive, nbMainPoints, nbActiveMainPoints int, contextMsg string) {
 	assert.Equal(t, time, space.currentTime, contextMsg)
 	assert.Equal(t, nbNodes, space.GetNbNodes(), "%s: nbNodes failed at %d", contextMsg, time)
-	assert.Equal(t, nbConnections, space.GetNbConnections(), "%s: nbConnections failed at %d", contextMsg, time)
-	assert.Equal(t, 1, len(space.events), "%s: nbEvents failed at %d", contextMsg, time)
+	assert.Equal(t, nbConnections, space.GetNbActiveLinks(), "%s: nbConnections failed at %d", contextMsg, time)
+	assert.Equal(t, 1, space.GetNbEvents(), "%s: nbEvents failed at %d", contextMsg, time)
 	totalNodeActive := 0
 	totalMainPoints := 0
 	totalMainPointsActive := 0
-	for _, node := range space.activeNodesMap {
+	for _, node := range space.activeNodes {
 		if node.IsActive(space) {
 			totalNodeActive++
 			// Only one color since it's single event
@@ -378,7 +370,7 @@ func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, 
 			// The color should be red only
 			assert.Equal(t, uint8(RedEvent), node.GetColorMask(space), "%s: Number of colors of node %v wrong at time %d", contextMsg, node, time)
 		}
-		if node.Pos.IsMainPoint() {
+		if node.GetPoint().IsMainPoint() {
 			totalMainPoints++
 			if node.IsActive(space) {
 				totalMainPointsActive++
@@ -393,24 +385,5 @@ func assertSpaceSingleEvent(t *testing.T, space *Space, time TickTime, nbNodes, 
 }
 
 func assertNearMainPoints(t *testing.T, space *Space) {
-	for _, node := range space.activeNodesMap {
-		// Find main Pos attached to node
-		var mainPointNode *PointNode
-		if node.Pos.IsMainPoint() {
-			mainPointNode = node
-		} else {
-			for _, conn := range node.connections {
-				bv := m3point.GetConnDetailsById(conn)
-				assert.True(t, bv.Vector != m3point.Origin, "Failed finding for %d", conn)
-				P := node.Pos.Add(bv.Vector)
-				if P.IsMainPoint() {
-					mainPointNode = space.getAndActivateNode(P)
-					break
-				}
-			}
-		}
-		if mainPointNode != nil {
-			assert.Equal(t, node.Pos.GetNearMainPoint(), mainPointNode.Pos)
-		}
-	}
+	//nothing to test here
 }

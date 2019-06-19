@@ -5,6 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"sync"
 )
 
 var Log = m3util.NewLogger("m3space", m3util.INFO)
@@ -17,6 +18,7 @@ type SpaceVisitor interface {
 type Space struct {
 	// the int value of the next event id created
 	lastIdCounter EventID
+	maxEvents int
 
 	// The slice of events where the index is the EventID
 	events []*Event
@@ -25,7 +27,8 @@ type Space struct {
 	currentTime DistAndTime
 
 	// The single big map of all the points
-	nodesMap map[m3point.Point]Node
+	nbNodes int
+	nodesMap sync.Map
 	// Extracted list from the above map of the current state at currentTime
 	activeNodes []Node
 	activeLinks []m3path.PathLink
@@ -49,9 +52,9 @@ type Space struct {
 func MakeSpace(max int64) Space {
 	space := Space{}
 	space.lastIdCounter = 1
-	space.events = make([]*Event, 0, 12)
+	space.maxEvents = 12
+	space.events = make([]*Event, space.maxEvents)
 	space.currentTime = 0
-	space.nodesMap = make(map[m3point.Point]Node, 1000)
 	space.activeNodes = make([]Node, 0, 500)
 	space.activeLinks = make([]m3path.PathLink, 0, 500)
 
@@ -83,7 +86,7 @@ func (space *Space) GetNbActiveNodes() int {
 }
 
 func (space *Space) GetNbNodes() int {
-	return len(space.nodesMap)
+	return space.nbNodes
 }
 
 func (space *Space) GetNbActiveLinks() int {
@@ -91,7 +94,13 @@ func (space *Space) GetNbActiveLinks() int {
 }
 
 func (space *Space) GetNbEvents() int {
-	return len(space.events)
+	res := 0
+	for _, evt := range space.events {
+		if evt != nil {
+			res++
+		}
+	}
+	return res
 }
 
 func (space *Space) GetEvent(id EventID) *Event {
@@ -119,35 +128,36 @@ func (space *Space) CreatePyramid(pyramidSize int64) {
 }
 
 func (space *Space) GetNode(p m3point.Point) Node {
-	return space.nodesMap[p]
+	res, ok := space.nodesMap.Load(p)
+	if !ok {
+		return nil
+	}
+	return res.(Node)
 }
 
 func (space *Space) newEmptyNode() Node {
 	an := new(PointNode)
-	an.pathNodes = make([]m3path.PathNode, space.lastIdCounter)
+	an.pathNodes = make([]m3path.PathNode, space.maxEvents)
 	return an
 }
 
 func (space *Space) getOrCreateNode(p m3point.Point) Node {
-	n := space.GetNode(p)
-	if n != nil {
-		return n
-	}
-	n = space.newEmptyNode()
-	space.nodesMap[p] = n
-	for _, c := range p {
-		if c > 0 && space.Max < c {
-			space.Max = c
-		}
-		if c < 0 && space.Max < -c {
-			space.Max = -c
+	res, loaded := space.nodesMap.LoadOrStore(p, space.newEmptyNode())
+	if loaded {
+		for _, c := range p {
+			if c > 0 && space.Max < c {
+				space.Max = c
+			}
+			if c < 0 && space.Max < -c {
+				space.Max = -c
+			}
 		}
 	}
-	return n
+	return res.(Node)
 }
 
 func (space *Space) DisplayState() {
 	fmt.Println("========= Space State =========")
 	fmt.Println("Current Time", space.currentTime)
-	fmt.Println("Nb Nodes", len(space.nodesMap), "Nb Active Nodes", len(space.activeNodes), ", Nb Connections", len(space.activeLinks), ", Nb Events", len(space.events))
+	fmt.Println("Nb Nodes", space.GetNbNodes(), "Nb Active Nodes", len(space.activeNodes), ", Nb Connections", len(space.activeLinks), ", Nb Events", space.GetNbEvents())
 }
