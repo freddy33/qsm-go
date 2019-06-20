@@ -79,7 +79,7 @@ func fillPathContext(t *testing.T, pathCtx *PathContext, until int) {
 		}
 		assert.Equal(t, 1, oep.pn.D(), "open end path %v should have distance of three", oep.pn)
 		assert.Equal(t, oep.pn.calcDist(), oep.pn.D(), "open end path %v should have d and calcDist equal", oep.pn)
-		assert.True(t, oep.pn.IsActive(), "open end path %v should be active", oep.pn)
+		assert.True(t, oep.pn.IsLatest(), "open end path %v should be active", oep.pn)
 	}
 	assert.Equal(t, 0, countMains, "not all main ends here %v", pathCtx.openEndNodes)
 	assert.Equal(t, 3, countNonMains, "not all non main ends here %v", pathCtx.openEndNodes)
@@ -103,12 +103,12 @@ func assertPathContextState(t *testing.T, pathCtx *PathContext, spnm *SimplePath
 		assert.NotEqual(t, m3point.NilTrioIndex, oep.pn.GetTrioIndex(), "%v should have trio already", oep.pn)
 		assert.Equal(t, oep.pn.calcDist(), oep.pn.D(), "open end path %v should have d and calcDist equal", oep.pn)
 		// TODO: Find a way to test that open end node are mostly active
-		//assert.True(t, oep.pn.IsActive(), "open end path %v should be active", oep.pn)
+		//assert.True(t, oep.pn.IsLatest(), "open end path %v should be active", oep.pn)
 		inOpenEnd[oep.pn.P()] = true
 	}
 	for p, n := range *spnm {
 		if !inOpenEnd[p] {
-			assert.False(t, n.IsActive(), "non open end path %v should be active", n)
+			assert.False(t, n.IsLatest(), "non open end path %v should be active", n)
 		}
 	}
 }

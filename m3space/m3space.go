@@ -12,7 +12,7 @@ var Log = m3util.NewLogger("m3space", m3util.INFO)
 
 type SpaceVisitor interface {
 	VisitNode(space *Space, node Node)
-	VisitConnection(space *Space, conn m3path.PathLink)
+	VisitLink(space *Space, pl m3path.PathLink)
 }
 
 type Space struct {
@@ -30,8 +30,9 @@ type Space struct {
 	nbNodes int
 	nodesMap sync.Map
 	// Extracted list from the above map of the current state at currentTime
-	activeNodes []Node
-	activeLinks []m3path.PathLink
+	latestNodes NodeList
+	activeNodes NodeList
+	activeLinks PathLinkList
 
 	nbDeadNodes int
 
@@ -55,7 +56,8 @@ func MakeSpace(max int64) Space {
 	space.maxEvents = 12
 	space.events = make([]*Event, space.maxEvents)
 	space.currentTime = 0
-	space.activeNodes = make([]Node, 0, 500)
+	space.latestNodes = make([]Node, 0, 1)
+	space.activeNodes = make([]Node, 0, 1)
 	space.activeLinks = make([]m3path.PathLink, 0, 500)
 
 	space.nbDeadNodes = 0
@@ -112,7 +114,7 @@ func (space *Space) VisitAll(visitor SpaceVisitor) {
 		visitor.VisitNode(space, n)
 	}
 	for _, pl := range space.activeLinks {
-		visitor.VisitConnection(space, pl)
+		visitor.VisitLink(space, pl)
 	}
 }
 
@@ -136,14 +138,15 @@ func (space *Space) GetNode(p m3point.Point) Node {
 }
 
 func (space *Space) newEmptyNode() Node {
-	an := new(PointNode)
+	an := new(BaseNode)
 	an.pathNodes = make([]m3path.PathNode, space.maxEvents)
 	return an
 }
 
 func (space *Space) getOrCreateNode(p m3point.Point) Node {
 	res, loaded := space.nodesMap.LoadOrStore(p, space.newEmptyNode())
-	if loaded {
+	if !loaded {
+		space.nbNodes++
 		for _, c := range p {
 			if c > 0 && space.Max < c {
 				space.Max = c

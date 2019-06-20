@@ -9,8 +9,11 @@ import (
 type Node interface {
 	fmt.Stringer
 	GetNbEvents() int
-	GetNbActiveEvents() int
-	GetActiveEventIds() []EventID
+	GetNbLatestEvents() int
+	GetLatestEventIds() []EventID
+	GetNbActiveEvents(space *Space) int
+	GetActiveEventIds(space *Space) []EventID
+	GetActiveLinks(space *Space) PathLinkList
 	GetPoint() *m3point.Point
 	IsEmpty() bool
 	IsEventAlreadyPresent(id EventID) bool
@@ -19,10 +22,12 @@ type Node interface {
 	GetAccessed(evt *Event) DistAndTime
 
 	GetLastAccessed(space *Space) DistAndTime
-	GetLatest(space *Space) m3path.PathNode
+	GetLatestAccessed(space *Space) m3path.PathNode
 
 	GetEventDistFromCurrent(evt *Event) DistAndTime
 	HasRoot() bool
+	GetEventForPathNode(pathNode m3path.PathNode, space *Space) *Event
+	IsPathNodeActive(pathNode m3path.PathNode, space *Space) bool
 	IsEventActive(evt *Event) bool
 	IsEventOld(evt *Event) bool
 	IsEventDead(evt *Event) bool
@@ -39,11 +44,14 @@ type Node interface {
 	addPathNode(id EventID, pn m3path.PathNode)
 }
 
+type PathLinkList []m3path.PathLink
+type NodeList []Node
+
 type UniqueConnectionsList struct {
 	conns []m3point.ConnectionId
 }
 
-type PointNode struct {
+type BaseNode struct {
 	pathNodes []m3path.PathNode
 }
 
@@ -92,49 +100,93 @@ func (cl *UniqueConnectionsList) add(connId m3point.ConnectionId) {
 }
 
 /***************************************************************/
-// PointNode Functions
+// PathLinkList Functions
 /***************************************************************/
 
-func (pn *PointNode) String() string {
-	nbEvts := pn.GetNbEvents()
+func (nl *NodeList) addNode(newNode Node) {
+/*
+	if newNode == nil {
+		return
+	}
+	p := newNode.GetPoint()
+	if p == nil {
+		return
+	}
+	for _, n := range *nl {
+		if n == newNode {
+			return
+		}
+	}
+	// TODO: put the point in the node and test by point
+ */
+	*nl = append(*nl, newNode)
+}
+
+/***************************************************************/
+// PathLinkList Functions
+/***************************************************************/
+
+func (pll *PathLinkList) addAll(links PathLinkList) {
+	for _, pl := range links {
+		*pll = append(*pll, pl)
+	}
+}
+
+func (pll *PathLinkList) addFromLinkIfActive(fromLink m3path.PathLink, space *Space) {
+	if fromLink == nil {
+		return
+	}
+	fromSrc := fromLink.GetSrc()
+	fromNode := space.GetNode(fromSrc.P())
+	if fromNode != nil && fromNode.IsPathNodeActive(fromSrc, space) {
+		*pll = append(*pll, fromLink)
+	}
+}
+
+/***************************************************************/
+// BaseNode Functions
+/***************************************************************/
+
+func (bn *BaseNode) String() string {
+	nbEvts := bn.GetNbEvents()
 	if nbEvts == 0 {
 		return "EMPTY NODE"
 	}
 	p := m3point.Origin
-	for _, n := range pn.pathNodes {
-		if n != nil && !n.IsEnd() {
-			p = n.P()
+	for _, pn := range bn.pathNodes {
+		if pn != nil && !pn.IsEnd() {
+			p = pn.P()
 			break
 		}
 	}
 	return fmt.Sprintf("Node-%v-%d", p, nbEvts)
 }
 
-func (pn *PointNode) GetNbEvents() int {
+func (bn *BaseNode) GetNbEvents() int {
 	res := 0
-	for _, n := range pn.pathNodes {
-		if n != nil && !n.IsEnd() {
+	for _, pn := range bn.pathNodes {
+		if pn != nil && !pn.IsEnd() {
 			res++
 		}
 	}
 	return res
 }
 
-func (pn *PointNode) GetNbActiveEvents() int {
+func (bn *BaseNode) GetNbLatestEvents() int {
 	res := 0
-	for _, n := range pn.pathNodes {
-		if n != nil && n.IsActive() {
+	for _, pn := range bn.pathNodes {
+		if pn != nil && pn.IsLatest() {
 			res++
 		}
 	}
 	return res
 }
 
-func (pn *PointNode) GetActiveEventIds() []EventID {
-	res := make([]EventID, pn.GetNbActiveEvents())
+func (bn *BaseNode) GetLatestEventIds() []EventID {
+	res := make([]EventID, bn.GetNbLatestEvents())
 	idx := 0
-	for id, n := range pn.pathNodes {
-		if n != nil && n.IsActive() {
+	for id, pn := range bn.pathNodes {
+		if pn != nil && pn.IsLatest() {
 			res[idx] = EventID(id)
 			idx++
 		}
@@ -142,42 +194,82 @@ func (pn *PointNode) GetActiveEventIds() []EventID {
 	return res
 }
 
-func (pn *PointNode) GetPoint() *m3point.Point {
-	nbEvts := pn.GetNbEvents()
+func (bn *BaseNode) GetNbActiveEvents(space *Space) int {
+	res := 0
+	for id, pn := range bn.pathNodes {
+		if pn != nil {
+			evt := space.GetEvent(EventID(id))
+			if bn.IsEventActive(evt) {
+				res++
+			}
+		}
+	}
+	return res
+}
+
+func (bn *BaseNode) GetActiveEventIds(space *Space) []EventID {
+	res := make([]EventID, 0, 3)
+	for id, pn := range bn.pathNodes {
+		if pn != nil {
+			evt := space.GetEvent(EventID(id))
+			if bn.IsEventActive(evt) {
+				res = append(res, evt.id)
+			}
+		}
+	}
+	return res
+}
+
+func (bn *BaseNode) GetActiveLinks(space *Space) PathLinkList {
+	res := PathLinkList(make([]m3path.PathLink, 0, 3))
+	for id, pn := range bn.pathNodes {
+		if pn != nil && !pn.IsEnd() && !pn.IsRoot() {
+			evt := space.GetEvent(EventID(id))
+			if bn.IsEventActive(evt) {
+				res.addFromLinkIfActive(pn.GetFrom(), space)
+				res.addFromLinkIfActive(pn.GetOtherFrom(), space)
+			}
+		}
+	}
+	return res
+}
+
+func (bn *BaseNode) GetPoint() *m3point.Point {
+	nbEvts := bn.GetNbEvents()
 	if nbEvts == 0 {
 		return nil
 	}
-	for _, n := range pn.pathNodes {
-		if n != nil && !n.IsEnd() {
-			p := n.P()
+	for _, pn := range bn.pathNodes {
+		if pn != nil && !pn.IsEnd() {
+			p := pn.P()
 			return &p
 		}
 	}
 	return nil
 }
 
-func (pn *PointNode) IsEmpty() bool {
-	return pn.GetNbEvents() == 0
+func (bn *BaseNode) IsEmpty() bool {
+	return bn.GetNbEvents() == 0
 }
 
-func (pn *PointNode) IsEventAlreadyPresent(id EventID) bool {
-	return pn.pathNodes[id] != nil && !pn.pathNodes[id].IsEnd()
+func (bn *BaseNode) IsEventAlreadyPresent(id EventID) bool {
+	return bn.pathNodes[id] != nil && !bn.pathNodes[id].IsEnd()
 }
 
-func (pn *PointNode) GetPathNode(id EventID) m3path.PathNode {
-	return pn.pathNodes[id]
+func (bn *BaseNode) GetPathNode(id EventID) m3path.PathNode {
+	return bn.pathNodes[id]
 }
 
-func (pn *PointNode) GetAccessed(evt *Event) DistAndTime {
-	return DistAndTime(pn.pathNodes[evt.id].D()) + evt.created
+func (bn *BaseNode) GetAccessed(evt *Event) DistAndTime {
+	return DistAndTime(bn.pathNodes[evt.id].D()) + evt.created
 }
 
-func (pn *PointNode) GetLastAccessed(space *Space) DistAndTime {
+func (bn *BaseNode) GetLastAccessed(space *Space) DistAndTime {
 	maxAccess := DistAndTime(0)
-	for id, n := range pn.pathNodes {
+	for id, n := range bn.pathNodes {
 		if n != nil {
 			a := DistAndTime(n.D()) + space.GetEvent(EventID(id)).created
-			//a := pn.GetAccessed(space.GetEvent(EventID(id)))
+			//a := bn.GetAccessed(space.GetEvent(EventID(id)))
 			if a > maxAccess {
 				maxAccess = a
 			}
@@ -186,88 +278,108 @@ func (pn *PointNode) GetLastAccessed(space *Space) DistAndTime {
 	return maxAccess
 }
 
-func (pn *PointNode) GetLatest(space *Space) m3path.PathNode {
-	maxAccess := pn.GetLastAccessed(space)
-	for id, n := range pn.pathNodes {
+func (bn *BaseNode) GetLatestAccessed(space *Space) m3path.PathNode {
+	maxAccess := bn.GetLastAccessed(space)
+	for id, n := range bn.pathNodes {
 		if n != nil {
-			if maxAccess == pn.GetAccessed(space.GetEvent(EventID(id))) {
+			if maxAccess == bn.GetAccessed(space.GetEvent(EventID(id))) {
 				return n
 			}
 		}
 	}
-	Log.Errorf("trying to find latest for node %s but did not find max access time %d", pn.String(), maxAccess)
+	Log.Errorf("trying to find latest for node %s but did not find max access time %d", bn.String(), maxAccess)
 	return nil
 }
 
-func (pn *PointNode) GetEventDistFromCurrent(evt *Event) DistAndTime {
-	return evt.space.currentTime - pn.GetAccessed(evt)
+func (bn *BaseNode) GetEventDistFromCurrent(evt *Event) DistAndTime {
+	return evt.space.currentTime - bn.GetAccessed(evt)
 }
 
-func (pn *PointNode) HasRoot() bool {
-	for _, n := range pn.pathNodes {
-		if n != nil && n.IsRoot() {
+func (bn *BaseNode) HasRoot() bool {
+	for _, pn := range bn.pathNodes {
+		if pn != nil && pn.IsRoot() {
 			return true
 		}
 	}
 	return false
 }
 
-func (pn *PointNode) IsEventActive(evt *Event) bool {
-	n := pn.GetPathNode(evt.id)
+func (bn *BaseNode) GetEventForPathNode(pathNode m3path.PathNode, space *Space) *Event {
+	for id, pn := range bn.pathNodes {
+		if pn == pathNode {
+			return space.GetEvent(EventID(id))
+		}
+	}
+	return nil
+}
+
+func (bn *BaseNode) IsPathNodeActive(pathNode m3path.PathNode, space *Space) bool {
+	evt := bn.GetEventForPathNode(pathNode, space)
+	if evt != nil {
+		return bn.IsEventActive(evt)
+	}
+	return false
+}
+
+func (bn *BaseNode) IsEventActive(evt *Event) bool {
+	if evt == nil {
+		return false
+	}
+	pn := bn.GetPathNode(evt.id)
+	if pn == nil {
+		return false
+	}
+	if pn.IsRoot() {
+		return true
+	}
+	return bn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthThreshold
+}
+
+func (bn *BaseNode) IsEventOld(evt *Event) bool {
+	n := bn.GetPathNode(evt.id)
 	if n == nil {
 		return false
 	}
 	if n.IsRoot() {
-		return true
-	}
-	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthThreshold
-}
-
-func (pn *PointNode) IsEventOld(evt *Event) bool {
-	n := pn.GetPathNode(evt.id)
-	if n == nil {
 		return false
 	}
-	if n.IsRoot() {
-		return false
-	}
-	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthOldThreshold
+	return bn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthOldThreshold
 }
 
-func (pn *PointNode) IsEventDead(evt *Event) bool {
-	n := pn.GetPathNode(evt.id)
+func (bn *BaseNode) IsEventDead(evt *Event) bool {
+	n := bn.GetPathNode(evt.id)
 	if n == nil {
 		return true
 	}
 	if n.IsRoot() {
 		return false
 	}
-	return pn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthDeadThreshold
+	return bn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthDeadThreshold
 }
 
-func (pn *PointNode) IsActive(space *Space) bool {
-	if pn.HasRoot() {
+func (bn *BaseNode) IsActive(space *Space) bool {
+	if bn.HasRoot() {
 		return true
 	}
-	return space.currentTime-pn.GetLastAccessed(space) >= space.EventOutgrowthThreshold
+	return space.currentTime-bn.GetLastAccessed(space) >= space.EventOutgrowthThreshold
 }
 
-func (pn *PointNode) HowManyColors(space *Space) uint8 {
-	return countOnes(pn.GetColorMask(space))
+func (bn *BaseNode) HowManyColors(space *Space) uint8 {
+	return countOnes(bn.GetColorMask(space))
 }
 
-func (pn *PointNode) GetColorMask(space *Space) uint8 {
+func (bn *BaseNode) GetColorMask(space *Space) uint8 {
 	m := uint8(0)
-	if pn.IsEmpty() {
+	if bn.IsEmpty() {
 		return m
 	}
-	for id, n := range pn.pathNodes {
+	for id, n := range bn.pathNodes {
 		if n != nil {
 			evt := space.GetEvent(EventID(id))
 			if n.IsRoot() {
 				return uint8(evt.color)
 			}
-			if pn.IsEventActive(evt) {
+			if bn.IsEventActive(evt) {
 				m |= uint8(evt.color)
 			}
 		}
@@ -275,17 +387,17 @@ func (pn *PointNode) GetColorMask(space *Space) uint8 {
 	return m
 }
 
-func (pn *PointNode) IsOld(space *Space) bool {
-	if pn.IsEmpty() {
+func (bn *BaseNode) IsOld(space *Space) bool {
+	if bn.IsEmpty() {
 		return false
 	}
-	for id, n := range pn.pathNodes {
+	for id, n := range bn.pathNodes {
 		if n != nil {
 			if n.IsRoot() {
 				return false
 			}
 			evt := space.GetEvent(EventID(id))
-			if !(pn.IsEventOld(evt) || pn.IsEventDead(evt)) {
+			if !(bn.IsEventOld(evt) || bn.IsEventDead(evt)) {
 				return false
 			}
 		}
@@ -293,17 +405,17 @@ func (pn *PointNode) IsOld(space *Space) bool {
 	return true
 }
 
-func (pn *PointNode) IsDead(space *Space) bool {
-	if pn.IsEmpty() {
+func (bn *BaseNode) IsDead(space *Space) bool {
+	if bn.IsEmpty() {
 		return false
 	}
-	for id, n := range pn.pathNodes {
+	for id, n := range bn.pathNodes {
 		if n != nil && !n.IsEnd() {
 			if n.IsRoot() {
 				return false
 			}
 			evt := space.GetEvent(EventID(id))
-			if !pn.IsEventDead(evt) {
+			if !bn.IsEventDead(evt) {
 				return false
 			}
 		}
@@ -311,33 +423,33 @@ func (pn *PointNode) IsDead(space *Space) bool {
 	return true
 }
 
-func (pn *PointNode) GetStateString(space *Space) string {
-	nbEvts := pn.GetNbEvents()
+func (bn *BaseNode) GetStateString(space *Space) string {
+	nbEvts := bn.GetNbEvents()
 	evtIds := make([]EventID, nbEvts)
 	idx := 0
-	for id, n := range pn.pathNodes {
+	for id, n := range bn.pathNodes {
 		if n != nil && !n.IsEnd() {
 			evtIds[idx] = EventID(id)
 			idx++
 		}
 	}
-	latest := pn.GetLatest(space)
-	if pn.HasRoot() {
+	latest := bn.GetLatestAccessed(space)
+	if bn.HasRoot() {
 		return fmt.Sprintf("root node %v, %s = %v", latest.P(), latest.GetTrioIndex(), evtIds)
 	}
 	return fmt.Sprintf("node %v, %s = %v", latest.P(), latest.GetTrioIndex(), evtIds)
 }
 
-func (pn *PointNode) addPathNode(id EventID, n m3path.PathNode) {
-	if pn.IsEventAlreadyPresent(id) {
+func (bn *BaseNode) addPathNode(id EventID, n m3path.PathNode) {
+	if bn.IsEventAlreadyPresent(id) {
 		Log.Errorf("trying to add path node %s for node %s ")
 	}
-	pn.pathNodes[id] = n
+	bn.pathNodes[id] = n
 }
 
-func (pn *PointNode) GetConnections() *UniqueConnectionsList {
+func (bn *BaseNode) GetConnections() *UniqueConnectionsList {
 	usedConns := UniqueConnectionsList{}
-	for _, n := range pn.pathNodes {
+	for _, n := range bn.pathNodes {
 		if n != nil && !n.IsEnd() {
 			max := 2
 			if n.IsRoot() {
@@ -355,23 +467,23 @@ func (pn *PointNode) GetConnections() *UniqueConnectionsList {
 	return &usedConns
 }
 
-func (pn *PointNode) HasFreeConnections(space *Space) bool {
-	usedConns := pn.GetConnections()
+func (bn *BaseNode) HasFreeConnections(space *Space) bool {
+	usedConns := bn.GetConnections()
 	return usedConns.size() < space.MaxConnections
 }
 
-func (pn *PointNode) IsAlreadyConnected(opn *PointNode) bool {
-	if pn.IsEmpty() || opn.IsEmpty() {
+func (bn *BaseNode) IsAlreadyConnected(opn *BaseNode) bool {
+	if bn.IsEmpty() || opn.IsEmpty() {
 		return false
 	}
-	pnp := *pn.GetPoint()
+	pnp := *bn.GetPoint()
 	opnp := *opn.GetPoint()
 	cd := m3point.GetConnDetailsByPoints(pnp, opnp)
 	if cd == nil || !cd.IsValid() {
 		Log.Errorf("finding if 2 nodes already connected but not separated by possible connection (%v, %v)", pnp, opnp)
 		return false
 	}
-	for id, n := range pn.pathNodes {
+	for id, n := range bn.pathNodes {
 		if n != nil && !n.IsEnd() {
 			pl := n.GetNextConnection(cd.GetId())
 			on := opn.GetPathNode(EventID(id))

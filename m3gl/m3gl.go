@@ -2,6 +2,7 @@ package m3gl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 	"github.com/freddy33/qsm-go/m3util"
@@ -190,13 +191,13 @@ func (creator *DrawingElementsCreator) createAxes(max int64) {
 	}
 }
 
-func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node *m3space.PointNode) {
+func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node m3space.Node) {
 	creator.elements[creator.offset] = MakeNodeDrawingElement(space, node)
 	creator.offset++
 }
 
-func (creator *DrawingElementsCreator) VisitConnection(space *m3space.Space, conn *m3space.Connection) {
-	creator.elements[creator.offset] = MakeConnectionDrawingElement(space, conn)
+func (creator *DrawingElementsCreator) VisitLink(space *m3space.Space, pl m3path.PathLink) {
+	creator.elements[creator.offset] = MakeConnectionDrawingElement(space, pl)
 	creator.offset++
 }
 

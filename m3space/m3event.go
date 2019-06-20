@@ -60,9 +60,21 @@ func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) (m3path.PathNode, boo
 
 func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) {
 	n := spnm.space.getOrCreateNode(pathNode.P())
+	nbLatest := n.GetNbLatestEvents()
 	n.addPathNode(spnm.id, pathNode)
 	spnm.size++
-	spnm.space.activeNodes = append(spnm.space.activeNodes, n)
+	// New latest node
+	if nbLatest == 0 {
+		spnm.space.latestNodes = append(spnm.space.latestNodes, n)
+	}
+}
+
+func (spnm *SpacePathNodeMap) IsActive(pathNode m3path.PathNode) bool {
+	n := spnm.space.GetNode(pathNode.P())
+	if n != nil {
+		return n.IsPathNodeActive(pathNode, spnm.space)
+	}
+	return false
 }
 
 /***************************************************************/
@@ -77,6 +89,7 @@ func (space *Space) CreateEvent(ctxType m3point.ContextType, idx int, offset int
 	space.events[pnm.id] = &e
 	ctx.InitRootNode(p)
 	e.node = space.GetNode(p)
+	space.activeNodes.addNode(e.node)
 	return &e
 }
 

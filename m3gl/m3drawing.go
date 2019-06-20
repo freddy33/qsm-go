@@ -2,6 +2,7 @@ package m3gl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 )
@@ -94,7 +95,7 @@ type SpaceDrawingColor struct {
 type NodeDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	node       *m3space.PointNode
+	node       m3space.Node
 }
 
 type ConnectionDrawingElement struct {
@@ -245,7 +246,7 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 	return defaultGreyDimmer
 }
 
-func MakeNodeDrawingElement(space *m3space.Space, node *m3space.PointNode) *NodeDrawingElement {
+func MakeNodeDrawingElement(space *m3space.Space, node m3space.Node) *NodeDrawingElement {
 	// Collect all the colors of event outgrowth of this node. Dim if not latest
 	sdc := SpaceDrawingColor{}
 	sdc.objColors = node.GetColorMask(space)
@@ -266,12 +267,14 @@ func MakeNodeDrawingElement(space *m3space.Space, node *m3space.PointNode) *Node
 
 }
 
-func MakeConnectionDrawingElement(space *m3space.Space, conn *m3space.Connection) *ConnectionDrawingElement {
+func MakeConnectionDrawingElement(space *m3space.Space, pl m3path.PathLink) *ConnectionDrawingElement {
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
-	sdc.objColors = conn.GetColorMask(space)
-	cd := conn.GetConnectionDetails()
-	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, &conn.P1,}
+	cd := m3point.GetConnDetailsById(pl.GetConnId())
+	p := pl.GetSrc().P()
+	// Take the color of the source. TODO: Not true should be & on src and target
+	sdc.objColors = space.GetNode(p).GetColorMask(space)
+	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, &p,}
 }
 
 func getConnectionObjectType(cd *m3point.ConnectionDetails) ObjectType {
@@ -290,7 +293,7 @@ func (n NodeDrawingElement) Key() ObjectType {
 
 func (n NodeDrawingElement) Display(filter SpaceDrawingFilter) bool {
 	if n.objectType == NodeActive {
-		if n.node.IsRoot() {
+		if n.node.HasRoot() {
 			return true
 		}
 		return n.sdc.objColors&filter.EventColorMask != 0 && n.sdc.howManyColors() >= filter.EventOutgrowthManyColorsThreshold
@@ -307,7 +310,7 @@ func (n NodeDrawingElement) Dimmer(blinkValue float64) float32 {
 }
 
 func (n NodeDrawingElement) Pos() *m3point.Point {
-	return &n.node.Pos
+	return n.node.GetPoint()
 }
 
 // ConnectionDrawingElement functions

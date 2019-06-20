@@ -54,7 +54,7 @@ type PathNode interface {
 	GetPathContext() *PathContext
 	IsEnd() bool
 	IsRoot() bool
-	IsActive() bool
+	IsLatest() bool
 	P() m3point.Point
 	D() int
 	GetTrioIndex() m3point.TrioIndex
@@ -198,7 +198,7 @@ func (pathCtx *PathContext) MoveToNextNodes() {
 			Log.Errorf("An open end node builder is a dead end at %v", oen.pn.P())
 			continue
 		}
-		if !pathNode.IsActive() {
+		if !pathNode.IsLatest() {
 			if Log.IsTrace() {
 				Log.Errorf("An open end node builder has no more active links at %v", oen.pn.P())
 			}
@@ -413,8 +413,8 @@ func (rpn *RootPathNode) IsRoot() bool {
 	return true
 }
 
-func (rpn *RootPathNode) IsActive() bool {
-	// Active means some next link open
+func (rpn *RootPathNode) IsLatest() bool {
+	// Latest means some next link open
 	for _, pl := range rpn.next {
 		if pl == nil {
 			return true
@@ -513,8 +513,8 @@ func (opn *OutPathNode) IsRoot() bool {
 	return false
 }
 
-func (opn *OutPathNode) IsActive() bool {
-	// Active means some next link open
+func (opn *OutPathNode) IsLatest() bool {
+	// Latest means some next link still open
 	for _, pl := range opn.next {
 		if pl == nil {
 			return true
@@ -659,7 +659,7 @@ func (epn *EndPathNodeT) IsRoot() bool {
 	return false
 }
 
-func (epn *EndPathNodeT) IsActive() bool {
+func (epn *EndPathNodeT) IsLatest() bool {
 	return false
 }
 

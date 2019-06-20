@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"sort"
@@ -38,19 +39,20 @@ func (fr *ForwardResult) addPoint(tIds []ThreeIds, p m3point.Point) {
 
 func (space *Space) ForwardTime() *ForwardResult {
 	nbLatest := 0
-	expectedActiveNodes := 0
+	expectedLatestNodes := 0
 	for _, evt := range space.events {
 		if evt != nil {
 			nbLatest += evt.pathContext.GetNumberOfOpenNodes()
-			expectedActiveNodes += evt.pathContext.GetNextOpenNodesLen()
+			expectedLatestNodes += evt.pathContext.GetNextOpenNodesLen()
 		}
 	}
+	space.latestNodes = make([]Node, 0, expectedLatestNodes)
 	if Log.IsInfo() {
 		Log.Infof("Stepping up to %d: %d events, %d actNodes, %d actConn, %d latestOpen, %d expectedOpen",
-			space.currentTime+1, space.GetNbEvents(), len(space.activeNodes), len(space.activeLinks), nbLatest, expectedActiveNodes)
+			space.currentTime+1, space.GetNbEvents(), len(space.activeNodes), len(space.activeLinks), nbLatest, expectedLatestNodes)
 	}
 	LogStat.Infof("%4d: %d: %d: %d: %d: %d",
-		space.currentTime, space.GetNbEvents(), len(space.activeNodes), len(space.activeLinks), nbLatest, expectedActiveNodes)
+		space.currentTime, space.GetNbEvents(), len(space.activeNodes), len(space.activeLinks), nbLatest, expectedLatestNodes)
 
 	wg := sync.WaitGroup{}
 	for _, evt := range space.events {
@@ -61,17 +63,33 @@ func (space *Space) ForwardTime() *ForwardResult {
 	}
 	wg.Wait()
 
-	res := MakeForwardResult()
-	for _, n := range space.activeNodes {
-		if n.GetNbActiveEvents() > 3 {
-			tIds := MakeThreeIds(n.GetActiveEventIds())
-			res.addPoint(tIds, *n.GetPoint())
-		}
-	}
-
 	space.currentTime++
 
+	newActiveNodes := NodeList(make([]Node, 0, expectedLatestNodes))
+	newActiveLinks := PathLinkList(make([]m3path.PathLink, 0, expectedLatestNodes))
+	res := MakeForwardResult()
+	for _, n := range space.latestNodes {
+		space.populateActiveNodesAndLinks(n, res, &newActiveNodes, &newActiveLinks)
+	}
+	for _, n := range space.activeNodes {
+		space.populateActiveNodesAndLinks(n, res, &newActiveNodes, &newActiveLinks)
+	}
+	space.activeNodes = newActiveNodes
+	space.activeLinks = newActiveLinks
+
 	return res
+}
+
+func (space *Space) populateActiveNodesAndLinks(n Node, res *ForwardResult, nodes *NodeList, links *PathLinkList) {
+	nbActive := n.GetNbActiveEvents(space)
+	if nbActive >= m3point.THREE {
+		tIds := MakeThreeIds(n.GetActiveEventIds(space))
+		res.addPoint(tIds, *n.GetPoint())
+	}
+	if nbActive > 0 {
+		nodes.addNode(n)
+		links.addAll(n.GetActiveLinks(space))
+	}
 }
 
 func (evt *Event) moveToNext(wg *sync.WaitGroup) {

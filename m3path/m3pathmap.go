@@ -6,6 +6,7 @@ type PathNodeMap interface {
 	GetSize() int
 	GetPathNode(p m3point.Point) (PathNode, bool)
 	AddPathNode(pathNode PathNode)
+	IsActive(pathNode PathNode) bool
 }
 
 type SimplePathNodeMap map[m3point.Point]PathNode
@@ -26,4 +27,8 @@ func (pnm *SimplePathNodeMap) GetPathNode(p m3point.Point) (PathNode, bool) {
 
 func (pnm *SimplePathNodeMap) AddPathNode(pathNode PathNode) {
 	(*pnm)[pathNode.P()] = pathNode
+}
+
+func (pnm *SimplePathNodeMap) IsActive(pathNode PathNode) bool {
+	return pathNode.IsLatest()
 }

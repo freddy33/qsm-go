@@ -36,7 +36,7 @@ func TestSingleRedEvent(t *testing.T) {
 func assertEmptyWorld(t *testing.T, world *DisplayWorld, max int64) {
 	assert.Equal(t, max, world.WorldSpace.Max)
 	assert.Equal(t, 0, world.WorldSpace.GetNbNodes())
-	assert.Equal(t, 0, world.WorldSpace.GetNbConnections())
+	assert.Equal(t, 0, world.WorldSpace.GetNbActiveLinks())
 	assert.Equal(t, 0, world.WorldSpace.GetNbEvents())
 	assert.Equal(t, 0, len(world.Elements))
 }
@@ -77,7 +77,7 @@ func assertSpaceStates(t *testing.T, world *DisplayWorld, expectMap map[m3space.
 func assertSpaceSingleEvent(t *testing.T, world *DisplayWorld, time m3space.DistAndTime, nbNodes, nbConnections int, nbActive int) {
 	assert.Equal(t, time, world.WorldSpace.GetCurrentTime(), "failed at %d", time)
 	assert.Equal(t, nbNodes, world.WorldSpace.GetNbNodes(), "failed at %d", time)
-	assert.Equal(t, nbConnections, world.WorldSpace.GetNbConnections(), "failed at %d", time)
+	assert.Equal(t, nbConnections, world.WorldSpace.GetNbActiveLinks(), "failed at %d", time)
 	assert.Equal(t, 1, world.WorldSpace.GetNbEvents(), "failed at %d", time)
 	assert.Equal(t, world.WorldSpace.GetNbActiveNodes()+world.WorldSpace.GetNbActiveLinks()+6, len(world.Elements), "failed at %d", time)
 	nbDisplay := 0
