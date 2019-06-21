@@ -514,6 +514,9 @@ func (opn *OutPathNode) IsRoot() bool {
 }
 
 func (opn *OutPathNode) IsLatest() bool {
+	if opn == nil {
+		return false
+	}
 	// Latest means some next link still open
 	for _, pl := range opn.next {
 		if pl == nil {

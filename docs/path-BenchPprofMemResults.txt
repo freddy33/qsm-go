@@ -1,27 +1,17 @@
 Type: alloc_space
-Time: May 1, 2019 at 9:44pm (IDT)
-Showing nodes accounting for 27209.78MB, 99.40% of 27374.63MB total
-Dropped 30 nodes (cum <= 136.87MB)
+Time: Jun 21, 2019 at 7:33am (PDT)
+Showing nodes accounting for 4816.42MB, 99.90% of 4821.16MB total
+Dropped 23 nodes (cum <= 24.11MB)
       flat  flat%   sum%        cum   cum%
-13167.87MB 48.10% 48.10% 13167.87MB 48.10%  github.com/freddy33/qsm-go/m3path.runNextPoints
- 6167.64MB 22.53% 70.63%  6167.64MB 22.53%  github.com/freddy33/qsm-go/m3path.(*PathLink).setDestTrioIdx
- 4770.44MB 17.43% 88.06%  4770.44MB 17.43%  github.com/freddy33/qsm-go/m3point.makeNewNpe
- 1015.03MB  3.71% 91.77%  1015.03MB  3.71%  github.com/freddy33/qsm-go/m3path.(*PathNode).addPathLink
-  977.59MB  3.57% 95.34% 12777.69MB 46.68%  github.com/freddy33/qsm-go/m3path.(*PathLink).addAllPaths
-  711.72MB  2.60% 97.94% 13799.42MB 50.41%  github.com/freddy33/qsm-go/m3path.(*PathContext).moveToNextMainPoints
-  399.49MB  1.46% 99.40% 14199.40MB 51.87%  github.com/freddy33/qsm-go/m3path.runForPathCtxType
-         0     0% 99.40%  1578.03MB  5.76%  github.com/freddy33/qsm-go/m3path.(*PathNode).addInterOpenEndPath
-         0     0% 99.40%  1014.56MB  3.71%  github.com/freddy33/qsm-go/m3path.(*PathNode).addMainOpenEndPath
-         0     0% 99.40%  2064.07MB  7.54%  github.com/freddy33/qsm-go/m3path.BenchmarkAllGrowth
-         0     0% 99.40%  1526.28MB  5.58%  github.com/freddy33/qsm-go/m3path.BenchmarkGrowthCtx3
-         0     0% 99.40%  2231.09MB  8.15%  github.com/freddy33/qsm-go/m3path.BenchmarkGrowthCtx4
-         0     0% 99.40%  7346.43MB 26.84%  github.com/freddy33/qsm-go/m3path.BenchmarkGrowthCtx8
-         0     0% 99.40%  2661.75MB  9.72%  github.com/freddy33/qsm-go/m3path.BenchmarkPathCtx3
-         0     0% 99.40%  3942.58MB 14.40%  github.com/freddy33/qsm-go/m3path.BenchmarkPathCtx4
-         0     0% 99.40%  7595.07MB 27.74%  github.com/freddy33/qsm-go/m3path.BenchmarkPathCtx8
-         0     0% 99.40% 11103.80MB 40.56%  github.com/freddy33/qsm-go/m3path.runForCtxType
-         0     0% 99.40% 13799.42MB 50.41%  github.com/freddy33/qsm-go/m3path.runPathContext
-         0     0% 99.40%  2390.71MB  8.73%  github.com/freddy33/qsm-go/m3point.(*NextPathElement).GetBackTrioOnInterPoint
-         0     0% 99.40%  4927.44MB 18.00%  github.com/freddy33/qsm-go/m3point.(*TrioIndexContext).GetForwardTrioFromMain
-         0     0% 99.40% 27367.28MB   100%  testing.(*B).run1.func1
-         0     0% 99.40% 27367.28MB   100%  testing.(*B).runN
+ 1843.30MB 38.23% 38.23%  1843.30MB 38.23%  github.com/freddy33/qsm-go/m3path.(*SimplePathNodeMap).AddPathNode
+ 1472.66MB 30.55% 68.78%  3315.95MB 68.78%  github.com/freddy33/qsm-go/m3path.(*BasePathLink).createDstNode
+  924.54MB 19.18% 87.96%   924.54MB 19.18%  github.com/freddy33/qsm-go/m3path.(*OutPathNode).addPathLink
+  450.19MB  9.34% 97.29%  4690.68MB 97.29%  github.com/freddy33/qsm-go/m3path.(*PathContext).MoveToNextNodes
+  125.73MB  2.61% 99.90%   125.73MB  2.61%  github.com/freddy33/qsm-go/m3path.MakeSimplePathNodeMap
+         0     0% 99.90%   864.06MB 17.92%  github.com/freddy33/qsm-go/m3path.BenchmarkPathCtx3
+         0     0% 99.90%  1310.47MB 27.18%  github.com/freddy33/qsm-go/m3path.BenchmarkPathCtx4
+         0     0% 99.90%  2642.39MB 54.81%  github.com/freddy33/qsm-go/m3path.BenchmarkPathCtx8
+         0     0% 99.90%  4816.92MB 99.91%  github.com/freddy33/qsm-go/m3path.runForPathCtxType
+         0     0% 99.90%  4691.18MB 97.30%  github.com/freddy33/qsm-go/m3path.runPathContext
+         0     0% 99.90%  4816.92MB 99.91%  testing.(*B).run1.func1
+         0     0% 99.90%  4816.92MB 99.91%  testing.(*B).runN
