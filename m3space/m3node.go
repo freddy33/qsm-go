@@ -332,7 +332,7 @@ func (bn *BaseNode) IsEventActive(evt *Event) bool {
 	if pn.IsRoot() {
 		return true
 	}
-	return bn.GetEventDistFromCurrent(evt) >= evt.space.EventOutgrowthThreshold
+	return bn.GetEventDistFromCurrent(evt) <= evt.space.EventOutgrowthThreshold
 }
 
 func (bn *BaseNode) IsEventOld(evt *Event) bool {
@@ -361,7 +361,7 @@ func (bn *BaseNode) IsActive(space *Space) bool {
 	if bn.HasRoot() {
 		return true
 	}
-	return space.currentTime-bn.GetLastAccessed(space) >= space.EventOutgrowthThreshold
+	return space.currentTime-bn.GetLastAccessed(space) <= space.EventOutgrowthThreshold
 }
 
 func (bn *BaseNode) HowManyColors(space *Space) uint8 {

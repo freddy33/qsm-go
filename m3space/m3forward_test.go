@@ -90,6 +90,18 @@ func TestSpaceRunPySize5(t *testing.T) {
 	runSpaceTest(5, t)
 }
 
+func TestSpaceRunPySize4(t *testing.T) {
+	Log.SetWarn()
+	LogStat.SetInfo()
+	runSpaceTest(4, t)
+}
+
+func TestSpaceRunPySize3(t *testing.T) {
+	Log.SetWarn()
+	LogStat.SetInfo()
+	runSpaceTest(3, t)
+}
+
 func TestSpaceRunPySize2(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
@@ -124,16 +136,16 @@ func runSpaceTest(pSize int64, t assert.TestingT) {
 	LogTest.Infof("Starting with pyramid %v : %d", pyramidPoints, GetPyramidSize(pyramidPoints))
 
 	expectedTime := DistAndTime(0)
-	finalTime := DistAndTime(5 * pSize)
+	finalTime := DistAndTime(10 * pSize)
 	if finalTime < DistAndTime(25) {
 		finalTime = DistAndTime(25)
 	}
 	for expectedTime < finalTime {
 		assert.Equal(t, expectedTime, space.currentTime)
-		col := space.ForwardTime()
+		frwdRes := space.ForwardTime()
 		expectedTime++
 		// This collection contains all the blocks of three events that have points activated at the same time
-		pointsPer3Ids := col.pointsPerThreeIds
+		pointsPer3Ids := frwdRes.pointsPerThreeIds
 		nbThreeIdsActive := len(pointsPer3Ids)
 		if nbThreeIdsActive >= 3 {
 			LogTest.Debugf("Found a 3 match with %d elements", nbThreeIdsActive)

@@ -109,12 +109,19 @@ func (space *Space) GetEvent(id EventID) *Event {
 	return space.events[id]
 }
 
-func (space *Space) VisitAll(visitor SpaceVisitor) {
-	for _, n := range space.activeNodes {
-		visitor.VisitNode(space, n)
-	}
-	for _, pl := range space.activeLinks {
-		visitor.VisitLink(space, pl)
+func (space *Space) VisitAll(visitor SpaceVisitor, onlyActive bool) {
+	if onlyActive {
+		for _, n := range space.activeNodes {
+			visitor.VisitNode(space, n)
+		}
+		for _, pl := range space.activeLinks {
+			visitor.VisitLink(space, pl)
+		}
+	} else {
+		space.nodesMap.Range(func(pI, nI interface{}) bool {
+			visitor.VisitNode(space, nI.(Node))
+			return true
+		})
 	}
 }
 

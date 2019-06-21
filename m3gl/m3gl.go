@@ -213,7 +213,7 @@ func (world *DisplayWorld) CreateDrawingElements() {
 	dec.elements = make([]SpaceDrawingElement, dec.nbElements)
 	dec.offset = 0
 	dec.createAxes(world.Max)
-	space.VisitAll(&dec)
+	space.VisitAll(&dec, true)
 	if dec.offset != dec.nbElements {
 		fmt.Println("Created", dec.offset, "elements, but it should be", dec.nbElements)
 		return
