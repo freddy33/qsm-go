@@ -17,3 +17,6 @@ docs/perf/
 perf-data/
 *.prof
 *.test
+
+conf/dbconn*.json
+
