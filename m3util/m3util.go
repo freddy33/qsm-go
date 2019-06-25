@@ -6,6 +6,19 @@ import (
 	"os"
 )
 
+func GetConfDir() string {
+	_, err := os.Stat("conf")
+	if os.IsNotExist(err) {
+		_, err = os.Stat("../conf")
+		if os.IsNotExist(err) {
+			log.Fatal(err)
+		}
+		return "../conf"
+	} else {
+		return "conf"
+	}
+}
+
 func ChangeToDocsGeneratedDir() {
 	changeToDocsSubdir("generated")
 }
