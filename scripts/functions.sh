@@ -57,36 +57,35 @@ ensureRunningPg() {
         exit 11
     fi
 
-    echo "INFO: Success PostgreSQL server up and running"
+    echo "INFO: PostgreSQL server up and running"
 }
 
 dbNumber=${dbNumber:=1}
 dbConfFile="$confDir/dbconn$dbNumber.json"
 
 checkDbConf() {
-    dbUser=""
-    dbPassword=""
-    dbName=""
     if [ -e "$dbConfFile" ]; then
-        echo "INFO: Reading existing conf file for test number $dbNumber at $dbConfFile"
-        dbUser="$( cat $dbConfFile | jq -r .user )"
-        dbPassword="$( cat $dbConfFile | jq -r .password )"
-        dbName="$( cat $dbConfFile | jq -r .dbName )"
-        if [ -z "$dbUser" ] || [ -z "$dbPassword" ] || [ -z "$dbName" ]; then
-            echo "ERROR: Reading conf file $dbConfFile failed since one of '$dbUser' '$dbPassword' '$dbName' is empty"
-            exit 15
-        fi
+        echo "INFO: $dbConfFile already exists"
     else
         echo "INFO: Creating conf file for test number $dbNumber at $dbConfFile"
-        dbUser="qsmu$dbNumber"
-        dbPassword="qsm$RANDOM"
-        dbName="qsmdb$dbNumber"
-        cat $confDir/db-template.json | jq --arg pass "$dbPassword" --arg user "$dbUser" --arg db "$dbName" '.password=$pass | .user=$user | .dbName=$db' > $dbConfFile
+        genUser="qsmu$dbNumber"
+        genPassword="qsm$RANDOM"
+        genName="qsmdb$dbNumber"
+        cat $confDir/db-template.json | jq --arg pass "$genPassword" --arg user "$genUser" --arg db "$genName" '.password=$pass | .user=$user | .dbName=$db' > $dbConfFile
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could create conf file $dbConfFile"
             exit $RES
         fi
+    fi
+
+    echo "INFO: Reading existing conf file for test number $dbNumber at $dbConfFile"
+    dbUser="$( cat $dbConfFile | jq -r .user )"
+    dbPassword="$( cat $dbConfFile | jq -r .password )"
+    dbName="$( cat $dbConfFile | jq -r .dbName )"
+    if [ -z "$dbUser" ] || [ -z "$dbPassword" ] || [ -z "$dbName" ]; then
+        echo "ERROR: Reading conf file $dbConfFile failed since one of '$dbUser' '$dbPassword' '$dbName' is empty"
+        exit 15
     fi
     echo "INFO: Using user $dbUser on $dbName"
 }
