@@ -1,10 +1,8 @@
 package m3space
 
 import (
-	"fmt"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
-	"github.com/gonum/stat"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -123,10 +121,5 @@ func TestSpaceRunPySize2(t *testing.T) {
 
 func runSpaceTest(pSize int64) {
 	runSpacePyramidWithParams(pSize, [4]m3point.ContextType{8, 8, 8, 8}, [4]int{0, 4, 8, 10}, [4]int{0, 0, 0, 4})
-}
-
-
-func TestStdDev(t *testing.T) {
-	fmt.Println(stat.StdDev([]float64{1.3, 1.5, 1.7, 1.1}, nil))
 }
 
