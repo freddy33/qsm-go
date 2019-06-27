@@ -22,6 +22,7 @@ const(
 	MainEnv
 	TempEnv
 	TestEnv
+	ShellEnv
 	ConfEnv = QsmEnvironment(1234)
 )
 
@@ -46,7 +47,7 @@ func readDbConf(envNumber QsmEnvironment) DbConnDetails {
 	return res
 }
 
-func checkOrCreateEnv(envNumber QsmEnvironment) {
+func CheckOrCreateEnv(envNumber QsmEnvironment) {
 	rootDir := m3util.GetGitRootDir()
 	m3util.ExitOnError(os.Setenv("QSM_ENV_NUMBER", fmt.Sprintf("%d", envNumber)))
 	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "check")
@@ -55,7 +56,7 @@ func checkOrCreateEnv(envNumber QsmEnvironment) {
 	m3util.ExitOnError(err)
 }
 
-func dropEnv(envNumber QsmEnvironment) {
+func DropEnv(envNumber QsmEnvironment) {
 	rootDir := m3util.GetGitRootDir()
 	m3util.ExitOnError(os.Setenv("QSM_ENV_NUMBER", fmt.Sprintf("%d", envNumber)))
 	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "drop")
@@ -74,3 +75,8 @@ func GetConnection(envNumber QsmEnvironment) *sql.DB {
 	}
 	return db
 }
+
+func CloseDb(db *sql.DB) {
+	m3util.ExitOnError(db.Close())
+}
+

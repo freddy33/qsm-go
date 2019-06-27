@@ -27,10 +27,10 @@ func TestDbConf(t *testing.T) {
 }
 
 func TestDbConnection(t *testing.T) {
-	defer dropEnv(TempEnv)
-	checkOrCreateEnv(TempEnv)
+	defer DropEnv(TempEnv)
+	CheckOrCreateEnv(TempEnv)
 	db := GetConnection(TempEnv)
-	defer m3util.CloseDb(db)
+	defer CloseDb(db)
 	err := db.Ping()
 	assert.True(t, err == nil, "Got ping error %v", err)
 }

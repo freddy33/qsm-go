@@ -1,7 +1,6 @@
 package m3util
 
 import (
-	"database/sql"
 	"encoding/csv"
 	"log"
 	"os"
@@ -116,10 +115,6 @@ func ExitOnError(err error) {
 	ExitOnError(err)
 }
 */
-
-func CloseDb(db *sql.DB) {
-	ExitOnError(db.Close())
-}
 
 func CloseFile(file *os.File) {
 	ExitOnError(file.Close())
