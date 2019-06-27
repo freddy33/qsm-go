@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+QSM_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
+if [ -e "$QSM_HOME/.git" ]; then
+    echo "INFO: Using root repo dir $QSM_HOME"
+else
+    echo "ERROR: Did not find root git repo dir at $QSM_HOME"
+    exit 2
+fi
+export QSM_HOME
+
+script=$1
+shift
+
+cd $QSM_HOME && ./scripts/${script}.sh $@

@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
 
-defCurDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
-curDir=$1
-curDir=${curDir:=$defCurDir}
-
-rootDir="$( cd "$curDir/.." && pwd )"
-if [ -e "$rootDir/.git" ]; then
-    echo "INFO: Using root repo dir $rootDir"
-else
-    echo "ERROR: Did not find root git repo dir"
+if [ -z "$QSM_HOME" ]; then
+    echo "ERROR: QSM scripts not cqlled from qsm launcher"
     exit 12
 fi
-confDir="$rootDir/conf"
-logDir="$rootDir/log"
 
-if [ -d "$logDir" ]; then
-    echo "INFO: Using log out dir $logDir"
-else
+rootDir=$QSM_HOME
+if [ ! -e "$rootDir/.git" ]; then
+    echo "ERROR: Did not find root git repo dir under $rootDir"
+    exit 13
+fi
+
+confDir="$rootDir/conf"
+if [ ! -e "$confDir" ]; then
+    echo "ERROR: Did not find conf dir $confDir"
+    exit 14
+fi
+
+logDir="$rootDir/build/log"
+
+if [ ! -d "$logDir" ]; then
     echo "INFO: Creating log out dir $logDir"
-    mkdir $logDir
+    mkdir -p $logDir
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: could not create log dir $logDir"
@@ -60,17 +63,17 @@ ensureRunningPg() {
     echo "INFO: PostgreSQL server up and running"
 }
 
-dbNumber=${dbNumber:=1}
-dbConfFile="$confDir/dbconn$dbNumber.json"
+QSM_ENV_NUMBER=${QSM_ENV_NUMBER:=1}
+dbConfFile="$confDir/dbconn${QSM_ENV_NUMBER}.json"
 
 checkDbConf() {
     if [ -e "$dbConfFile" ]; then
         echo "INFO: $dbConfFile already exists"
     else
-        echo "INFO: Creating conf file for test number $dbNumber at $dbConfFile"
-        genUser="qsmu$dbNumber"
+        echo "INFO: Creating conf file for test number ${QSM_ENV_NUMBER} at $dbConfFile"
+        genUser="qsmu${QSM_ENV_NUMBER}"
         genPassword="qsm$RANDOM"
-        genName="qsmdb$dbNumber"
+        genName="qsmdb${QSM_ENV_NUMBER}"
         cat $confDir/db-template.json | jq --arg pass "$genPassword" --arg user "$genUser" --arg db "$genName" '.password=$pass | .user=$user | .dbName=$db' > $dbConfFile
         RES=$?
         if [ $RES -ne 0 ]; then
@@ -79,7 +82,7 @@ checkDbConf() {
         fi
     fi
 
-    echo "INFO: Reading existing conf file for test number $dbNumber at $dbConfFile"
+    echo "INFO: Reading existing conf file for test number ${QSM_ENV_NUMBER} at $dbConfFile"
     dbUser="$( cat $dbConfFile | jq -r .user )"
     dbPassword="$( cat $dbConfFile | jq -r .password )"
     dbName="$( cat $dbConfFile | jq -r .dbName )"

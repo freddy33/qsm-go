@@ -1,12 +1,14 @@
 #! /bin/bash
 
-echo "INFO: Checking all good for QSM dev"
-
+QSM_ENV_NUMBER=${QSM_ENV_NUMBER:=1}
 dbUser="not-a-user"
 dbPassword=""
 dbName="not-a-database"
+dbLoc="was-not-set"
+dbConfFile="was-not-set"
+
 curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
-. $curDir/functions.sh $curDir
+. $curDir/functions.sh
 
 dbError=13
 
@@ -105,12 +107,43 @@ EOF
 
 case "$1" in
 	check)
-		ensureRunningPg && checkDbConf && ensureUser && ensureDb
+	    checkDbConf || exit $?
+        echo "INFO: Checking all good for QSM dev using:"
+        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+		ensureRunningPg && ensureUser && ensureDb
 		exit $?
 		;;
 	drop)
-	    ensureRunningPg && checkDbConf && dropDb && dropUser
-		exit 17
+	    checkDbConf || exit $?
+        echo "INFO: Dropping QSM environment:"
+        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+	    ensureRunningPg && dropDb && dropUser && rm $dbConfFile
+		exit $?
+		;;
+	start)
+		ensureRunningPg
+		exit $?
+		;;
+	stop)
+		pg_ctl -D $dbLoc stop
+		exit $?
+		;;
+	conf)
+	    checkDbConf || exit $?
+        echo "INFO: Checked configuration for QSM environment:"
+        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+		exit 0
+		;;
+	rmconf)
+		rm $dbConfFile
+		exit $?
+		;;
+	status)
+	    checkDbConf || exit $?
+        echo "INFO: Checking PostgreSQL using:"
+        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+		pg_ctl -D $dbLoc status
+		exit $?
 		;;
 	*)
 		echo "ERROR: Command $1 unknown"

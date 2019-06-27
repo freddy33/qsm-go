@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"log"
-	"os"
 )
 
 func WriteAllTables() {
-	m3util.ChangeToDocsGeneratedDir()
-	writeAllTrioDetailsTable()
-	writeAllTrioPermutationsTable()
-	writeTrioConnectionsTable()
-	writeAllConnectionDetails()
-	writeAllTrioDetailsLinks()
+	genDoc := m3util.GetGenDocDir()
+	writeAllTrioDetailsTable(genDoc)
+	writeAllTrioPermutationsTable(genDoc)
+	writeTrioConnectionsTable(genDoc)
+	writeAllConnectionDetails(genDoc)
+	writeAllTrioDetailsLinks(genDoc)
 }
 
 type Int2 struct {
@@ -154,15 +153,9 @@ func GetTrioTableCsv() [][]string {
 }
 
 // Write all the 8x8 connections possible for all trio in text and CSV files, and classify the connections size DS
-func writeTrioConnectionsTable() {
-	txtFile, err := os.Create("TrioConnectionsTable.txt")
-	if err != nil {
-		log.Fatal("Cannot create text file", err)
-	}
-	csvFile, err := os.Create("TrioConnectionsTable.csv")
-	if err != nil {
-		log.Fatal("Cannot create csv file", err)
-	}
+func writeTrioConnectionsTable(dir string) {
+	txtFile := m3util.CreateFile(dir,"TrioConnectionsTable.txt")
+	csvFile := m3util.CreateFile(dir,"TrioConnectionsTable.csv")
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
@@ -196,15 +189,9 @@ func writeTrioConnectionsTable() {
 	}
 }
 
-func writeAllTrioDetailsTable() {
-	txtFile, err := os.Create("AllTrioTable.txt")
-	if err != nil {
-		log.Fatal("Cannot create text file", err)
-	}
-	csvFile, err := os.Create("AllTrioTable.csv")
-	if err != nil {
-		log.Fatal("Cannot create csv file", err)
-	}
+func writeAllTrioDetailsTable(dir string) {
+	txtFile := m3util.CreateFile(dir, "AllTrioTable.txt")
+	csvFile := m3util.CreateFile(dir,"AllTrioTable.csv")
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
@@ -218,11 +205,8 @@ func writeAllTrioDetailsTable() {
 	}
 }
 
-func writeAllTrioDetailsLinks() {
-	txtFile, err := os.Create("AllTrioLinks.txt")
-	if err != nil {
-		log.Fatal("Cannot create text file", err)
-	}
+func writeAllTrioDetailsLinks(dir string) {
+	txtFile := m3util.CreateFile(dir,"AllTrioLinks.txt")
 	defer m3util.CloseFile(txtFile)
 
 	for _, td := range allTrioDetails {
@@ -230,11 +214,8 @@ func writeAllTrioDetailsLinks() {
 	}
 }
 
-func writeAllTrioPermutationsTable() {
-	txtFile, err := os.Create("AllTrioPermTable.txt")
-	if err != nil {
-		log.Fatal("Cannot create text file", err)
-	}
+func writeAllTrioPermutationsTable(dir string) {
+	txtFile := m3util.CreateFile(dir,"AllTrioPermTable.txt")
 	defer m3util.CloseFile(txtFile)
 
 	m3util.WriteNextString(txtFile, "Valid next Trio Index permutation 2\n")
@@ -252,15 +233,9 @@ func writeAllTrioPermutationsTable() {
 }
 
 // Write all the connection details in text and CSV files
-func writeAllConnectionDetails() {
-	txtFile, err := os.Create("AllConnectionDetails.txt")
-	if err != nil {
-		log.Fatal("Cannot create text file", err)
-	}
-	csvFile, err := os.Create("AllConnectionDetails.csv")
-	if err != nil {
-		log.Fatal("Cannot create csv file", err)
-	}
+func writeAllConnectionDetails(dir string) {
+	txtFile := m3util.CreateFile(dir,"AllConnectionDetails.txt")
+	csvFile := m3util.CreateFile(dir,"AllConnectionDetails.csv")
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 

@@ -7,15 +7,12 @@
 
 # Executable
 qsm-go
+/*.test
 
-# Data folders
-docs/generated/
-docs/data/
-docs/perf/
+# gen build folders
+build/
 
 # Profiling
-perf-data/
-*.prof
 *.test
 
 conf/dbconn*.json
