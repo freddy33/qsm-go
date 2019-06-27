@@ -190,7 +190,7 @@ func (trCtx *TrioIndexContext) GetBaseDivByThree(mainPoint Point) uint64 {
 	if !mainPoint.IsMainPoint() {
 		Log.Fatalf("cannot ask for Trio index on non nextMainPoint Pos %v in context %v!", mainPoint, trCtx.String())
 	}
-	return uint64(Abs64(mainPoint[0])/3 + Abs64(mainPoint[1])/3 + Abs64(mainPoint[2])/3)
+	return uint64(AbsDIntFromC(mainPoint[0])/3 + AbsDIntFromC(mainPoint[1])/3 + AbsDIntFromC(mainPoint[2])/3)
 }
 
 func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) TrioIndex {
@@ -435,25 +435,4 @@ func (npe *NextPathElement) fillMinusZ(trCtx *TrioIndexContext, mainPoint Point)
 	npe.nmp2ipConn = npe.nextMainTd.getPlusZConn()
 	npe.ipNearNm = npe.nextMainPoint.Add(npe.nmp2ipConn.Vector)
 	npe.valid = true
-}
-
-// OLD STUFF TO CHECK EQUALITY
-
-
-// Stupid reverse engineering of trio index that works for nextMainPoint and non nextMainPoint points
-func FindTrioIndex(c Point, np [3]Point, ctx *TrioIndexContext, offset int) (TrioIndex, TrioLink) {
-	link := makeTrioLink(getTrioIdxNearestMain(c, ctx, offset), getTrioIdxNearestMain(np[1], ctx, offset), getTrioIdxNearestMain(np[2], ctx, offset))
-	toFind := MakeTrioDetails(MakeVector(c, np[0]), MakeVector(c, np[1]), MakeVector(c, np[2]))
-	for _, td := range allTrioDetails {
-		if toFind.GetTrio() == td.GetTrio() {
-			return td.id, link
-		}
-	}
-	Log.Errorf("did not find any trio for %v %v %v", c, np, toFind)
-	Log.Errorf("All trio index %s", link.String())
-	return NilTrioIndex, link
-}
-
-func getTrioIdxNearestMain(p Point, ctx *TrioIndexContext, offset int) TrioIndex {
-	return ctx.GetBaseTrioIndex(ctx.GetBaseDivByThree(p.GetNearMainPoint()), offset)
 }

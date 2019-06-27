@@ -27,7 +27,7 @@ func MakeSegment(p1, p2 m3point.Point, t ObjectType) Segment {
 	}
 }
 
-func MakeSphere(t ObjectType) (Sphere) {
+func MakeSphere(t ObjectType) Sphere {
 	if t == NodeEmpty {
 		return Sphere{
 			Origin,

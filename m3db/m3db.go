@@ -66,8 +66,7 @@ func dropEnv(envNumber QsmEnvironment) {
 
 func GetConnection(envNumber QsmEnvironment) *sql.DB {
 	connDetails := readDbConf(envNumber)
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		connDetails.Host, connDetails.Port, connDetails.User, connDetails.Password, connDetails.DbName)
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {

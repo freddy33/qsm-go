@@ -1,6 +1,7 @@
 package m3gl
 
 import (
+	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -33,7 +34,7 @@ func TestSingleRedEvent(t *testing.T) {
 	assertSpaceStates(t, &world, expectedState, 5)
 }
 
-func assertEmptyWorld(t *testing.T, world *DisplayWorld, max int64) {
+func assertEmptyWorld(t *testing.T, world *DisplayWorld, max m3point.CInt) {
 	assert.Equal(t, max, world.WorldSpace.Max)
 	assert.Equal(t, 0, world.WorldSpace.GetNbNodes())
 	assert.Equal(t, 0, world.WorldSpace.GetNbActiveLinks())

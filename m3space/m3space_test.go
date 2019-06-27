@@ -288,7 +288,7 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 	assertSpaceStates(t, &space, expectedState, 5, evt.pathContext.String())
 }
 
-func assertEmptySpace(t *testing.T, space *Space, max int64) {
+func assertEmptySpace(t *testing.T, space *Space, max m3point.CInt) {
 	assert.Equal(t, max, space.Max)
 	assert.Equal(t, 0, len(space.activeNodes))
 	assert.Equal(t, 0, len(space.activeLinks))

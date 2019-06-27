@@ -112,12 +112,12 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	Log.SetDebug()
 
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
-	PossibleDSArray := [NbTrioDsIndex][3]int64{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
+	PossibleDSArray := [NbTrioDsIndex][3]DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
 
 	indexInPossDS := make([]int, len(allTrioDetails))
 	for i, td := range allTrioDetails {
 		cds := td.conns
-		dsArray := [3]int64{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
+		dsArray := [3]DInt{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
 		for k, posDsArray := range PossibleDSArray {
 			if posDsArray == dsArray {
@@ -306,16 +306,16 @@ func TestInitialTrioConnectingVectors(t *testing.T) {
 func TestAllBaseTrio(t *testing.T) {
 	Log.SetDebug()
 	for i, tr := range allBaseTrio {
-		assert.Equal(t, int64(0), tr[0][2], "Failed on Trio %d", i)
-		assert.Equal(t, int64(0), tr[1][1], "Failed on Trio %d", i)
-		assert.Equal(t, int64(0), tr[2][0], "Failed on Trio %d", i)
+		assert.Equal(t, CInt(0), tr[0][2], "Failed on Trio %d", i)
+		assert.Equal(t, CInt(0), tr[1][1], "Failed on Trio %d", i)
+		assert.Equal(t, CInt(0), tr[2][0], "Failed on Trio %d", i)
 		BackToOrig := Origin
 		for j, vec := range tr {
 			for c := 0; c < 3; c++ {
-				abs := Abs64(vec[c])
-				assert.True(t, int64(1) == abs || int64(0) == abs, "Something wrong with coordinate of connecting vector %d %d %d = %v", i, j, c, vec)
+				abs := AbsCInt(vec[c])
+				assert.True(t, CInt(1) == abs || CInt(0) == abs, "Something wrong with coordinate of connecting vector %d %d %d = %v", i, j, c, vec)
 			}
-			assert.Equal(t, int64(2), vec.DistanceSquared(), "Failed vec at %d %d", i, j)
+			assert.Equal(t, DInt(2), vec.DistanceSquared(), "Failed vec at %d %d", i, j)
 			assert.True(t, vec.IsBaseConnectingVector(), "Failed vec at %d %d", i, j)
 			BackToOrig = BackToOrig.Add(vec)
 		}

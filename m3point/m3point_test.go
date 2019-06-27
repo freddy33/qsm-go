@@ -8,37 +8,37 @@ import (
 
 func TestDS(t *testing.T) {
 	Log.SetDebug()
-	assert.Equal(t, int64(0), DS(Point{1, 2, 3}, Point{1, 2, 3}))
-	assert.Equal(t, int64(1), DS(Point{1, 2, 3}, Point{0, 2, 3}))
-	assert.Equal(t, int64(1), DS(Point{1, 2, 3}, Point{2, 2, 3}))
-	assert.Equal(t, int64(1), DS(Point{1, 2, 3}, Point{1, 3, 3}))
-	assert.Equal(t, int64(1), DS(Point{1, 2, 3}, Point{1, 1, 3}))
-	assert.Equal(t, int64(1), DS(Point{1, 2, 3}, Point{1, 2, 4}))
-	assert.Equal(t, int64(1), DS(Point{1, 2, 3}, Point{1, 2, 2}))
+	assert.Equal(t, DInt(0), DS(Point{1, 2, 3}, Point{1, 2, 3}))
+	assert.Equal(t, DInt(1), DS(Point{1, 2, 3}, Point{0, 2, 3}))
+	assert.Equal(t, DInt(1), DS(Point{1, 2, 3}, Point{2, 2, 3}))
+	assert.Equal(t, DInt(1), DS(Point{1, 2, 3}, Point{1, 3, 3}))
+	assert.Equal(t, DInt(1), DS(Point{1, 2, 3}, Point{1, 1, 3}))
+	assert.Equal(t, DInt(1), DS(Point{1, 2, 3}, Point{1, 2, 4}))
+	assert.Equal(t, DInt(1), DS(Point{1, 2, 3}, Point{1, 2, 2}))
 
-	assert.Equal(t, int64(3), Point{1, 1, 1}.DistanceSquared())
-	assert.Equal(t, int64(3), Point{-1, 1, 1}.DistanceSquared())
-	assert.Equal(t, int64(3), Point{1, -1, 1}.DistanceSquared())
-	assert.Equal(t, int64(3), Point{1, 1, -1}.DistanceSquared())
-	assert.Equal(t, int64(3), Point{-1, -1, -1}.DistanceSquared())
+	assert.Equal(t, DInt(3), Point{1, 1, 1}.DistanceSquared())
+	assert.Equal(t, DInt(3), Point{-1, 1, 1}.DistanceSquared())
+	assert.Equal(t, DInt(3), Point{1, -1, 1}.DistanceSquared())
+	assert.Equal(t, DInt(3), Point{1, 1, -1}.DistanceSquared())
+	assert.Equal(t, DInt(3), Point{-1, -1, -1}.DistanceSquared())
 
-	assert.Equal(t, int64(14), Point{1, 2, 3}.DistanceSquared())
+	assert.Equal(t, DInt(14), Point{1, 2, 3}.DistanceSquared())
 
-	assert.Equal(t, int64(0), DS(Point{-3, -2, -1}, Point{-3, -2, -1}))
-	assert.Equal(t, int64(3), DS(Point{-3, -2, -1}, Point{-2, -1, 0}))
+	assert.Equal(t, DInt(0), DS(Point{-3, -2, -1}, Point{-3, -2, -1}))
+	assert.Equal(t, DInt(3), DS(Point{-3, -2, -1}, Point{-2, -1, 0}))
 }
 
 func TestNbPosCoord(t *testing.T) {
 	Log.SetDebug()
-	assert.Equal(t, int64(0), Origin.SumOfPositiveCoord())
-	assert.Equal(t, int64(0), Point{-1, 0, 0}.SumOfPositiveCoord())
-	assert.Equal(t, int64(0), Point{0, -1, 0}.SumOfPositiveCoord())
-	assert.Equal(t, int64(0), Point{0, 0, -1}.SumOfPositiveCoord())
-	assert.Equal(t, int64(0), Point{-34, -45, -14}.SumOfPositiveCoord())
-	assert.Equal(t, int64(34), Point{34, -45, -14}.SumOfPositiveCoord())
-	assert.Equal(t, int64(45), Point{-34, 45, -14}.SumOfPositiveCoord())
-	assert.Equal(t, int64(14), Point{-34, -45, 14}.SumOfPositiveCoord())
-	assert.Equal(t, int64(6), Point{1, 2, 3}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(0), Origin.SumOfPositiveCoord())
+	assert.Equal(t, DInt(0), Point{-1, 0, 0}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(0), Point{0, -1, 0}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(0), Point{0, 0, -1}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(0), Point{-34, -45, -14}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(34), Point{34, -45, -14}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(45), Point{-34, 45, -14}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(14), Point{-34, -45, 14}.SumOfPositiveCoord())
+	assert.Equal(t, DInt(6), Point{1, 2, 3}.SumOfPositiveCoord())
 }
 
 func TestPointEqualAndDS(t *testing.T) {
@@ -57,13 +57,13 @@ func TestPointEqualAndDS(t *testing.T) {
 	assert.Equal(t, Point{17, 11, 13}, P)
 
 	// Test DS
-	assert.Equal(t, int64(3), DS(OneTwoThree, Point{0, 1, 2}))
+	assert.Equal(t, DInt(3), DS(OneTwoThree, Point{0, 1, 2}))
 	// Make sure OneTwoThree did not change
 	assert.Equal(t, Point{1, 2, 3}, OneTwoThree)
 
-	assert.Equal(t, int64(4), DS(OneTwoThree, Point{-1, 2, 3}))
-	assert.Equal(t, int64(16), DS(OneTwoThree, Point{1, -2, 3}))
-	assert.Equal(t, int64(36), DS(OneTwoThree, Point{1, 2, -3}))
+	assert.Equal(t, DInt(4), DS(OneTwoThree, Point{-1, 2, 3}))
+	assert.Equal(t, DInt(16), DS(OneTwoThree, Point{1, -2, 3}))
+	assert.Equal(t, DInt(36), DS(OneTwoThree, Point{1, 2, -3}))
 }
 
 func TestIsMainPoint(t *testing.T) {
@@ -232,7 +232,7 @@ func TestPointRotations(t *testing.T) {
 
 	// Test bunch of equations using random points
 	nbRun := 100
-	rdMax := int64(100000000)
+	rdMax := CInt(100000000)
 	for i := 0; i < nbRun; i++ {
 		randomPoint := Point{randomInt64(rdMax), randomInt64(rdMax), randomInt64(rdMax)}
 		assert.Equal(t, Orig.Sub(randomPoint), randomPoint.Neg())
@@ -261,8 +261,8 @@ func TestPointRotations(t *testing.T) {
 	}
 }
 
-func randomInt64(max int64) int64 {
-	r := rand.Int63n(max)
+func randomInt64(max CInt) CInt {
+	r := CInt(rand.Int31n(int32(max)))
 	if rand.Float32() < 0.5 {
 		return -r
 	}

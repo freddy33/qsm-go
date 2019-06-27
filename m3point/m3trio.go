@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+/***************************************************************/
+// Type declaration
+/***************************************************************/
+
 // Trio of connection vectors from any point using connections only
 type Trio [3]Point
 
@@ -32,20 +36,223 @@ type TrioDetails struct {
 // Defining a list type to manage uniqueness and ordering
 type TrioDetailList []*TrioDetails
 
-// All the initialized arrays used to navigate the switch between base trio index at base points
-var allBaseTrio [8]Trio
-var validNextTrio [12][2]TrioIndex
-var AllMod4Permutations [12][4]TrioIndex
-var AllMod8Permutations [12][8]TrioIndex
+/***************************************************************/
+// Global fields declaration
+/***************************************************************/
 
 const (
 	NbTrioDsIndex = 7
 	NilTrioIndex  = TrioIndex(255)
 )
 
+var reverse3Map = [3]TrioIndex{2, 1, 0}
+
+// All the initialized arrays used to navigate the switch between base trio index at base points
+var allBaseTrio [8]Trio
+var validNextTrio [12][2]TrioIndex
+var AllMod4Permutations [12][4]TrioIndex
+var AllMod8Permutations [12][8]TrioIndex
+
 // All the possible Trio details used
 var allTrioDetails TrioDetailList
 var allTrioLinks TrioLinkList
+
+// Dummy trace counter for debugging recursive methods
+var _traceCounter = 0
+
+/***************************************************************/
+// Init Functions
+// TODO: Find a better way than Init
+/***************************************************************/
+
+func init() {
+	// Initial Trio 0
+	allBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
+	for i := 1; i < 4; i++ {
+		allBaseTrio[i] = allBaseTrio[i-1].PlusX()
+	}
+	// Initial Trio 0 prime
+	for i := 0; i < 4; i++ {
+		allBaseTrio[i+4] = allBaseTrio[i].Neg()
+	}
+
+	initValidTrios()
+	initMod4Permutations()
+	initMod8Permutations()
+	initConnectionDetails()
+	initAllTrioDetails()
+}
+
+func initValidTrios() {
+	// Valid next trio are all but prime
+	idx := 0
+	for i := TrioIndex(0); i < 4; i++ {
+		for j := TrioIndex(4); j < 8; j++ {
+			// j index cannot be the prime (neg) trio
+			if !isPrime(i, j) {
+				validNextTrio[idx] = [2]TrioIndex{i, j}
+				idx++
+			}
+		}
+	}
+}
+
+func initMod4Permutations() {
+	p := TrioIndexPermBuilder{4, 0, make([][]TrioIndex, 12)}
+	p.fill(0, make([]TrioIndex, p.size))
+	for pIdx := 0; pIdx < len(AllMod4Permutations); pIdx++ {
+		for i := 0; i < 4; i++ {
+			AllMod4Permutations[pIdx][i] = p.collector[pIdx][i]
+		}
+	}
+}
+
+func initMod8Permutations() {
+	p := TrioIndexPermBuilder{8, 0, make([][]TrioIndex, 12)}
+	// In 8 size permutation the first index always 0 since we use all the indexes
+	first := make([]TrioIndex, p.size)
+	first[0] = TrioIndex(0)
+	p.fill(1, first)
+	for pIdx := 0; pIdx < len(AllMod8Permutations); pIdx++ {
+		for i := 0; i < 8; i++ {
+			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
+		}
+	}
+}
+
+func initConnectionDetails() ConnectionId {
+	connMap := make(map[Point]*ConnectionDetails)
+	// Going through all Trio and all combination of Trio, to aggregate connection details
+	for _, tr := range allBaseTrio {
+		for _, vec := range tr {
+			addConnDetail(&connMap, vec)
+		}
+		for _, tB := range allBaseTrio {
+			connectingVectors := GetNonBaseConnections(tr, tB)
+			for _, conn := range connectingVectors {
+				addConnDetail(&connMap, conn)
+			}
+		}
+	}
+	Log.Debug("Number of connection details created", len(connMap))
+	nbConnDetails := int8(len(connMap) / 2)
+
+	// Reordering connection details number by size, and x, y, z
+	allConnections = make([]*ConnectionDetails, len(connMap))
+	idx := 0
+	for _, cd := range connMap {
+		allConnections[idx] = cd
+		idx++
+	}
+	sort.Sort(ByConnVector(allConnections))
+
+	currentConnNumber := ConnectionId(1)
+	for _, cd := range allConnections {
+		if cd.Id == 0 {
+			vec1 := cd.Vector
+			vec2 := vec1.Neg()
+			var posVec, negVec Point
+			// first one with non 0 pos coord
+			for _, c := range vec1 {
+				if c > 0 {
+					posVec = vec1
+					negVec = vec2
+					break
+				} else if c < 0 {
+					posVec = vec2
+					negVec = vec1
+					break
+				}
+			}
+			posCD := connMap[posVec]
+			posCD.Id = currentConnNumber
+			negCD := connMap[negVec]
+			negCD.Id = -currentConnNumber
+			currentConnNumber++
+		}
+	}
+	sort.Sort(ByConnId(allConnections))
+	allConnectionsByVector = connMap
+
+	return ConnectionId(nbConnDetails)
+}
+
+func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
+	ds := connVector.DistanceSquared()
+	if ds == 0 {
+		Log.Fatalf("zero vector cannot be a connection")
+	}
+	if !(ds == 1 || ds == 2 || ds == 3 || ds == 5) {
+		Log.Fatalf("vector %v of ds=%d cannot be a connection", connVector, ds)
+	}
+	_, ok := (*connMap)[connVector]
+	if !ok {
+		// Add both pos and neg
+		posVec := connVector
+		negVec := connVector.Neg()
+		posConnDetails := ConnectionDetails{0, posVec, ds,}
+		negConnDetails := ConnectionDetails{0, negVec, ds,}
+		(*connMap)[posVec] = &posConnDetails
+		(*connMap)[negVec] = &negConnDetails
+	}
+}
+
+func initAllTrioDetails() {
+	localTrioLinks := TrioLinkList{}
+	localTrioDetails := TrioDetailList{}
+	// All base trio first
+	for i, tr := range allBaseTrio {
+		td := MakeTrioDetails(tr[0], tr[1], tr[2])
+		td.id = TrioIndex(i)
+		localTrioDetails.addUnique(td)
+	}
+	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
+	for a, tA := range allBaseTrio {
+		for b, tB := range allBaseTrio {
+			for c, tC := range allBaseTrio {
+				thisTrio := makeTrioLinkFromInt(a, b, c)
+				alreadyDone := localTrioLinks.addUnique(&thisTrio)
+				if !alreadyDone {
+					for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
+						nextTrio.Links.addUnique(&thisTrio)
+						localTrioDetails.addWithLinks(nextTrio)
+					}
+				}
+			}
+		}
+	}
+
+	sort.Sort(localTrioDetails)
+
+	// Process all the trio details now that order final
+	for i, td := range localTrioDetails {
+		trIdx := TrioIndex(i)
+		// For all base trio different process
+		if i < len(allBaseTrio) {
+			// The id should already be set correctly
+			if td.id != trIdx {
+				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
+			}
+			// For all base trio add all links containing them
+			for j, tl := range localTrioLinks {
+				if tl.Contains(trIdx) {
+					td.Links.addUnique(localTrioLinks[j])
+				}
+			}
+		} else {
+			// The id should not have been set. Adding it now
+			if td.id != NilTrioIndex {
+				Log.Fatalf("incorrect Id for non base trio details %v at %d", *td, i)
+			}
+			td.id = trIdx
+		}
+
+		// Order the links array
+		sort.Sort(td.Links)
+	}
+	allTrioDetails = localTrioDetails
+	allTrioLinks = localTrioLinks
+}
 
 /***************************************************************/
 // Util Functions
@@ -292,69 +499,8 @@ func (l TrioDetailList) Less(i, j int) bool {
 }
 
 /***************************************************************/
-// Init Functions
-// TODO: Find a better way than Init
-/***************************************************************/
-
-func init() {
-	// Initial Trio 0
-	allBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
-	for i := 1; i < 4; i++ {
-		allBaseTrio[i] = allBaseTrio[i-1].PlusX()
-	}
-	// Initial Trio 0 prime
-	for i := 0; i < 4; i++ {
-		allBaseTrio[i+4] = allBaseTrio[i].Neg()
-	}
-
-	initValidTrios()
-	initMod4Permutations()
-	initMod8Permutations()
-	initConnectionDetails()
-	fillAllTrioDetails()
-}
-
-func initValidTrios() {
-	// Valid next trio are all but prime
-	idx := 0
-	for i := TrioIndex(0); i < 4; i++ {
-		for j := TrioIndex(4); j < 8; j++ {
-			// j index cannot be the prime (neg) trio
-			if !isPrime(i, j) {
-				validNextTrio[idx] = [2]TrioIndex{i, j}
-				idx++
-			}
-		}
-	}
-}
-
-func initMod4Permutations() {
-	p := TrioIndexPermBuilder{4, 0, make([][]TrioIndex, 12)}
-	p.fill(0, make([]TrioIndex, p.size))
-	for pIdx := 0; pIdx < len(AllMod4Permutations); pIdx++ {
-		for i := 0; i < 4; i++ {
-			AllMod4Permutations[pIdx][i] = p.collector[pIdx][i]
-		}
-	}
-}
-
-func initMod8Permutations() {
-	p := TrioIndexPermBuilder{8, 0, make([][]TrioIndex, 12)}
-	// In 8 size permutation the first index always 0 since we use all the indexes
-	first := make([]TrioIndex, p.size)
-	first[0] = TrioIndex(0)
-	p.fill(1, first)
-	for pIdx := 0; pIdx < len(AllMod8Permutations); pIdx++ {
-		for i := 0; i < 8; i++ {
-			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
-		}
-	}
-}
-
-/***************************************************************/
 // Trio Functions
 /***************************************************************/
-var reverse3Map = [3]TrioIndex{2, 1, 0}
 
 func GetNumberOfBaseTrio() int {
 	return len(allBaseTrio)
@@ -388,15 +534,15 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 }
 
 func (t Trio) GetDSIndex() int {
-	if t[0].DistanceSquared() == int64(1) {
+	if t[0].DistanceSquared() == DInt(1) {
 		return 1
 	} else {
 		switch t[1].DistanceSquared() {
-		case int64(2):
+		case DInt(2):
 			return 0
-		case int64(3):
+		case DInt(3):
 			return 2
-		case int64(5):
+		case DInt(5):
 			return 3
 		}
 	}
@@ -519,7 +665,6 @@ func (t Trio) getMinusZVector() Point {
 /***************************************************************/
 // TrioDetails Functions
 /***************************************************************/
-var _traceCounter = 0
 
 func GetNumberOfTrioDetails() TrioIndex {
 	return TrioIndex(len(allTrioDetails))
@@ -741,92 +886,35 @@ func (td *TrioDetails) getMinusZConn() *ConnectionDetails {
 }
 
 func (td *TrioDetails) GetDSIndex() int {
-	if td.conns[0].DistanceSquared() == int64(1) {
+	if td.conns[0].DistanceSquared() == DInt(1) {
 		switch td.conns[1].DistanceSquared() {
-		case int64(1):
+		case DInt(1):
 			return 1
-		case int64(2):
+		case DInt(2):
 			switch td.conns[2].DistanceSquared() {
-			case int64(3):
+			case DInt(3):
 				return 2
-			case int64(5):
+			case DInt(5):
 				return 3
 			}
 		}
 	} else {
 		switch td.conns[1].DistanceSquared() {
-		case int64(2):
+		case DInt(2):
 			return 0
-		case int64(3):
+		case DInt(3):
 			switch td.conns[2].DistanceSquared() {
-			case int64(3):
+			case DInt(3):
 				return 4
-			case int64(5):
+			case DInt(5):
 				return 5
 			}
-		case int64(5):
+		case DInt(5):
 			return 6
 		}
 	}
 	Log.Errorf("Did not find correct index for %v", *td)
 	return -1
-}
-
-func fillAllTrioDetails() {
-	localTrioLinks := TrioLinkList{}
-	localTrioDetails := TrioDetailList{}
-	// All base trio first
-	for i, tr := range allBaseTrio {
-		td := MakeTrioDetails(tr[0], tr[1], tr[2])
-		td.id = TrioIndex(i)
-		localTrioDetails.addUnique(td)
-	}
-	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
-	for a, tA := range allBaseTrio {
-		for b, tB := range allBaseTrio {
-			for c, tC := range allBaseTrio {
-				thisTrio := makeTrioLinkFromInt(a, b, c)
-				alreadyDone := localTrioLinks.addUnique(&thisTrio)
-				if !alreadyDone {
-					for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
-						nextTrio.Links.addUnique(&thisTrio)
-						localTrioDetails.addWithLinks(nextTrio)
-					}
-				}
-			}
-		}
-	}
-
-	sort.Sort(localTrioDetails)
-
-	// Process all the trio details now that order final
-	for i, td := range localTrioDetails {
-		trIdx := TrioIndex(i)
-		// For all base trio different process
-		if i < len(allBaseTrio) {
-			// The id should already be set correctly
-			if td.id != trIdx {
-				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
-			}
-			// For all base trio add all links containing them
-			for j, tl := range localTrioLinks {
-				if tl.Contains(trIdx) {
-					td.Links.addUnique(localTrioLinks[j])
-				}
-			}
-		} else {
-			// The id should not have been set. Adding it now
-			if td.id != NilTrioIndex {
-				Log.Fatalf("incorrect Id for non base trio details %v at %d", *td, i)
-			}
-			td.id = trIdx
-		}
-
-		// Order the links array
-		sort.Sort(td.Links)
-	}
-	allTrioDetails = localTrioDetails
-	allTrioLinks = localTrioLinks
 }
 
 // Return the new Trio out of Origin + tA (with next tB or tB/tC)

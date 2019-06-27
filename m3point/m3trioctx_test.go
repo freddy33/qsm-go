@@ -18,8 +18,8 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 
 func runConnectionDetailsCheck(t *testing.T, trCtx *TrioIndexContext) {
 	// For all trioIndex rotations, any 2 close nextMainPoint points there should be a connection details
-	min := int64(-5)
-	max := int64(5)
+	min := CInt(-5)
+	max := CInt(5)
 	for x := min; x < max; x++ {
 		for y := min; y < max; y++ {
 			for z := min; z < max; z++ {

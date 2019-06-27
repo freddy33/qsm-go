@@ -128,7 +128,7 @@ func createAllTrioCubes() {
 	}
 }
 
-func (cl *CubeListPerContext) populate(max int64) {
+func (cl *CubeListPerContext) populate(max CInt) {
 	allCubesMap := make(map[TrioIndexCubeKey]int)
 	// For center populate for all offsets
 	maxOffset := MaxOffsetPerType[cl.trCtx.ctxType]
@@ -137,9 +137,9 @@ func (cl *CubeListPerContext) populate(max int64) {
 		allCubesMap[cube]++
 	}
 	// Go through space
-	for x := -max; x <= max; x++ {
-		for y := -max; y <= max; y++ {
-			for z := -max; z <= max; z++ {
+	for x := CInt(-max); x <= max; x++ {
+		for y := CInt(-max); y <= max; y++ {
+			for z := CInt(-max); z <= max; z++ {
 				cube := createTrioCube(cl.trCtx, 0, Point{x, y, z}.Mul(THREE))
 				allCubesMap[cube]++
 			}

@@ -10,9 +10,9 @@ import (
 
 var LogRun = m3util.NewDataLogger("m3run", m3util.DEBUG)
 
-func GetPyramidSize(points [4]m3point.Point) int64 {
+func GetPyramidSize(points [4]m3point.Point) m3point.DInt {
 	// Sum all the edges
-	totalSize := int64(0)
+	totalSize := m3point.DInt(0)
 	totalSize += m3point.MakeVector(points[0], points[1]).DistanceSquared()
 	totalSize += m3point.MakeVector(points[0], points[2]).DistanceSquared()
 	totalSize += m3point.MakeVector(points[0], points[3]).DistanceSquared()
@@ -123,14 +123,14 @@ func createAllIndexes(nbIndexes int) ([][4]int, [12]int) {
 	return res, [12]int{nbConbinations, idx, t1, nbT1, t2a, nbT2a, t2b, nbT2b, t3, nbT3, t4, nbT4}
 }
 
-func createPyramidWithParams(space *Space, pyramidSize int64, ctxTypes [4]m3point.ContextType, indexes [4]int, offsets [4]int) {
+func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4]m3point.ContextType, indexes [4]int, offsets [4]int) {
 	space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
 	space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
 	space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
 	space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
-func runSpacePyramidWithParams(pSize int64, ctxTypes [4]m3point.ContextType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
+func runSpacePyramidWithParams(pSize m3point.CInt, ctxTypes [4]m3point.ContextType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3
@@ -155,7 +155,7 @@ func runSpacePyramidWithParams(pSize int64, ctxTypes [4]m3point.ContextType, ind
 	}
 	found := false
 	var bestPyramid Pyramid
-	var bestSize int64
+	var bestSize m3point.DInt
 	var nbPossibilities int
 
 	for expectedTime < finalTime {
@@ -168,13 +168,13 @@ func runSpacePyramidWithParams(pSize int64, ctxTypes [4]m3point.ContextType, ind
 			LogRun.Debugf("Found a 3 match with %d elements", nbThreeIdsActive)
 			if nbThreeIdsActive >= 4 {
 				LogRun.Debug("Found a 4 match")
-				builder := PyramidBuilder{make(map[Pyramid]int64, 1)}
+				builder := PyramidBuilder{make(map[Pyramid]m3point.DInt, 1)}
 				builder.createPyramids(pointsPer3Ids, &Pyramid{}, 0, nbThreeIdsActive-4)
 				allPyramids := builder.allPyramids
 				nbPossibilities = len(allPyramids)
 				LogRun.Debugf("AllPyramids %d", nbPossibilities)
 				if len(allPyramids) > 0 {
-					bestSize = int64(0)
+					bestSize = m3point.DInt(0)
 					for pyramid, size := range allPyramids {
 						LogRun.Debugf("%v : %d", pyramid, size)
 						if size > bestSize {
@@ -195,7 +195,7 @@ func runSpacePyramidWithParams(pSize int64, ctxTypes [4]m3point.ContextType, ind
 // Builder to extract possible pyramids out of a list of ThreeIds that have common points
 type PyramidBuilder struct {
 	// All the possible pyramids built out
-	allPyramids map[Pyramid]int64
+	allPyramids map[Pyramid]m3point.DInt
 }
 
 func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds][]m3point.Point, currentPyramid *Pyramid, currentPos int, possibleSkip int) {

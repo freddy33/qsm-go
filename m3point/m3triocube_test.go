@@ -27,9 +27,9 @@ func TestTrioCubeMaps(t *testing.T) {
 	}
 }
 
-func findNbCubes(trCtx *TrioIndexContext) (int64, map[TrioIndexCubeKey]int) {
+func findNbCubes(trCtx *TrioIndexContext) (CInt, map[TrioIndexCubeKey]int) {
 	nbCubes := 0
-	max := int64(1)
+	max := CInt(1)
 	var newCubes map[TrioIndexCubeKey]int
 	for ; max < 30; max++ {
 		newCubes = distinctCubes(trCtx, max)
@@ -42,7 +42,7 @@ func findNbCubes(trCtx *TrioIndexContext) (int64, map[TrioIndexCubeKey]int) {
 	return max-1, newCubes
 }
 
-func distinctCubes(trCtx *TrioIndexContext, max int64) map[TrioIndexCubeKey]int {
+func distinctCubes(trCtx *TrioIndexContext, max CInt) map[TrioIndexCubeKey]int {
 	allCubes := make(map[TrioIndexCubeKey]int)
 	maxOffset := MaxOffsetPerType[trCtx.ctxType]
 	for offset := 0; offset < maxOffset; offset++ {
@@ -60,7 +60,7 @@ func distinctCubes(trCtx *TrioIndexContext, max int64) map[TrioIndexCubeKey]int 
 	return allCubes
 }
 
-func assertWithOffset(t *testing.T, cl *CubeListPerContext, max int64, offset int) {
+func assertWithOffset(t *testing.T, cl *CubeListPerContext, max CInt, offset int) {
 	for x := -max; x <= max; x++ {
 		for y := -max; y <= max; y++ {
 			for z := -max; z <= max; z++ {

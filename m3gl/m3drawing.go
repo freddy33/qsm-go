@@ -106,7 +106,7 @@ type ConnectionDrawingElement struct {
 
 type AxeDrawingElement struct {
 	objectType ObjectType
-	max        int64
+	max        m3point.CInt
 	neg        bool
 }
 

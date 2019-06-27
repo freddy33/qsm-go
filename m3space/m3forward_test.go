@@ -25,7 +25,7 @@ func BenchmarkPack20(b *testing.B) {
 	benchSpaceTest(b, 20)
 }
 
-func benchSpaceTest(b *testing.B, pSize int64) {
+func benchSpaceTest(b *testing.B, pSize m3point.CInt) {
 	Log.SetWarn()
 	LogStat.SetWarn()
 	LogRun.SetWarn()
@@ -57,9 +57,9 @@ func TestSpaceAllPyramids(t *testing.T) {
 	LogRun.SetWarn()
 	allContexts := m3point.GetAllContextTypes()
 	LogData.Infof("Size Type Idxs time nbPoss orgSize finalSize diff ratio")
-	maxSize := int64(4)
+	maxSize := m3point.CInt(4)
 	maxIndexes := 200
-	for pSize := int64(4); pSize <= maxSize; pSize++ {
+	for pSize := m3point.CInt(4); pSize <= maxSize; pSize++ {
 		for _, ctxType := range allContexts {
 			nbFound := 0
 			ctxs := [4]m3point.ContextType{ctxType, ctxType, ctxType, ctxType}
@@ -69,7 +69,7 @@ func TestSpaceAllPyramids(t *testing.T) {
 				if found {
 					orgSize := GetPyramidSize(originalPyramid)
 					finalSize := GetPyramidSize(finalPyramid)
-					diff := m3point.Abs64(orgSize-finalSize)
+					diff := m3point.AbsDInt(orgSize-finalSize)
 					ratio := float64(diff) / float64(orgSize)
 					LogData.Infof("%d %d %v %d %d %d %d %d %.5f",
 						pSize, ctxType, idxs, time, nbPoss, orgSize, finalSize, diff, ratio)
@@ -96,14 +96,14 @@ func TestSpaceRunPySize4(t *testing.T) {
 	assert.True(t, found)
 	orgSize := GetPyramidSize(originalPyramid)
 	finalSize := GetPyramidSize(finalPyramid)
-	diff := m3point.Abs64(orgSize-finalSize)
+	diff := m3point.AbsDInt(orgSize-finalSize)
 	LogStat.Infof("%d %v %v %d %d %d %d",time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
 
 	found, originalPyramid, time, finalPyramid, nbPoss = runSpacePyramidWithParams(4, [4]m3point.ContextType{2, 2, 2, 2}, [4]int{0, 0, 0, 3}, [4]int{0, 0, 0, 0})
 	assert.True(t, found)
 	orgSize = GetPyramidSize(originalPyramid)
 	finalSize = GetPyramidSize(finalPyramid)
-	diff = m3point.Abs64(orgSize-finalSize)
+	diff = m3point.AbsDInt(orgSize-finalSize)
 	LogStat.Infof("%d %v %v %d %d %d %d",time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
 }
 
@@ -119,7 +119,7 @@ func TestSpaceRunPySize2(t *testing.T) {
 	runSpaceTest(2)
 }
 
-func runSpaceTest(pSize int64) {
+func runSpaceTest(pSize m3point.CInt) {
 	runSpacePyramidWithParams(pSize, [4]m3point.ContextType{8, 8, 8, 8}, [4]int{0, 4, 8, 10}, [4]int{0, 0, 0, 4})
 }
 

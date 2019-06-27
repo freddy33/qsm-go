@@ -37,7 +37,7 @@ const (
 )
 
 type DisplayWorld struct {
-	Max        int64
+	Max        m3point.CInt
 	WorldSpace *m3space.Space
 	Filter     SpaceDrawingFilter
 	Elements   []SpaceDrawingElement
@@ -79,7 +79,7 @@ func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}
 	verifyData()
-	space := m3space.MakeSpace(Max)
+	space := m3space.MakeSpace(m3point.CInt(Max))
 	world := DisplayWorld{}
 	world.initialized(&space, glfwTime)
 	world.CheckMax()
@@ -174,7 +174,7 @@ type DrawingElementsCreator struct {
 	offset     int
 }
 
-func (creator *DrawingElementsCreator) createAxes(max int64) {
+func (creator *DrawingElementsCreator) createAxes(max m3point.CInt) {
 	for axe := 0; axe < 3; axe++ {
 		creator.elements[creator.offset] = &AxeDrawingElement{
 			ObjectType(axe),
@@ -313,7 +313,7 @@ type TriangleFiller struct {
 	buffer         *[]float32
 }
 
-func (t *TriangleFiller) drawAxes(max int64) {
+func (t *TriangleFiller) drawAxes(max m3point.CInt) {
 	for axe := int16(0); axe < axes; axe++ {
 		p := m3point.Point{}
 		p[axe] = max + AxeExtraLength

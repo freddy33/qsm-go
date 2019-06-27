@@ -37,7 +37,7 @@ type Space struct {
 	nbDeadNodes int
 
 	// Max absolute coordinate in all nodes
-	Max int64
+	Max m3point.CInt
 	// Max number of connections per node
 	MaxConnections int
 	// Cancel on same event conflict
@@ -50,7 +50,7 @@ type Space struct {
 	EventOutgrowthDeadThreshold DistAndTime
 }
 
-func MakeSpace(max int64) Space {
+func MakeSpace(max m3point.CInt) Space {
 	space := Space{}
 	space.lastIdCounter = 1
 	space.maxEvents = 12
@@ -129,7 +129,7 @@ func (space *Space) CreateSingleEventCenter() *Event {
 	return space.CreateEventFromColor(m3point.Origin, RedEvent)
 }
 
-func (space *Space) CreatePyramid(pyramidSize int64) {
+func (space *Space) CreatePyramid(pyramidSize m3point.CInt) {
 	space.CreateEventFromColor(m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
 	space.CreateEventFromColor(m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
 	space.CreateEventFromColor(m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)

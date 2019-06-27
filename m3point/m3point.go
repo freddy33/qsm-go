@@ -12,7 +12,9 @@ const (
 	THREE = 3
 )
 
-type Point [3]int64
+type DInt int64
+type CInt int32
+type Point [3]CInt
 
 var Origin = Point{0, 0, 0}
 var XFirst = Point{THREE, 0, 0}
@@ -23,25 +25,32 @@ var ZFirst = Point{0, 0, THREE}
 // Util Functions
 /***************************************************************/
 
-func Abs64(i int64) int64 {
+func AbsCInt(i CInt) CInt {
 	if i < 0 {
 		return -i
 	}
 	return i
 }
 
-func Abs8(i int8) int8 {
+func AbsDInt(i DInt) DInt {
 	if i < 0 {
 		return -i
 	}
 	return i
 }
 
-func DS(p1, p2 Point) int64 {
+func AbsDIntFromC(i CInt) DInt {
+	if i < 0 {
+		return DInt(-i)
+	}
+	return DInt(i)
+}
+
+func DS(p1, p2 Point) DInt {
 	x := p2.X() - p1.X()
 	y := p2.Y() - p1.Y()
 	z := p2.Z() - p1.Z()
-	return x*x + y*y + z*z
+	return DInt(x)*DInt(x) + DInt(y)*DInt(y) + DInt(z)*DInt(z)
 }
 
 /***************************************************************/
@@ -57,19 +66,19 @@ func (p Point) String() string {
 	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
 }
 
-func (p Point) X() int64 {
+func (p Point) X() CInt {
 	return p[0]
 }
 
-func (p Point) Y() int64 {
+func (p Point) Y() CInt {
 	return p[1]
 }
 
-func (p Point) Z() int64 {
+func (p Point) Z() CInt {
 	return p[2]
 }
 
-func (p Point) Mul(m int64) Point {
+func (p Point) Mul(m CInt) Point {
 	return Point{p[0] * m, p[1] * m, p[2] * m}
 }
 
@@ -115,8 +124,8 @@ func (p Point) RotNegZ() Point {
 	return Point{p[1], -p[0], p[2]}
 }
 
-func (p Point) DistanceSquared() int64 {
-	return p[0]*p[0] + p[1]*p[1] + p[2]*p[2]
+func (p Point) DistanceSquared() DInt {
+	return DInt(p[0])*DInt(p[0]) + DInt(p[1])*DInt(p[1]) + DInt(p[2])*DInt(p[2])
 }
 
 func (p Point) IsMainPoint() bool {
@@ -144,11 +153,11 @@ func (p Point) IsConnectionVector() bool {
 	return false
 }
 
-func (p Point) SumOfPositiveCoord() int64 {
-	res := int64(0)
+func (p Point) SumOfPositiveCoord() DInt {
+	res := DInt(0)
 	for _, c := range p {
 		if c > 0 {
-			res += c
+			res += DInt(c)
 		}
 	}
 	return res
