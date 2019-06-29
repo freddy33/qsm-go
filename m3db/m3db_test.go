@@ -18,7 +18,11 @@ func TestDbConf(t *testing.T) {
 	err := cmd.Run()
 	m3util.ExitOnError(err)
 
-	connDetails := readDbConf(ConfEnv)
+	env := new(QsmEnvironment)
+	env.id = ConfEnv
+
+	env.fillDbConf()
+	connDetails := env.GetDbConf()
 	assert.Equal(t, "hostTest", connDetails.Host, "fails reading %v", connDetails)
 	assert.Equal(t, 1234, connDetails.Port, "fails reading %v", connDetails)
 	assert.Equal(t, "userTest", connDetails.User, "fails reading %v", connDetails)
@@ -26,11 +30,14 @@ func TestDbConf(t *testing.T) {
 	assert.Equal(t, "dbNameTest", connDetails.DbName, "fails reading %v", connDetails)
 }
 
-func TestDbConnection(t *testing.T) {
-	defer DropEnv(TempEnv)
-	CheckOrCreateEnv(TempEnv)
-	db := GetConnection(TempEnv)
-	defer CloseDb(db)
-	err := db.Ping()
+func TestEnvCreationAndDestroy(t *testing.T) {
+	Log.SetDebug()
+	env := GetEnvironment(TempEnv)
+	if env == nil {
+		assert.NotNil(t, env, "could not create environment %d", TempEnv)
+		return
+	}
+	defer env.Destroy()
+	err := env.GetConnection().Ping()
 	assert.True(t, err == nil, "Got ping error %v", err)
 }

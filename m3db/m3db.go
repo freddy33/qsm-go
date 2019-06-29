@@ -11,21 +11,24 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 )
 
 var Log = m3util.NewLogger("m3db", m3util.INFO)
 
-type QsmEnvironment int
+type QsmEnvID int
 
-const(
-	NoEnv QsmEnvironment = iota
-	MainEnv
-	TempEnv
-	TestEnv
-	ShellEnv
-	ConfEnv = QsmEnvironment(1234)
+const (
+	NoEnv    QsmEnvID = iota // 0
+	MainEnv                  // 1
+	TempEnv                  // 2
+	TestEnv                  // 3
+	ShellEnv                 // 4
+	ConfEnv = QsmEnvID(1234)
 )
+
+const QsmEnvNumberKey = "QSM_ENV_NUMBER"
 
 type DbConnDetails struct {
 	Host     string `json:"host"`
@@ -41,161 +44,189 @@ func (qsmError QsmError) Error() string {
 	return string(qsmError)
 }
 
-type TableDefinition struct {
-	Name       string
-	Checked    bool
-	Created    bool
-	DdlColumns string
-	InsertStmt string
-	InsertFunc func(stmt *sql.Stmt) (sql.Result, error)
+type QsmEnvironment struct {
+	id        QsmEnvID
+	dbDetails DbConnDetails
+	db        *sql.DB
 }
 
-type TableExec struct {
-	TableDef   *TableDefinition
-	Db         *sql.DB
-	InsertStmt *sql.Stmt
-}
-
-var createTableMutex sync.Mutex
-var tableDefinitions map[string]*TableDefinition
+var createEnvMutex sync.Mutex
+var environments map[QsmEnvID]*QsmEnvironment
+var defaultEnv *QsmEnvironment
 
 func init() {
-	tableDefinitions = make(map[string]*TableDefinition)
+	environments = make(map[QsmEnvID]*QsmEnvironment)
 }
 
-func AddTableDef(tDef *TableDefinition) {
-	tableDefinitions[tDef.Name] = tDef
-}
-
-func readDbConf(envNumber QsmEnvironment) DbConnDetails {
-	confData, err := ioutil.ReadFile(fmt.Sprintf("%s/dbconn%d.json", m3util.GetConfDir(), envNumber))
-	if err != nil {
-		log.Fatal(err)
+func GetDefaultEnvironment() *QsmEnvironment {
+	if defaultEnv != nil {
+		return defaultEnv
 	}
-	var res DbConnDetails
-	err = json.Unmarshal([]byte(confData), &res)
-	if err != nil {
-		log.Fatal(err)
+	envId := MainEnv
+	envIdFromOs := os.Getenv(QsmEnvNumberKey)
+	if envIdFromOs != "" {
+		id, err := strconv.ParseInt(envIdFromOs, 10, 16)
+		if err != nil {
+			Log.Fatalf("The %s environment variable is not a DB number but %s", QsmEnvNumberKey, envIdFromOs)
+		}
+		envId = QsmEnvID(id)
 	}
-	return res
+	defaultEnv = GetEnvironment(envId)
+	return defaultEnv
 }
 
-func CheckOrCreateEnv(envNumber QsmEnvironment) {
+func GetEnvironment(envId QsmEnvID) *QsmEnvironment {
+	env, ok := environments[envId]
+	if !ok {
+		createEnvMutex.Lock()
+		defer createEnvMutex.Unlock()
+		env, ok = environments[envId]
+		if !ok {
+			env = createNewEnv(envId)
+			environments[envId] = env
+		}
+	}
+	return env
+}
+
+func RemoveEnvFromMap(envId QsmEnvID) {
+	createEnvMutex.Lock()
+	defer createEnvMutex.Unlock()
+	delete(environments, envId)
+}
+
+func (env *QsmEnvironment) GetId() QsmEnvID {
+	return env.id
+}
+
+func (env *QsmEnvironment) GetConnection() *sql.DB {
+	return env.db
+}
+
+func (env *QsmEnvironment) GetDbConf() DbConnDetails {
+	return env.dbDetails
+}
+
+func createNewEnv(envId QsmEnvID) *QsmEnvironment {
+	env := QsmEnvironment{}
+	env.id = envId
+
+	env.checkOsEnv()
+	env.fillDbConf()
+	env.openDb()
+
+	env.Ping()
+
+	return &env
+}
+
+func setEnvQuietly(key, value string) {
+	m3util.ExitOnError(os.Setenv(key, value))
+}
+
+func (env *QsmEnvironment) checkOsEnv() {
+	// Reset the env var to what it was on exit of this method
+	origQsmId := os.Getenv(QsmEnvNumberKey)
+	defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
+
+	// set the env var correctly
+	m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, strconv.Itoa(int(env.id))))
 	rootDir := m3util.GetGitRootDir()
-	m3util.ExitOnError(os.Setenv("QSM_ENV_NUMBER", fmt.Sprintf("%d", envNumber)))
 	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "check")
 	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
-	m3util.ExitOnError(err)
+	if err != nil {
+		Log.Fatalf("failed to check environment %d at OS level due to %v with output: ***\n%s\n***", env.id, err, string(out))
+	} else {
+		if Log.IsDebug() {
+			Log.Debugf("check environment %d at OS output: ***\n%s\n***", env.id, string(out))
+		}
+	}
 }
 
-func DropEnv(envNumber QsmEnvironment) {
-	rootDir := m3util.GetGitRootDir()
-	m3util.ExitOnError(os.Setenv("QSM_ENV_NUMBER", fmt.Sprintf("%d", envNumber)))
-	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "drop")
-	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
-	m3util.ExitOnError(err)
+func (env *QsmEnvironment) fillDbConf() {
+	connJsonFile := fmt.Sprintf("%s/dbconn%d.json", m3util.GetConfDir(), env.id)
+	confData, err := ioutil.ReadFile(connJsonFile)
+	if err != nil {
+		log.Fatalf("failed opening DB conf file %s due to %v", connJsonFile, err)
+	}
+	err = json.Unmarshal([]byte(confData), &env.dbDetails)
+	if err != nil {
+		log.Fatalf("failed parsing DB conf file %s due to %v", connJsonFile, err)
+	}
+	if Log.IsDebug() {
+		Log.Debugf("DB conf for environment %d is user=%s dbName=%s", env.id, env.dbDetails.User, env.dbDetails.DbName)
+	}
 }
 
-func GetConnection(envNumber QsmEnvironment) *sql.DB {
-	connDetails := readDbConf(envNumber)
+func (env *QsmEnvironment) openDb() {
+	connDetails := env.GetDbConf()
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		connDetails.Host, connDetails.Port, connDetails.User, connDetails.Password, connDetails.DbName)
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		log.Fatal(err)
+	if Log.IsDebug() {
+		Log.Debugf("Opening DB for environment %d is user=%s dbName=%s", env.id, env.dbDetails.User, env.dbDetails.DbName)
 	}
-	return db
+	var err error
+	env.db, err = sql.Open("postgres", psqlInfo)
+	if err != nil {
+		Log.Fatalf("fail to open DB for environment %d with user=%s and dbName=%s due to %v", env.id, env.dbDetails.User, env.dbDetails.DbName, err)
+	}
+	if Log.IsDebug() {
+		Log.Debugf("DB opened for environment %d is user=%s dbName=%s", env.id, env.dbDetails.User, env.dbDetails.DbName)
+	}
 }
 
-func CloseDb(db *sql.DB) {
-	m3util.ExitOnError(db.Close())
+func (env *QsmEnvironment) _internalClose() error {
+	db := env.db
+	env.db = nil
+	if db != nil {
+		return db.Close()
+	}
+	return nil
 }
 
-func CloseTableExec(te *TableExec) {
-	if te == nil || te.Db == nil {
+func CloseEnv(env *QsmEnvironment) {
+	if env == nil {
+		Log.Warn("Closing nil environment")
 		return
 	}
-	err := te.Db.Close()
-	if err != nil {
-		Log.Error(err)
-	}
+	m3util.ExitOnError(env._internalClose())
 }
 
-func GetTableExec(envNumber QsmEnvironment, tableName string) (*TableExec, error) {
-	tableExec := TableExec{}
-	tableExec.Db = GetConnection(envNumber)
-	err := tableExec.getOrCreateTable(tableName)
+func (env *QsmEnvironment) Destroy() {
+	envId := env.id
+	defer RemoveEnvFromMap(envId)
+	err := env._internalClose()
 	if err != nil {
 		Log.Error(err)
-		return nil, err
 	}
-	err = tableExec.fillStmt()
+
+	// Reset the env var to what it was on exit of this method
+	origQsmId := os.Getenv(QsmEnvNumberKey)
+	defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
+
+	// set the env var correctly
+	m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, strconv.Itoa(int(env.id))))
+
+	rootDir := m3util.GetGitRootDir()
+	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "drop")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		Log.Error(err)
-		return nil, err
-	}
-	return &tableExec, nil
-}
-
-
-func (te *TableExec) fillStmt() error {
-	stmt, err := te.Db.Prepare(fmt.Sprintf("insert into %s "+te.TableDef.InsertStmt, te.TableDef.Name))
-	if err != nil {
-		Log.Error(err)
-		return err
-	}
-	te.InsertStmt = stmt
-	return nil
-}
-
-func (te *TableExec) getOrCreateTable(tableName string) error {
-	createTableMutex.Lock()
-	defer createTableMutex.Unlock()
-
-	var ok bool
-	te.TableDef, ok = tableDefinitions[tableName]
-	if !ok {
-		return QsmError(fmt.Sprintf("Table definition for %s does not exists", tableName))
-	}
-	if te.TableDef.Checked {
-		if Log.IsTrace() {
-			Log.Tracef("Table %s already checked", tableName)
-		}
-		return nil
-	}
-	checkQuery := fmt.Sprintf("select 1 from information_schema.tables where table_schema='public' and table_name='%s'", tableName)
-	resCheck, err := te.Db.Query(checkQuery)
-	if err != nil {
-		Log.Errorf("could not check if table %s exists using '%s' due to error %v", tableName, checkQuery, err)
-		return err
-	}
-	toCreate := !resCheck.Next()
-
-	if !toCreate {
+		Log.Errorf("failed to destroy environment %d at OS level due to %v with output: ***\n%s\n***", envId, err, string(out))
+	} else {
 		if Log.IsDebug() {
-			Log.Debugf("Table %s already exists", tableName)
+			Log.Debugf("destroy environment %d at OS level output: ***\n%s\n***", envId, string(out))
 		}
-		te.TableDef.Created = false
-		te.TableDef.Checked = true
-		return nil
 	}
-
-	if Log.IsDebug() {
-		Log.Debugf("Creating table %s", tableName)
-	}
-	createQuery := fmt.Sprintf("create table if not exists %s "+te.TableDef.DdlColumns, tableName)
-	_, err = te.Db.Exec(createQuery)
-	if err != nil {
-		Log.Errorf("could not create table %s using '%s' due to error %v", tableName, createQuery, err)
-		return err
-	}
-	if Log.IsDebug() {
-		Log.Debugf("Table %s created", tableName)
-	}
-	te.TableDef.Created = true
-	te.TableDef.Checked = true
-	return nil
 }
 
+func (env *QsmEnvironment) Ping() bool {
+	err := env.GetConnection().Ping()
+	if err != nil {
+		Log.Errorf("failed to ping %d on DB %s due to %v", env.id, env.dbDetails.DbName, err)
+		return false
+	}
+	if Log.IsDebug() {
+		Log.Debugf("ping for environment %d successful", env.id)
+	}
+	return true
+}

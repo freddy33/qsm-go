@@ -20,7 +20,7 @@ const windowHeight = 600
 
 var world m3gl.DisplayWorld
 
-func DisplayPlay1() {
+func Play() {
 	runtime.LockOSThread()
 	if err := glfw.Init(); err != nil {
 		Log.Fatalf("could not initialize glfw: %v", err)

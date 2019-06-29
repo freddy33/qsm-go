@@ -134,6 +134,12 @@ case "$1" in
         echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
 		exit 0
 		;;
+	shell)
+	    checkDbConf || exit $?
+	    #echo $dbPassword
+	    psql -U "$dbUser" $dbName
+		exit $?
+		;;
 	rmconf)
 		rm $dbConfFile
 		exit $?

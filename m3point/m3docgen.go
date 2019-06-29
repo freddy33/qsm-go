@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-func WriteAllTables() {
+func GenerateTextFiles() {
 	genDoc := m3util.GetGenDocDir()
 	writeAllTrioDetailsTable(genDoc)
 	writeAllTrioPermutationsTable(genDoc)

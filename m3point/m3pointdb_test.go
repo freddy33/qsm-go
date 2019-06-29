@@ -10,28 +10,34 @@ import (
 var cleanedDbMutex sync.Mutex
 var cleanedDb bool
 
-func cleanDb() m3db.QsmEnvironment {
-	env := m3db.TestEnv
+func cleanDb() {
+	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
 
 	cleanedDbMutex.Lock()
 	defer cleanedDbMutex.Unlock()
 
 	if cleanedDb {
-		return env
+		return
 	}
 
-	m3db.DropEnv(env)
-	m3db.CheckOrCreateEnv(env)
+	pointEnv.Destroy()
 
+	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
 	cleanedDb = true
-	return env
 }
 
 func TestSaveAllConnections(t *testing.T) {
+	m3db.Log.SetTrace()
 	Log.SetTrace()
-	env := cleanDb()
+	cleanDb()
 
-	n, err := saveAllConnectionDetails(env)
+	n, err := saveAllConnectionDetails()
 	assert.Nil(t, err)
 	assert.Equal(t, len(allConnections), n)
+
+	// Should be able to run twice
+	n, err = saveAllConnectionDetails()
+	assert.Nil(t, err)
+	assert.Equal(t, len(allConnections), n)
+
 }

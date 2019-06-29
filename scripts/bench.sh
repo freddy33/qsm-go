@@ -6,7 +6,7 @@ mkdir -p $perfDir
 mkdir -p $logDir
 
 usage() {
-    echo "Usage $0 [package name = path, space, all]"
+    echo "Usage qsm bench [package name = path, space, all]"
     exit 1
 }
 

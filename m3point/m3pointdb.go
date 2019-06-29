@@ -5,9 +5,10 @@ import (
 	"github.com/freddy33/qsm-go/m3db"
 )
 
+var pointEnv *m3db.QsmEnvironment
 
 const (
-	CONNECTION_DETAILS_TABLE = "connection_details"
+	ConnectionDetailsTable = "connection_details"
 )
 
 func init() {
@@ -16,15 +17,23 @@ func init() {
 
 func createConnectionDetailsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
-	res.Name = CONNECTION_DETAILS_TABLE
+	res.Name = ConnectionDetailsTable
 	res.Created = false
 	res.DdlColumns = fmt.Sprintf("(id smallint, x integer, y integer, z integer, ds bigint, constraint %s_pkey primary key (id))", res.Name)
 	res.InsertStmt = "(id,x,y,z,ds) values ($1,$2,$3,$4,$5)"
 	return &res
 }
 
-func saveAllConnectionDetails(envNumber m3db.QsmEnvironment) (int, error) {
-	te, err := m3db.GetTableExec(envNumber, CONNECTION_DETAILS_TABLE)
+func GetPointEnv() *m3db.QsmEnvironment {
+	if pointEnv == nil {
+		pointEnv = m3db.GetDefaultEnvironment()
+	}
+	return pointEnv
+}
+
+func saveAllConnectionDetails() (int, error) {
+	env := GetPointEnv()
+	te, err := env.CreateTableExec(ConnectionDetailsTable)
 	defer m3db.CloseTableExec(te)
 	if err != nil {
 		return 0, err
@@ -32,6 +41,9 @@ func saveAllConnectionDetails(envNumber m3db.QsmEnvironment) (int, error) {
 
 	inserted := 0
 	if te.TableDef.Created {
+		if Log.IsDebug() {
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(allConnections))
+		}
 		for _, cd := range allConnections {
 			res, err := te.InsertStmt.Exec(cd.Id, cd.Vector.X(), cd.Vector.Y(), cd.Vector.Z(), cd.ConnDS)
 
@@ -56,7 +68,35 @@ func saveAllConnectionDetails(envNumber m3db.QsmEnvironment) (int, error) {
 		}
 	} else {
 		Log.Debugf("Connection details table already created")
+		count, err := env.GetConnection().Query(fmt.Sprintf("select count(*) from %s", te.TableDef.Name))
+		if err != nil {
+			Log.Error(err)
+			return inserted, err
+		}
+		if !count.Next() {
+			err = m3db.QsmError(fmt.Sprintf("counting rows of table %s returned no results", te.TableDef.Name))
+			Log.Error(err)
+			return inserted, err
+		}
+		err = count.Scan(&inserted)
+		if err != nil {
+			Log.Error(err)
+			return inserted, err
+		}
 	}
 	return inserted, nil
 }
 
+func FillDb() {
+	env := GetPointEnv()
+	defer m3db.CloseEnv(env)
+
+	n, err := saveAllConnectionDetails()
+	if err != nil {
+		Log.Fatalf("could not save all connections due to %v", err)
+		return
+	}
+	if Log.IsInfo() {
+		Log.Infof("Environment %d has %d connection details", env.GetId(), n)
+	}
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-    echo "Usage $0 [package name = point, path, space, gl, db, all]"
+    echo "Usage qsm test [package name = point, path, space, gl, db, all]"
     exit 1
 }
 
