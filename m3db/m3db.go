@@ -45,9 +45,11 @@ func (qsmError QsmError) Error() string {
 }
 
 type QsmEnvironment struct {
-	id        QsmEnvID
-	dbDetails DbConnDetails
-	db        *sql.DB
+	id               QsmEnvID
+	dbDetails        DbConnDetails
+	db               *sql.DB
+	createTableMutex sync.Mutex
+	tableExecs       map[string]*TableExec
 }
 
 var createEnvMutex sync.Mutex
@@ -110,6 +112,7 @@ func (env *QsmEnvironment) GetDbConf() DbConnDetails {
 func createNewEnv(envId QsmEnvID) *QsmEnvironment {
 	env := QsmEnvironment{}
 	env.id = envId
+	env.tableExecs = make(map[string]*TableExec)
 
 	env.checkOsEnv()
 	env.fillDbConf()
@@ -124,13 +127,21 @@ func setEnvQuietly(key, value string) {
 	m3util.ExitOnError(os.Setenv(key, value))
 }
 
-func (env *QsmEnvironment) checkOsEnv() {
-	// Reset the env var to what it was on exit of this method
-	origQsmId := os.Getenv(QsmEnvNumberKey)
-	defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
+func (env *QsmEnvironment) GetEnvNumber() string {
+	return strconv.Itoa(int(env.id))
+}
 
-	// set the env var correctly
-	m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, strconv.Itoa(int(env.id))))
+func (env *QsmEnvironment) checkOsEnv() {
+	envNumber := env.GetEnvNumber()
+	origQsmId := os.Getenv(QsmEnvNumberKey)
+
+	if envNumber != origQsmId {
+		// Reset the env var to what it was on exit of this method
+		defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
+		// set the env var correctly
+		m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, envNumber))
+	}
+
 	rootDir := m3util.GetGitRootDir()
 	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "check")
 	out, err := cmd.CombinedOutput()
@@ -200,12 +211,15 @@ func (env *QsmEnvironment) Destroy() {
 		Log.Error(err)
 	}
 
-	// Reset the env var to what it was on exit of this method
+	envNumber := env.GetEnvNumber()
 	origQsmId := os.Getenv(QsmEnvNumberKey)
-	defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
 
-	// set the env var correctly
-	m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, strconv.Itoa(int(env.id))))
+	if envNumber != origQsmId {
+		// Reset the env var to what it was on exit of this method
+		defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
+		// set the env var correctly
+		m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, envNumber))
+	}
 
 	rootDir := m3util.GetGitRootDir()
 	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "drop")

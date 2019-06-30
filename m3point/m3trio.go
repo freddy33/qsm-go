@@ -79,8 +79,24 @@ func init() {
 	initValidTrios()
 	initMod4Permutations()
 	initMod8Permutations()
+	detailsInitialized = false
+}
+
+var detailsInitialized bool
+
+func InitializeDetails() {
+	if detailsInitialized {
+		return
+	}
 	initConnectionDetails()
 	initAllTrioDetails()
+	detailsInitialized = true
+}
+
+func checkDetailsInitialized() {
+	if !detailsInitialized {
+		Log.Fatal("Connections and Trio should have been initialized! Please call InitializeDetails() method before this!")
+	}
 }
 
 func initValidTrios() {
@@ -666,11 +682,8 @@ func (t Trio) getMinusZVector() Point {
 // TrioDetails Functions
 /***************************************************************/
 
-func GetNumberOfTrioDetails() TrioIndex {
-	return TrioIndex(len(allTrioDetails))
-}
-
 func GetTrioDetails(trIdx TrioIndex) *TrioDetails {
+	checkDetailsInitialized()
 	return allTrioDetails[trIdx]
 }
 

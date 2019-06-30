@@ -14,6 +14,8 @@ func getAllTestContexts() map[m3point.ContextType][]*PathContext {
 	}
 	res := make(map[m3point.ContextType][]*PathContext)
 
+	m3point.InitializeDetails()
+
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		maxOffset := m3point.MaxOffsetPerType[ctxType]

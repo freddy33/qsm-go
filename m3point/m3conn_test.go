@@ -7,6 +7,8 @@ import (
 
 func TestConnectionDetails(t *testing.T) {
 	Log.SetInfo()
+	InitializeDetails()
+
 	for k, v := range allConnectionsByVector {
 		assert.Equal(t, k, v.Vector)
 		assert.Equal(t, k.DistanceSquared(), v.DistanceSquared())

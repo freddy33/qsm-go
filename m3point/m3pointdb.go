@@ -18,7 +18,6 @@ func init() {
 func createConnectionDetailsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = ConnectionDetailsTable
-	res.Created = false
 	res.DdlColumns = fmt.Sprintf("(id smallint, x integer, y integer, z integer, ds bigint, constraint %s_pkey primary key (id))", res.Name)
 	res.InsertStmt = "(id,x,y,z,ds) values ($1,$2,$3,$4,$5)"
 	return &res
@@ -33,14 +32,18 @@ func GetPointEnv() *m3db.QsmEnvironment {
 
 func saveAllConnectionDetails() (int, error) {
 	env := GetPointEnv()
-	te, err := env.CreateTableExec(ConnectionDetailsTable)
+	te, err := env.GetOrCreateTableExec(ConnectionDetailsTable)
 	defer m3db.CloseTableExec(te)
 	if err != nil {
 		return 0, err
 	}
 
 	inserted := 0
-	if te.TableDef.Created {
+	if !te.WasChecked() {
+		return inserted, m3db.QsmError(fmt.Sprintf("Table execution for %s in env %d was not checked", te.GetTableName(), env.GetId()))
+	}
+
+	if te.WasCreated() {
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(allConnections))
 		}

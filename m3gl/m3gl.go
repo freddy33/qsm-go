@@ -229,6 +229,7 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
+	m3point.InitializeDetails()
 	triangleFiller := TriangleFiller{make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	triangleFiller.drawNodes()

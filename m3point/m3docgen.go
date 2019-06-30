@@ -8,6 +8,7 @@ import (
 )
 
 func GenerateTextFiles() {
+	InitializeDetails()
 	genDoc := m3util.GetGenDocDir()
 	writeAllTrioDetailsTable(genDoc)
 	writeAllTrioPermutationsTable(genDoc)

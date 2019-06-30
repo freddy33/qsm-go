@@ -131,6 +131,7 @@ func (trCtx *TrioIndexContext) GetPossibleTrioList() *TrioDetailList {
 }
 
 func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
+	checkDetailsInitialized()
 	res := TrioDetailList{}
 	var tlToFind TrioLink
 	if trCtx.ctxType == 1 {
@@ -243,6 +244,9 @@ func (trCtx *TrioIndexContext) GetBaseTrioIndex(divByThree uint64, offset int) T
 // Out of a nextMainPoint point with the given trio details, what is the trio details of the point at the end of connection connId
 // npes: The next path elements saved during calculation and returned in this method
 func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetails *TrioDetails, connId ConnectionId, offset int) (p Point, td *TrioDetails, npes [2]*NextPathElement) {
+
+	InitializeDetails()
+
 	p = Origin
 	if Log.DoAssert() {
 		// mainPoint should be nextMainPoint

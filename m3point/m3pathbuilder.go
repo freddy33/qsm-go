@@ -63,6 +63,7 @@ func createAllPathBuilders() int {
 	if len(pathBuilders) != 0 {
 		return len(pathBuilders)
 	}
+	InitializeDetails()
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {

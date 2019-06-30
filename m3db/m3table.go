@@ -1,48 +1,64 @@
 package m3db
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
-	"sync"
 )
 
 type TableDefinition struct {
 	Name       string
-	Checked    bool
-	Created    bool
 	DdlColumns string
 	InsertStmt string
-	InsertFunc func(stmt *sql.Stmt) (sql.Result, error)
 }
 
 type TableExec struct {
+	envId     QsmEnvID
+	tableName string
+	checked   bool
+	created   bool
+
 	env        *QsmEnvironment
 	TableDef   *TableDefinition
 	InsertStmt *sql.Stmt
 }
 
-var createTableMutex sync.Mutex
 var tableDefinitions map[string]*TableDefinition
-
-var ctx context.Context
 
 func init() {
 	tableDefinitions = make(map[string]*TableDefinition)
-	ctx = context.TODO()
 }
 
 func AddTableDef(tDef *TableDefinition) {
 	tableDefinitions[tDef.Name] = tDef
 }
 
-func (env *QsmEnvironment) CreateTableExec(tableName string) (*TableExec, error) {
-	if Log.IsDebug() {
-		Log.Debugf("Creating table execution for environment %d tableName=%s", env.id, tableName)
+func (env *QsmEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, error) {
+	env.createTableMutex.Lock()
+	defer env.createTableMutex.Unlock()
+
+	tableExec, ok := env.tableExecs[tableName]
+	if ok {
+		if Log.IsTrace() {
+			Log.Tracef("Table execution for environment %d and tableName '%s' already in map", env.id, tableName)
+		}
+		if tableExec.checked {
+			// Now the table exists
+			tableExec.created = false
+			return tableExec, nil
+		}
+		if Log.IsDebug() {
+			Log.Debugf("Table execution for environment %d tableName '%s' was not checked! Redoing checks.", env.id, tableName)
+		}
+	} else {
+		if Log.IsDebug() {
+			Log.Debugf("Creating table execution for environment %d tableName=%s", env.id, tableName)
+		}
+		tableExec = new(TableExec)
+		tableExec.envId = env.id
+		tableExec.env = env
 	}
-	tableExec := TableExec{}
-	tableExec.env = env
+
 	err := tableExec.initForTable(tableName)
 	if err != nil {
 		Log.Error(err)
@@ -53,7 +69,7 @@ func (env *QsmEnvironment) CreateTableExec(tableName string) (*TableExec, error)
 		Log.Error(err)
 		return nil, err
 	}
-	return &tableExec, nil
+	return tableExec, nil
 }
 
 func CloseTableExec(te *TableExec) {
@@ -62,6 +78,18 @@ func CloseTableExec(te *TableExec) {
 		return
 	}
 	m3util.ExitOnError(te.Close())
+}
+
+func (te *TableExec) GetTableName() string {
+	return te.tableName
+}
+
+func (te *TableExec) WasCreated() bool {
+	return te.created
+}
+
+func (te *TableExec) WasChecked() bool {
+	return te.checked
 }
 
 func (te *TableExec) Close() error {
@@ -92,19 +120,13 @@ func closeTxQuietly(tx *sql.Tx) {
 }
 
 func (te *TableExec) initForTable(tableName string) error {
-	createTableMutex.Lock()
-	defer createTableMutex.Unlock()
+	te.tableName = tableName
+	te.checked = false
 
 	var ok bool
 	te.TableDef, ok = tableDefinitions[tableName]
 	if !ok {
 		return QsmError(fmt.Sprintf("Table definition for %s does not exists", tableName))
-	}
-	if te.TableDef.Checked {
-		if Log.IsTrace() {
-			Log.Tracef("Table %s already checked", tableName)
-		}
-		return nil
 	}
 
 	db := te.env.GetConnection()
@@ -112,7 +134,7 @@ func (te *TableExec) initForTable(tableName string) error {
 		return QsmError(fmt.Sprintf("Got a nil connection for %d", te.env.id))
 	}
 
-	resCheck := db.QueryRowContext(ctx, "select 1 from information_schema.tables where table_schema='public' and table_name=$1", tableName)
+	resCheck := db.QueryRow("select 1 from information_schema.tables where table_schema='public' and table_name=$1", tableName)
 	var one int
 	err := resCheck.Scan(&one)
 
@@ -137,8 +159,8 @@ func (te *TableExec) initForTable(tableName string) error {
 		if Log.IsDebug() {
 			Log.Debugf("Table %s already exists", tableName)
 		}
-		te.TableDef.Created = false
-		te.TableDef.Checked = true
+		te.created = false
+		te.checked = true
 		return nil
 	}
 
@@ -154,7 +176,7 @@ func (te *TableExec) initForTable(tableName string) error {
 	if Log.IsDebug() {
 		Log.Debugf("Table %s created", tableName)
 	}
-	te.TableDef.Created = true
-	te.TableDef.Checked = true
+	te.created = true
+	te.checked = true
 	return nil
 }
