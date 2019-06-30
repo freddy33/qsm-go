@@ -25,6 +25,7 @@ const (
 	TempEnv                  // 2
 	TestEnv                  // 3
 	ShellEnv                 // 4
+	IntTestEnv               // 5
 	ConfEnv = QsmEnvID(1234)
 )
 
@@ -123,7 +124,7 @@ func createNewEnv(envId QsmEnvID) *QsmEnvironment {
 	return &env
 }
 
-func setEnvQuietly(key, value string) {
+func SetEnvQuietly(key, value string) {
 	m3util.ExitOnError(os.Setenv(key, value))
 }
 
@@ -137,7 +138,7 @@ func (env *QsmEnvironment) checkOsEnv() {
 
 	if envNumber != origQsmId {
 		// Reset the env var to what it was on exit of this method
-		defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
+		defer SetEnvQuietly(QsmEnvNumberKey, origQsmId)
 		// set the env var correctly
 		m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, envNumber))
 	}
@@ -216,7 +217,7 @@ func (env *QsmEnvironment) Destroy() {
 
 	if envNumber != origQsmId {
 		// Reset the env var to what it was on exit of this method
-		defer setEnvQuietly(QsmEnvNumberKey, origQsmId)
+		defer SetEnvQuietly(QsmEnvNumberKey, origQsmId)
 		// set the env var correctly
 		m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, envNumber))
 	}

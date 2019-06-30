@@ -14,7 +14,6 @@ func GenerateTextFiles() {
 	writeAllTrioPermutationsTable(genDoc)
 	writeTrioConnectionsTable(genDoc)
 	writeAllConnectionDetails(genDoc)
-	writeAllTrioDetailsLinks(genDoc)
 }
 
 type Int2 struct {
@@ -200,18 +199,9 @@ func writeAllTrioDetailsTable(dir string) {
 	m3util.WriteAll(csvWriter, GetTrioTableCsv())
 	for _, td := range allTrioDetails {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v %s\n", td.id.String(), td.conns[0].Vector, td.conns[0].String()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf(" L%3d %v %s\n", len(td.Links), td.conns[1].Vector, td.conns[1].String()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[1].Vector, td.conns[1].String()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].String()))
 		m3util.WriteNextString(txtFile, "\n")
-	}
-}
-
-func writeAllTrioDetailsLinks(dir string) {
-	txtFile := m3util.CreateFile(dir,"AllTrioLinks.txt")
-	defer m3util.CloseFile(txtFile)
-
-	for _, td := range allTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %s\n", td.id.String(), td.Links.String()))
 	}
 }
 

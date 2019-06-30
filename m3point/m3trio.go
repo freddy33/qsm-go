@@ -3,7 +3,6 @@ package m3point
 import (
 	"fmt"
 	"sort"
-	"strings"
 )
 
 /***************************************************************/
@@ -15,22 +14,10 @@ type Trio [3]Point
 
 type TrioIndex uint8
 
-// Keeping track of how base trio connects
-type TrioLink struct {
-	// The trio index of the source
-	a TrioIndex
-	// The 2 possible trio index of the destination
-	b, c TrioIndex
-}
-
-// Defining a list type to manage uniqueness and ordering
-type TrioLinkList []*TrioLink
-
 // A bigger struct than Trio to keep more info on how points grow from a trio index
 type TrioDetails struct {
 	id    TrioIndex
 	conns [3]*ConnectionDetails
-	Links TrioLinkList
 }
 
 // Defining a list type to manage uniqueness and ordering
@@ -55,14 +42,12 @@ var AllMod8Permutations [12][8]TrioIndex
 
 // All the possible Trio details used
 var allTrioDetails TrioDetailList
-var allTrioLinks TrioLinkList
 
 // Dummy trace counter for debugging recursive methods
 var _traceCounter = 0
 
 /***************************************************************/
 // Init Functions
-// TODO: Find a better way than Init
 /***************************************************************/
 
 func init() {
@@ -88,8 +73,8 @@ func InitializeDetails() {
 	if detailsInitialized {
 		return
 	}
-	initConnectionDetails()
-	initAllTrioDetails()
+	allConnections, allConnectionsByVector = calculateConnectionDetails()
+	allTrioDetails = calculateAllTrioDetails()
 	detailsInitialized = true
 }
 
@@ -136,7 +121,7 @@ func initMod8Permutations() {
 	}
 }
 
-func initConnectionDetails() ConnectionId {
+func calculateConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
 	connMap := make(map[Point]*ConnectionDetails)
 	// Going through all Trio and all combination of Trio, to aggregate connection details
 	for _, tr := range allBaseTrio {
@@ -151,19 +136,19 @@ func initConnectionDetails() ConnectionId {
 		}
 	}
 	Log.Debug("Number of connection details created", len(connMap))
-	nbConnDetails := int8(len(connMap) / 2)
+	nbConnDetails := ConnectionId(len(connMap) / 2)
 
 	// Reordering connection details number by size, and x, y, z
-	allConnections = make([]*ConnectionDetails, len(connMap))
+	res := make([]*ConnectionDetails, len(connMap))
 	idx := 0
 	for _, cd := range connMap {
-		allConnections[idx] = cd
+		res[idx] = cd
 		idx++
 	}
-	sort.Sort(ByConnVector(allConnections))
+	sort.Sort(ByConnVector(res))
 
 	currentConnNumber := ConnectionId(1)
-	for _, cd := range allConnections {
+	for _, cd := range res {
 		if cd.Id == 0 {
 			vec1 := cd.Vector
 			vec2 := vec1.Neg()
@@ -187,10 +172,13 @@ func initConnectionDetails() ConnectionId {
 			currentConnNumber++
 		}
 	}
-	sort.Sort(ByConnId(allConnections))
-	allConnectionsByVector = connMap
+	sort.Sort(ByConnId(res))
 
-	return ConnectionId(nbConnDetails)
+	lastId := res[len(res)-2].GetId()
+	if lastId != nbConnDetails {
+		Log.Errorf("Calculating Connection details failed since %d != %d", lastId, nbConnDetails)
+	}
+	return res, connMap
 }
 
 func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
@@ -213,47 +201,36 @@ func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
 	}
 }
 
-func initAllTrioDetails() {
-	localTrioLinks := TrioLinkList{}
-	localTrioDetails := TrioDetailList{}
+func calculateAllTrioDetails() TrioDetailList {
+	res := TrioDetailList(make([]*TrioDetails, 0, 200))
 	// All base trio first
 	for i, tr := range allBaseTrio {
 		td := MakeTrioDetails(tr[0], tr[1], tr[2])
 		td.id = TrioIndex(i)
-		localTrioDetails.addUnique(td)
+		res.addUnique(td)
 	}
+
 	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
-	for a, tA := range allBaseTrio {
-		for b, tB := range allBaseTrio {
-			for c, tC := range allBaseTrio {
-				thisTrio := makeTrioLinkFromInt(a, b, c)
-				alreadyDone := localTrioLinks.addUnique(&thisTrio)
-				if !alreadyDone {
-					for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
-						nextTrio.Links.addUnique(&thisTrio)
-						localTrioDetails.addWithLinks(nextTrio)
-					}
+	for _, tA := range allBaseTrio {
+		for _, tB := range allBaseTrio {
+			for _, tC := range allBaseTrio {
+				for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
+					res.addUnique(nextTrio)
 				}
 			}
 		}
 	}
 
-	sort.Sort(localTrioDetails)
+	sort.Sort(res)
 
 	// Process all the trio details now that order final
-	for i, td := range localTrioDetails {
+	for i, td := range res {
 		trIdx := TrioIndex(i)
 		// For all base trio different process
 		if i < len(allBaseTrio) {
 			// The id should already be set correctly
 			if td.id != trIdx {
 				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
-			}
-			// For all base trio add all links containing them
-			for j, tl := range localTrioLinks {
-				if tl.Contains(trIdx) {
-					td.Links.addUnique(localTrioLinks[j])
-				}
 			}
 		} else {
 			// The id should not have been set. Adding it now
@@ -262,12 +239,8 @@ func initAllTrioDetails() {
 			}
 			td.id = trIdx
 		}
-
-		// Order the links array
-		sort.Sort(td.Links)
 	}
-	allTrioDetails = localTrioDetails
-	allTrioLinks = localTrioLinks
+	return res
 }
 
 /***************************************************************/
@@ -314,103 +287,6 @@ func isPrime(i1, i2 TrioIndex) bool {
 }
 
 /***************************************************************/
-// TrioLink Functions
-/***************************************************************/
-
-func makeTrioLink(a, b, c TrioIndex) TrioLink {
-	// The destination should be ordered by smaller first
-	if c < b {
-		return TrioLink{a, c, b,}
-	}
-	return TrioLink{a, b, c,}
-}
-
-func makeTrioLinkFromInt(a, b, c int) TrioLink {
-	return makeTrioLink(TrioIndex(a), TrioIndex(b), TrioIndex(c))
-}
-
-func (tl TrioLink) sameBC() bool {
-	return tl.b == tl.c
-}
-
-func (tl *TrioLink) String() string {
-	return fmt.Sprintf("[%d %d %d]", tl.a, tl.b, tl.c)
-}
-
-func (tl *TrioLink) Contains(i TrioIndex) bool {
-	return tl.a == i || tl.b == i || tl.c == i
-}
-
-func (tl *TrioLink) ContainsAB(a, b TrioIndex) bool {
-	return tl.a == a && (tl.b == b || tl.c == b)
-}
-
-/***************************************************************/
-// TrioLinkList Functions
-/***************************************************************/
-
-func (l TrioLinkList) Exists(tl *TrioLink) bool {
-	present := false
-	for _, trL := range l {
-		if *trL == *tl {
-			present = true
-			break
-		}
-	}
-	return present
-}
-
-func (l *TrioLinkList) addUnique(tl *TrioLink) bool {
-	b := l.Exists(tl)
-	if !b {
-		*l = append(*l, tl)
-	}
-	return b
-}
-
-func (l *TrioLinkList) addAll(l2 *TrioLinkList) {
-	for _, tl := range *l2 {
-		l.addUnique(tl)
-	}
-}
-
-func (l TrioLinkList) String() string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("%d : ", len(l)))
-	for _, tl := range l {
-		b.WriteString(tl.String())
-		b.WriteString(" ")
-	}
-	return b.String()
-}
-
-func (l TrioLinkList) Len() int {
-	return len(l)
-}
-
-func (l TrioLinkList) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-
-func (l TrioLinkList) Less(i, j int) bool {
-	t1 := l[i]
-	t2 := l[j]
-	d := t1.a - t2.a
-	if d != 0 {
-		return d < 0
-	}
-	d = t1.b - t2.b
-	if d != 0 {
-		return d < 0
-	}
-	d = t1.c - t2.c
-	if d != 0 {
-		return d < 0
-	}
-	return false
-}
-
-/***************************************************************/
 // TrioDetailsList Functions
 /***************************************************************/
 
@@ -450,21 +326,6 @@ func (l *TrioDetailList) addUnique(td *TrioDetails) bool {
 		*l = append(*l, td)
 	}
 	return b
-}
-
-func (l *TrioDetailList) addWithLinks(td *TrioDetails) bool {
-	present := false
-	for _, trL := range *l {
-		if trL.GetTrio() == td.GetTrio() {
-			trL.Links.addAll(&td.Links)
-			present = true
-			break
-		}
-	}
-	if !present {
-		*l = append(*l, td)
-	}
-	return present
 }
 
 func (l TrioDetailList) Len() int {
@@ -786,15 +647,6 @@ func (td *TrioDetails) HasConnections(cIds ...ConnectionId) bool {
 		}
 	}
 	return true
-}
-
-func (td *TrioDetails) HasLinkWith(a, b TrioIndex) bool {
-	for _, l := range td.Links {
-		if l.ContainsAB(a, b) {
-			return true
-		}
-	}
-	return false
 }
 
 func (td *TrioDetails) GetTrio() Trio {

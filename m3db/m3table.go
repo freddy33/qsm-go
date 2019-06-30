@@ -3,7 +3,6 @@ package m3db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/freddy33/qsm-go/m3util"
 )
 
 type TableDefinition struct {
@@ -70,14 +69,6 @@ func (env *QsmEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, e
 		return nil, err
 	}
 	return tableExec, nil
-}
-
-func CloseTableExec(te *TableExec) {
-	if te == nil {
-		Log.Warn("Closing nil Table Exec")
-		return
-	}
-	m3util.ExitOnError(te.Close())
 }
 
 func (te *TableExec) GetTableName() string {
@@ -167,7 +158,7 @@ func (te *TableExec) initForTable(tableName string) error {
 	if Log.IsDebug() {
 		Log.Debugf("Creating table %s", tableName)
 	}
-	createQuery := fmt.Sprintf("create table if not exists %s "+te.TableDef.DdlColumns, tableName)
+	createQuery := fmt.Sprintf("create table %s "+te.TableDef.DdlColumns, tableName)
 	_, err = db.Exec(createQuery)
 	if err != nil {
 		Log.Errorf("could not create table %s using '%s' due to error %v", tableName, createQuery, err)

@@ -2,7 +2,6 @@ package m3point
 
 import (
 	"fmt"
-	"sort"
 )
 
 /*
@@ -45,7 +44,6 @@ type NextPathElement struct {
 }
 
 var trioIndexContexts [][]*TrioIndexContext
-var trioDetailsPerContext [][]*TrioDetailList
 
 func init() {
 	trioIndexContexts = make([][]*TrioIndexContext, 9)
@@ -56,7 +54,6 @@ func init() {
 			trioIndexContexts[ctxType][pIdx] = createTrioIndexContext(ctxType, pIdx)
 		}
 	}
-	trioDetailsPerContext = make([][]*TrioDetailList, 9)
 }
 
 /***************************************************************/
@@ -111,72 +108,6 @@ func (trCtx *TrioIndexContext) GetIndex() int {
 
 func (trCtx *TrioIndexContext) SetIndex(idx int) {
 	trCtx.ctxIndex = idx
-}
-
-func (trCtx *TrioIndexContext) GetPossibleTrioList() *TrioDetailList {
-	var r *TrioDetailList
-	l := trioDetailsPerContext[trCtx.ctxType]
-	if len(l) == 0 {
-		l = make([]*TrioDetailList, trCtx.ctxType.GetNbIndexes())
-		trioDetailsPerContext[trCtx.ctxType] = l
-	}
-
-	r = l[trCtx.ctxIndex]
-	if r != nil {
-		return r
-	}
-	r = trCtx.makePossibleTrioList()
-	l[trCtx.ctxIndex] = r
-	return r
-}
-
-func (trCtx *TrioIndexContext) makePossibleTrioList() *TrioDetailList {
-	checkDetailsInitialized()
-	res := TrioDetailList{}
-	var tlToFind TrioLink
-	if trCtx.ctxType == 1 {
-		// Always same index so all details where links are this
-		tlToFind = makeTrioLinkFromInt(trCtx.ctxIndex, trCtx.ctxIndex, trCtx.ctxIndex)
-		for i, td := range allTrioDetails {
-			if td.Links.Exists(&tlToFind) {
-				// Add the pointer from list not from iteration
-				toAdd := allTrioDetails[i]
-				res.addUnique(toAdd)
-			}
-		}
-		sort.Sort(&res)
-		return &res
-	}
-
-	// Now use context to create possible trio links
-	possLinks := TrioLinkList{}
-	for divByThree := uint64(1); divByThree < 23; divByThree++ {
-		a := trCtx.GetBaseTrioIndex(divByThree-1, 0)
-		b := trCtx.GetBaseTrioIndex(divByThree, 0)
-		c := trCtx.GetBaseTrioIndex(divByThree+1, 0)
-		toAdd1 := makeTrioLink(a, b, b)
-		possLinks.addUnique(&toAdd1)
-		toAdd2 := makeTrioLink(a, b, c)
-		possLinks.addUnique(&toAdd2)
-		toAdd3 := makeTrioLink(b, a, a)
-		possLinks.addUnique(&toAdd3)
-		toAdd4 := makeTrioLink(b, a, c)
-		possLinks.addUnique(&toAdd4)
-	}
-
-	// Now extract all trio details associated with given links
-	for _, tl := range possLinks {
-		for i, td := range allTrioDetails {
-			if td.Links.Exists(tl) {
-				// Add the pointer from list not from iteration
-				res.addUnique(allTrioDetails[i])
-			}
-		}
-	}
-
-	sort.Sort(&res)
-
-	return &res
 }
 
 func (trCtx *TrioIndexContext) GetBaseTrioDetails(mainPoint Point, offset int) *TrioDetails {
@@ -324,7 +255,7 @@ func (trCtx *TrioIndexContext) GetForwardTrioFromMain(mainPoint Point, trioDetai
 	}
 
 	// We have all we need to find the actual trio of the point of interest p
-	for _, possTd := range *trCtx.GetPossibleTrioList() {
+	for _, possTd := range allTrioDetails {
 		if possTd.HasConnections(-cd.Id, npes[0].p2iConn.Id, npes[1].p2iConn.Id) {
 			td = possTd
 			break

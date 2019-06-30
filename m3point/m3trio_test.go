@@ -3,7 +3,6 @@ package m3point
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"sort"
 	"testing"
 )
 
@@ -39,28 +38,6 @@ func TestPosMod8(t *testing.T) {
 	assert.Equal(t, uint64(2), PosMod8(2))
 	assert.Equal(t, uint64(1), PosMod8(1))
 	assert.Equal(t, uint64(0), PosMod8(0))
-}
-
-func TestAllTrioLinks(t *testing.T) {
-	Log.SetDebug()
-	assert.Equal(t, 8*8*(1+8)/2, len(allTrioLinks), "%v", allTrioLinks)
-	for a := TrioIndex(0); a < 8; a++ {
-		for b := TrioIndex(0); b < 8; b++ {
-			for c := TrioIndex(0); c < 8; c++ {
-				count := 0
-				for _, tl := range allTrioLinks {
-					if a == tl.a && b == tl.b && c == tl.c {
-						count++
-					}
-				}
-				if b <= c {
-					assert.Equal(t, 1, count, "sould have found one instance of %d %d %d", a, b, c)
-				} else {
-					assert.Equal(t, 0, count, "sould have found no instances of %d %d %d", a, b, c)
-				}
-			}
-		}
-	}
 }
 
 func TestAllTrioDetails(t *testing.T) {
@@ -214,6 +191,7 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	assert.False(t, td0.HasConnection(6))
 	assert.True(t, td0.HasConnection(-9))
 	assert.False(t, td0.HasConnection(9))
+	Log.IgnoreNextError()
 	failedOc := td0.OtherConnectionsFrom(-4)
 	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[0])
 	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[1])
@@ -231,71 +209,6 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	oc = td92.OtherConnectionsFrom(4)
 	assert.Equal(t, *GetConnDetailsById(12), *oc[0])
 	assert.Equal(t, *GetConnDetailsById(-12), *oc[1])
-}
-
-func TestTrioDetailsLinks(t *testing.T) {
-	InitializeDetails()
-
-	countPerTrioLinks := make(map[TrioLink]int)
-
-	for _, td := range allTrioDetails {
-		switch td.GetDSIndex() {
-		case 0:
-			assert.Equal(t, 92, len(td.Links), "Nb links wrong for %v", td.String())
-		case 6:
-			assert.Equal(t, 6, len(td.Links), "Nb links wrong for %v", td.String())
-		default:
-			assert.Equal(t, 8, len(td.Links), "Nb links wrong for %v", td.String())
-		}
-		for _, tl := range td.Links {
-			countPerTrioLinks[*tl]++
-		}
-	}
-
-	collPerCount := make(map[int]*TrioLinkList)
-	for tl, c := range countPerTrioLinks {
-		coll, ok := collPerCount[c]
-		if !ok {
-			coll = &TrioLinkList{}
-			collPerCount[c] = coll
-		}
-		copyTl := makeTrioLink(tl.a, tl.b, tl.c)
-		coll.addUnique(&copyTl)
-	}
-	for _, tll := range collPerCount {
-		sort.Sort(tll)
-	}
-	//fmt.Println(collPerCount)
-	assert.Equal(t, 8, collPerCount[4].Len(), "wrong number of 4 times in nextMainTd %v", *collPerCount[4])
-	assert.Equal(t, 8*7, collPerCount[5].Len(), "wrong number of 5 times in nextMainTd %v", *collPerCount[5])
-	assert.Equal(t, 8*10, collPerCount[8].Len(), "wrong number of 8 times in nextMainTd %v", *collPerCount[8])
-	assert.Equal(t, 8*18, collPerCount[9].Len(), "wrong number of 9 times in nextMainTd %v", *collPerCount[9])
-
-	// The size 4 are when a,b,c are equals
-	for _, td := range *collPerCount[4] {
-		assert.True(t, td.a == td.b && td.a == td.c, "not all equal on 4 %v", td.String())
-	}
-
-	// The size 5 are when b and c are equals
-	for _, td := range *collPerCount[5] {
-		assert.True(t, td.b == td.c, "not b = c equal on 5 %v", td.String())
-	}
-
-	// Size on 8 are either a is equal to b or c, or b or c is prime of a and the other on same side
-	for _, td := range *collPerCount[8] {
-		if td.a != td.b && td.a != td.c {
-			if td.a < 4 {
-				assert.True(t, isPrime(td.a, td.c), "not prime on 8 %v", td.String())
-				assert.True(t, td.b < 4 && td.b != td.a, "wrong side on 8 %v", td.String())
-			} else {
-				assert.True(t, isPrime(td.a, td.b), "not prime on 8 %v", td.String())
-				assert.True(t, td.c >= 4 && td.c != td.a, "wrong side on 8 %v", td.String())
-			}
-		} else {
-			// a is equal to b or c but not all equal
-			assert.False(t, td.a == td.b && td.a == td.c, "all equal on 8 %v", td.String())
-		}
-	}
 }
 
 func TestInitialTrioConnectingVectors(t *testing.T) {

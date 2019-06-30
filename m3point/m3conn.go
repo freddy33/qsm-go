@@ -37,8 +37,8 @@ const (
 var NilConnectionId = ConnectionId(0)
 var EmptyConnDetails = ConnectionDetails{NilConnectionId, Origin, 0,}
 
-var allConnectionsByVector map[Point]*ConnectionDetails
 var allConnections []*ConnectionDetails
+var allConnectionsByVector map[Point]*ConnectionDetails
 
 /***************************************************************/
 // ByConnVector functions

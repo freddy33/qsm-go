@@ -191,7 +191,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 		// We have the three connections from ip to find the correct trio
 		var iTd *TrioDetails
 		ipConns := [2]*ConnectionDetails{GetConnDetailsByPoints(ip, nextMains[0].lip), GetConnDetailsByPoints(ip, nextMains[1].lip)}
-		for _, possTd := range *trCtx.GetPossibleTrioList() {
+		for _, possTd := range allTrioDetails {
 			if possTd.HasConnections(cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId()) {
 				iTd = possTd
 				break
@@ -222,7 +222,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 					nm.lipnb.nextInterConnId = lipToOtherConn.GetId()
 
 					var liTd *TrioDetails
-					for _, possTd := range *trCtx.GetPossibleTrioList() {
+					for _, possTd := range allTrioDetails {
 						if possTd.HasConnections(ipConns[j].GetNegId(), nm.lipnb.nextInterConnId, nm.lipnb.nextMainConnId) {
 							liTd = possTd
 							break

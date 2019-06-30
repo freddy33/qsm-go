@@ -20,23 +20,24 @@ const (
 )
 
 type Logger struct {
-	log            *log.Logger
-	level          LogLevel
-	evaluateAssert bool
+	log             *log.Logger
+	level           LogLevel
+	evaluateAssert  bool
+	ignoreNextError bool
 }
 
 var p = message.NewPrinter(language.English)
 
 func NewLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix+" ", log.LstdFlags|log.Lshortfile), level, level <= DEBUG}
+	return &Logger{log.New(os.Stdout, prefix+" ", log.LstdFlags|log.Lshortfile), level, level <= DEBUG, false}
 }
 
 func NewDataLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix+" ", 0), level, false}
+	return &Logger{log.New(os.Stdout, prefix+" ", 0), level, false, false}
 }
 
 func NewStatLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix+" ", log.Ltime|log.Lmicroseconds), level, false}
+	return &Logger{log.New(os.Stdout, prefix+" ", log.Ltime|log.Lmicroseconds), level, false, false}
 }
 
 /***************************************************************/
@@ -192,19 +193,26 @@ func (l *Logger) IsError() bool {
 }
 
 func (l *Logger) Error(a ...interface{}) {
+	if l.ignoreNextError {
+		l.ignoreNextError = false
+		return
+	}
 	msg := makeMsg(ERROR, a...)
 	l.print(msg)
 	log.Print(msg)
 }
 
 func (l *Logger) Errorf(format string, v ...interface{}) {
+	if l.ignoreNextError {
+		l.ignoreNextError = false
+		return
+	}
 	msg := makeMsgFormat(ERROR, format, v...)
 	l.print(msg)
 	log.Print(msg)
 }
 
 // Fatal panic out
-
 func (l *Logger) Fatal(a ...interface{}) {
 	msg := makeMsg(FATAL, a...)
 	l.print(msg)
@@ -217,3 +225,6 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 	panic(msg)
 }
 
+func (l *Logger) IgnoreNextError() {
+	l.ignoreNextError = true
+}

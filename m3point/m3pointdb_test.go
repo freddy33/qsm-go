@@ -2,16 +2,22 @@ package m3point
 
 import (
 	"github.com/freddy33/qsm-go/m3db"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
+	"time"
 )
 
 var cleanedDbMutex sync.Mutex
 var cleanedDb bool
 
-func cleanDb() {
-	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
+func setCleanTempDb() {
+	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
 
 	cleanedDbMutex.Lock()
 	defer cleanedDbMutex.Unlock()
@@ -22,22 +28,97 @@ func cleanDb() {
 
 	pointEnv.Destroy()
 
-	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
+	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
 	cleanedDb = true
 }
 
+func setFullTestDb() {
+	envNumber := strconv.Itoa(int(m3db.TestEnv))
+	origQsmId := os.Getenv(m3db.QsmEnvNumberKey)
+
+	if envNumber != origQsmId {
+		// Reset the env var to what it was on exit of this method
+		defer m3db.SetEnvQuietly(m3db.QsmEnvNumberKey, origQsmId)
+		// set the env var correctly
+		m3util.ExitOnError(os.Setenv(m3db.QsmEnvNumberKey, envNumber))
+	}
+
+	rootDir := m3util.GetGitRootDir()
+	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "run", "filldb")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		Log.Fatalf("failed to fill db for test environment %s at OS level due to %v with output: ***\n%s\n***", envNumber, err, string(out))
+	} else {
+		if Log.IsDebug() {
+			Log.Debugf("check environment %s at OS output: ***\n%s\n***", envNumber, string(out))
+		}
+	}
+
+	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
+}
+
 func TestSaveAllConnections(t *testing.T) {
-	m3db.Log.SetTrace()
-	Log.SetTrace()
-	cleanDb()
+	m3db.Log.SetInfo()
+	Log.SetInfo()
+
+	setCleanTempDb()
 
 	n, err := saveAllConnectionDetails()
 	assert.Nil(t, err)
-	assert.Equal(t, len(allConnections), n)
+	assert.Equal(t, 50, n)
 
 	// Should be able to run twice
 	n, err = saveAllConnectionDetails()
 	assert.Nil(t, err)
-	assert.Equal(t, len(allConnections), n)
+	assert.Equal(t, 50, n)
+}
 
+func TestSaveAllTrios(t *testing.T) {
+	m3db.Log.SetInfo()
+	Log.SetInfo()
+
+	setCleanTempDb()
+
+	n, err := saveAllConnectionDetails()
+	assert.Nil(t, err)
+	assert.Equal(t, 50, n)
+
+	// Init from DB
+	allConnections, allConnectionsByVector = loadConnectionDetails()
+
+	n, err = saveAllTrioDetails()
+	assert.Nil(t, err)
+	assert.Equal(t, 200, n)
+
+	// Should be able to run twice
+	n, err = saveAllTrioDetails()
+	assert.Nil(t, err)
+	assert.Equal(t, 200, n)
+}
+
+func TestLoadConnectionDetails(t *testing.T) {
+	m3db.Log.SetInfo()
+	Log.SetInfo()
+
+	setFullTestDb()
+
+	start := time.Now()
+	calculateConnectionDetails()
+	calculateAllTrioDetails()
+	calcTime := time.Now().Sub(start)
+	Log.Infof("Took %v to calculate", calcTime)
+
+	start = time.Now()
+	// Init from DB
+	allConnections, allConnectionsByVector = loadConnectionDetails()
+	detailsInitialized = true
+	tl := loadTrioDetails()
+	loadTime := time.Now().Sub(start)
+	Log.Infof("Took %v to load", loadTime)
+
+	Log.Infof("Diff calc-load = %v", calcTime - loadTime)
+
+	assert.Equal(t, 50, len(allConnections))
+	assert.Equal(t, 50, len(allConnectionsByVector))
+	assert.Equal(t, 200, len(tl))
 }
