@@ -44,7 +44,7 @@ func TestAllTrioDetails(t *testing.T) {
 	Log.SetDebug()
 	Log.SetAssert(true)
 
-	InitializeDetails()
+	Initialize()
 
 	assert.Equal(t, 200, len(allTrioDetails))
 	for i, td := range allTrioDetails {
@@ -90,7 +90,7 @@ func TestAllTrioDetails(t *testing.T) {
 func TestTrioDetailsPerDSIndex(t *testing.T) {
 	Log.SetDebug()
 
-	InitializeDetails()
+	Initialize()
 
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
 	PossibleDSArray := [NbTrioDsIndex][3]DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
@@ -182,7 +182,7 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 }
 
 func TestTrioDetailsConnectionsMethods(t *testing.T) {
-	InitializeDetails()
+	Initialize()
 
 	td0 := GetTrioDetails(0)
 	assert.True(t, td0.HasConnection(4))

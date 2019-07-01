@@ -57,11 +57,21 @@ func setFullTestDb() {
 	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
 }
 
+func _closePointEnv() {
+	defer _nilPointEnv()
+	m3db.CloseEnv(pointEnv)
+}
+
+func _nilPointEnv() {
+	pointEnv = nil
+}
+
 func TestSaveAllConnections(t *testing.T) {
 	m3db.Log.SetInfo()
 	Log.SetInfo()
 
 	setCleanTempDb()
+	defer _closePointEnv()
 
 	n, err := saveAllConnectionDetails()
 	assert.Nil(t, err)
@@ -78,13 +88,14 @@ func TestSaveAllTrios(t *testing.T) {
 	Log.SetInfo()
 
 	setCleanTempDb()
+	defer _closePointEnv()
 
 	n, err := saveAllConnectionDetails()
 	assert.Nil(t, err)
 	assert.Equal(t, 50, n)
 
 	// Init from DB
-	allConnections, allConnectionsByVector = loadConnectionDetails()
+	initConnections()
 
 	n, err = saveAllTrioDetails()
 	assert.Nil(t, err)
@@ -96,23 +107,53 @@ func TestSaveAllTrios(t *testing.T) {
 	assert.Equal(t, 200, n)
 }
 
-func TestLoadConnectionDetails(t *testing.T) {
+func TestSaveAllTrioContexts(t *testing.T) {
+	m3db.Log.SetInfo()
+	Log.SetInfo()
+
+	setCleanTempDb()
+	defer _closePointEnv()
+
+	n, err := saveAllConnectionDetails()
+	assert.Nil(t, err)
+	assert.Equal(t, 50, n)
+	initConnections()
+
+	n, err = saveAllTrioDetails()
+	assert.Nil(t, err)
+	assert.Equal(t, 200, n)
+	initTrioDetails()
+
+	n, err = saveAllTrioContexts()
+	assert.Nil(t, err)
+	assert.Equal(t, 52, n)
+
+	// Should be able to run twice
+	n, err = saveAllTrioContexts()
+	assert.Nil(t, err)
+	assert.Equal(t, 52, n)
+}
+
+func TestLoadOrCalculate(t *testing.T) {
 	m3db.Log.SetInfo()
 	Log.SetInfo()
 
 	setFullTestDb()
+	defer _nilPointEnv()
 
 	start := time.Now()
 	calculateConnectionDetails()
 	calculateAllTrioDetails()
+	calculateAllTrioContexts()
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
 
 	start = time.Now()
-	// Init from DB
-	allConnections, allConnectionsByVector = loadConnectionDetails()
-	detailsInitialized = true
-	tl := loadTrioDetails()
+	// force reload
+	connectionsLoaded = false
+	trioDetailsLoaded = false
+	trioContextsLoaded = false
+	Initialize()
 	loadTime := time.Now().Sub(start)
 	Log.Infof("Took %v to load", loadTime)
 
@@ -120,5 +161,6 @@ func TestLoadConnectionDetails(t *testing.T) {
 
 	assert.Equal(t, 50, len(allConnections))
 	assert.Equal(t, 50, len(allConnectionsByVector))
-	assert.Equal(t, 200, len(tl))
+	assert.Equal(t, 200, len(allTrioDetails))
+	assert.Equal(t, 52, len(allTrioContexts))
 }

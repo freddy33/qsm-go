@@ -14,18 +14,19 @@ func getAllTestContexts() map[m3point.ContextType][]*PathContext {
 	}
 	res := make(map[m3point.ContextType][]*PathContext)
 
-	m3point.InitializeDetails()
+	m3point.Initialize()
 
-	for _, ctxType := range m3point.GetAllContextTypes() {
-		nbIndexes := ctxType.GetNbIndexes()
-		maxOffset := m3point.MaxOffsetPerType[ctxType]
-		res[ctxType] = make([]*PathContext, nbIndexes*maxOffset)
-		idx := 0
-		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			for offset := 0; offset < maxOffset; offset++ {
-				res[ctxType][idx] = MakePathContext(ctxType, pIdx, offset, nil)
-				idx++
-			}
+	idx := 0
+	for _, trCtx := range m3point.GetAllTrioContexts() {
+		ctxType := trCtx.GetType()
+		maxOffset := ctxType.GetMaxOffset()
+		if len(res[ctxType]) == 0 {
+			res[ctxType] = make([]*PathContext, ctxType.GetNbIndexes()*maxOffset)
+			idx = 0
+		}
+		for offset := 0; offset < maxOffset; offset++ {
+			res[ctxType][idx] = MakePathContextFromTrioContext(trCtx, offset, nil)
+			idx++
 		}
 	}
 

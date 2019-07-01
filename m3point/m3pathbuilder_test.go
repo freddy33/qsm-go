@@ -25,7 +25,7 @@ func TestAllPathBuilders(t *testing.T) {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			trCtx := GetTrioIndexContext(ctxType, pIdx)
-			maxOffset := MaxOffsetPerType[ctxType]
+			maxOffset := ctxType.GetMaxOffset()
 			for offset := 0; offset < maxOffset; offset++ {
 				centerPoint := Origin
 				for div := uint64(0); div < 8*3; div++ {

@@ -188,12 +188,20 @@ func (env *QsmEnvironment) openDb() {
 }
 
 func (env *QsmEnvironment) _internalClose() error {
+	envId := env.id
+	defer RemoveEnvFromMap(envId)
 	db := env.db
 	env.db = nil
 	if db != nil {
 		return db.Close()
 	}
 	return nil
+}
+
+func CloseAll() {
+	for _, env := range environments {
+		CloseEnv(env)
+	}
 }
 
 func CloseEnv(env *QsmEnvironment) {
@@ -206,7 +214,6 @@ func CloseEnv(env *QsmEnvironment) {
 
 func (env *QsmEnvironment) Destroy() {
 	envId := env.id
-	defer RemoveEnvFromMap(envId)
 	err := env._internalClose()
 	if err != nil {
 		Log.Error(err)

@@ -28,6 +28,7 @@ func main() {
 		}
 	}
 	fmt.Println("Executing", c)
+	defer m3db.CloseAll()
 	switch c {
 	case "play":
 		playgl.Play()

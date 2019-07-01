@@ -2,7 +2,7 @@ package m3point
 
 import "fmt"
 
-type TrioIndexCubeKey struct {
+type CubeKey struct {
 	// Index of cube center
 	center TrioIndex
 	// Indexes of center of cube face ordered by +X, -X, +Y, -Y, +Z, -Z
@@ -12,14 +12,14 @@ type TrioIndexCubeKey struct {
 }
 
 type CubeListPerContext struct {
-	trCtx    *TrioIndexContext
-	allCubes []TrioIndexCubeKey
+	trCtx    *TrioContext
+	allCubes []CubeKey
 }
 
 var allTrioCubes [][]*CubeListPerContext
 
 /***************************************************************/
-// TrioIndexCubeKey Functions
+// CubeKey Functions
 /***************************************************************/
 
 func GetMiddleEdgeIndex(ud1 UnitDirection, ud2 UnitDirection) int {
@@ -50,8 +50,8 @@ func GetMiddleEdgeIndex(ud1 UnitDirection, ud2 UnitDirection) int {
 }
 
 // Fill all the indexes assuming the distance of c from origin used in div by three
-func createTrioCube(trCtx *TrioIndexContext, offset int, c Point) TrioIndexCubeKey {
-	res := TrioIndexCubeKey{}
+func createTrioCube(trCtx *TrioContext, offset int, c Point) CubeKey {
+	res := CubeKey{}
 	res.center = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c), offset)
 
 	res.centerFaces[PlusX] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst)), offset)
@@ -79,19 +79,19 @@ func createTrioCube(trCtx *TrioIndexContext, offset int, c Point) TrioIndexCubeK
 	return res
 }
 
-func (ck TrioIndexCubeKey) String() string {
+func (ck CubeKey) String() string {
 	return fmt.Sprintf("CK-%s-%s-%s-%s", ck.center.String(), ck.centerFaces[0].String(), ck.centerFaces[1].String(), ck.middleEdges[0].String())
 }
 
-func (ck TrioIndexCubeKey) GetCenterTrio() TrioIndex {
+func (ck CubeKey) GetCenterTrio() TrioIndex {
 	return ck.center
 }
 
-func (ck TrioIndexCubeKey) GetCenterFaceTrio(ud UnitDirection) TrioIndex {
+func (ck CubeKey) GetCenterFaceTrio(ud UnitDirection) TrioIndex {
 	return ck.centerFaces[ud]
 }
 
-func (ck TrioIndexCubeKey) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirection) TrioIndex {
+func (ck CubeKey) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirection) TrioIndex {
 	return ck.middleEdges[GetMiddleEdgeIndex(ud1, ud2)]
 }
 
@@ -129,9 +129,9 @@ func createAllTrioCubes() {
 }
 
 func (cl *CubeListPerContext) populate(max CInt) {
-	allCubesMap := make(map[TrioIndexCubeKey]int)
+	allCubesMap := make(map[CubeKey]int)
 	// For center populate for all offsets
-	maxOffset := MaxOffsetPerType[cl.trCtx.ctxType]
+	maxOffset := cl.trCtx.ctxType.GetMaxOffset()
 	for offset := 0; offset < maxOffset; offset++ {
 		cube := createTrioCube(cl.trCtx, offset, Origin)
 		allCubesMap[cube]++
@@ -145,7 +145,7 @@ func (cl *CubeListPerContext) populate(max CInt) {
 			}
 		}
 	}
-	cl.allCubes = make([]TrioIndexCubeKey, len(allCubesMap))
+	cl.allCubes = make([]CubeKey, len(allCubesMap))
 	idx := 0
 	for c := range allCubesMap {
 		cl.allCubes[idx] = c

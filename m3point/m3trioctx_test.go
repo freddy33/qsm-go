@@ -16,7 +16,7 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	}
 }
 
-func runConnectionDetailsCheck(t *testing.T, trCtx *TrioIndexContext) {
+func runConnectionDetailsCheck(t *testing.T, trCtx *TrioContext) {
 	// For all trioIndex rotations, any 2 close nextMainPoint points there should be a connection details
 	min := CInt(-5)
 	max := CInt(5)

@@ -10,7 +10,7 @@ import (
 var Log = m3util.NewLogger("m3path", m3util.INFO)
 
 type PathContext struct {
-	ctx    *m3point.TrioIndexContext
+	ctx    *m3point.TrioContext
 	offset int
 
 	rootPathNode PathNode
@@ -114,7 +114,7 @@ func MakePathContext(ctxType m3point.ContextType, pIdx int, offset int, pnm Path
 	return MakePathContextFromTrioContext(m3point.GetTrioIndexContext(ctxType, pIdx), offset, pnm)
 }
 
-func MakePathContextFromTrioContext(trCtx *m3point.TrioIndexContext, offset int, pnm PathNodeMap) *PathContext {
+func MakePathContextFromTrioContext(trCtx *m3point.TrioContext, offset int, pnm PathNodeMap) *PathContext {
 	pathCtx := PathContext{}
 	pathCtx.ctx = trCtx
 	pathCtx.offset = offset

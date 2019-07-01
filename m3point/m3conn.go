@@ -168,7 +168,7 @@ func (ud UnitDirection) GetFirstPoint() Point {
 /***************************************************************/
 
 func GetMaxConnId() ConnectionId {
-	checkDetailsInitialized()
+	checkConnInitialized()
 	// The pos conn Id of the last one
 	return allConnections[len(allConnections)-1].GetPosId()
 }
@@ -259,7 +259,7 @@ func (cd *ConnectionDetails) String() string {
 }
 
 func GetConnDetailsById(id ConnectionId) *ConnectionDetails {
-	checkDetailsInitialized()
+	checkConnInitialized()
 	if id > 0 {
 		return allConnections[2*id-2]
 	} else {

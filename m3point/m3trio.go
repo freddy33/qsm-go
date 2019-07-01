@@ -64,24 +64,6 @@ func init() {
 	initValidTrios()
 	initMod4Permutations()
 	initMod8Permutations()
-	detailsInitialized = false
-}
-
-var detailsInitialized bool
-
-func InitializeDetails() {
-	if detailsInitialized {
-		return
-	}
-	allConnections, allConnectionsByVector = calculateConnectionDetails()
-	allTrioDetails = calculateAllTrioDetails()
-	detailsInitialized = true
-}
-
-func checkDetailsInitialized() {
-	if !detailsInitialized {
-		Log.Fatal("Connections and Trio should have been initialized! Please call InitializeDetails() method before this!")
-	}
 }
 
 func initValidTrios() {
@@ -119,128 +101,6 @@ func initMod8Permutations() {
 			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
 		}
 	}
-}
-
-func calculateConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
-	connMap := make(map[Point]*ConnectionDetails)
-	// Going through all Trio and all combination of Trio, to aggregate connection details
-	for _, tr := range allBaseTrio {
-		for _, vec := range tr {
-			addConnDetail(&connMap, vec)
-		}
-		for _, tB := range allBaseTrio {
-			connectingVectors := GetNonBaseConnections(tr, tB)
-			for _, conn := range connectingVectors {
-				addConnDetail(&connMap, conn)
-			}
-		}
-	}
-	Log.Debug("Number of connection details created", len(connMap))
-	nbConnDetails := ConnectionId(len(connMap) / 2)
-
-	// Reordering connection details number by size, and x, y, z
-	res := make([]*ConnectionDetails, len(connMap))
-	idx := 0
-	for _, cd := range connMap {
-		res[idx] = cd
-		idx++
-	}
-	sort.Sort(ByConnVector(res))
-
-	currentConnNumber := ConnectionId(1)
-	for _, cd := range res {
-		if cd.Id == 0 {
-			vec1 := cd.Vector
-			vec2 := vec1.Neg()
-			var posVec, negVec Point
-			// first one with non 0 pos coord
-			for _, c := range vec1 {
-				if c > 0 {
-					posVec = vec1
-					negVec = vec2
-					break
-				} else if c < 0 {
-					posVec = vec2
-					negVec = vec1
-					break
-				}
-			}
-			posCD := connMap[posVec]
-			posCD.Id = currentConnNumber
-			negCD := connMap[negVec]
-			negCD.Id = -currentConnNumber
-			currentConnNumber++
-		}
-	}
-	sort.Sort(ByConnId(res))
-
-	lastId := res[len(res)-2].GetId()
-	if lastId != nbConnDetails {
-		Log.Errorf("Calculating Connection details failed since %d != %d", lastId, nbConnDetails)
-	}
-	return res, connMap
-}
-
-func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
-	ds := connVector.DistanceSquared()
-	if ds == 0 {
-		Log.Fatalf("zero vector cannot be a connection")
-	}
-	if !(ds == 1 || ds == 2 || ds == 3 || ds == 5) {
-		Log.Fatalf("vector %v of ds=%d cannot be a connection", connVector, ds)
-	}
-	_, ok := (*connMap)[connVector]
-	if !ok {
-		// Add both pos and neg
-		posVec := connVector
-		negVec := connVector.Neg()
-		posConnDetails := ConnectionDetails{0, posVec, ds,}
-		negConnDetails := ConnectionDetails{0, negVec, ds,}
-		(*connMap)[posVec] = &posConnDetails
-		(*connMap)[negVec] = &negConnDetails
-	}
-}
-
-func calculateAllTrioDetails() TrioDetailList {
-	res := TrioDetailList(make([]*TrioDetails, 0, 200))
-	// All base trio first
-	for i, tr := range allBaseTrio {
-		td := MakeTrioDetails(tr[0], tr[1], tr[2])
-		td.id = TrioIndex(i)
-		res.addUnique(td)
-	}
-
-	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
-	for _, tA := range allBaseTrio {
-		for _, tB := range allBaseTrio {
-			for _, tC := range allBaseTrio {
-				for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
-					res.addUnique(nextTrio)
-				}
-			}
-		}
-	}
-
-	sort.Sort(res)
-
-	// Process all the trio details now that order final
-	for i, td := range res {
-		trIdx := TrioIndex(i)
-		// For all base trio different process
-		if i < len(allBaseTrio) {
-			// The id should already be set correctly
-			if td.id != trIdx {
-				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
-			}
-		} else {
-			// The id should not have been set. Adding it now
-			if td.id != NilTrioIndex {
-				Log.Fatalf("incorrect Id for non base trio details %v at %d", *td, i)
-			}
-			td.id = trIdx
-		}
-	}
-	return res
 }
 
 /***************************************************************/
@@ -544,7 +404,7 @@ func (t Trio) getMinusZVector() Point {
 /***************************************************************/
 
 func GetTrioDetails(trIdx TrioIndex) *TrioDetails {
-	checkDetailsInitialized()
+	checkTrioInitialized()
 	return allTrioDetails[trIdx]
 }
 
@@ -884,3 +744,130 @@ func getNextTriosDetails(tA, tB, tC Trio) []*TrioDetails {
 
 	return res
 }
+
+/***************************************************************/
+// Calculate Connection and Trio Functions
+/***************************************************************/
+
+func calculateConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
+	connMap := make(map[Point]*ConnectionDetails)
+	// Going through all Trio and all combination of Trio, to aggregate connection details
+	for _, tr := range allBaseTrio {
+		for _, vec := range tr {
+			addConnDetail(&connMap, vec)
+		}
+		for _, tB := range allBaseTrio {
+			connectingVectors := GetNonBaseConnections(tr, tB)
+			for _, conn := range connectingVectors {
+				addConnDetail(&connMap, conn)
+			}
+		}
+	}
+	Log.Debug("Number of connection details created", len(connMap))
+	nbConnDetails := ConnectionId(len(connMap) / 2)
+
+	// Reordering connection details number by size, and x, y, z
+	res := make([]*ConnectionDetails, len(connMap))
+	idx := 0
+	for _, cd := range connMap {
+		res[idx] = cd
+		idx++
+	}
+	sort.Sort(ByConnVector(res))
+
+	currentConnNumber := ConnectionId(1)
+	for _, cd := range res {
+		if cd.Id == 0 {
+			vec1 := cd.Vector
+			vec2 := vec1.Neg()
+			var posVec, negVec Point
+			// first one with non 0 pos coord
+			for _, c := range vec1 {
+				if c > 0 {
+					posVec = vec1
+					negVec = vec2
+					break
+				} else if c < 0 {
+					posVec = vec2
+					negVec = vec1
+					break
+				}
+			}
+			posCD := connMap[posVec]
+			posCD.Id = currentConnNumber
+			negCD := connMap[negVec]
+			negCD.Id = -currentConnNumber
+			currentConnNumber++
+		}
+	}
+	sort.Sort(ByConnId(res))
+
+	lastId := res[len(res)-2].GetId()
+	if lastId != nbConnDetails {
+		Log.Errorf("Calculating Connection details failed since %d != %d", lastId, nbConnDetails)
+	}
+	return res, connMap
+}
+
+func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
+	ds := connVector.DistanceSquared()
+	if ds == 0 {
+		Log.Fatalf("zero vector cannot be a connection")
+	}
+	if !(ds == 1 || ds == 2 || ds == 3 || ds == 5) {
+		Log.Fatalf("vector %v of ds=%d cannot be a connection", connVector, ds)
+	}
+	_, ok := (*connMap)[connVector]
+	if !ok {
+		// Add both pos and neg
+		posVec := connVector
+		negVec := connVector.Neg()
+		posConnDetails := ConnectionDetails{0, posVec, ds,}
+		negConnDetails := ConnectionDetails{0, negVec, ds,}
+		(*connMap)[posVec] = &posConnDetails
+		(*connMap)[negVec] = &negConnDetails
+	}
+}
+
+func calculateAllTrioDetails() TrioDetailList {
+	res := TrioDetailList(make([]*TrioDetails, 0, 200))
+	// All base trio first
+	for i, tr := range allBaseTrio {
+		td := MakeTrioDetails(tr[0], tr[1], tr[2])
+		td.id = TrioIndex(i)
+		res.addUnique(td)
+	}
+
+	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
+	for _, tA := range allBaseTrio {
+		for _, tB := range allBaseTrio {
+			for _, tC := range allBaseTrio {
+				for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
+					res.addUnique(nextTrio)
+				}
+			}
+		}
+	}
+
+	sort.Sort(res)
+
+	// Process all the trio details now that order final
+	for i, td := range res {
+		trIdx := TrioIndex(i)
+		// For all base trio different process
+		if i < len(allBaseTrio) {
+			// The id should already be set correctly
+			if td.id != trIdx {
+				Log.Fatalf("incorrect Id for base trio details %v at %d", *td, i)
+			}
+		} else {
+			// The id should not have been set. Adding it now
+			if td.id != NilTrioIndex {
+				Log.Fatalf("incorrect Id for non base trio details %v at %d", *td, i)
+			}
+			td.id = trIdx
+		}
+	}
+	return res
+}
+

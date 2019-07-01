@@ -7,8 +7,8 @@ import (
 
 // The ctx for each main point start point that gives in the global map the root path node builder
 type PathBuilderContext struct {
-	trCtx  *TrioIndexContext
-	cube TrioIndexCubeKey
+	trCtx *TrioContext
+	cube  CubeKey
 }
 
 func (ctx *PathBuilderContext) String() string {
@@ -51,7 +51,7 @@ type PathLinkBuilder struct {
 
 var pathBuilders = make(map[PathBuilderContext]*RootPathNodeBuilder)
 
-var MaxOffsetPerType = map[ContextType]int{
+var maxOffsetPerType = map[ContextType]int{
 	ContextType(1): 1,
 	ContextType(3): 4,
 	ContextType(2): 2,
@@ -63,7 +63,7 @@ func createAllPathBuilders() int {
 	if len(pathBuilders) != 0 {
 		return len(pathBuilders)
 	}
-	InitializeDetails()
+	Initialize()
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
@@ -81,7 +81,7 @@ func createAllPathBuilders() int {
 	return len(pathBuilders)
 }
 
-func GetPathNodeBuilder(trCtx *TrioIndexContext, offset int, c Point) PathNodeBuilder {
+func GetPathNodeBuilder(trCtx *TrioContext, offset int, c Point) PathNodeBuilder {
 	if len(pathBuilders) == 0 {
 		createAllPathBuilders()
 	}
