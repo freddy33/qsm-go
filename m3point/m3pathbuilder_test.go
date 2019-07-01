@@ -9,7 +9,7 @@ func TestDisplayPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
 	nb := createAllPathBuilders()
 	assert.Equal(t, 5192, nb)
-	trCtx := GetTrioIndexContext(ContextType(8), 0)
+	trCtx := GetTrioContextByTypeAndIdx(ContextType(8), 0)
 	pnb := GetPathNodeBuilder(trCtx, 0, Origin)
 	assert.NotNil(t, pnb, "did not find builder for %v", *trCtx)
 	rpnb, tok := pnb.(*RootPathNodeBuilder)
@@ -24,7 +24,7 @@ func TestAllPathBuilders(t *testing.T) {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			trCtx := GetTrioIndexContext(ctxType, pIdx)
+			trCtx := GetTrioContextByTypeAndIdx(ctxType, pIdx)
 			maxOffset := ctxType.GetMaxOffset()
 			for offset := 0; offset < maxOffset; offset++ {
 				centerPoint := Origin

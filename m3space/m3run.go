@@ -131,6 +131,7 @@ func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4
 }
 
 func runSpacePyramidWithParams(pSize m3point.CInt, ctxTypes [4]m3point.ContextType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
+	m3point.Initialize()
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3

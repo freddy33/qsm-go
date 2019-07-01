@@ -16,7 +16,7 @@ type CubeListPerContext struct {
 	allCubes []CubeKey
 }
 
-var allTrioCubes [][]*CubeListPerContext
+var allCubesPerContext []*CubeListPerContext
 
 /***************************************************************/
 // CubeKey Functions
@@ -99,33 +99,25 @@ func (ck CubeKey) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirection) TrioIn
 // CubeListPerContext Functions
 /***************************************************************/
 
-func createAllTrioCubes() {
-	if len(allTrioCubes) != 0 {
-		// done
-		return
-	}
-	allTrioCubes = make([][]*CubeListPerContext, 9)
-	for _, ctxType := range GetAllContextTypes() {
-		nbIndexes := ctxType.GetNbIndexes()
-		allTrioCubes[ctxType] = make([]*CubeListPerContext, nbIndexes)
-		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			trCtx := GetTrioIndexContext(ctxType, pIdx)
-			cl := CubeListPerContext{trCtx, nil,}
-			switch ctxType {
-			case 1:
-				cl.populate(1)
-			case 3:
-				cl.populate(6)
-			case 2:
-				cl.populate(1)
-			case 4:
-				cl.populate(4)
-			case 8:
-				cl.populate(8)
-			}
-			allTrioCubes[ctxType][pIdx] = &cl
+func calculateAllContextCubes() []*CubeListPerContext {
+	res := make([]*CubeListPerContext, totalNbContexts)
+	for _, trCtx := range GetAllTrioContexts() {
+		cl := CubeListPerContext{trCtx, nil,}
+		switch trCtx.GetType() {
+		case 1:
+			cl.populate(1)
+		case 3:
+			cl.populate(6)
+		case 2:
+			cl.populate(1)
+		case 4:
+			cl.populate(4)
+		case 8:
+			cl.populate(8)
 		}
+		res[trCtx.GetId()] = &cl
 	}
+	return res
 }
 
 func (cl *CubeListPerContext) populate(max CInt) {
@@ -163,7 +155,7 @@ func (cl *CubeListPerContext) exists(offset int, c Point) bool {
 	return false
 }
 
-func GetCubeList(ctxType ContextType, index int) *CubeListPerContext {
-	createAllTrioCubes()
-	return allTrioCubes[ctxType][index]
+func GetCubeList(trCtx *TrioContext) *CubeListPerContext {
+	checkCubesInitialized()
+	return allCubesPerContext[trCtx.GetId()]
 }

@@ -10,7 +10,7 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			trCtx := GetTrioIndexContext(ctxType, pIdx)
+			trCtx := GetTrioContextByTypeAndIdx(ctxType, pIdx)
 			runConnectionDetailsCheck(t, trCtx)
 		}
 	}

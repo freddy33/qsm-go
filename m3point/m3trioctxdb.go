@@ -1,20 +1,20 @@
 package m3point
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
+	"github.com/lib/pq"
 )
 
 const (
-	TrioContextsTable    = "trio_contexts"
-	CubesTable           = "cubes"
-	CubesPerContextTable = "cubes_per_context"
+	TrioContextsTable = "trio_contexts"
+	ContextCubesTable = "context_cubes"
 )
 
 func init() {
 	m3db.AddTableDef(createTrioContextTableDef())
-	m3db.AddTableDef(createCubesTableDef())
-	m3db.AddTableDef(createCubesPerContextTableDef())
+	m3db.AddTableDef(createContextCubesTableDef())
 }
 
 func createTrioContextTableDef() *m3db.TableDefinition {
@@ -29,26 +29,17 @@ func createTrioContextTableDef() *m3db.TableDefinition {
 	return &res
 }
 
-func createCubesTableDef() *m3db.TableDefinition {
+func createContextCubesTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
-	res.Name = CubesTable
-	res.DdlColumns = "(id smallint PRIMARY KEY," +
+	res.Name = ContextCubesTable
+	res.DdlColumns = fmt.Sprintf("(id serial PRIMARY KEY," +
+		" ctx_id smallint REFERENCES %s (id)," +
 		" center smallint," +
 		" center_faces smallint []," +
-		" middle_edges smallint [])"
-	res.InsertStmt = "(id, center, center_faces, middle_edges) values ($1,$2,$3,$4)"
-	res.ExpectedCount = 52
-	return &res
-}
-
-func createCubesPerContextTableDef() *m3db.TableDefinition {
-	res := m3db.TableDefinition{}
-	res.Name = CubesPerContextTable
-	res.DdlColumns = fmt.Sprintf("(ctx_id smallint REFERENCES %s (id),"+
-		" cube_id smallint  REFERENCES %s (id),"+
-		" UNIQUE (ctx_id, cube_id) )", TrioContextsTable, CubesTable)
-	res.InsertStmt = "(ctx_id, cube_id) values ($1,$2)"
-	res.ExpectedCount = 52
+		" middle_edges smallint [])", TrioContextsTable)
+	res.InsertStmt = "(ctx_id, center, center_faces, middle_edges) values ($1,$2,$3,$4)"
+	res.SelectAll = fmt.Sprintf("select ctx_id, center, center_faces, middle_edges from %s", ContextCubesTable)
+	res.ExpectedCount = 5192
 	return &res
 }
 
@@ -65,8 +56,9 @@ func loadTrioContexts() []*TrioContext {
 		err := rows.Scan(&trCtx.id, &trCtx.ctxType, &trCtx.ctxIndex)
 		if err != nil {
 			Log.Errorf("failed to load trio context line %d", len(res))
+		} else {
+			res = append(res, &trCtx)
 		}
-		res = append(res, &trCtx)
 	}
 	return res
 }
@@ -87,6 +79,77 @@ func saveAllTrioContexts() (int, error) {
 				Log.Error(err)
 			} else {
 				inserted++
+			}
+		}
+	}
+	return inserted, nil
+}
+/***************************************************************/
+// Cubes Load and Save
+/***************************************************************/
+
+func loadContextCubes() []*CubeListPerContext {
+	_, rows := GetPointEnv().SelectAllForLoad(ContextCubesTable)
+	res := make([]*CubeListPerContext, GetTotalNbTrioContexts())
+
+	loaded := 0
+	for rows.Next() {
+		var trCtxId int
+		var center int
+		centerFaces := make([]sql.NullInt64, 0, 6)
+		middleEdges := make([]sql.NullInt64, 0, 12)
+		err := rows.Scan(&trCtxId, &center, pq.Array(&centerFaces), pq.Array(&middleEdges))
+		if err != nil {
+			Log.Errorf("failed to load trio context line %d due to %v", loaded, err)
+		} else {
+			cubeKey := CubeKey{}
+			cubeKey.center = TrioIndex(uint8(center))
+			for i := 0; i < 6; i++ {
+				if !centerFaces[i].Valid {
+					Log.Errorf("center face %d for trio context line %d invalid", i, loaded)
+				}
+				cubeKey.centerFaces[i] = TrioIndex(uint8(centerFaces[i].Int64))
+			}
+			for i := 0; i < 12; i++ {
+				if !middleEdges[i].Valid {
+					Log.Errorf("middle egde %d for trio context line %d invalid", i, loaded)
+				}
+				cubeKey.middleEdges[i] = TrioIndex(uint8(middleEdges[i].Int64))
+			}
+			if res[trCtxId] == nil {
+				cl := new(CubeListPerContext)
+				cl.trCtx = GetTrioContextById(trCtxId)
+				cl.allCubes = make([]CubeKey, 1, 15)
+				cl.allCubes[0] = cubeKey
+				res[trCtxId] = cl
+			} else {
+				cl := res[trCtxId]
+				cl.allCubes = append(cl.allCubes, cubeKey)
+			}
+		}
+		loaded++
+	}
+	return res
+}
+
+func saveAllContextCubes() (int, error) {
+	te, inserted, err := GetPointEnv().GetForSaveAll(ContextCubesTable)
+	if err != nil {
+		return 0, err
+	}
+	if te.WasCreated() {
+		contextCubes := calculateAllContextCubes()
+		if Log.IsDebug() {
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(contextCubes))
+		}
+		for _, ctxCube := range contextCubes {
+			for _, cubeKey := range ctxCube.allCubes {
+				err := te.Insert(ctxCube.trCtx.id, cubeKey.center, pq.Array(cubeKey.centerFaces), pq.Array(cubeKey.middleEdges))
+				if err != nil {
+					Log.Error(err)
+				} else {
+					inserted++
+				}
 			}
 		}
 	}

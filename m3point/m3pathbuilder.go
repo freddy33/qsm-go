@@ -67,8 +67,8 @@ func createAllPathBuilders() int {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			trioCtx := GetTrioIndexContext(ctxType, pIdx)
-			cl := GetCubeList(ctxType, pIdx)
+			trioCtx := GetTrioContextByTypeAndIdx(ctxType, pIdx)
+			cl := GetCubeList(trioCtx)
 			for _, c := range cl.allCubes {
 				key := PathBuilderContext{trioCtx, c}
 				root := RootPathNodeBuilder{}

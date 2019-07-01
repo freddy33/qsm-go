@@ -55,6 +55,7 @@ func TestSpaceAllPyramids(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetWarn()
 	LogRun.SetWarn()
+	m3point.Initialize()
 	allContexts := m3point.GetAllContextTypes()
 	LogData.Infof("Size Type Idxs time nbPoss orgSize finalSize diff ratio")
 	maxSize := m3point.CInt(4)

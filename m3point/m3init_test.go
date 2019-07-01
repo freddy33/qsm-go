@@ -145,6 +145,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	calculateConnectionDetails()
 	calculateAllTrioDetails()
 	calculateAllTrioContexts()
+	calculateAllContextCubes()
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
 
@@ -153,6 +154,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	connectionsLoaded = false
 	trioDetailsLoaded = false
 	trioContextsLoaded = false
+	cubesPerContextLoaded = false
 	Initialize()
 	loadTime := time.Now().Sub(start)
 	Log.Infof("Took %v to load", loadTime)
@@ -163,4 +165,5 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, 50, len(allConnectionsByVector))
 	assert.Equal(t, 200, len(allTrioDetails))
 	assert.Equal(t, 52, len(allTrioContexts))
+	assert.Equal(t, 52, len(allCubesPerContext))
 }

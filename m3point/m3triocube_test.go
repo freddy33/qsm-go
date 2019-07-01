@@ -12,12 +12,12 @@ func TestTrioCubeMaps(t *testing.T) {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			trCtx := GetTrioIndexContext(ctxType, pIdx)
+			trCtx := GetTrioContextByTypeAndIdx(ctxType, pIdx)
 			max, cubes := findNbCubes(trCtx)
 			// Test way above
 			nbCubesBig := distinctCubes(trCtx, max*3)
 			assert.Equal(t, len(cubes), len(nbCubesBig), "failed test big for %s for max=%d", trCtx.String(), max)
-			cl := GetCubeList(ctxType, pIdx)
+			cl := GetCubeList(trCtx)
 			assert.Equal(t, len(cubes), len(cl.allCubes), "failed test big for %s for max=%d", trCtx.String(), max)
 			maxOffset := ctxType.GetMaxOffset()
 			for offset := 0; offset < maxOffset; offset++ {

@@ -17,7 +17,7 @@ TODO: Create trio index for non nextMainPoint points base on growth context
 type ContextType uint8
 
 var allContextTypes = [5]ContextType{1, 2, 3, 4, 8}
-var totalNbContext = 8 + 12 + 8 + 12 + 12
+var totalNbContexts = 8 + 12 + 8 + 12 + 12
 
 type TrioContext struct {
 	// A generate id used in arrays and db
@@ -49,17 +49,14 @@ type NextPathElement struct {
 
 var allTrioContexts []*TrioContext
 
-func init() {
-	allTrioContexts = calculateAllTrioContexts()
-}
-
 func calculateAllTrioContexts() []*TrioContext {
-	res := make([]*TrioContext, totalNbContext)
+	res := make([]*TrioContext, totalNbContexts)
 	idx := 0
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			res[idx] = createTrioIndexContext(idx, ctxType, pIdx)
+			trCtx := TrioContext{idx, ctxType, pIdx}
+			res[idx] = &trCtx
 			idx++
 		}
 	}
@@ -69,7 +66,12 @@ func calculateAllTrioContexts() []*TrioContext {
 /***************************************************************/
 // ContextType Functions
 /***************************************************************/
+func GetTotalNbTrioContexts() int {
+	return totalNbContexts
+}
+
 func GetAllTrioContexts() []*TrioContext {
+	checkTrioContextsInitialized()
 	return allTrioContexts
 }
 
@@ -104,7 +106,13 @@ func (t ContextType) GetMaxOffset() int {
 // TrioContext Functions
 /***************************************************************/
 
-func GetTrioIndexContext(ctxType ContextType, index int) *TrioContext {
+func GetTrioContextById(id int) *TrioContext {
+	checkTrioContextsInitialized()
+	return allTrioContexts[id]
+}
+
+func GetTrioContextByTypeAndIdx(ctxType ContextType, index int) *TrioContext {
+	checkTrioContextsInitialized()
 	for _, trCtx := range allTrioContexts {
 		if trCtx.ctxType == ctxType && trCtx.ctxIndex == index {
 			return trCtx
@@ -112,10 +120,6 @@ func GetTrioIndexContext(ctxType ContextType, index int) *TrioContext {
 	}
 	Log.Fatalf("could not find Trio Context for %d %d", ctxType, index)
 	return nil
-}
-
-func createTrioIndexContext(id int, permType ContextType, index int) *TrioContext {
-	return &TrioContext{id, permType, index,}
 }
 
 func (trCtx *TrioContext) String() string {

@@ -57,9 +57,10 @@ func loadConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails
 		err := rows.Scan(&cd.Id, &cd.Vector[0], &cd.Vector[1], &cd.Vector[2], &cd.ConnDS)
 		if err != nil {
 			Log.Errorf("failed to load connection details line %d", len(res))
+		} else {
+			res = append(res, &cd)
+			connMap[cd.Vector] = &cd
 		}
-		res = append(res, &cd)
-		connMap[cd.Vector] = &cd
 	}
 	return res, connMap
 }
@@ -101,11 +102,12 @@ func loadTrioDetails() TrioDetailList {
 		err := rows.Scan(&td.id, &connIds[0], &connIds[1], &connIds[2])
 		if err != nil {
 			Log.Errorf("failed to load trio details line %d", len(res))
+		} else {
+			for i, cId := range connIds {
+				td.conns[i] = GetConnDetailsById(cId)
+			}
+			res = append(res, &td)
 		}
-		for i, cId := range connIds {
-			td.conns[i] = GetConnDetailsById(cId)
-		}
-		res = append(res, &td)
 	}
 	return res
 }

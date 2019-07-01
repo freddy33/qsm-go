@@ -111,7 +111,7 @@ var EndPathLink = &BasePathLink{EndPathNode, m3point.NilConnectionId, EndPathNod
 /***************************************************************/
 
 func MakePathContext(ctxType m3point.ContextType, pIdx int, offset int, pnm PathNodeMap) *PathContext {
-	return MakePathContextFromTrioContext(m3point.GetTrioIndexContext(ctxType, pIdx), offset, pnm)
+	return MakePathContextFromTrioContext(m3point.GetTrioContextByTypeAndIdx(ctxType, pIdx), offset, pnm)
 }
 
 func MakePathContextFromTrioContext(trCtx *m3point.TrioContext, offset int, pnm PathNodeMap) *PathContext {

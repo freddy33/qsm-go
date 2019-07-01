@@ -9,6 +9,7 @@ var pointEnv *m3db.QsmEnvironment
 var connectionsLoaded bool
 var trioDetailsLoaded bool
 var trioContextsLoaded bool
+var cubesPerContextLoaded bool
 
 func checkConnInitialized() {
 	if !connectionsLoaded {
@@ -28,10 +29,17 @@ func checkTrioContextsInitialized() {
 	}
 }
 
+func checkCubesInitialized() {
+	if !cubesPerContextLoaded {
+		Log.Fatal("Cubes should have been initialized! Please call m3point.Initialize() method before this!")
+	}
+}
+
 func Initialize() {
 	initConnections()
 	initTrioDetails()
 	initTrioContexts()
+	initContextCubes()
 }
 
 func initConnections() {
@@ -52,6 +60,13 @@ func initTrioContexts() {
 	if !trioContextsLoaded {
 		allTrioContexts = loadTrioContexts()
 		trioContextsLoaded = true
+	}
+}
+
+func initContextCubes() {
+	if !cubesPerContextLoaded {
+		allCubesPerContext = loadContextCubes()
+		cubesPerContextLoaded = true
 	}
 }
 
@@ -95,4 +110,14 @@ func FillDb() {
 		Log.Infof("Environment %d has %d trio contexts", env.GetId(), n)
 	}
 	initTrioContexts()
+
+	n, err = saveAllContextCubes()
+	if err != nil {
+		Log.Fatalf("could not save all contexts cubes due to %v", err)
+		return
+	}
+	if Log.IsInfo() {
+		Log.Infof("Environment %d has %d contexts cubes", env.GetId(), n)
+	}
+	initContextCubes()
 }
