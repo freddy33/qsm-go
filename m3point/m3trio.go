@@ -412,12 +412,11 @@ func MakeTrioDetails(points ...Point) *TrioDetails {
 	// All points should be a connection details
 	cds := make([]*ConnectionDetails, 3)
 	for i, p := range points {
-		cd, ok := allConnectionsByVector[p]
-		if !ok {
+		cd := GetConnDetailsByVector(p)
+		if cd == nil {
 			Log.Fatalf("trying to create trio with vector not a connection %v", p)
-		} else {
-			cds[i] = cd
 		}
+		cds[i] = cd
 	}
 	// Order based on connection details index, and if same index Pos > Neg
 	sort.Slice(cds, func(i, j int) bool {

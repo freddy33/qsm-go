@@ -55,16 +55,12 @@ type QsmEnvironment struct {
 
 var createEnvMutex sync.Mutex
 var environments map[QsmEnvID]*QsmEnvironment
-var defaultEnv *QsmEnvironment
 
 func init() {
 	environments = make(map[QsmEnvID]*QsmEnvironment)
 }
 
 func GetDefaultEnvironment() *QsmEnvironment {
-	if defaultEnv != nil {
-		return defaultEnv
-	}
 	envId := MainEnv
 	envIdFromOs := os.Getenv(QsmEnvNumberKey)
 	if envIdFromOs != "" {
@@ -74,8 +70,7 @@ func GetDefaultEnvironment() *QsmEnvironment {
 		}
 		envId = QsmEnvID(id)
 	}
-	defaultEnv = GetEnvironment(envId)
-	return defaultEnv
+	return GetEnvironment(envId)
 }
 
 func GetEnvironment(envId QsmEnvID) *QsmEnvironment {

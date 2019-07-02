@@ -2,6 +2,7 @@ package m3point
 
 import (
 	"github.com/freddy33/qsm-go/m3db"
+	"time"
 )
 
 var pointEnv *m3db.QsmEnvironment
@@ -75,6 +76,14 @@ func GetPointEnv() *m3db.QsmEnvironment {
 		pointEnv = m3db.GetDefaultEnvironment()
 	}
 	return pointEnv
+}
+
+func ReFillDb() {
+	env := GetPointEnv()
+	env.Destroy()
+	pointEnv = nil
+	time.Sleep(100 * time.Millisecond)
+	FillDb()
 }
 
 func FillDb() {

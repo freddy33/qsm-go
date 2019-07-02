@@ -36,6 +36,8 @@ func main() {
 		m3point.GenerateTextFiles()
 	case "filldb":
 		m3point.FillDb()
+	case "refilldb":
+		m3point.ReFillDb()
 	default:
 		fmt.Println("The param", c, "unknown")
 	}

@@ -271,7 +271,13 @@ func GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails {
 	return GetConnDetailsByVector(MakeVector(p1, p2))
 }
 
+func GetAllConnDetailsByVector() map[Point]*ConnectionDetails {
+	checkConnInitialized()
+	return allConnectionsByVector
+}
+
 func GetConnDetailsByVector(vector Point) *ConnectionDetails {
+	checkConnInitialized()
 	cd, ok := allConnectionsByVector[vector]
 	if !ok {
 		Log.Error("Vector", vector, "is not a known connection details")

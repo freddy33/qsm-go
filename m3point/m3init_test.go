@@ -142,12 +142,22 @@ func TestLoadOrCalculate(t *testing.T) {
 	defer _nilPointEnv()
 
 	start := time.Now()
-	calculateConnectionDetails()
-	calculateAllTrioDetails()
-	calculateAllTrioContexts()
-	calculateAllContextCubes()
+	allConnections, allConnectionsByVector = calculateConnectionDetails()
+	connectionsLoaded = true
+	allTrioDetails = calculateAllTrioDetails()
+	trioDetailsLoaded = true
+	allTrioContexts = calculateAllTrioContexts()
+	trioContextsLoaded = true
+	allCubesPerContext = calculateAllContextCubes()
+	cubesPerContextLoaded = true
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
+
+	assert.Equal(t, 50, len(allConnections))
+	assert.Equal(t, 50, len(allConnectionsByVector))
+	assert.Equal(t, 200, len(allTrioDetails))
+	assert.Equal(t, 52, len(allTrioContexts))
+	assert.Equal(t, 52, len(allCubesPerContext))
 
 	start = time.Now()
 	// force reload

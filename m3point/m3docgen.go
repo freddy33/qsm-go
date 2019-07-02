@@ -68,7 +68,7 @@ func GetTrioTransitionTableTxt() map[Int2][7]string {
 			conns := GetNonBaseConnections(tA, tB)
 			txtOut[0] = GetTrioConnType(conns)
 			for i, conn := range conns {
-				cd := allConnectionsByVector[conn]
+				cd := GetConnDetailsByVector(conn)
 				// Total size 18
 				txtOut[i+1] = fmt.Sprintf("%v %s", conn, cd.String())
 			}
@@ -146,7 +146,7 @@ func GetTrioTableCsv() [][]string {
 			columnNb++
 			csvOutput[lineNb][columnNb] = fmt.Sprintf("%d", bv[2])
 			columnNb++
-			csvOutput[lineNb][columnNb] = allConnectionsByVector[bv].String()
+			csvOutput[lineNb][columnNb] = GetConnDetailsByVector(bv).String()
 		}
 	}
 	return csvOutput
@@ -230,10 +230,11 @@ func writeAllConnectionDetails(dir string) {
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
-	nbConnDetails := ConnectionId(len(allConnectionsByVector) / 2)
+	allCons := GetAllConnDetailsByVector()
+	nbConnDetails := ConnectionId(len(allCons) / 2)
 	csvWriter := csv.NewWriter(csvFile)
 	for cdNb := ConnectionId(1); cdNb <= nbConnDetails; cdNb++ {
-		for _, v := range allConnectionsByVector {
+		for _, v := range allCons {
 			if v.GetId() == cdNb {
 				ds := v.ConnDS
 				posVec := v.Vector
@@ -253,7 +254,7 @@ func writeAllConnectionDetails(dir string) {
 					fmt.Sprintf("% d", ds),
 				})
 				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", v.String(), posVec, ds))
-				negCD := allConnectionsByVector[negVec]
+				negCD := GetConnDetailsByVector(negVec)
 				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", negCD.String(), negVec, ds))
 				break
 			}
