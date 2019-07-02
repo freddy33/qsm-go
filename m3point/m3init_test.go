@@ -148,8 +148,10 @@ func TestLoadOrCalculate(t *testing.T) {
 	trioDetailsLoaded = true
 	allTrioContexts = calculateAllTrioContexts()
 	trioContextsLoaded = true
-	allCubesPerContext = calculateAllContextCubes()
-	cubesPerContextLoaded = true
+	cubeIdsPerKey = calculateAllContextCubes()
+	cubesLoaded = true
+	pathBuilders = calculateAllPathBuilders()
+	pathBuildersLoaded = true
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
 
@@ -157,14 +159,16 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, 50, len(allConnectionsByVector))
 	assert.Equal(t, 200, len(allTrioDetails))
 	assert.Equal(t, 52, len(allTrioContexts))
-	assert.Equal(t, 52, len(allCubesPerContext))
+	assert.Equal(t, 5192, len(cubeIdsPerKey))
+	assert.Equal(t, 5192 + 1, len(pathBuilders))
 
 	start = time.Now()
 	// force reload
 	connectionsLoaded = false
 	trioDetailsLoaded = false
 	trioContextsLoaded = false
-	cubesPerContextLoaded = false
+	cubesLoaded = false
+	pathBuildersLoaded = false
 	Initialize()
 	loadTime := time.Now().Sub(start)
 	Log.Infof("Took %v to load", loadTime)
@@ -175,5 +179,6 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, 50, len(allConnectionsByVector))
 	assert.Equal(t, 200, len(allTrioDetails))
 	assert.Equal(t, 52, len(allTrioContexts))
-	assert.Equal(t, 52, len(allCubesPerContext))
+	assert.Equal(t, 5192, len(cubeIdsPerKey))
+	assert.Equal(t, 5192 + 1, len(pathBuilders))
 }

@@ -10,7 +10,8 @@ var pointEnv *m3db.QsmEnvironment
 var connectionsLoaded bool
 var trioDetailsLoaded bool
 var trioContextsLoaded bool
-var cubesPerContextLoaded bool
+var cubesLoaded bool
+var pathBuildersLoaded bool
 
 func checkConnInitialized() {
 	if !connectionsLoaded {
@@ -31,8 +32,14 @@ func checkTrioContextsInitialized() {
 }
 
 func checkCubesInitialized() {
-	if !cubesPerContextLoaded {
+	if !cubesLoaded {
 		Log.Fatal("Cubes should have been initialized! Please call m3point.Initialize() method before this!")
+	}
+}
+
+func checkPathBuildersInitialized() {
+	if !pathBuildersLoaded {
+		Log.Fatal("Path Builders should have been initialized! Please call m3point.Initialize() method before this!")
 	}
 }
 
@@ -41,6 +48,7 @@ func Initialize() {
 	initTrioDetails()
 	initTrioContexts()
 	initContextCubes()
+	initPathBuilders()
 }
 
 func initConnections() {
@@ -65,9 +73,16 @@ func initTrioContexts() {
 }
 
 func initContextCubes() {
-	if !cubesPerContextLoaded {
-		allCubesPerContext = loadContextCubes()
-		cubesPerContextLoaded = true
+	if !cubesLoaded {
+		cubeIdsPerKey = loadContextCubes()
+		cubesLoaded = true
+	}
+}
+
+func initPathBuilders() {
+	if !pathBuildersLoaded {
+		pathBuilders = loadPathBuilders()
+		pathBuildersLoaded = true
 	}
 }
 
@@ -129,4 +144,14 @@ func FillDb() {
 		Log.Infof("Environment %d has %d contexts cubes", env.GetId(), n)
 	}
 	initContextCubes()
+
+	n, err = saveAllPathBuilders()
+	if err != nil {
+		Log.Fatalf("could not save all path builders due to %v", err)
+		return
+	}
+	if Log.IsInfo() {
+		Log.Infof("Environment %d has %d path builders", env.GetId(), n)
+	}
+	initPathBuilders()
 }

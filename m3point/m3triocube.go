@@ -2,7 +2,7 @@ package m3point
 
 import "fmt"
 
-type CubeKey struct {
+type CubeOfTrioIndex struct {
 	// Index of cube center
 	center TrioIndex
 	// Indexes of center of cube face ordered by +X, -X, +Y, -Y, +Z, -Z
@@ -11,15 +11,24 @@ type CubeKey struct {
 	middleEdges [12]TrioIndex
 }
 
-type CubeListPerContext struct {
-	trCtx    *TrioContext
-	allCubes []CubeKey
+type CubeKeyId struct {
+	trCtxId int
+	cube    CubeOfTrioIndex
 }
 
-var allCubesPerContext []*CubeListPerContext
+type CubeListBuilder struct {
+	trCtx    *TrioContext
+	allCubes []CubeOfTrioIndex
+}
+
+const (
+	TotalNumberOfCubes = 5192
+)
+
+var cubeIdsPerKey map[CubeKeyId]int
 
 /***************************************************************/
-// CubeKey Functions
+// CubeOfTrioIndex Functions
 /***************************************************************/
 
 func GetMiddleEdgeIndex(ud1 UnitDirection, ud2 UnitDirection) int {
@@ -50,8 +59,8 @@ func GetMiddleEdgeIndex(ud1 UnitDirection, ud2 UnitDirection) int {
 }
 
 // Fill all the indexes assuming the distance of c from origin used in div by three
-func createTrioCube(trCtx *TrioContext, offset int, c Point) CubeKey {
-	res := CubeKey{}
+func createTrioCube(trCtx *TrioContext, offset int, c Point) CubeOfTrioIndex {
+	res := CubeOfTrioIndex{}
 	res.center = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c), offset)
 
 	res.centerFaces[PlusX] = trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(c.Add(XFirst)), offset)
@@ -79,30 +88,31 @@ func createTrioCube(trCtx *TrioContext, offset int, c Point) CubeKey {
 	return res
 }
 
-func (ck CubeKey) String() string {
-	return fmt.Sprintf("CK-%s-%s-%s-%s", ck.center.String(), ck.centerFaces[0].String(), ck.centerFaces[1].String(), ck.middleEdges[0].String())
+func (cube CubeOfTrioIndex) String() string {
+	return fmt.Sprintf("CK-%s-%s-%s-%s", cube.center.String(), cube.centerFaces[0].String(), cube.centerFaces[1].String(), cube.middleEdges[0].String())
 }
 
-func (ck CubeKey) GetCenterTrio() TrioIndex {
-	return ck.center
+func (cube CubeOfTrioIndex) GetCenterTrio() TrioIndex {
+	return cube.center
 }
 
-func (ck CubeKey) GetCenterFaceTrio(ud UnitDirection) TrioIndex {
-	return ck.centerFaces[ud]
+func (cube CubeOfTrioIndex) GetCenterFaceTrio(ud UnitDirection) TrioIndex {
+	return cube.centerFaces[ud]
 }
 
-func (ck CubeKey) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirection) TrioIndex {
-	return ck.middleEdges[GetMiddleEdgeIndex(ud1, ud2)]
+func (cube CubeOfTrioIndex) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirection) TrioIndex {
+	return cube.middleEdges[GetMiddleEdgeIndex(ud1, ud2)]
 }
 
 /***************************************************************/
-// CubeListPerContext Functions
+// CubeListBuilder Functions
 /***************************************************************/
 
-func calculateAllContextCubes() []*CubeListPerContext {
-	res := make([]*CubeListPerContext, totalNbContexts)
+func calculateAllContextCubes() map[CubeKeyId]int {
+	res := make(map[CubeKeyId]int, TotalNumberOfCubes)
+	cubeIdx := 1
 	for _, trCtx := range GetAllTrioContexts() {
-		cl := CubeListPerContext{trCtx, nil,}
+		cl := CubeListBuilder{trCtx, nil,}
 		switch trCtx.GetType() {
 		case 1:
 			cl.populate(1)
@@ -115,13 +125,17 @@ func calculateAllContextCubes() []*CubeListPerContext {
 		case 8:
 			cl.populate(8)
 		}
-		res[trCtx.GetId()] = &cl
+		for _, cube := range cl.allCubes {
+			key := CubeKeyId{trCtx.id, cube}
+			res[key] = cubeIdx
+			cubeIdx++
+		}
 	}
 	return res
 }
 
-func (cl *CubeListPerContext) populate(max CInt) {
-	allCubesMap := make(map[CubeKey]int)
+func (cl *CubeListBuilder) populate(max CInt) {
+	allCubesMap := make(map[CubeOfTrioIndex]int)
 	// For center populate for all offsets
 	maxOffset := cl.trCtx.ctxType.GetMaxOffset()
 	for offset := 0; offset < maxOffset; offset++ {
@@ -137,7 +151,7 @@ func (cl *CubeListPerContext) populate(max CInt) {
 			}
 		}
 	}
-	cl.allCubes = make([]CubeKey, len(allCubesMap))
+	cl.allCubes = make([]CubeOfTrioIndex, len(allCubesMap))
 	idx := 0
 	for c := range allCubesMap {
 		cl.allCubes[idx] = c
@@ -145,7 +159,7 @@ func (cl *CubeListPerContext) populate(max CInt) {
 	}
 }
 
-func (cl *CubeListPerContext) exists(offset int, c Point) bool {
+func (cl *CubeListBuilder) exists(offset int, c Point) bool {
 	toFind := createTrioCube(cl.trCtx, offset, c)
 	for _, c := range cl.allCubes {
 		if c == toFind {
@@ -155,7 +169,36 @@ func (cl *CubeListPerContext) exists(offset int, c Point) bool {
 	return false
 }
 
-func GetCubeList(trCtx *TrioContext) *CubeListPerContext {
+func GetCubeList(trCtx *TrioContext) *CubeListBuilder {
 	checkCubesInitialized()
-	return allCubesPerContext[trCtx.GetId()]
+	res := CubeListBuilder{}
+	res.trCtx = trCtx
+	res.allCubes = make([]CubeOfTrioIndex, 0, 100)
+	for cubeKey := range cubeIdsPerKey {
+		if cubeKey.trCtxId == trCtx.GetId() {
+			res.allCubes = append(res.allCubes, cubeKey.cube)
+		}
+	}
+	return &res
+}
+
+func GetCubeById(cubeId int) CubeKeyId {
+	checkCubesInitialized()
+	for cubeKey, id := range cubeIdsPerKey {
+		if id == cubeId {
+			return cubeKey
+		}
+	}
+	Log.Errorf("trying to find cube by id %d which does not exists", cubeId)
+	return CubeKeyId{-1, CubeOfTrioIndex{}}
+}
+
+func GetCubeIdByKey(cubeKey CubeKeyId) int {
+	checkCubesInitialized()
+	id, ok := cubeIdsPerKey[cubeKey]
+	if !ok {
+		Log.Errorf("trying to find cube %v which does not exists", cubeKey)
+		return -1
+	}
+	return id
 }
