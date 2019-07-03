@@ -93,18 +93,18 @@ func loadPathBuilders() []*RootPathNodeBuilder {
 		if err != nil {
 			Log.Errorf("failed to load path builder line %d", len(res))
 		} else {
-			pathBuilderCtx := PathBuilderContext{trioIndexId, cubeId}
+			pathBuilderCtx := PathBuilderContext{GetTrioContextById(trioIndexId), cubeId}
 			builder := RootPathNodeBuilder{}
-			builder.ctx = pathBuilderCtx
+			builder.ctx = &pathBuilderCtx
 			rootTd := GetTrioDetails(TrioIndex(rootTrIdx))
 			builder.trIdx = rootTd.GetId()
 			for i, interTrIdx := range intersTrIdx {
 				interPathNode := IntermediatePathNodeBuilder{}
-				interPathNode.ctx = pathBuilderCtx
+				interPathNode.ctx = builder.ctx
 				interPathNode.trIdx = TrioIndex(interTrIdx)
 				for j := 0; j < 2; j++ {
 					lastPathNode := LastIntermediatePathNodeBuilder{}
-					lastPathNode.ctx = pathBuilderCtx
+					lastPathNode.ctx = builder.ctx
 					lastPathNode.trIdx = TrioIndex(lastIntersTrIdx[i][j])
 					lastPathNode.nextMainConnId = ConnectionId(nextMainConnIds[i][j])
 					lastPathNode.nextInterConnId = ConnectionId(nextInterConnIds[i][j])
@@ -153,7 +153,7 @@ func saveAllPathBuilders() (int, error) {
 					lastInterPNs[i][j] = lipn
 				}
 			}
-			err := te.Insert(cubeId, rootNode.ctx.trCtxId, rootNode.trIdx,
+			err := te.Insert(cubeId, rootNode.ctx.trCtx.id, rootNode.trIdx,
 				interPNs[0].trIdx, interPNs[1].trIdx, interPNs[2].trIdx,
 				interConnIds[0][0], lastInterPNs[0][0].trIdx, lastInterPNs[0][0].nextMainConnId, lastInterPNs[0][0].nextInterConnId,
 				interConnIds[0][1], lastInterPNs[0][1].trIdx, lastInterPNs[0][1].nextMainConnId, lastInterPNs[0][1].nextInterConnId,

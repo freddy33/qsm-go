@@ -7,12 +7,12 @@ import (
 
 // The ctx for each main point start point that gives in the global map the root path node builder
 type PathBuilderContext struct {
-	trCtxId int
-	cubeId  int
+	trCtx  *TrioContext
+	cubeId int
 }
 
 func (ctx *PathBuilderContext) String() string {
-	return fmt.Sprintf("PBC-%02d-%03d", ctx.trCtxId, ctx.cubeId)
+	return fmt.Sprintf("PBC-%02d-%03d", ctx.trCtx.GetId(), ctx.cubeId)
 }
 
 type PathNodeBuilder interface {
@@ -24,7 +24,7 @@ type PathNodeBuilder interface {
 }
 
 type BasePathNodeBuilder struct {
-	ctx   PathBuilderContext
+	ctx   *PathBuilderContext
 	trIdx TrioIndex
 }
 
@@ -65,9 +65,9 @@ func calculateAllPathBuilders() []*RootPathNodeBuilder {
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 	res[0] = nil
 	for cubeKey, cubeId := range cubeIdsPerKey {
-		key := PathBuilderContext{cubeKey.trCtxId, cubeId}
+		key := PathBuilderContext{GetTrioContextById(cubeKey.trCtxId), cubeId}
 		root := RootPathNodeBuilder{}
-		root.ctx = key
+		root.ctx = &key
 		root.populate()
 		res[cubeId] = &root
 	}
@@ -76,6 +76,7 @@ func calculateAllPathBuilders() []*RootPathNodeBuilder {
 
 func GetPathNodeBuilder(trCtx *TrioContext, offset int, c Point) PathNodeBuilder {
 	checkPathBuildersInitialized()
+	// TODO: Verify the key below stay local and is not staying in memory
 	key := CubeKeyId{trCtx.id, createTrioCube(trCtx, offset, c)}
 	cubeId := GetCubeIdByKey(key)
 	return pathBuilders[cubeId]
@@ -155,7 +156,7 @@ type NextMainPathNode struct {
 }
 
 func (rpnb *RootPathNodeBuilder) populate() {
-	trCtx := GetTrioContextById(rpnb.ctx.trCtxId)
+	trCtx := rpnb.ctx.trCtx
 	cubeKey := GetCubeById(rpnb.ctx.cubeId)
 	cube := cubeKey.cube
 	rpnb.trIdx = cube.center
@@ -303,7 +304,7 @@ func (lipnb *LastIntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point,
 			Log.Fatalf("last inter main path node %s (%s) does give a main point using %v and %s", lipnb.String(), lipnb.dumpInfo(), from, lipnb.nextMainConnId)
 		}
 	}
-	nextMainPnb := GetPathNodeBuilder(GetTrioContextById(lipnb.ctx.trCtxId), offset, nextMainPoint)
+	nextMainPnb := GetPathNodeBuilder(lipnb.ctx.trCtx, offset, nextMainPoint)
 	if lipnb.nextMainConnId == connId {
 		return nextMainPnb, nextMainPoint
 	} else if lipnb.nextInterConnId == connId {
