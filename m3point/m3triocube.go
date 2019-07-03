@@ -189,7 +189,7 @@ func GetCubeById(cubeId int) CubeKeyId {
 			return cubeKey
 		}
 	}
-	Log.Errorf("trying to find cube by id %d which does not exists", cubeId)
+	Log.Fatalf("trying to find cube by id %d which does not exists", cubeId)
 	return CubeKeyId{-1, CubeOfTrioIndex{}}
 }
 
@@ -197,7 +197,7 @@ func GetCubeIdByKey(cubeKey CubeKeyId) int {
 	checkCubesInitialized()
 	id, ok := cubeIdsPerKey[cubeKey]
 	if !ok {
-		Log.Errorf("trying to find cube %v which does not exists", cubeKey)
+		Log.Fatalf("trying to find cube %v which does not exists", cubeKey)
 		return -1
 	}
 	return id

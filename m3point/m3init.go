@@ -55,6 +55,7 @@ func initConnections() {
 	if !connectionsLoaded {
 		allConnections, allConnectionsByVector = loadConnectionDetails()
 		connectionsLoaded = true
+		Log.Debugf("Environment %d has %d connection details", GetPointEnv().GetId(), len(allConnections))
 	}
 }
 
@@ -62,6 +63,7 @@ func initTrioDetails() {
 	if !trioDetailsLoaded {
 		allTrioDetails = loadTrioDetails()
 		trioDetailsLoaded = true
+		Log.Debugf("Environment %d has %d trio details", GetPointEnv().GetId(), len(allTrioDetails))
 	}
 }
 
@@ -69,6 +71,7 @@ func initTrioContexts() {
 	if !trioContextsLoaded {
 		allTrioContexts = loadTrioContexts()
 		trioContextsLoaded = true
+		Log.Debugf("Environment %d has %d trio context", GetPointEnv().GetId(), len(allTrioContexts))
 	}
 }
 
@@ -76,6 +79,7 @@ func initContextCubes() {
 	if !cubesLoaded {
 		cubeIdsPerKey = loadContextCubes()
 		cubesLoaded = true
+		Log.Debugf("Environment %d has %d cubes", GetPointEnv().GetId(), len(cubeIdsPerKey))
 	}
 }
 
@@ -83,6 +87,7 @@ func initPathBuilders() {
 	if !pathBuildersLoaded {
 		pathBuilders = loadPathBuilders()
 		pathBuildersLoaded = true
+		Log.Debugf("Environment %d has %d path builders", GetPointEnv().GetId(), len(pathBuilders))
 	}
 }
 

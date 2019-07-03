@@ -100,9 +100,11 @@ func loadPathBuilders() []*RootPathNodeBuilder {
 			builder.trIdx = rootTd.GetId()
 			for i, interTrIdx := range intersTrIdx {
 				interPathNode := IntermediatePathNodeBuilder{}
+				interPathNode.ctx = pathBuilderCtx
 				interPathNode.trIdx = TrioIndex(interTrIdx)
 				for j := 0; j < 2; j++ {
 					lastPathNode := LastIntermediatePathNodeBuilder{}
+					lastPathNode.ctx = pathBuilderCtx
 					lastPathNode.trIdx = TrioIndex(lastIntersTrIdx[i][j])
 					lastPathNode.nextMainConnId = ConnectionId(nextMainConnIds[i][j])
 					lastPathNode.nextInterConnId = ConnectionId(nextInterConnIds[i][j])

@@ -18,11 +18,11 @@ func TestDisplayPathBuilders(t *testing.T) {
 }
 
 func TestAllPathBuilders(t *testing.T) {
+	setFullTestDb()
 	Log.SetAssert(true)
+	Log.SetDebug()
 	Initialize()
 	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
-	// TODO: Should work with Load :(
-	pathBuilders = calculateAllPathBuilders()
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
@@ -117,6 +117,9 @@ func TestAllPathBuilders(t *testing.T) {
 								assert.Equal(t, lip.GetNearMainPoint(), nmp, "next path node failed points at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 
 								// Make sure the way back get same trio
+								if Log.IsTrace() {
+									Log.Tracef("get back from %s %s %v", nextMainPB.String(), trCtx.GetBaseTrioDetails(nmp, offset).String(), nmp)
+								}
 								backIpnb, oLip := nextMainPB.GetNextPathNodeBuilder(nmp, olipnb.nextMainConnId.GetNegId(), offset)
 								assert.NotNil(t, backIpnb, "%s next root builder is nil", nextMainPB.String())
 								assert.Equal(t, lip, oLip, "%s next root builder does not point back to same point", nextMainPB.String())
