@@ -18,7 +18,7 @@ func createTrioContextTableDef() *m3db.TableDefinition {
 	res.DdlColumns = "(id smallint PRIMARY KEY," +
 		" ctx_type smallint," +
 		" ctx_index smallint, UNIQUE (ctx_type, ctx_index) )"
-	res.InsertStmt = "(id, ctx_type, ctx_index) values ($1,$2,$3)"
+	res.Insert = "(id, ctx_type, ctx_index) values ($1,$2,$3)"
 	res.SelectAll = "select id, ctx_type, ctx_index from trio_contexts"
 	res.ExpectedCount = 52
 	return &res

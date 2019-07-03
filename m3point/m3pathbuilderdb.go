@@ -16,17 +16,16 @@ func init() {
 func createPathBuilderContextTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = PathBuildersTable
-	res.DdlColumns = fmt.Sprintf("(id smallint REFERENCES %s (id),"+
-		" ctx_id smallint REFERENCES %s (id),"+
-		" root smallint REFERENCES %s (id),"+
-		" inter1 smallint REFERENCES %s (id), inter2 smallint REFERENCES %s (id), inter3 smallint REFERENCES %s (id),"+
-		" conn11 smallint REFERENCES %s (id), last_inter11 smallint REFERENCES %s (id), next_main_conn11 smallint REFERENCES %s (id), next_inter_conn11 smallint REFERENCES %s (id),"+
-		" conn12 smallint REFERENCES %s (id), last_inter12 smallint REFERENCES %s (id), next_main_conn12 smallint REFERENCES %s (id), next_inter_conn12 smallint REFERENCES %s (id),"+
-		" conn21 smallint REFERENCES %s (id), last_inter21 smallint REFERENCES %s (id), next_main_conn21 smallint REFERENCES %s (id), next_inter_conn21 smallint REFERENCES %s (id),"+
-		" conn22 smallint REFERENCES %s (id), last_inter22 smallint REFERENCES %s (id), next_main_conn22 smallint REFERENCES %s (id), next_inter_conn22 smallint REFERENCES %s (id),"+
-		" conn31 smallint REFERENCES %s (id), last_inter31 smallint REFERENCES %s (id), next_main_conn31 smallint REFERENCES %s (id), next_inter_conn31 smallint REFERENCES %s (id),"+
-		" conn32 smallint REFERENCES %s (id), last_inter32 smallint REFERENCES %s (id), next_main_conn32 smallint REFERENCES %s (id), next_inter_conn32 smallint REFERENCES %s (id)," +
-		" PRIMARY KEY (id))",
+	res.DdlColumns = fmt.Sprintf("(id smallint PRIMARY KEY REFERENCES %s (id),"+
+		" ctx_id smallint NOT NULL REFERENCES %s (id),"+
+		" root smallint NOT NULL REFERENCES %s (id),"+
+		" inter1 smallint NOT NULL REFERENCES %s (id), inter2 smallint NOT NULL REFERENCES %s (id), inter3 smallint NOT NULL REFERENCES %s (id),"+
+		" conn11 smallint NOT NULL REFERENCES %s (id), last_inter11 smallint NOT NULL REFERENCES %s (id), next_main_conn11 smallint NOT NULL REFERENCES %s (id), next_inter_conn11 smallint NOT NULL REFERENCES %s (id),"+
+		" conn12 smallint NOT NULL REFERENCES %s (id), last_inter12 smallint NOT NULL REFERENCES %s (id), next_main_conn12 smallint NOT NULL REFERENCES %s (id), next_inter_conn12 smallint NOT NULL REFERENCES %s (id),"+
+		" conn21 smallint NOT NULL REFERENCES %s (id), last_inter21 smallint NOT NULL REFERENCES %s (id), next_main_conn21 smallint NOT NULL REFERENCES %s (id), next_inter_conn21 smallint NOT NULL REFERENCES %s (id),"+
+		" conn22 smallint NOT NULL REFERENCES %s (id), last_inter22 smallint NOT NULL REFERENCES %s (id), next_main_conn22 smallint NOT NULL REFERENCES %s (id), next_inter_conn22 smallint NOT NULL REFERENCES %s (id),"+
+		" conn31 smallint NOT NULL REFERENCES %s (id), last_inter31 smallint NOT NULL REFERENCES %s (id), next_main_conn31 smallint NOT NULL REFERENCES %s (id), next_inter_conn31 smallint NOT NULL REFERENCES %s (id),"+
+		" conn32 smallint NOT NULL REFERENCES %s (id), last_inter32 smallint NOT NULL REFERENCES %s (id), next_main_conn32 smallint NOT NULL REFERENCES %s (id), next_inter_conn32 smallint NOT NULL REFERENCES %s (id))",
 		TrioCubesTable,
 		TrioContextsTable,
 		TrioDetailsTable,
@@ -37,7 +36,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable,
 		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable,
 		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable)
-	res.InsertStmt = "(id, ctx_id, root," +
+	res.Insert = "(id, ctx_id, root," +
 		" inter1, inter2, inter3, " +
 		" conn11, last_inter11, next_main_conn11, next_inter_conn11," +
 		" conn12, last_inter12, next_main_conn12, next_inter_conn12," +

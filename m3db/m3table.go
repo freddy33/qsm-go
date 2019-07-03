@@ -8,8 +8,9 @@ import (
 type TableDefinition struct {
 	Name          string
 	DdlColumns    string
-	InsertStmt    string
+	Insert        string
 	SelectAll     string
+	Queries       []string
 	ExpectedCount int
 }
 
@@ -19,9 +20,10 @@ type TableExec struct {
 	checked   bool
 	created   bool
 
-	env        *QsmEnvironment
-	TableDef   *TableDefinition
-	InsertStmt *sql.Stmt
+	env         *QsmEnvironment
+	TableDef    *TableDefinition
+	InsertStmt  *sql.Stmt
+	QueriesStmt []*sql.Stmt
 }
 
 var tableDefinitions map[string]*TableDefinition
@@ -120,6 +122,19 @@ func (env *QsmEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, e
 		Log.Error(err)
 		return nil, err
 	}
+
+	nbQueries := len(tableExec.TableDef.Queries)
+	if nbQueries > 0 {
+		tableExec.QueriesStmt = make([]*sql.Stmt, nbQueries)
+		for i, query := range tableExec.TableDef.Queries {
+			err = tableExec.fillQuery(i, query)
+			if err != nil {
+				Log.Error(err)
+				return nil, err
+			}
+		}
+	}
+
 	return tableExec, nil
 }
 
@@ -148,44 +163,90 @@ func (te *TableExec) Close() error {
 
 func (te *TableExec) fillStmt() error {
 	db := te.env.GetConnection()
-	stmt, err := db.Prepare(fmt.Sprintf("insert into %s "+te.TableDef.InsertStmt, te.TableDef.Name))
+	query := fmt.Sprintf("insert into %s "+te.TableDef.Insert, te.TableDef.Name)
+	stmt, err := db.Prepare(query)
 	if err != nil {
-		Log.Error(err)
+		Log.Errorf("for table %s preparing insert query with '%s' got error %v", te.tableName, query, err)
 		return err
 	}
 	te.InsertStmt = stmt
 	return nil
 }
 
+func (te *TableExec) fillQuery(i int, query string) error {
+	db := te.env.GetConnection()
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		Log.Errorf("for table %s preparing query %d with '%s' got error %v", te.tableName, i, query, err)
+		return err
+	}
+	te.QueriesStmt[i] = stmt
+	return nil
+}
+
 func (te *TableExec) Insert(args ...interface{}) error {
 	res, err := te.InsertStmt.Exec(args...)
 	if err != nil {
-		Log.Error(err)
+		Log.Errorf("executing insert for table %s with args %v got error %v", te.tableName, args, err)
 		return err
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		Log.Error(err)
+		Log.Errorf("after insert on table %s with args %v extracting rows received error %v", te.tableName, args, err)
 		return err
 	}
 	if Log.IsTrace() {
-		Log.Tracef("inserted %v got %d response", args, rows)
+		Log.Tracef("table %s inserted %v got %d response", te.tableName, args, rows)
 	}
 	if rows != int64(1) {
-		err = QsmError(fmt.Sprintf("should have receive one result, and got %d", rows))
+		err = QsmError(fmt.Sprintf("insert query on table %s should have receive one result, and got %d", te.tableName, rows))
 		Log.Error(err)
 		return err
 	}
 	return nil
 }
 
-func closeTxQuietly(tx *sql.Tx) {
-	if tx != nil {
-		err := tx.Rollback()
-		if err != nil {
-			Log.Errorf("Rollback threw %v", err)
-		}
+func (te *TableExec) InsertReturnId(args ...interface{}) (int, error) {
+	row := te.InsertStmt.QueryRow(args...)
+	var id int
+	err := row.Scan(&id)
+	if err != nil {
+		Log.Errorf("inserting on table %s using query row with args %v got error %v", te.tableName, args, err)
+		return -1, err
 	}
+	if Log.IsTrace() {
+		Log.Tracef("table %s inserted %v got %d response", te.tableName, args, id)
+	}
+	return id, nil
+}
+
+func (te *TableExec) Update(queryId int, args ...interface{}) (int, error) {
+	res, err := te.QueriesStmt[queryId].Exec(args...)
+	if err != nil {
+		Log.Errorf("executing update for table %s for query %d with args %v got error %v", te.tableName, queryId, args, err)
+		return 0, err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		Log.Errorf("after update on table %s for query %d with args %v extracting rows received error %v", te.tableName, queryId, args, err)
+		return 0, err
+	}
+	if Log.IsTrace() {
+		Log.Tracef("updated table %s with query %d and args %v got %d response", te.tableName, queryId, args, rows)
+	}
+	return int(rows), nil
+}
+
+func (te *TableExec) Query(queryId int, args ...interface{}) (*sql.Rows, error) {
+	rows, err := te.QueriesStmt[queryId].Query(args...)
+	if err != nil {
+		Log.Errorf("executing query %d for table %s with args %v got error %v", queryId, te.tableName, args, err)
+		return nil, err
+	}
+	if Log.IsTrace() {
+		Log.Tracef("query %d on table %s with args %v got response", queryId, te.tableName, args)
+	}
+	return rows, nil
 }
 
 func (te *TableExec) initForTable(tableName string) error {

@@ -23,7 +23,7 @@ func createConnectionDetailsTableDef() *m3db.TableDefinition {
 		" y integer," +
 		" z integer," +
 		" ds bigint)"
-	res.InsertStmt = "(id,x,y,z,ds) values ($1,$2,$3,$4,$5)"
+	res.Insert = "(id,x,y,z,ds) values ($1,$2,$3,$4,$5)"
 	res.SelectAll = "select id,x,y,z,ds from connection_details"
 	res.ExpectedCount = 50
 	return &res
@@ -36,7 +36,7 @@ func createTrioDetailsTableDef() *m3db.TableDefinition {
 		" conn1 smallint REFERENCES %s (id),"+
 		" conn2 smallint REFERENCES %s (id),"+
 		" conn3 smallint REFERENCES %s (id))", ConnectionDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable)
-	res.InsertStmt = "(id,conn1,conn2,conn3) values ($1,$2,$3,$4)"
+	res.Insert = "(id,conn1,conn2,conn3) values ($1,$2,$3,$4)"
 	res.SelectAll = "select id, conn1, conn2, conn3 from trio_details"
 	res.ExpectedCount = 200
 	return &res

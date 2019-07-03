@@ -33,7 +33,7 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 		TrioDetailsTable, TrioDetailsTable, TrioDetailsTable, TrioDetailsTable,
 		TrioDetailsTable, TrioDetailsTable, TrioDetailsTable, TrioDetailsTable,
 		TrioDetailsTable, TrioDetailsTable, TrioDetailsTable, TrioDetailsTable)
-	res.InsertStmt = "(id, ctx_id, center," +
+	res.Insert = "(id, ctx_id, center," +
 		" center_faces_PX, center_faces_MX, center_faces_PY, center_faces_MY, center_faces_PZ, center_faces_MZ, " +
 		" middle_edges_PXPY, middle_edges_PXMY, middle_edges_PXPZ, middle_edges_PXMZ, " +
 		" middle_edges_MXPY, middle_edges_MXMY, middle_edges_MXPZ, middle_edges_MXMZ, " +
