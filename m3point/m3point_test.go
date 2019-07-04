@@ -234,7 +234,7 @@ func TestPointRotations(t *testing.T) {
 	nbRun := 100
 	rdMax := CInt(100000000)
 	for i := 0; i < nbRun; i++ {
-		randomPoint := Point{randomInt64(rdMax), randomInt64(rdMax), randomInt64(rdMax)}
+		randomPoint := RandomPoint(rdMax)
 		assert.Equal(t, Orig.Sub(randomPoint), randomPoint.Neg())
 		assert.Equal(t, randomPoint.Sub(randomPoint.Add(OneTwoThree)), OneTwoThree.Neg())
 		assert.Equal(t, randomPoint.Sub(randomPoint.Add(OneTwoThree)), OneTwoThree.Mul(-1))
@@ -261,7 +261,11 @@ func TestPointRotations(t *testing.T) {
 	}
 }
 
-func randomInt64(max CInt) CInt {
+func RandomPoint(max CInt) Point {
+	return Point{RandomCInt(max), RandomCInt(max), RandomCInt(max)}
+}
+
+func RandomCInt(max CInt) CInt {
 	r := CInt(rand.Int31n(int32(max)))
 	if rand.Float32() < 0.5 {
 		return -r

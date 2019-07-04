@@ -206,16 +206,16 @@ func (te *TableExec) Insert(args ...interface{}) error {
 	return nil
 }
 
-func (te *TableExec) InsertReturnId(args ...interface{}) (int, error) {
+func (te *TableExec) InsertReturnId(args ...interface{}) (int64, error) {
 	row := te.InsertStmt.QueryRow(args...)
-	var id int
+	var id int64
 	err := row.Scan(&id)
 	if err != nil {
 		Log.Errorf("inserting on table %s using query row with args %v got error %v", te.tableName, args, err)
 		return -1, err
 	}
 	if Log.IsTrace() {
-		Log.Tracef("table %s inserted %v got %d response", te.tableName, args, id)
+		Log.Tracef("table %s inserted %v got id %d", te.tableName, args, id)
 	}
 	return id, nil
 }
@@ -247,6 +247,13 @@ func (te *TableExec) Query(queryId int, args ...interface{}) (*sql.Rows, error) 
 		Log.Tracef("query %d on table %s with args %v got response", queryId, te.tableName, args)
 	}
 	return rows, nil
+}
+
+func (te *TableExec) CloseRows(rows *sql.Rows) {
+	err := rows.Close()
+	if err != nil {
+		Log.Errorf("error closing %s result set %v", te.tableName, err)
+	}
 }
 
 func (te *TableExec) initForTable(tableName string) error {
