@@ -32,7 +32,7 @@ func setCleanTempDb() {
 	cleanedDb = true
 }
 
-func setFullTestDb() {
+func SetFullTestDb() {
 	envNumber := strconv.Itoa(int(m3db.TestEnv))
 	origQsmId := os.Getenv(m3db.QsmEnvNumberKey)
 
@@ -138,7 +138,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	m3db.Log.SetInfo()
 	Log.SetInfo()
 
-	setFullTestDb()
+	SetFullTestDb()
 	defer _nilPointEnv()
 
 	start := time.Now()

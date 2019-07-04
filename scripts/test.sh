@@ -10,6 +10,9 @@ if [[ -z "$pack" ]]; then
     usage
 fi
 
+# TODO: analyze second param to test on other env. By default it's 3
+export QSM_ENV_NUMBER=3
+
 if [ "$pack" == "point" ] || [ "$pack" == "path" ] || [ "$pack" == "space" ] || [ "$pack" == "db" ] || [ "$pack" == "gl" ]; then
     go test ./m3${pack}/
     exit $?

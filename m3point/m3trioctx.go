@@ -164,7 +164,7 @@ func (trCtx *TrioContext) GetBaseTrioIndex(divByThree uint64, offset int) TrioIn
 		return ctxTrIdx
 	}
 	if trCtx.ctxType == 3 {
-		// Center on Trio index ctx.GetIndex() and then use X, Y, Z where conn are 1
+		// Center on Trio index ctx.GetTrioContextIndex() and then use X, Y, Z where conn are 1
 		mod2 := PosMod2(divByThree)
 		if mod2 == 0 {
 			return ctxTrIdx

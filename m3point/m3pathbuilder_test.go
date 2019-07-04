@@ -18,7 +18,7 @@ func TestDisplayPathBuilders(t *testing.T) {
 }
 
 func TestAllPathBuilders(t *testing.T) {
-	setFullTestDb()
+	SetFullTestDb()
 	Log.SetAssert(true)
 	Log.SetDebug()
 	Initialize()

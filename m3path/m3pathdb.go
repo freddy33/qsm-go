@@ -10,9 +10,13 @@ const (
 	PointsTable = "points"
 	PathContextsTable = "path_contexts"
 	PathNodesTable    = "path_nodes"
-	OpenEndPathsTable = "open_end_paths"
-	PathLinksTable    = "path_links"
 )
+
+func init() {
+	m3db.AddTableDef(createPointsTableDef())
+	m3db.AddTableDef(createPathContextsTableDef())
+	m3db.AddTableDef(creatPathNodesTableDef())
+}
 
 const (
 	FindPointIdPerCoord = 0
@@ -40,10 +44,11 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 	res.Name = PathContextsTable
 	res.DdlColumns = fmt.Sprintf("(id serial PRIMARY KEY," +
 		" trio_ctx_id smallint NOT NULL REFERENCES %s (id),"+
-		" offset NOT NULL smallint)",
-		m3point.TrioContextsTable)
-	res.Insert = "(trio_ctx_id,offset) values ($1,$2) returning id"
-	res.SelectAll = fmt.Sprintf("select id, trio_ctx_id, offset from %s", PathContextsTable)
+		" offset NOT NULL smallint," +
+		" path_builders_id NOT NULL REFERENCES %s (id))",
+		m3point.TrioContextsTable, m3point.PathBuildersTable)
+	res.Insert = "(trio_ctx_id,offset,path_builders_id) values ($1,$2,$3) returning id"
+	res.SelectAll = fmt.Sprintf("select id, trio_ctx_id, offset path_builders_id from %s", PathContextsTable)
 	res.ExpectedCount = -1
 	return &res
 }
@@ -60,44 +65,35 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.Name = PathNodesTable
 	res.DdlColumns = fmt.Sprintf("(id serial PRIMARY KEY," +
 		" path_ctx_id integer NOT NULL REFERENCES %s (id)," +
+		" path_builders_id NOT NULL REFERENCES %s (id)," +
 		" trio_id smallint NOT NULL REFERENCES %s (id)," +
 		" point_id bigint NOT NULL REFERENCES %s (id)," +
 		" d integer NOT NULL DEFAULT 0," +
 		" from1 integer NULL REFERENCES %s (id), from2 integer NULL REFERENCES %s (id), from3 integer NULL REFERENCES %s (id), " +
 		" next1 integer NULL REFERENCES %s (id), next2 integer NULL REFERENCES %s (id), next3 integer NULL REFERENCES %s (id))",
-		PathContextsTable, m3point.TrioDetailsTable, PointsTable,
+		PathContextsTable, m3point.PathBuildersTable, m3point.TrioDetailsTable, PointsTable,
 		PathNodesTable, PathNodesTable, PathNodesTable,
 		PathNodesTable, PathNodesTable, PathNodesTable)
-	res.Insert = "(path_ctx_id, trio_id, point_id, d," +
+	res.Insert = "(path_ctx_id, path_builders_id, trio_id, point_id, d," +
 		" from1, from2, from3," +
 		" next1, next2, next3)" +
-		" values ($1,$2,$3,$4," +
-		" $5,$6,$7," +
-		" $8,$9,$10) returning id"
+		" values ($1,$2,$3,$4,$5," +
+		" $6,$7,$8" +
+		" $9,$10,$11) returning id"
 	res.SelectAll = "not to call select all on node path"
 	res.ExpectedCount = -1
 	res.Queries = make([]string, 4)
-	res.Queries[SelectPathNodesById] = fmt.Sprintf("select path_ctx_id, trio_id, point_id, d," +
+	res.Queries[SelectPathNodesById] = fmt.Sprintf("select path_ctx_id, path_builders_id, trio_id, point_id, d," +
 		" from1, from2, from3," +
 		" next1, next2, next3 from %s where id = $1", PathNodesTable)
 	res.Queries[UpdatePathNode] = fmt.Sprintf("update %s set from1 = $2, from2 = $3, from3 = $4," +
 		" next1 = $5, next2 = $6, next3 = $7 where id = $1", PathNodesTable)
-	res.Queries[SelectPathNodeByCtxAndDistance] = fmt.Sprintf("select id, trio_id, point_id," +
+	res.Queries[SelectPathNodeByCtxAndDistance] = fmt.Sprintf("select id, path_builders_id, trio_id, point_id," +
 		" from1, from2, from3," +
 		" next1, next2, next3 from %s where path_ctx_id = $1 and d = $2", PathNodesTable)
-	res.Queries[SelectPathNodeByCtx] = fmt.Sprintf("select id, trio_id, point_id, d," +
+	res.Queries[SelectPathNodeByCtx] = fmt.Sprintf("select id, path_builders_id, trio_id, point_id, d," +
 		" from1, from2, from3," +
 		" next1, next2, next3 from %s where path_ctx_id = $1", PathNodesTable)
-	return &res
-}
-
-func createOpenEndPathTableDef() *m3db.TableDefinition {
-	res := m3db.TableDefinition{}
-	res.Name = PathContextsTable
-	res.DdlColumns = fmt.Sprintf("(id serial PRIMARY KEY," +
-		" path_ctx_id integer REFERENCES %s (id),"+
-		" path_node_id )",
-		PathContextsTable)
 	return &res
 }
 

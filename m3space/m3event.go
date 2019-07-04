@@ -30,7 +30,7 @@ type Event struct {
 	node        Node
 	created     DistAndTime
 	color       EventColor
-	pathContext *m3path.PathContext
+	pathContext m3path.PathContextIfc
 }
 
 type SpacePathNodeMap struct {

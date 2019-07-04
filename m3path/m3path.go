@@ -9,7 +9,23 @@ import (
 
 var Log = m3util.NewLogger("m3path", m3util.INFO)
 
-type PathContext struct {
+type PathContextIfc interface {
+	fmt.Stringer
+	GetTrioCtx() *m3point.TrioContext
+	GetOffset() int
+	GetTrioContextType() m3point.ContextType
+	GetTrioContextIndex() int
+	GetPathNodeMap() PathNodeMap
+	InitRootNode(center m3point.Point)
+	GetRootPathNode() PathNode
+	GetNumberOfOpenNodes() int
+	GetAllOpenPathNodes() []PathNode
+	MoveToNextNodes()
+	PredictedNextOpenNodesLen() int
+	dumpInfo() string
+}
+
+type BasePathContext struct {
 	ctx    *m3point.TrioContext
 	offset int
 
@@ -51,7 +67,7 @@ type BasePathLink struct {
 
 type PathNode interface {
 	fmt.Stringer
-	GetPathContext() *PathContext
+	GetPathContext() *BasePathContext
 	IsEnd() bool
 	IsRoot() bool
 	IsLatest() bool
@@ -71,7 +87,7 @@ type PathNode interface {
 
 type BasePathNode struct {
 	// The path context the link belongs to
-	pathCtx *PathContext
+	pathCtx *BasePathContext
 	// The point of this path node
 	p m3point.Point
 	// The current trio index of the path point
@@ -107,15 +123,15 @@ var EndPathNode = &EndPathNodeT{}
 var EndPathLink = &BasePathLink{EndPathNode, m3point.NilConnectionId, EndPathNode }
 
 /***************************************************************/
-// PathContext Functions
+// BasePathContext Functions
 /***************************************************************/
 
-func MakePathContext(ctxType m3point.ContextType, pIdx int, offset int, pnm PathNodeMap) *PathContext {
+func MakePathContext(ctxType m3point.ContextType, pIdx int, offset int, pnm PathNodeMap) PathContextIfc {
 	return MakePathContextFromTrioContext(m3point.GetTrioContextByTypeAndIdx(ctxType, pIdx), offset, pnm)
 }
 
-func MakePathContextFromTrioContext(trCtx *m3point.TrioContext, offset int, pnm PathNodeMap) *PathContext {
-	pathCtx := PathContext{}
+func MakePathContextFromTrioContext(trCtx *m3point.TrioContext, offset int, pnm PathNodeMap) PathContextIfc {
+	pathCtx := BasePathContext{}
 	pathCtx.ctx = trCtx
 	pathCtx.offset = offset
 	pathCtx.pathNodeMap = pnm
@@ -123,27 +139,43 @@ func MakePathContextFromTrioContext(trCtx *m3point.TrioContext, offset int, pnm 
 	return &pathCtx
 }
 
-func (pathCtx *PathContext) GetType() m3point.ContextType {
+func (pathCtx *BasePathContext) GetTrioCtx() *m3point.TrioContext {
+	return pathCtx.ctx
+}
+
+func (pathCtx *BasePathContext) GetOffset() int {
+	return pathCtx.offset
+}
+
+func (pathCtx *BasePathContext) GetTrioContextType() m3point.ContextType {
 	return pathCtx.ctx.GetType()
 }
 
-func (pathCtx *PathContext) GetIndex() int {
+func (pathCtx *BasePathContext) GetTrioContextIndex() int {
 	return pathCtx.ctx.GetIndex()
 }
 
-func (pathCtx *PathContext) GetPathNodeMap() PathNodeMap {
+func (pathCtx *BasePathContext) GetPathNodeMap() PathNodeMap {
 	return pathCtx.pathNodeMap
 }
 
-func (pathCtx *PathContext) GetRootPathNode() PathNode {
+func (pathCtx *BasePathContext) GetRootPathNode() PathNode {
 	return pathCtx.rootPathNode
 }
 
-func (pathCtx *PathContext) GetNumberOfOpenNodes() int {
+func (pathCtx *BasePathContext) GetNumberOfOpenNodes() int {
 	return len(pathCtx.openEndNodes)
 }
 
-func (pathCtx *PathContext) InitRootNode(center m3point.Point) {
+func (pathCtx *BasePathContext) GetAllOpenPathNodes() []PathNode {
+	res := make([]PathNode, len(pathCtx.openEndNodes))
+	for i, oep := range pathCtx.openEndNodes {
+		res[i] = oep.pn
+	}
+	return res
+}
+
+func (pathCtx *BasePathContext) InitRootNode(center m3point.Point) {
 	// the path builder enforce origin as the center
 	nodeBuilder := m3point.GetPathNodeBuilder(pathCtx.ctx, pathCtx.offset, m3point.Origin)
 
@@ -161,7 +193,7 @@ func (pathCtx *PathContext) InitRootNode(center m3point.Point) {
 	pathCtx.pathNodeMap.AddPathNode(pathCtx.rootPathNode)
 }
 
-func (pathCtx *PathContext) GetNextOpenNodesLen() int {
+func (pathCtx *BasePathContext) PredictedNextOpenNodesLen() int {
 	d := 0
 	for _, non := range pathCtx.openEndNodes {
 		if !non.pn.IsEnd() {
@@ -190,8 +222,8 @@ func (pathCtx *PathContext) GetNextOpenNodesLen() int {
 	return int(predictedLen)
 }
 
-func (pathCtx *PathContext) MoveToNextNodes() {
-	newOpenNodes := make([]OpenEndPath, 0, pathCtx.GetNextOpenNodesLen())
+func (pathCtx *BasePathContext) MoveToNextNodes() {
+	newOpenNodes := make([]OpenEndPath, 0, pathCtx.PredictedNextOpenNodesLen())
 	for _, oen := range pathCtx.openEndNodes {
 		pathNode := oen.pn
 		if pathNode.IsEnd() {
@@ -252,11 +284,11 @@ func (pathCtx *PathContext) MoveToNextNodes() {
 	pathCtx.openEndNodes = newOpenNodes
 }
 
-func (pathCtx *PathContext) String() string {
+func (pathCtx *BasePathContext) String() string {
 	return fmt.Sprintf("Path-%s-%d", pathCtx.ctx.String(), pathCtx.offset)
 }
 
-func (pathCtx *PathContext) dumpInfo() string {
+func (pathCtx *BasePathContext) dumpInfo() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("%s\n%s: [", pathCtx.ctx.String(), pathCtx.rootPathNode.String()))
 	for i := 0; i < 3; i++ {
@@ -381,7 +413,7 @@ func (pl *BasePathLink) dumpInfo(ident int) string {
 // BasePathNode Functions
 /***************************************************************/
 
-func (bpn *BasePathNode) GetPathContext() *PathContext {
+func (bpn *BasePathNode) GetPathContext() *BasePathContext {
 	return bpn.pathCtx
 }
 
@@ -666,7 +698,7 @@ func (epn *EndPathNodeT) IsLatest() bool {
 	return false
 }
 
-func (epn *EndPathNodeT) GetPathContext() *PathContext {
+func (epn *EndPathNodeT) GetPathContext() *BasePathContext {
 	Log.Fatalf("trying to get path context from end node")
 	return nil
 }

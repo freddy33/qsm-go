@@ -79,6 +79,7 @@ func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}
 	verifyData()
+	m3point.Initialize()
 	space := m3space.MakeSpace(m3point.CInt(Max))
 	world := DisplayWorld{}
 	world.initialized(&space, glfwTime)

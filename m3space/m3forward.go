@@ -43,7 +43,7 @@ func (space *Space) ForwardTime() *ForwardResult {
 	for _, evt := range space.events {
 		if evt != nil {
 			nbLatest += evt.pathContext.GetNumberOfOpenNodes()
-			expectedLatestNodes += evt.pathContext.GetNextOpenNodesLen()
+			expectedLatestNodes += evt.pathContext.PredictedNextOpenNodesLen()
 		}
 	}
 	space.latestNodes = make([]Node, 0, expectedLatestNodes)

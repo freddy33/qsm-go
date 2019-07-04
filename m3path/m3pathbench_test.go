@@ -51,10 +51,10 @@ func runForPathCtxType(N, until int, pType m3point.ContextType, single bool) {
 	for r := 0; r < N; r++ {
 		for _, ctx := range allCtx[pType] {
 			start := time.Now()
-			pathCtx := MakePathContext(ctx.GetType(), ctx.GetIndex(), ctx.offset, MakeSimplePathNodeMap(5*until*until))
+			pathCtx := MakePathContext(ctx.GetTrioContextType(), ctx.GetTrioContextIndex(), ctx.GetOffset(), MakeSimplePathNodeMap(5*until*until))
 			runPathContext(pathCtx, until)
 			t := time.Since(start)
-			LogDataTest.Infof("%s %s %d %d %d", t, pathCtx, pathCtx.GetPathNodeMap().GetSize(), len(pathCtx.openEndNodes), pathCtx.openEndNodes[0].pn.D())
+			LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.GetPathNodeMap().GetSize(), pathCtx.GetNumberOfOpenNodes())
 			if single {
 				break
 			}
@@ -62,15 +62,15 @@ func runForPathCtxType(N, until int, pType m3point.ContextType, single bool) {
 	}
 }
 
-func runPathContext(pathCtx *PathContext, until int) {
+func runPathContext(pathCtx PathContextIfc, until int) {
 	pathCtx.InitRootNode(m3point.Origin)
 	for d := 0; d < until; d++ {
 		verifyDistance(pathCtx, d)
-		origLen := float64(len(pathCtx.openEndNodes))
-		predictedIntLen := pathCtx.GetNextOpenNodesLen()
+		origLen := float64(pathCtx.GetNumberOfOpenNodes())
+		predictedIntLen := pathCtx.PredictedNextOpenNodesLen()
 		pathCtx.MoveToNextNodes()
 		if d != 0 && LogDataTest.IsInfo() {
-			finalLen := len(pathCtx.openEndNodes)
+			finalLen := pathCtx.GetNumberOfOpenNodes()
 			df := float64(d)
 			predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
 			actualRatio := float64(finalLen)/origLen
@@ -84,11 +84,11 @@ func runPathContext(pathCtx *PathContext, until int) {
 	}
 }
 
-func verifyDistance(pathCtx *PathContext, d int) {
+func verifyDistance(pathCtx PathContextIfc, d int) {
 	verifyD := -1
-	for _, non := range pathCtx.openEndNodes {
-		if !non.pn.IsEnd() {
-			verifyD = non.pn.D()
+	for _, pn := range pathCtx.GetAllOpenPathNodes() {
+		if !pn.IsEnd() {
+			verifyD = pn.D()
 			break
 		}
 	}
