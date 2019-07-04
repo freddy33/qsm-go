@@ -123,14 +123,14 @@ func createAllIndexes(nbIndexes int) ([][4]int, [12]int) {
 	return res, [12]int{nbConbinations, idx, t1, nbT1, t2a, nbT2a, t2b, nbT2b, t3, nbT3, t4, nbT4}
 }
 
-func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4]m3point.ContextType, indexes [4]int, offsets [4]int) {
+func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
 	space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
 	space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
 	space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
 	space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
-func runSpacePyramidWithParams(pSize m3point.CInt, ctxTypes [4]m3point.ContextType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
+func runSpacePyramidWithParams(pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
 	m3point.Initialize()
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3

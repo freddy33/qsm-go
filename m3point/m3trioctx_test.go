@@ -10,13 +10,12 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			trCtx := GetTrioContextByTypeAndIdx(ctxType, pIdx)
-			runConnectionDetailsCheck(t, trCtx)
+			runConnectionDetailsCheck(t, GetGrowthContextByTypeAndIndex(ctxType, pIdx))
 		}
 	}
 }
 
-func runConnectionDetailsCheck(t *testing.T, trCtx *TrioContext) {
+func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 	// For all trioIndex rotations, any 2 close nextMainPoint points there should be a connection details
 	min := CInt(-5)
 	max := CInt(5)
@@ -24,8 +23,9 @@ func runConnectionDetailsCheck(t *testing.T, trCtx *TrioContext) {
 		for y := min; y < max; y++ {
 			for z := min; z < max; z++ {
 				mainPoint := Point{x, y, z}.Mul(3)
-				connectingVectors := trCtx.GetBaseTrio(mainPoint, 0)
-				for _, cVec := range connectingVectors {
+				connectingVectors := growthCtx.GetBaseTrioDetails(mainPoint, 0).GetConnections()
+				for _, conn := range connectingVectors {
+					cVec := conn.Vector
 
 					assertValidConnDetails(t, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Pos", mainPoint, "base vector", cVec))
 
@@ -42,11 +42,12 @@ func runConnectionDetailsCheck(t *testing.T, trCtx *TrioContext) {
 					}
 					if nextMain != Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-						nextConnectingVectors := trCtx.GetBaseTrio(nextMain, 0)
-						for _, nbp := range nextConnectingVectors {
+						nextConnectingVectors := growthCtx.GetBaseTrioDetails(nextMain, 0).GetConnections()
+						for _, conn := range nextConnectingVectors {
+							nbp := conn.Vector
 							if nbp.X() == -cVec.X() {
 								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-									"next Pos=", nextMain, "trio index=", trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0),
+									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(mainPoint), 0),
 									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
@@ -65,11 +66,12 @@ func runConnectionDetailsCheck(t *testing.T, trCtx *TrioContext) {
 					}
 					if nextMain != Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-						nextConnectingVectors := trCtx.GetBaseTrio(nextMain, 0)
-						for _, nbp := range nextConnectingVectors {
+						nextConnectingVectors := growthCtx.GetBaseTrioDetails(nextMain, 0).GetConnections()
+						for _, conn := range nextConnectingVectors {
+							nbp := conn.Vector
 							if nbp.Y() == -cVec.Y() {
 								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-									"next Pos=", nextMain, "trio index=", trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0),
+									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(mainPoint), 0),
 									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
@@ -88,11 +90,12 @@ func runConnectionDetailsCheck(t *testing.T, trCtx *TrioContext) {
 					}
 					if nextMain != Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-						nextConnectingVectors := trCtx.GetBaseTrio(nextMain, 0)
-						for _, nbp := range nextConnectingVectors {
+						nextConnectingVectors := growthCtx.GetBaseTrioDetails(nextMain, 0).GetConnections()
+						for _, conn := range nextConnectingVectors {
+							nbp := conn.Vector
 							if nbp.Z() == -cVec.Z() {
 								assertValidConnDetails(t, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-									"next Pos=", nextMain, "trio index=", trCtx.GetBaseTrioIndex(trCtx.GetBaseDivByThree(mainPoint), 0),
+									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(mainPoint), 0),
 									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}

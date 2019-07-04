@@ -88,7 +88,7 @@ func saveAllConnectionDetails() (int, error) {
 }
 
 /***************************************************************/
-// Trio Details Load and Save
+// trio Details Load and Save
 /***************************************************************/
 
 func loadTrioDetails() TrioDetailList {

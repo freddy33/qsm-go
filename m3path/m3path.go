@@ -9,25 +9,9 @@ import (
 
 var Log = m3util.NewLogger("m3path", m3util.INFO)
 
-type PathContextIfc interface {
-	fmt.Stringer
-	GetTrioCtx() *m3point.TrioContext
-	GetOffset() int
-	GetTrioContextType() m3point.ContextType
-	GetTrioContextIndex() int
-	GetPathNodeMap() PathNodeMap
-	InitRootNode(center m3point.Point)
-	GetRootPathNode() PathNode
-	GetNumberOfOpenNodes() int
-	GetAllOpenPathNodes() []PathNode
-	MoveToNextNodes()
-	PredictedNextOpenNodesLen() int
-	dumpInfo() string
-}
-
 type BasePathContext struct {
-	ctx    *m3point.TrioContext
-	offset int
+	growthCtx    m3point.GrowthContext
+	growthOffset int
 
 	rootPathNode PathNode
 	openEndNodes []OpenEndPath
@@ -43,17 +27,6 @@ type OpenEndPath struct {
 	pnb m3point.PathNodeBuilder
 }
 
-type PathLink interface {
-	fmt.Stringer
-	GetSrc() PathNode
-	GetConnId() m3point.ConnectionId
-	HasDestination() bool
-	IsDeadEnd() bool
-	SetDeadEnd()
-	createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder)
-	dumpInfo(ident int) string
-}
-
 // A single path link between *src* node to one of the next path node *dst* using the connection Id
 type BasePathLink struct {
 	// After travelling the connId of the above cur.connId there will be 2 new path possible for
@@ -63,26 +36,6 @@ type BasePathLink struct {
 	// After travelling the connId the pointer to the next path node
 	// point to EndPathNode if this link is a dead end
 	dst PathNode
-}
-
-type PathNode interface {
-	fmt.Stringer
-	GetPathContext() *BasePathContext
-	IsEnd() bool
-	IsRoot() bool
-	IsLatest() bool
-	P() m3point.Point
-	D() int
-	GetTrioIndex() m3point.TrioIndex
-	GetFrom() PathLink
-	GetOtherFrom() PathLink
-	GetNext(i int) PathLink
-	GetNextConnection(connId m3point.ConnectionId) PathLink
-
-	calcDist() int
-	addPathLink(connId m3point.ConnectionId) (PathLink, bool)
-	setOtherFrom(pl PathLink)
-	dumpInfo(ident int) string
 }
 
 type BasePathNode struct {
@@ -126,33 +79,33 @@ var EndPathLink = &BasePathLink{EndPathNode, m3point.NilConnectionId, EndPathNod
 // BasePathContext Functions
 /***************************************************************/
 
-func MakePathContext(ctxType m3point.ContextType, pIdx int, offset int, pnm PathNodeMap) PathContextIfc {
-	return MakePathContextFromTrioContext(m3point.GetTrioContextByTypeAndIdx(ctxType, pIdx), offset, pnm)
+func MakePathContext(ctxType m3point.GrowthType, pIdx int, offset int, pnm PathNodeMap) PathContext {
+	return MakePathContextFromGrowthContext(m3point.GetGrowthContextByTypeAndIndex(ctxType, pIdx), offset, pnm)
 }
 
-func MakePathContextFromTrioContext(trCtx *m3point.TrioContext, offset int, pnm PathNodeMap) PathContextIfc {
+func MakePathContextFromGrowthContext(growthCtx m3point.GrowthContext, offset int, pnm PathNodeMap) PathContext {
 	pathCtx := BasePathContext{}
-	pathCtx.ctx = trCtx
-	pathCtx.offset = offset
+	pathCtx.growthCtx = growthCtx
+	pathCtx.growthOffset = offset
 	pathCtx.pathNodeMap = pnm
 
 	return &pathCtx
 }
 
-func (pathCtx *BasePathContext) GetTrioCtx() *m3point.TrioContext {
-	return pathCtx.ctx
+func (pathCtx *BasePathContext) GetGrowthCtx() m3point.GrowthContext {
+	return pathCtx.growthCtx
 }
 
-func (pathCtx *BasePathContext) GetOffset() int {
-	return pathCtx.offset
+func (pathCtx *BasePathContext) GetGrowthOffset() int {
+	return pathCtx.growthOffset
 }
 
-func (pathCtx *BasePathContext) GetTrioContextType() m3point.ContextType {
-	return pathCtx.ctx.GetType()
+func (pathCtx *BasePathContext) GetGrowthType() m3point.GrowthType {
+	return pathCtx.growthCtx.GetGrowthType()
 }
 
-func (pathCtx *BasePathContext) GetTrioContextIndex() int {
-	return pathCtx.ctx.GetIndex()
+func (pathCtx *BasePathContext) GetGrowthIndex() int {
+	return pathCtx.growthCtx.GetGrowthIndex()
 }
 
 func (pathCtx *BasePathContext) GetPathNodeMap() PathNodeMap {
@@ -177,7 +130,7 @@ func (pathCtx *BasePathContext) GetAllOpenPathNodes() []PathNode {
 
 func (pathCtx *BasePathContext) InitRootNode(center m3point.Point) {
 	// the path builder enforce origin as the center
-	nodeBuilder := m3point.GetPathNodeBuilder(pathCtx.ctx, pathCtx.offset, m3point.Origin)
+	nodeBuilder := m3point.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
 
 	rootNode := RootPathNode{}
 	rootNode.pathCtx = pathCtx
@@ -285,12 +238,12 @@ func (pathCtx *BasePathContext) MoveToNextNodes() {
 }
 
 func (pathCtx *BasePathContext) String() string {
-	return fmt.Sprintf("Path-%s-%d", pathCtx.ctx.String(), pathCtx.offset)
+	return fmt.Sprintf("Path-%s-%d", pathCtx.growthCtx.String(), pathCtx.growthOffset)
 }
 
 func (pathCtx *BasePathContext) dumpInfo() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s\n%s: [", pathCtx.ctx.String(), pathCtx.rootPathNode.String()))
+	sb.WriteString(fmt.Sprintf("%s\n%s: [", pathCtx.growthCtx.String(), pathCtx.rootPathNode.String()))
 	for i := 0; i < 3; i++ {
 		pl := pathCtx.rootPathNode.GetNext(i)
 		sb.WriteString("\n")
@@ -337,7 +290,7 @@ func (pl *BasePathLink) createDstNode(pathBuilder m3point.PathNodeBuilder) (Path
 	dstDistance := from.D() + 1
 	pathCtx := from.GetPathContext()
 	center := pathCtx.rootPathNode.P()
-	npnb, np := pathBuilder.GetNextPathNodeBuilder(from.P().Sub(center), pl.connId, pathCtx.offset)
+	npnb, np := pathBuilder.GetNextPathNodeBuilder(from.P().Sub(center), pl.connId, pathCtx.growthOffset)
 	realP := center.Add(np)
 	existingPn, ok := pathCtx.pathNodeMap.GetPathNode(realP)
 

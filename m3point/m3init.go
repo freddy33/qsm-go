@@ -9,7 +9,7 @@ var pointEnv *m3db.QsmEnvironment
 
 var connectionsLoaded bool
 var trioDetailsLoaded bool
-var trioContextsLoaded bool
+var growthContextsLoaded bool
 var cubesLoaded bool
 var pathBuildersLoaded bool
 
@@ -25,9 +25,9 @@ func checkTrioInitialized() {
 	}
 }
 
-func checkTrioContextsInitialized() {
+func checkGrowthContextsInitialized() {
 	if !trioDetailsLoaded {
-		Log.Fatal("Trio contexts should have been initialized! Please call m3point.Initialize() method before this!")
+		Log.Fatal("trio contexts should have been initialized! Please call m3point.Initialize() method before this!")
 	}
 }
 
@@ -46,7 +46,7 @@ func checkPathBuildersInitialized() {
 func Initialize() {
 	initConnections()
 	initTrioDetails()
-	initTrioContexts()
+	initGrowthContexts()
 	initContextCubes()
 	initPathBuilders()
 }
@@ -67,11 +67,11 @@ func initTrioDetails() {
 	}
 }
 
-func initTrioContexts() {
-	if !trioContextsLoaded {
-		allTrioContexts = loadTrioContexts()
-		trioContextsLoaded = true
-		Log.Debugf("Environment %d has %d trio context", GetPointEnv().GetId(), len(allTrioContexts))
+func initGrowthContexts() {
+	if !growthContextsLoaded {
+		allGrowthContexts = loadGrowthContexts()
+		growthContextsLoaded = true
+		Log.Debugf("Environment %d has %d growth contexts", GetPointEnv().GetId(), len(allGrowthContexts))
 	}
 }
 
@@ -130,7 +130,7 @@ func FillDb() {
 	}
 	initTrioDetails()
 
-	n, err = saveAllTrioContexts()
+	n, err = saveAllGrowthContexts()
 	if err != nil {
 		Log.Fatalf("could not save all trio contexts due to %v", err)
 		return
@@ -138,7 +138,7 @@ func FillDb() {
 	if Log.IsInfo() {
 		Log.Infof("Environment %d has %d trio contexts", env.GetId(), n)
 	}
-	initTrioContexts()
+	initGrowthContexts()
 
 	n, err = saveAllContextCubes()
 	if err != nil {

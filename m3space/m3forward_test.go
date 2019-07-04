@@ -41,7 +41,7 @@ func TestCreateAllIndexes(t *testing.T) {
 	}
 }
 
-func createAllIndexesForContext(t assert.TestingT, ctxType m3point.ContextType) [][4]int {
+func createAllIndexesForContext(t assert.TestingT, ctxType m3point.GrowthType) [][4]int {
 	nbIndexes := ctxType.GetNbIndexes()
 	res, idxs := createAllIndexes(nbIndexes)
 	assert.NotNil(t, res)
@@ -63,7 +63,7 @@ func TestSpaceAllPyramids(t *testing.T) {
 	for pSize := m3point.CInt(4); pSize <= maxSize; pSize++ {
 		for _, ctxType := range allContexts {
 			nbFound := 0
-			ctxs := [4]m3point.ContextType{ctxType, ctxType, ctxType, ctxType}
+			ctxs := [4]m3point.GrowthType{ctxType, ctxType, ctxType, ctxType}
 			allIndexes := createAllIndexesForContext(t, ctxType)
 			for i, idxs := range allIndexes {
 				found, originalPyramid, time, finalPyramid, nbPoss := runSpacePyramidWithParams(pSize, ctxs, idxs, [4]int{0, 0, 0, 0})
@@ -93,14 +93,14 @@ func TestSpaceRunPySize5(t *testing.T) {
 func TestSpaceRunPySize4(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
-	found, originalPyramid, time, finalPyramid, nbPoss := runSpacePyramidWithParams(4, [4]m3point.ContextType{2, 2, 2, 2}, [4]int{0, 0, 0, 0}, [4]int{0, 0, 0, 0})
+	found, originalPyramid, time, finalPyramid, nbPoss := runSpacePyramidWithParams(4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 0}, [4]int{0, 0, 0, 0})
 	assert.True(t, found)
 	orgSize := GetPyramidSize(originalPyramid)
 	finalSize := GetPyramidSize(finalPyramid)
 	diff := m3point.AbsDInt(orgSize-finalSize)
 	LogStat.Infof("%d %v %v %d %d %d %d",time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
 
-	found, originalPyramid, time, finalPyramid, nbPoss = runSpacePyramidWithParams(4, [4]m3point.ContextType{2, 2, 2, 2}, [4]int{0, 0, 0, 3}, [4]int{0, 0, 0, 0})
+	found, originalPyramid, time, finalPyramid, nbPoss = runSpacePyramidWithParams(4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 3}, [4]int{0, 0, 0, 0})
 	assert.True(t, found)
 	orgSize = GetPyramidSize(originalPyramid)
 	finalSize = GetPyramidSize(finalPyramid)
@@ -121,6 +121,6 @@ func TestSpaceRunPySize2(t *testing.T) {
 }
 
 func runSpaceTest(pSize m3point.CInt) {
-	runSpacePyramidWithParams(pSize, [4]m3point.ContextType{8, 8, 8, 8}, [4]int{0, 4, 8, 10}, [4]int{0, 0, 0, 4})
+	runSpacePyramidWithParams(pSize, [4]m3point.GrowthType{8, 8, 8, 8}, [4]int{0, 4, 8, 10}, [4]int{0, 0, 0, 4})
 }
 

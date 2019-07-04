@@ -227,9 +227,9 @@ func TestInitialTrioConnectingVectors(t *testing.T) {
 func TestAllBaseTrio(t *testing.T) {
 	Log.SetDebug()
 	for i, tr := range allBaseTrio {
-		assert.Equal(t, CInt(0), tr[0][2], "Failed on Trio %d", i)
-		assert.Equal(t, CInt(0), tr[1][1], "Failed on Trio %d", i)
-		assert.Equal(t, CInt(0), tr[2][0], "Failed on Trio %d", i)
+		assert.Equal(t, CInt(0), tr[0][2], "Failed on trio %d", i)
+		assert.Equal(t, CInt(0), tr[1][1], "Failed on trio %d", i)
+		assert.Equal(t, CInt(0), tr[2][0], "Failed on trio %d", i)
 		BackToOrig := Origin
 		for j, vec := range tr {
 			for c := 0; c < 3; c++ {
@@ -240,7 +240,7 @@ func TestAllBaseTrio(t *testing.T) {
 			assert.True(t, vec.IsBaseConnectingVector(), "Failed vec at %d %d", i, j)
 			BackToOrig = BackToOrig.Add(vec)
 		}
-		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of Trio %d %v", i, tr)
+		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of trio %d %v", i, tr)
 		for j, tB := range allBaseTrio {
 			assertIsGenericNonBaseConnectingVector(t, GetNonBaseConnections(tr, tB), i, j)
 		}

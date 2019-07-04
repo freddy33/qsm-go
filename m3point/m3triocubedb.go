@@ -25,7 +25,7 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 		" middle_edges_PXPY smallint REFERENCES %s (id), middle_edges_PXMY smallint REFERENCES %s (id), middle_edges_PXPZ smallint REFERENCES %s (id), middle_edges_PXMZ smallint REFERENCES %s (id),"+
 		" middle_edges_MXPY smallint REFERENCES %s (id), middle_edges_MXMY smallint REFERENCES %s (id), middle_edges_MXPZ smallint REFERENCES %s (id), middle_edges_MXMZ smallint REFERENCES %s (id),"+
 		" middle_edges_PYPZ smallint REFERENCES %s (id), middle_edges_PYMZ smallint REFERENCES %s (id), middle_edges_MYPZ smallint REFERENCES %s (id), middle_edges_MYMZ smallint REFERENCES %s (id))",
-		TrioContextsTable,
+		GrowthContextsTable,
 		TrioDetailsTable,
 		TrioDetailsTable, TrioDetailsTable,
 		TrioDetailsTable, TrioDetailsTable,

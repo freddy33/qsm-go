@@ -9,12 +9,12 @@ import (
 // Type declaration
 /***************************************************************/
 
-// Trio of connection vectors from any point using connections only
-type Trio [3]Point
+// trio of connection vectors from any point using connections only
+type trio [3]Point
 
 type TrioIndex uint8
 
-// A bigger struct than Trio to keep more info on how points grow from a trio index
+// A bigger struct than trio to keep more info on how points grow from a trio index
 type TrioDetails struct {
 	id    TrioIndex
 	conns [3]*ConnectionDetails
@@ -35,12 +35,12 @@ const (
 var reverse3Map = [3]TrioIndex{2, 1, 0}
 
 // All the initialized arrays used to navigate the switch between base trio index at base points
-var allBaseTrio [8]Trio
+var allBaseTrio [8]trio
 var validNextTrio [12][2]TrioIndex
 var AllMod4Permutations [12][4]TrioIndex
 var AllMod8Permutations [12][8]TrioIndex
 
-// All the possible Trio details used
+// All the possible trio details used
 var allTrioDetails TrioDetailList
 
 // Dummy trace counter for debugging recursive methods
@@ -51,12 +51,12 @@ var _traceCounter = 0
 /***************************************************************/
 
 func init() {
-	// Initial Trio 0
+	// Initial trio 0
 	allBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
 	for i := 1; i < 4; i++ {
 		allBaseTrio[i] = allBaseTrio[i-1].PlusX()
 	}
-	// Initial Trio 0 prime
+	// Initial trio 0 prime
 	for i := 0; i < 4; i++ {
 		allBaseTrio[i+4] = allBaseTrio[i].Neg()
 	}
@@ -236,23 +236,11 @@ func (l TrioDetailList) Less(i, j int) bool {
 }
 
 /***************************************************************/
-// Trio Functions
+// trio Functions
 /***************************************************************/
 
-func GetNumberOfBaseTrio() int {
-	return len(allBaseTrio)
-}
-
-func GetBaseTrio(trioIdx TrioIndex) Trio {
-	return allBaseTrio[trioIdx]
-}
-
-func GetValidNextTrioPair(nextValidIdx TrioIndex) [2]TrioIndex {
-	return validNextTrio[nextValidIdx]
-}
-
-func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
-	res := Trio{}
+func MakeBaseConnectingVectorsTrio(points [3]Point) trio {
+	res := trio{}
 	// All points should be a connecting vector
 	for _, p := range points {
 		if !p.IsBaseConnectingVector() {
@@ -270,7 +258,7 @@ func MakeBaseConnectingVectorsTrio(points [3]Point) Trio {
 	return res
 }
 
-func (t Trio) GetDSIndex() int {
+func (t trio) GetDSIndex() int {
 	if t[0].DistanceSquared() == DInt(1) {
 		return 1
 	} else {
@@ -287,16 +275,16 @@ func (t Trio) GetDSIndex() int {
 	return -1
 }
 
-func (t Trio) PlusX() Trio {
+func (t trio) PlusX() trio {
 	return MakeBaseConnectingVectorsTrio([3]Point{t[0].RotPlusX(), t[1].RotPlusX(), t[2].RotPlusX()})
 }
 
-func (t Trio) Neg() Trio {
+func (t trio) Neg() trio {
 	return MakeBaseConnectingVectorsTrio([3]Point{t[0].Neg(), t[1].Neg(), t[2].Neg()})
 }
 
-// Return the 6 connections possible +X, -X, +Y, -Y, +Z, -Z vectors between 2 Trio
-func GetNonBaseConnections(tA, tB Trio) [6]Point {
+// Return the 6 connections possible +X, -X, +Y, -Y, +Z, -Z vectors between 2 trio
+func GetNonBaseConnections(tA, tB trio) [6]Point {
 	res := [6]Point{}
 	for _, aVec := range tA {
 		switch aVec.X() {
@@ -339,7 +327,7 @@ func GetNonBaseConnections(tA, tB Trio) [6]Point {
 	return res
 }
 
-func (t Trio) getPlusXVector() Point {
+func (t trio) getPlusXVector() Point {
 	for _, vec := range t {
 		if vec.X() == 1 {
 			return vec
@@ -349,7 +337,7 @@ func (t Trio) getPlusXVector() Point {
 	return Origin
 }
 
-func (t Trio) getMinusXVector() Point {
+func (t trio) getMinusXVector() Point {
 	for _, vec := range t {
 		if vec.X() == -1 {
 			return vec
@@ -359,7 +347,7 @@ func (t Trio) getMinusXVector() Point {
 	return Origin
 }
 
-func (t Trio) getPlusYVector() Point {
+func (t trio) getPlusYVector() Point {
 	for _, vec := range t {
 		if vec.Y() == 1 {
 			return vec
@@ -369,7 +357,7 @@ func (t Trio) getPlusYVector() Point {
 	return Origin
 }
 
-func (t Trio) getMinusYVector() Point {
+func (t trio) getMinusYVector() Point {
 	for _, vec := range t {
 		if vec.Y() == -1 {
 			return vec
@@ -379,7 +367,7 @@ func (t Trio) getMinusYVector() Point {
 	return Origin
 }
 
-func (t Trio) getPlusZVector() Point {
+func (t trio) getPlusZVector() Point {
 	for _, vec := range t {
 		if vec.Z() == 1 {
 			return vec
@@ -389,7 +377,7 @@ func (t Trio) getPlusZVector() Point {
 	return Origin
 }
 
-func (t Trio) getMinusZVector() Point {
+func (t trio) getMinusZVector() Point {
 	for _, vec := range t {
 		if vec.Z() == -1 {
 			return vec
@@ -508,8 +496,8 @@ func (td *TrioDetails) HasConnections(cIds ...ConnectionId) bool {
 	return true
 }
 
-func (td *TrioDetails) GetTrio() Trio {
-	return Trio{td.conns[0].Vector, td.conns[1].Vector, td.conns[2].Vector}
+func (td *TrioDetails) GetTrio() trio {
+	return trio{td.conns[0].Vector, td.conns[1].Vector, td.conns[2].Vector}
 }
 
 func (td *TrioDetails) GetConnections() [3]*ConnectionDetails {
@@ -641,8 +629,8 @@ func (td *TrioDetails) GetDSIndex() int {
 	return -1
 }
 
-// Return the new Trio out of Origin + tA (with next tB or tB/tC)
-func getNextTriosDetails(tA, tB, tC Trio) []*TrioDetails {
+// Return the new trio out of Origin + tA (with next tB or tB/tC)
+func getNextTriosDetails(tA, tB, tC trio) []*TrioDetails {
 	// 0 z=0 for first element, x connector, y connector
 	// 1 y=0 for first element, x connector, z connector
 	// 2 x=0 for first element, y connector, z connector
@@ -745,12 +733,12 @@ func getNextTriosDetails(tA, tB, tC Trio) []*TrioDetails {
 }
 
 /***************************************************************/
-// Calculate Connection and Trio Functions
+// Calculate Connection and trio Functions
 /***************************************************************/
 
 func calculateConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
 	connMap := make(map[Point]*ConnectionDetails)
-	// Going through all Trio and all combination of Trio, to aggregate connection details
+	// Going through all trio and all combination of trio, to aggregate connection details
 	for _, tr := range allBaseTrio {
 		for _, vec := range tr {
 			addConnDetail(&connMap, vec)
@@ -837,7 +825,7 @@ func calculateAllTrioDetails() TrioDetailList {
 		res.addUnique(td)
 	}
 
-	// Going through all Trio and all combination of Trio, to find middle points and create new Trios
+	// Going through all trio and all combination of trio, to find middle points and create new Trios
 	for _, tA := range allBaseTrio {
 		for _, tB := range allBaseTrio {
 			for _, tC := range allBaseTrio {

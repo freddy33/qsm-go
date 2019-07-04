@@ -40,7 +40,7 @@ func BenchmarkPathCtx8(b *testing.B) {
 	runForPathCtxType(b.N, BenchNbRound, 8, false)
 }
 
-func runForPathCtxType(N, until int, pType m3point.ContextType, single bool) {
+func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	LogDataTest.SetWarn()
 	Log.SetWarn()
 	Log.SetAssert(true)
@@ -51,7 +51,7 @@ func runForPathCtxType(N, until int, pType m3point.ContextType, single bool) {
 	for r := 0; r < N; r++ {
 		for _, ctx := range allCtx[pType] {
 			start := time.Now()
-			pathCtx := MakePathContext(ctx.GetTrioContextType(), ctx.GetTrioContextIndex(), ctx.GetOffset(), MakeSimplePathNodeMap(5*until*until))
+			pathCtx := MakePathContext(ctx.GetGrowthType(), ctx.GetGrowthIndex(), ctx.GetGrowthOffset(), MakeSimplePathNodeMap(5*until*until))
 			runPathContext(pathCtx, until)
 			t := time.Since(start)
 			LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.GetPathNodeMap().GetSize(), pathCtx.GetNumberOfOpenNodes())
@@ -62,7 +62,7 @@ func runForPathCtxType(N, until int, pType m3point.ContextType, single bool) {
 	}
 }
 
-func runPathContext(pathCtx PathContextIfc, until int) {
+func runPathContext(pathCtx PathContext, until int) {
 	pathCtx.InitRootNode(m3point.Origin)
 	for d := 0; d < until; d++ {
 		verifyDistance(pathCtx, d)
@@ -84,7 +84,7 @@ func runPathContext(pathCtx PathContextIfc, until int) {
 	}
 }
 
-func verifyDistance(pathCtx PathContextIfc, d int) {
+func verifyDistance(pathCtx PathContext, d int) {
 	verifyD := -1
 	for _, pn := range pathCtx.GetAllOpenPathNodes() {
 		if !pn.IsEnd() {

@@ -9,9 +9,9 @@ func TestDisplayPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
 	Initialize()
 	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
-	trCtx := GetTrioContextByTypeAndIdx(ContextType(8), 0)
-	pnb := GetPathNodeBuilder(trCtx, 0, Origin)
-	assert.NotNil(t, pnb, "did not find builder for %v", *trCtx)
+	growthCtx := GetGrowthContextByTypeAndIndex(GrowthType(8), 0)
+	pnb := GetPathNodeBuilder(growthCtx, 0, Origin)
+	assert.NotNil(t, pnb, "did not find builder for %s", growthCtx.String())
 	rpnb, tok := pnb.(*RootPathNodeBuilder)
 	assert.True(t, tok, "%s is not a root builder", pnb.String())
 	Log.Debug(rpnb.dumpInfo())
@@ -26,7 +26,7 @@ func TestAllPathBuilders(t *testing.T) {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			trCtx := GetTrioContextByTypeAndIdx(ctxType, pIdx)
+			growthCtx := GetGrowthContextByTypeAndIndex(ctxType, pIdx)
 			maxOffset := ctxType.GetMaxOffset()
 			for offset := 0; offset < maxOffset; offset++ {
 				centerPoint := Origin
@@ -44,9 +44,9 @@ func TestAllPathBuilders(t *testing.T) {
 							centerPoint = centerPoint.Add(ZFirst)
 						}
 					}
-					assert.Equal(t, div, trCtx.GetBaseDivByThree(centerPoint), "something wrong with div by three for %s", trCtx.String())
-					pnb := GetPathNodeBuilder(trCtx, offset, centerPoint)
-					assert.NotNil(t, pnb, "did not find builder for %v %v %v", *trCtx, offset, div)
+					assert.Equal(t, div, growthCtx.GetBaseDivByThree(centerPoint), "something wrong with div by three for %s", growthCtx.String())
+					pnb := GetPathNodeBuilder(growthCtx, offset, centerPoint)
+					assert.NotNil(t, pnb, "did not find builder for %s %v %v", growthCtx.String(), offset, div)
 					rpnb, tok := pnb.(*RootPathNodeBuilder)
 					assert.True(t, tok, "%s is not a root builder", pnb.String())
 					nbRoot++
@@ -118,7 +118,7 @@ func TestAllPathBuilders(t *testing.T) {
 
 								// Make sure the way back get same trio
 								if Log.IsTrace() {
-									Log.Tracef("get back from %s %s %v", nextMainPB.String(), trCtx.GetBaseTrioDetails(nmp, offset).String(), nmp)
+									Log.Tracef("get back from %s %s %v", nextMainPB.String(), growthCtx.GetBaseTrioDetails(nmp, offset).String(), nmp)
 								}
 								backIpnb, oLip := nextMainPB.GetNextPathNodeBuilder(nmp, olipnb.nextMainConnId.GetNegId(), offset)
 								assert.NotNil(t, backIpnb, "%s next root builder is nil", nextMainPB.String())

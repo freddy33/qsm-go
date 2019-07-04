@@ -27,7 +27,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 		" conn31 smallint NOT NULL REFERENCES %s (id), last_inter31 smallint NOT NULL REFERENCES %s (id), next_main_conn31 smallint NOT NULL REFERENCES %s (id), next_inter_conn31 smallint NOT NULL REFERENCES %s (id),"+
 		" conn32 smallint NOT NULL REFERENCES %s (id), last_inter32 smallint NOT NULL REFERENCES %s (id), next_main_conn32 smallint NOT NULL REFERENCES %s (id), next_inter_conn32 smallint NOT NULL REFERENCES %s (id))",
 		TrioCubesTable,
-		TrioContextsTable,
+		GrowthContextsTable,
 		TrioDetailsTable,
 		TrioDetailsTable, TrioDetailsTable, TrioDetailsTable,
 		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable,
@@ -66,7 +66,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 }
 
 /***************************************************************/
-// Trio Contexts Load and Save
+// trio Contexts Load and Save
 /***************************************************************/
 
 func loadPathBuilders() []*RootPathNodeBuilder {
@@ -92,7 +92,7 @@ func loadPathBuilders() []*RootPathNodeBuilder {
 		if err != nil {
 			Log.Errorf("failed to load path builder line %d", len(res))
 		} else {
-			pathBuilderCtx := PathBuilderContext{GetTrioContextById(trioIndexId), cubeId}
+			pathBuilderCtx := PathBuilderContext{GetGrowthContextById(trioIndexId), cubeId}
 			builder := RootPathNodeBuilder{}
 			builder.ctx = &pathBuilderCtx
 			rootTd := GetTrioDetails(TrioIndex(rootTrIdx))
@@ -152,7 +152,7 @@ func saveAllPathBuilders() (int, error) {
 					lastInterPNs[i][j] = lipn
 				}
 			}
-			err := te.Insert(cubeId, rootNode.ctx.trCtx.id, rootNode.trIdx,
+			err := te.Insert(cubeId, rootNode.ctx.growthCtx.GetId(), rootNode.trIdx,
 				interPNs[0].trIdx, interPNs[1].trIdx, interPNs[2].trIdx,
 				interConnIds[0][0], lastInterPNs[0][0].trIdx, lastInterPNs[0][0].nextMainConnId, lastInterPNs[0][0].nextInterConnId,
 				interConnIds[0][1], lastInterPNs[0][1].trIdx, lastInterPNs[0][1].nextMainConnId, lastInterPNs[0][1].nextInterConnId,

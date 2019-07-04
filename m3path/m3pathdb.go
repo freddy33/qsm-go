@@ -55,7 +55,7 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 		" trio_ctx_id smallint NOT NULL REFERENCES %s (id),"+
 		" trio_offset smallint NOT NULL," +
 		" path_builders_id smallint NOT NULL REFERENCES %s (id))",
-		m3point.TrioContextsTable, m3point.PathBuildersTable)
+		m3point.GrowthContextsTable, m3point.PathBuildersTable)
 	res.Insert = "(trio_ctx_id,trio_offset,path_builders_id) values ($1,$2,$3) returning id"
 	res.SelectAll = fmt.Sprintf("select id, trio_ctx_id, trio_offset path_builders_id from %s", PathContextsTable)
 	res.ExpectedCount = -1

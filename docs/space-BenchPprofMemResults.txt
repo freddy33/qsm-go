@@ -1,29 +1,29 @@
 Type: alloc_space
-Time: Jun 27, 2019 at 2:59pm (IDT)
-Showing nodes accounting for 5721.79MB, 99.82% of 5732.15MB total
-Dropped 30 nodes (cum <= 28.66MB)
+Time: Jul 4, 2019 at 6:49pm (IDT)
+Showing nodes accounting for 5.06GB, 99.79% of 5.07GB total
+Dropped 30 nodes (cum <= 0.03GB)
       flat  flat%   sum%        cum   cum%
- 1588.26MB 27.71% 27.71%  1588.26MB 27.71%  github.com/freddy33/qsm-go/m3space.(*Space).newEmptyNode
-  780.58MB 13.62% 41.33%  3843.45MB 67.05%  github.com/freddy33/qsm-go/m3path.(*BasePathLink).createDstNode
-  673.19MB 11.74% 53.07%  1265.61MB 22.08%  sync.(*Map).LoadOrStore
-  540.92MB  9.44% 62.51%   540.92MB  9.44%  sync.(*Map).dirtyLocked
-  508.52MB  8.87% 71.38%   508.52MB  8.87%  github.com/freddy33/qsm-go/m3path.(*OutPathNode).addPathLink
-  441.01MB  7.69% 79.07%   441.01MB  7.69%  github.com/freddy33/qsm-go/m3space.(*BaseNode).GetPoint
-  350.38MB  6.11% 85.18%  1141.92MB 19.92%  github.com/freddy33/qsm-go/m3space.(*Space).ForwardTime
-  347.02MB  6.05% 91.24%   347.02MB  6.05%  github.com/freddy33/qsm-go/m3space.(*BaseNode).GetActiveLinks
-  230.41MB  4.02% 95.26%  4582.38MB 79.94%  github.com/freddy33/qsm-go/m3path.(*PathContext).MoveToNextNodes
-  209.51MB  3.65% 98.91%  3063.37MB 53.44%  github.com/freddy33/qsm-go/m3space.(*Space).getOrCreateNode
-   51.50MB   0.9% 99.81%    51.50MB   0.9%  sync.newEntry
-    0.50MB 0.0087% 99.82%  1147.13MB 20.01%  github.com/freddy33/qsm-go/m3space.runSpacePyramidWithParams
-         0     0% 99.82%  4582.38MB 79.94%  github.com/freddy33/qsm-go/m3space.(*Event).moveToNext
-         0     0% 99.82%   788.53MB 13.76%  github.com/freddy33/qsm-go/m3space.(*Space).populateActiveNodesAndLinks
-         0     0% 99.82%  3063.37MB 53.44%  github.com/freddy33/qsm-go/m3space.(*SpacePathNodeMap).AddPathNode
-         0     0% 99.82%    93.11MB  1.62%  github.com/freddy33/qsm-go/m3space.BenchmarkPack1
-         0     0% 99.82%    43.37MB  0.76%  github.com/freddy33/qsm-go/m3space.BenchmarkPack12
-         0     0% 99.82%   116.96MB  2.04%  github.com/freddy33/qsm-go/m3space.BenchmarkPack2
-         0     0% 99.82%   893.68MB 15.59%  github.com/freddy33/qsm-go/m3space.BenchmarkPack20
-         0     0% 99.82%  1147.13MB 20.01%  github.com/freddy33/qsm-go/m3space.benchSpaceTest
-         0     0% 99.82%  1147.13MB 20.01%  github.com/freddy33/qsm-go/m3space.runSpaceTest
-         0     0% 99.82%   201.75MB  3.52%  testing.(*B).launch
-         0     0% 99.82%   945.38MB 16.49%  testing.(*B).run1.func1
-         0     0% 99.82%  1147.13MB 20.01%  testing.(*B).runN
+    1.50GB 29.59% 29.59%     1.50GB 29.59%  github.com/freddy33/qsm-go/m3space.(*Space).newEmptyNode
+    0.67GB 13.20% 42.79%     1.22GB 24.13%  sync.(*Map).LoadOrStore
+    0.64GB 12.71% 55.51%     3.47GB 68.56%  github.com/freddy33/qsm-go/m3path.(*BasePathLink).createDstNode
+    0.51GB 10.02% 65.53%     0.51GB 10.02%  sync.(*Map).dirtyLocked
+    0.49GB  9.73% 75.25%     0.49GB  9.73%  github.com/freddy33/qsm-go/m3path.(*OutPathNode).addPathLink
+    0.34GB  6.77% 82.02%     0.87GB 17.14%  github.com/freddy33/qsm-go/m3space.(*Space).ForwardTime
+    0.29GB  5.82% 87.84%     0.29GB  5.82%  github.com/freddy33/qsm-go/m3space.(*BaseNode).GetActiveLinks
+    0.23GB  4.51% 92.35%     0.23GB  4.51%  github.com/freddy33/qsm-go/m3space.(*BaseNode).GetPoint
+    0.22GB  4.40% 96.76%     4.19GB 82.68%  github.com/freddy33/qsm-go/m3path.(*BasePathContext).MoveToNextNodes
+    0.11GB  2.13% 98.89%     2.83GB 55.85%  github.com/freddy33/qsm-go/m3space.(*Space).getOrCreateNode
+    0.05GB  0.91% 99.79%     0.05GB  0.91%  sync.newEntry
+         0     0% 99.79%     4.19GB 82.68%  github.com/freddy33/qsm-go/m3space.(*Event).moveToNext
+         0     0% 99.79%     0.52GB 10.34%  github.com/freddy33/qsm-go/m3space.(*Space).populateActiveNodesAndLinks
+         0     0% 99.79%     2.83GB 55.85%  github.com/freddy33/qsm-go/m3space.(*SpacePathNodeMap).AddPathNode
+         0     0% 99.79%     0.06GB  1.26%  github.com/freddy33/qsm-go/m3space.BenchmarkPack1
+         0     0% 99.79%     0.04GB  0.73%  github.com/freddy33/qsm-go/m3space.BenchmarkPack12
+         0     0% 99.79%     0.08GB  1.52%  github.com/freddy33/qsm-go/m3space.BenchmarkPack2
+         0     0% 99.79%     0.70GB 13.76%  github.com/freddy33/qsm-go/m3space.BenchmarkPack20
+         0     0% 99.79%     0.88GB 17.28%  github.com/freddy33/qsm-go/m3space.benchSpaceTest
+         0     0% 99.79%     0.88GB 17.28%  github.com/freddy33/qsm-go/m3space.runSpacePyramidWithParams
+         0     0% 99.79%     0.88GB 17.28%  github.com/freddy33/qsm-go/m3space.runSpaceTest
+         0     0% 99.79%     0.13GB  2.52%  testing.(*B).launch
+         0     0% 99.79%     0.75GB 14.76%  testing.(*B).run1.func1
+         0     0% 99.79%     0.88GB 17.28%  testing.(*B).runN

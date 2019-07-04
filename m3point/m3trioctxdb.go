@@ -5,57 +5,57 @@ import (
 )
 
 const (
-	TrioContextsTable = "trio_contexts"
+	GrowthContextsTable = "growth_contexts"
 )
 
 func init() {
-	m3db.AddTableDef(createTrioContextTableDef())
+	m3db.AddTableDef(createGrowthContextsTableDef())
 }
 
-func createTrioContextTableDef() *m3db.TableDefinition {
+func createGrowthContextsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
-	res.Name = TrioContextsTable
+	res.Name = GrowthContextsTable
 	res.DdlColumns = "(id smallint PRIMARY KEY," +
 		" ctx_type smallint," +
 		" ctx_index smallint, UNIQUE (ctx_type, ctx_index) )"
 	res.Insert = "(id, ctx_type, ctx_index) values ($1,$2,$3)"
-	res.SelectAll = "select id, ctx_type, ctx_index from trio_contexts"
+	res.SelectAll = "select id, ctx_type, ctx_index from growth_contexts"
 	res.ExpectedCount = 52
 	return &res
 }
 
 /***************************************************************/
-// Trio Contexts Load and Save
+// trio Contexts Load and Save
 /***************************************************************/
 
-func loadTrioContexts() []*TrioContext {
-	te, rows := GetPointEnv().SelectAllForLoad(TrioContextsTable)
-	res := make([]*TrioContext, 0, te.TableDef.ExpectedCount)
+func loadGrowthContexts() []GrowthContext {
+	te, rows := GetPointEnv().SelectAllForLoad(GrowthContextsTable)
+	res := make([]GrowthContext, 0, te.TableDef.ExpectedCount)
 
 	for rows.Next() {
-		trCtx := TrioContext{}
-		err := rows.Scan(&trCtx.id, &trCtx.ctxType, &trCtx.ctxIndex)
+		growthCtx := BaseGrowthContext{}
+		err := rows.Scan(&growthCtx.id, &growthCtx.growthType, &growthCtx.growthIndex)
 		if err != nil {
 			Log.Errorf("failed to load trio context line %d", len(res))
 		} else {
-			res = append(res, &trCtx)
+			res = append(res, &growthCtx)
 		}
 	}
 	return res
 }
 
-func saveAllTrioContexts() (int, error) {
-	te, inserted, err := GetPointEnv().GetForSaveAll(TrioContextsTable)
+func saveAllGrowthContexts() (int, error) {
+	te, inserted, err := GetPointEnv().GetForSaveAll(GrowthContextsTable)
 	if err != nil {
 		return 0, err
 	}
 	if te.WasCreated() {
-		trCtxs := calculateAllTrioContexts()
+		growthCtxs := calculateAllGrowthContexts()
 		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(trCtxs))
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthCtxs))
 		}
-		for _, trCtx := range trCtxs {
-			err := te.Insert(trCtx.id, trCtx.ctxType, trCtx.ctxIndex)
+		for _, growthCtx := range growthCtxs {
+			err := te.Insert(growthCtx.GetId(), growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex())
 			if err != nil {
 				Log.Error(err)
 			} else {

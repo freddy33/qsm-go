@@ -56,7 +56,7 @@ func GetTrioConnType(conns [6]Point) string {
 		// Good ones with 1 and 3
 		return "G13 "
 	}
-	log.Fatalf("Trio connection list inconsistent got 1=%t, 3=%t, 5=%t", has1, has3, has5)
+	log.Fatalf("trio connection list inconsistent got 1=%t, 3=%t, 5=%t", has1, has3, has5)
 	return "WRONG"
 }
 
@@ -209,15 +209,15 @@ func writeAllTrioPermutationsTable(dir string) {
 	txtFile := m3util.CreateFile(dir,"AllTrioPermTable.txt")
 	defer m3util.CloseFile(txtFile)
 
-	m3util.WriteNextString(txtFile, "Valid next Trio Index permutation 2\n")
+	m3util.WriteNextString(txtFile, "Valid next trio Index permutation 2\n")
 	for i, perm := range validNextTrio {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}
-	m3util.WriteNextString(txtFile, "\nAll Trio Index permutation 4\n")
+	m3util.WriteNextString(txtFile, "\nAll trio Index permutation 4\n")
 	for i, perm := range AllMod4Permutations {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}
-	m3util.WriteNextString(txtFile, "\nAll Trio Index permutation 8\n")
+	m3util.WriteNextString(txtFile, "\nAll trio Index permutation 8\n")
 	for i, perm := range AllMod8Permutations {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}

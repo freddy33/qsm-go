@@ -6,26 +6,26 @@ import (
 	"testing"
 )
 
-var allTestContexts map[m3point.ContextType][]PathContextIfc
+var allTestContexts map[m3point.GrowthType][]PathContext
 
-func getAllTestContexts() map[m3point.ContextType][]PathContextIfc {
+func getAllTestContexts() map[m3point.GrowthType][]PathContext {
 	if allTestContexts != nil {
 		return allTestContexts
 	}
-	res := make(map[m3point.ContextType][]PathContextIfc)
+	res := make(map[m3point.GrowthType][]PathContext)
 
 	m3point.Initialize()
 
 	idx := 0
-	for _, trCtx := range m3point.GetAllTrioContexts() {
-		ctxType := trCtx.GetType()
+	for _, growthCtx := range m3point.GetAllGrowthContexts() {
+		ctxType := growthCtx.GetGrowthType()
 		maxOffset := ctxType.GetMaxOffset()
 		if len(res[ctxType]) == 0 {
-			res[ctxType] = make([]PathContextIfc, ctxType.GetNbIndexes()*maxOffset)
+			res[ctxType] = make([]PathContext, ctxType.GetNbIndexes()*maxOffset)
 			idx = 0
 		}
 		for offset := 0; offset < maxOffset; offset++ {
-			res[ctxType][idx] = MakePathContextFromTrioContext(trCtx, offset, nil)
+			res[ctxType][idx] = MakePathContextFromGrowthContext(growthCtx, offset, nil)
 			idx++
 		}
 	}
@@ -43,7 +43,7 @@ func TestFirstPathContextFilling(t *testing.T) {
 	allCtx := getAllTestContexts()
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {
-			pathCtx := MakePathContext(ctxType, ctx.GetTrioContextIndex(), ctx.GetOffset(), MakeSimplePathNodeMap(2^4))
+			pathCtx := MakePathContext(ctxType, ctx.GetGrowthIndex(), ctx.GetGrowthOffset(), MakeSimplePathNodeMap(2^4))
 			fillPathContext(t, pathCtx, 8*3)
 			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.GetPathNodeMap().GetSize(), pathCtx.GetNumberOfOpenNodes())
 			Log.Debug( pathCtx.dumpInfo())
@@ -52,16 +52,16 @@ func TestFirstPathContextFilling(t *testing.T) {
 	}
 }
 
-func fillPathContext(t *testing.T, pathCtx PathContextIfc, until int) {
-	trCtx := pathCtx.GetTrioCtx()
-	trIdx := trCtx.GetBaseTrioIndex(0, pathCtx.GetOffset())
+func fillPathContext(t *testing.T, pathCtx PathContext, until int) {
+	growthCtx := pathCtx.GetGrowthCtx()
+	trIdx := growthCtx.GetBaseTrioIndex(0, pathCtx.GetGrowthOffset())
 	assert.NotEqual(t, m3point.NilTrioIndex, trIdx)
 
 	td := m3point.GetTrioDetails(trIdx)
 	assert.NotNil(t, td)
 	assert.Equal(t, trIdx, td.GetId())
 
-	Log.Debug(trCtx.String(), td.String())
+	Log.Debug(growthCtx.String(), td.String())
 
 	pathCtx.InitRootNode(m3point.Origin)
 	pathCtx.MoveToNextNodes()

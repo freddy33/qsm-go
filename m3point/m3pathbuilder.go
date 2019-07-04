@@ -7,20 +7,12 @@ import (
 
 // The ctx for each main point start point that gives in the global map the root path node builder
 type PathBuilderContext struct {
-	trCtx  *TrioContext
-	cubeId int
+	growthCtx GrowthContext
+	cubeId    int
 }
 
 func (ctx *PathBuilderContext) String() string {
-	return fmt.Sprintf("PBC-%02d-%03d", ctx.trCtx.GetId(), ctx.cubeId)
-}
-
-type PathNodeBuilder interface {
-	fmt.Stringer
-	GetTrioIndex() TrioIndex
-	GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point)
-	dumpInfo() string
-	verify()
+	return fmt.Sprintf("PBC-%02d-%03d", ctx.growthCtx.GetId(), ctx.cubeId)
 }
 
 type BasePathNodeBuilder struct {
@@ -52,12 +44,12 @@ type PathLinkBuilder struct {
 // The index of this slice is the cube id
 var pathBuilders []*RootPathNodeBuilder
 
-var maxOffsetPerType = map[ContextType]int{
-	ContextType(1): 1,
-	ContextType(3): 4,
-	ContextType(2): 2,
-	ContextType(4): 4,
-	ContextType(8): 8,
+var maxOffsetPerType = map[GrowthType]int{
+	GrowthType(1): 1,
+	GrowthType(3): 4,
+	GrowthType(2): 2,
+	GrowthType(4): 4,
+	GrowthType(8): 8,
 }
 
 func calculateAllPathBuilders() []*RootPathNodeBuilder {
@@ -65,7 +57,7 @@ func calculateAllPathBuilders() []*RootPathNodeBuilder {
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 	res[0] = nil
 	for cubeKey, cubeId := range cubeIdsPerKey {
-		key := PathBuilderContext{GetTrioContextById(cubeKey.trCtxId), cubeId}
+		key := PathBuilderContext{GetGrowthContextById(cubeKey.trCtxId), cubeId}
 		root := RootPathNodeBuilder{}
 		root.ctx = &key
 		root.populate()
@@ -74,10 +66,10 @@ func calculateAllPathBuilders() []*RootPathNodeBuilder {
 	return res
 }
 
-func GetPathNodeBuilder(trCtx *TrioContext, offset int, c Point) PathNodeBuilder {
+func GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder {
 	checkPathBuildersInitialized()
 	// TODO: Verify the key below stay local and is not staying in memory
-	key := CubeKeyId{trCtx.id, createTrioCube(trCtx, offset, c)}
+	key := CubeKeyId{growthCtx.GetId(), createTrioCube(growthCtx, offset, c)}
 	cubeId := GetCubeIdByKey(key)
 	return pathBuilders[cubeId]
 }
@@ -156,7 +148,7 @@ type NextMainPathNode struct {
 }
 
 func (rpnb *RootPathNodeBuilder) populate() {
-	trCtx := rpnb.ctx.trCtx
+	growthCtx := rpnb.ctx.growthCtx
 	cubeKey := GetCubeById(rpnb.ctx.cubeId)
 	cube := cubeKey.cube
 	rpnb.trIdx = cube.center
@@ -193,7 +185,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 			}
 		}
 		if iTd == nil {
-			Log.Fatalf("did not find any trio details matching %s %s %s in %s cube %s", cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId(), trCtx.String(), cube.String())
+			Log.Fatalf("did not find any trio details matching %s %s %s in %s cube %s", cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId(), growthCtx.String(), cube.String())
 			return
 		}
 
@@ -224,7 +216,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 						}
 					}
 					if liTd == nil {
-						Log.Fatalf("did not find any trio details matching %s %s %s in %s cube %s", ipConns[j].GetNegId(), nm.lipnb.nextInterConnId, nm.lipnb.nextMainConnId, trCtx.String(), cube.String())
+						Log.Fatalf("did not find any trio details matching %s %s %s in %s cube %s", ipConns[j].GetNegId(), nm.lipnb.nextInterConnId, nm.lipnb.nextMainConnId, growthCtx.String(), cube.String())
 						return
 					}
 					nm.lipnb.trIdx = liTd.GetId()
@@ -304,7 +296,7 @@ func (lipnb *LastIntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point,
 			Log.Fatalf("last inter main path node %s (%s) does give a main point using %v and %s", lipnb.String(), lipnb.dumpInfo(), from, lipnb.nextMainConnId)
 		}
 	}
-	nextMainPnb := GetPathNodeBuilder(lipnb.ctx.trCtx, offset, nextMainPoint)
+	nextMainPnb := GetPathNodeBuilder(lipnb.ctx.growthCtx, offset, nextMainPoint)
 	if lipnb.nextMainConnId == connId {
 		return nextMainPnb, nextMainPoint
 	} else if lipnb.nextInterConnId == connId {

@@ -48,8 +48,8 @@ func TestLoadOrCalculate(t *testing.T) {
 	connectionsLoaded = true
 	allTrioDetails = calculateAllTrioDetails()
 	trioDetailsLoaded = true
-	allTrioContexts = calculateAllTrioContexts()
-	trioContextsLoaded = true
+	allGrowthContexts = calculateAllGrowthContexts()
+	growthContextsLoaded = true
 	cubeIdsPerKey = calculateAllContextCubes()
 	cubesLoaded = true
 	pathBuilders = calculateAllPathBuilders()
@@ -60,7 +60,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, 50, len(allConnections))
 	assert.Equal(t, 50, len(allConnectionsByVector))
 	assert.Equal(t, 200, len(allTrioDetails))
-	assert.Equal(t, 52, len(allTrioContexts))
+	assert.Equal(t, 52, len(allGrowthContexts))
 	assert.Equal(t, 5192, len(cubeIdsPerKey))
 	assert.Equal(t, 5192 + 1, len(pathBuilders))
 
@@ -68,7 +68,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	// force reload
 	connectionsLoaded = false
 	trioDetailsLoaded = false
-	trioContextsLoaded = false
+	growthContextsLoaded = false
 	cubesLoaded = false
 	pathBuildersLoaded = false
 	Initialize()
@@ -80,12 +80,12 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, 50, len(allConnections))
 	assert.Equal(t, 50, len(allConnectionsByVector))
 	assert.Equal(t, 200, len(allTrioDetails))
-	assert.Equal(t, 52, len(allTrioContexts))
+	assert.Equal(t, 52, len(allGrowthContexts))
 	assert.Equal(t, 5192, len(cubeIdsPerKey))
 	assert.Equal(t, 5192 + 1, len(pathBuilders))
 }
 
-/* Until better concurrent system on DB
+/* TODO: Reactivate once better concurrent system on DB
 
 var cleanedDbMutex sync.Mutex
 var cleanedDb bool
@@ -156,7 +156,7 @@ func TestSaveAllTrios(t *testing.T) {
 	assert.Equal(t, 200, n)
 }
 
-func TestSaveAllTrioContexts(t *testing.T) {
+func TestSaveAllGrowthContexts(t *testing.T) {
 	m3db.Log.SetInfo()
 	Log.SetInfo()
 
@@ -173,12 +173,12 @@ func TestSaveAllTrioContexts(t *testing.T) {
 	assert.Equal(t, 200, n)
 	initTrioDetails()
 
-	n, err = saveAllTrioContexts()
+	n, err = saveAllGrowthContexts()
 	assert.Nil(t, err)
 	assert.Equal(t, 52, n)
 
 	// Should be able to run twice
-	n, err = saveAllTrioContexts()
+	n, err = saveAllGrowthContexts()
 	assert.Nil(t, err)
 	assert.Equal(t, 52, n)
 }

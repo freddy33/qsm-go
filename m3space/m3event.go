@@ -30,7 +30,7 @@ type Event struct {
 	node        Node
 	created     DistAndTime
 	color       EventColor
-	pathContext m3path.PathContextIfc
+	pathContext m3path.PathContext
 }
 
 type SpacePathNodeMap struct {
@@ -81,7 +81,7 @@ func (spnm *SpacePathNodeMap) IsActive(pathNode m3path.PathNode) bool {
 // Event Functions
 /***************************************************************/
 
-func (space *Space) CreateEvent(ctxType m3point.ContextType, idx int, offset int, p m3point.Point, k EventColor) *Event {
+func (space *Space) CreateEvent(ctxType m3point.GrowthType, idx int, offset int, p m3point.Point, k EventColor) *Event {
 	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
 	space.lastIdCounter++
 	ctx := m3path.MakePathContext(ctxType, idx, offset, pnm)
