@@ -8,29 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 )
-
-var cleanedDbMutex sync.Mutex
-var cleanedDb bool
-
-func setCleanTempDb() {
-	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
-
-	cleanedDbMutex.Lock()
-	defer cleanedDbMutex.Unlock()
-
-	if cleanedDb {
-		return
-	}
-
-	pointEnv.Destroy()
-
-	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
-	cleanedDb = true
-}
 
 func SetFullTestDb() {
 	envNumber := strconv.Itoa(int(m3db.TestEnv))
@@ -55,6 +35,75 @@ func SetFullTestDb() {
 	}
 
 	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
+}
+
+func TestLoadOrCalculate(t *testing.T) {
+	m3db.Log.SetInfo()
+	Log.SetInfo()
+
+	SetFullTestDb()
+
+	start := time.Now()
+	allConnections, allConnectionsByVector = calculateConnectionDetails()
+	connectionsLoaded = true
+	allTrioDetails = calculateAllTrioDetails()
+	trioDetailsLoaded = true
+	allTrioContexts = calculateAllTrioContexts()
+	trioContextsLoaded = true
+	cubeIdsPerKey = calculateAllContextCubes()
+	cubesLoaded = true
+	pathBuilders = calculateAllPathBuilders()
+	pathBuildersLoaded = true
+	calcTime := time.Now().Sub(start)
+	Log.Infof("Took %v to calculate", calcTime)
+
+	assert.Equal(t, 50, len(allConnections))
+	assert.Equal(t, 50, len(allConnectionsByVector))
+	assert.Equal(t, 200, len(allTrioDetails))
+	assert.Equal(t, 52, len(allTrioContexts))
+	assert.Equal(t, 5192, len(cubeIdsPerKey))
+	assert.Equal(t, 5192 + 1, len(pathBuilders))
+
+	start = time.Now()
+	// force reload
+	connectionsLoaded = false
+	trioDetailsLoaded = false
+	trioContextsLoaded = false
+	cubesLoaded = false
+	pathBuildersLoaded = false
+	Initialize()
+	loadTime := time.Now().Sub(start)
+	Log.Infof("Took %v to load", loadTime)
+
+	Log.Infof("Diff calc-load = %v", calcTime - loadTime)
+
+	assert.Equal(t, 50, len(allConnections))
+	assert.Equal(t, 50, len(allConnectionsByVector))
+	assert.Equal(t, 200, len(allTrioDetails))
+	assert.Equal(t, 52, len(allTrioContexts))
+	assert.Equal(t, 5192, len(cubeIdsPerKey))
+	assert.Equal(t, 5192 + 1, len(pathBuilders))
+}
+
+/* Until better concurrent system on DB
+
+var cleanedDbMutex sync.Mutex
+var cleanedDb bool
+
+func setCleanTempDb() {
+	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
+
+	cleanedDbMutex.Lock()
+	defer cleanedDbMutex.Unlock()
+
+	if cleanedDb {
+		return
+	}
+
+	pointEnv.Destroy()
+
+	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
+	cleanedDb = true
 }
 
 func _closePointEnv() {
@@ -134,51 +183,4 @@ func TestSaveAllTrioContexts(t *testing.T) {
 	assert.Equal(t, 52, n)
 }
 
-func TestLoadOrCalculate(t *testing.T) {
-	m3db.Log.SetInfo()
-	Log.SetInfo()
-
-	SetFullTestDb()
-	defer _nilPointEnv()
-
-	start := time.Now()
-	allConnections, allConnectionsByVector = calculateConnectionDetails()
-	connectionsLoaded = true
-	allTrioDetails = calculateAllTrioDetails()
-	trioDetailsLoaded = true
-	allTrioContexts = calculateAllTrioContexts()
-	trioContextsLoaded = true
-	cubeIdsPerKey = calculateAllContextCubes()
-	cubesLoaded = true
-	pathBuilders = calculateAllPathBuilders()
-	pathBuildersLoaded = true
-	calcTime := time.Now().Sub(start)
-	Log.Infof("Took %v to calculate", calcTime)
-
-	assert.Equal(t, 50, len(allConnections))
-	assert.Equal(t, 50, len(allConnectionsByVector))
-	assert.Equal(t, 200, len(allTrioDetails))
-	assert.Equal(t, 52, len(allTrioContexts))
-	assert.Equal(t, 5192, len(cubeIdsPerKey))
-	assert.Equal(t, 5192 + 1, len(pathBuilders))
-
-	start = time.Now()
-	// force reload
-	connectionsLoaded = false
-	trioDetailsLoaded = false
-	trioContextsLoaded = false
-	cubesLoaded = false
-	pathBuildersLoaded = false
-	Initialize()
-	loadTime := time.Now().Sub(start)
-	Log.Infof("Took %v to load", loadTime)
-
-	Log.Infof("Diff calc-load = %v", calcTime - loadTime)
-
-	assert.Equal(t, 50, len(allConnections))
-	assert.Equal(t, 50, len(allConnectionsByVector))
-	assert.Equal(t, 200, len(allTrioDetails))
-	assert.Equal(t, 52, len(allTrioContexts))
-	assert.Equal(t, 5192, len(cubeIdsPerKey))
-	assert.Equal(t, 5192 + 1, len(pathBuilders))
-}
+*/

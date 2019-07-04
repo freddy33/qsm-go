@@ -23,6 +23,15 @@ const (
 	SelectPointPerId    = 1
 )
 
+var pathEnv *m3db.QsmEnvironment
+
+func GetPathEnv() *m3db.QsmEnvironment {
+	if pathEnv == nil || pathEnv.GetConnection() == nil {
+		pathEnv = m3db.GetDefaultEnvironment()
+	}
+	return pathEnv
+}
+
 func createPointsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = PointsTable
@@ -44,11 +53,11 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 	res.Name = PathContextsTable
 	res.DdlColumns = fmt.Sprintf("(id serial PRIMARY KEY," +
 		" trio_ctx_id smallint NOT NULL REFERENCES %s (id),"+
-		" offset NOT NULL smallint," +
-		" path_builders_id NOT NULL REFERENCES %s (id))",
+		" trio_offset smallint NOT NULL," +
+		" path_builders_id smallint NOT NULL REFERENCES %s (id))",
 		m3point.TrioContextsTable, m3point.PathBuildersTable)
-	res.Insert = "(trio_ctx_id,offset,path_builders_id) values ($1,$2,$3) returning id"
-	res.SelectAll = fmt.Sprintf("select id, trio_ctx_id, offset path_builders_id from %s", PathContextsTable)
+	res.Insert = "(trio_ctx_id,trio_offset,path_builders_id) values ($1,$2,$3) returning id"
+	res.SelectAll = fmt.Sprintf("select id, trio_ctx_id, trio_offset path_builders_id from %s", PathContextsTable)
 	res.ExpectedCount = -1
 	return &res
 }
@@ -65,7 +74,7 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.Name = PathNodesTable
 	res.DdlColumns = fmt.Sprintf("(id serial PRIMARY KEY," +
 		" path_ctx_id integer NOT NULL REFERENCES %s (id)," +
-		" path_builders_id NOT NULL REFERENCES %s (id)," +
+		" path_builders_id smallint NOT NULL REFERENCES %s (id)," +
 		" trio_id smallint NOT NULL REFERENCES %s (id)," +
 		" point_id bigint NOT NULL REFERENCES %s (id)," +
 		" d integer NOT NULL DEFAULT 0," +
@@ -78,7 +87,7 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" from1, from2, from3," +
 		" next1, next2, next3)" +
 		" values ($1,$2,$3,$4,$5," +
-		" $6,$7,$8" +
+		" $6,$7,$8," +
 		" $9,$10,$11) returning id"
 	res.SelectAll = "not to call select all on node path"
 	res.ExpectedCount = -1
@@ -97,3 +106,21 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	return &res
 }
 
+func createTables() {
+	env := GetPathEnv()
+	_, err := env.GetOrCreateTableExec(PointsTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", PointsTable, err)
+		return
+	}
+	_, err = env.GetOrCreateTableExec(PathContextsTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", PathContextsTable, err)
+		return
+	}
+	_, err = env.GetOrCreateTableExec(PathNodesTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", PathNodesTable, err)
+		return
+	}
+}
