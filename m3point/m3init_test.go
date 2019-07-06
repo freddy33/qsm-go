@@ -2,185 +2,158 @@ package m3point
 
 import (
 	"github.com/freddy33/qsm-go/m3db"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 )
 
-func SetFullTestDb() {
-	envNumber := strconv.Itoa(int(m3db.TestEnv))
-	origQsmId := os.Getenv(m3db.QsmEnvNumberKey)
-
-	if envNumber != origQsmId {
-		// Reset the env var to what it was on exit of this method
-		defer m3db.SetEnvQuietly(m3db.QsmEnvNumberKey, origQsmId)
-		// set the env var correctly
-		m3util.ExitOnError(os.Setenv(m3db.QsmEnvNumberKey, envNumber))
-	}
-
-	rootDir := m3util.GetGitRootDir()
-	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "run", "filldb")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		Log.Fatalf("failed to fill db for test environment %s at OS level due to %v with output: ***\n%s\n***", envNumber, err, string(out))
-	} else {
-		if Log.IsDebug() {
-			Log.Debugf("check environment %s at OS output: ***\n%s\n***", envNumber, string(out))
-		}
-	}
-
-	pointEnv = m3db.GetEnvironment(m3db.TestEnv)
-}
+const(
+	ExpectedNbConns = 50
+	ExpectedNbTrios = 200
+	ExpectedNbGrowthContexts = 52
+	ExpectedNbCubes = 5192
+	ExpectedNbPathBuilders = ExpectedNbCubes
+)
 
 func TestLoadOrCalculate(t *testing.T) {
 	m3db.Log.SetInfo()
 	Log.SetInfo()
+	m3db.SetToTestMode()
 
-	SetFullTestDb()
+	env := GetFullTestDb(m3db.PointTestEnv)
 
 	start := time.Now()
 	allConnections, allConnectionsByVector = calculateConnectionDetails()
-	connectionsLoaded = true
+	connectionsLoaded[pointEnvId] = true
 	allTrioDetails = calculateAllTrioDetails()
-	trioDetailsLoaded = true
+	trioDetailsLoaded[pointEnvId] = true
 	allGrowthContexts = calculateAllGrowthContexts()
-	growthContextsLoaded = true
+	growthContextsLoaded[pointEnvId] = true
 	cubeIdsPerKey = calculateAllContextCubes()
-	cubesLoaded = true
+	cubesLoaded[pointEnvId] = true
 	pathBuilders = calculateAllPathBuilders()
-	pathBuildersLoaded = true
+	pathBuildersLoaded[pointEnvId] = true
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
 
-	assert.Equal(t, 50, len(allConnections))
-	assert.Equal(t, 50, len(allConnectionsByVector))
-	assert.Equal(t, 200, len(allTrioDetails))
-	assert.Equal(t, 52, len(allGrowthContexts))
-	assert.Equal(t, 5192, len(cubeIdsPerKey))
-	assert.Equal(t, 5192 + 1, len(pathBuilders))
+	assert.Equal(t, ExpectedNbConns, len(allConnections))
+	assert.Equal(t, ExpectedNbConns, len(allConnectionsByVector))
+	assert.Equal(t, ExpectedNbTrios, len(allTrioDetails))
+	assert.Equal(t, ExpectedNbGrowthContexts, len(allGrowthContexts))
+	assert.Equal(t, ExpectedNbCubes, len(cubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders))
 
 	start = time.Now()
 	// force reload
-	connectionsLoaded = false
-	trioDetailsLoaded = false
-	growthContextsLoaded = false
-	cubesLoaded = false
-	pathBuildersLoaded = false
-	Initialize()
+	InitializeEnv(env, true)
 	loadTime := time.Now().Sub(start)
 	Log.Infof("Took %v to load", loadTime)
 
 	Log.Infof("Diff calc-load = %v", calcTime - loadTime)
 
-	assert.Equal(t, 50, len(allConnections))
-	assert.Equal(t, 50, len(allConnectionsByVector))
-	assert.Equal(t, 200, len(allTrioDetails))
-	assert.Equal(t, 52, len(allGrowthContexts))
-	assert.Equal(t, 5192, len(cubeIdsPerKey))
-	assert.Equal(t, 5192 + 1, len(pathBuilders))
+	assert.Equal(t, ExpectedNbConns, len(allConnections))
+	assert.Equal(t, ExpectedNbConns, len(allConnectionsByVector))
+	assert.Equal(t, ExpectedNbTrios, len(allTrioDetails))
+	assert.Equal(t, ExpectedNbGrowthContexts, len(allGrowthContexts))
+	assert.Equal(t, ExpectedNbCubes, len(cubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders))
 }
 
-/* TODO: Reactivate once better concurrent system on DB
+func TestSaveAll(t *testing.T) {
+	m3db.Log.SetDebug()
+	Log.SetDebug()
+	m3db.SetToTestMode()
 
-var cleanedDbMutex sync.Mutex
-var cleanedDb bool
+	tempEnv := GetCleanTempDb(m3db.PointTempEnv)
 
-func setCleanTempDb() {
-	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
+	// ************ Connection Details
 
-	cleanedDbMutex.Lock()
-	defer cleanedDbMutex.Unlock()
-
-	if cleanedDb {
-		return
-	}
-
-	pointEnv.Destroy()
-
-	pointEnv = m3db.GetEnvironment(m3db.TempEnv)
-	cleanedDb = true
-}
-
-func _closePointEnv() {
-	defer _nilPointEnv()
-	m3db.CloseEnv(pointEnv)
-}
-
-func _nilPointEnv() {
-	pointEnv = nil
-}
-
-func TestSaveAllConnections(t *testing.T) {
-	m3db.Log.SetInfo()
-	Log.SetInfo()
-
-	setCleanTempDb()
-	defer _closePointEnv()
-
-	n, err := saveAllConnectionDetails()
+	n, err := saveAllConnectionDetails(tempEnv)
 	assert.Nil(t, err)
-	assert.Equal(t, 50, n)
+	assert.Equal(t, ExpectedNbConns, n)
 
 	// Should be able to run twice
-	n, err = saveAllConnectionDetails()
+	n, err = saveAllConnectionDetails(tempEnv)
 	assert.Nil(t, err)
-	assert.Equal(t, 50, n)
-}
+	assert.Equal(t, ExpectedNbConns, n)
 
-func TestSaveAllTrios(t *testing.T) {
-	m3db.Log.SetInfo()
-	Log.SetInfo()
+	// Test we can load
+	loaded, _ := loadConnectionDetails(tempEnv)
+	assert.Equal(t, ExpectedNbConns, len(loaded))
 
-	setCleanTempDb()
-	defer _closePointEnv()
+	// Init from Good DB
+	testEnv := GetFullTestDb(m3db.PointTestEnv)
+	initConnections(testEnv)
 
-	n, err := saveAllConnectionDetails()
+	// ************ Trio Details
+
+	n, err = saveAllTrioDetails(tempEnv)
 	assert.Nil(t, err)
-	assert.Equal(t, 50, n)
-
-	// Init from DB
-	initConnections()
-
-	n, err = saveAllTrioDetails()
-	assert.Nil(t, err)
-	assert.Equal(t, 200, n)
+	assert.Equal(t, ExpectedNbTrios, n)
 
 	// Should be able to run twice
-	n, err = saveAllTrioDetails()
+	n, err = saveAllTrioDetails(tempEnv)
 	assert.Nil(t, err)
-	assert.Equal(t, 200, n)
-}
+	assert.Equal(t, ExpectedNbTrios, n)
 
-func TestSaveAllGrowthContexts(t *testing.T) {
-	m3db.Log.SetInfo()
-	Log.SetInfo()
+	// Test we can load
+	loaded2 := loadTrioDetails(tempEnv)
+	assert.Equal(t, ExpectedNbTrios, len(loaded2))
 
-	setCleanTempDb()
-	defer _closePointEnv()
+	// Init from Good DB
+	initTrioDetails(testEnv)
 
-	n, err := saveAllConnectionDetails()
+	// ************ Growth Contexts
+
+	n, err = saveAllGrowthContexts(tempEnv)
 	assert.Nil(t, err)
-	assert.Equal(t, 50, n)
-	initConnections()
-
-	n, err = saveAllTrioDetails()
-	assert.Nil(t, err)
-	assert.Equal(t, 200, n)
-	initTrioDetails()
-
-	n, err = saveAllGrowthContexts()
-	assert.Nil(t, err)
-	assert.Equal(t, 52, n)
+	assert.Equal(t, ExpectedNbGrowthContexts, n)
 
 	// Should be able to run twice
-	n, err = saveAllGrowthContexts()
+	n, err = saveAllGrowthContexts(tempEnv)
 	assert.Nil(t, err)
-	assert.Equal(t, 52, n)
-}
+	assert.Equal(t, ExpectedNbGrowthContexts, n)
 
-*/
+	// Test we can load
+	loaded3 := loadGrowthContexts(tempEnv)
+	assert.Equal(t, ExpectedNbGrowthContexts, len(loaded3))
+
+	// Init from Good DB
+	initGrowthContexts(testEnv)
+
+	// ************ Context Cubes
+
+	n, err = saveAllContextCubes(tempEnv)
+	assert.Nil(t, err)
+	assert.Equal(t, ExpectedNbCubes, n)
+
+	// Should be able to run twice
+	n, err = saveAllContextCubes(tempEnv)
+	assert.Nil(t, err)
+	assert.Equal(t, ExpectedNbCubes, n)
+
+	// Test we can load
+	loaded4 := loadContextCubes(tempEnv)
+	assert.Equal(t, ExpectedNbCubes, len(loaded4))
+
+	// Init from Good DB
+	initContextCubes(testEnv)
+
+	// ************ Path Builders
+
+	n, err = saveAllPathBuilders(tempEnv)
+	assert.Nil(t, err)
+	assert.Equal(t, ExpectedNbPathBuilders, n)
+
+	// Should be able to run twice
+	n, err = saveAllPathBuilders(tempEnv)
+	assert.Nil(t, err)
+	assert.Equal(t, ExpectedNbPathBuilders, n)
+
+	// Test we can load
+	loaded5 := loadPathBuilders(tempEnv)
+	assert.Equal(t, ExpectedNbPathBuilders, len(loaded5)-1)
+
+	// Init from Good DB
+	initPathBuilders(testEnv)
+}

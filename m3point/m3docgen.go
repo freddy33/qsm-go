@@ -3,12 +3,17 @@ package m3point
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3util"
 	"log"
 )
 
 func GenerateTextFiles() {
-	Initialize()
+	GenerateTextFilesEnv(GetPointEnv())
+}
+
+func GenerateTextFilesEnv(env *m3db.QsmEnvironment) {
+	InitializeEnv(env, true)
 	genDoc := m3util.GetGenDocDir()
 	writeAllTrioDetailsTable(genDoc)
 	writeAllTrioPermutationsTable(genDoc)

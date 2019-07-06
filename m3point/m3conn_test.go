@@ -1,20 +1,27 @@
 package m3point
 
 import (
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestConnectionDetails(t *testing.T) {
-	Log.SetInfo()
-	initConnections()
+	Log.SetDebug()
+	m3db.SetToTestMode()
 
-	for k, v := range allConnectionsByVector {
+	env := GetFullTestDb(m3db.PointTestEnv)
+	conns, connsByVector := loadConnectionDetails(env)
+
+	assert.Equal(t, 50, len(conns))
+	assert.Equal(t, 50, len(connsByVector))
+
+	for k, v := range connsByVector {
 		assert.Equal(t, k, v.Vector)
 		assert.Equal(t, k.DistanceSquared(), v.DistanceSquared())
 		currentNumber := v.GetPosId()
 		sameNumber := 0
-		for _, nv := range allConnectionsByVector {
+		for _, nv := range connsByVector {
 			if nv.GetPosId() == currentNumber {
 				sameNumber++
 				if nv.Vector != v.Vector {
@@ -31,7 +38,7 @@ func TestConnectionDetails(t *testing.T) {
 		for j, tB := range allBaseTrio {
 			connVectors := GetNonBaseConnections(tA, tB)
 			for k, connVector := range connVectors {
-				connDetails, ok := allConnectionsByVector[connVector]
+				connDetails, ok := connsByVector[connVector]
 				assert.True(t, ok, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
 				assert.Equal(t, connVector, connDetails.Vector, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
 				countConnId[connDetails.GetId()]++

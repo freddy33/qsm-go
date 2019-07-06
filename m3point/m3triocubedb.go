@@ -57,8 +57,8 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 // Cubes Load and Save
 /***************************************************************/
 
-func loadContextCubes() map[CubeKeyId]int {
-	te, rows := GetPointEnv().SelectAllForLoad(TrioCubesTable)
+func loadContextCubes(env *m3db.QsmEnvironment) map[CubeKeyId]int {
+	te, rows := env.SelectAllForLoad(TrioCubesTable)
 	res := make(map[CubeKeyId]int, te.TableDef.ExpectedCount)
 
 	loaded := 0
@@ -82,12 +82,12 @@ func loadContextCubes() map[CubeKeyId]int {
 	return res
 }
 
-func saveAllContextCubes() (int, error) {
-	te, inserted, err := GetPointEnv().GetForSaveAll(TrioCubesTable)
+func saveAllContextCubes(env *m3db.QsmEnvironment) (int, error) {
+	te, inserted, toFill, err := env.GetForSaveAll(TrioCubesTable)
 	if err != nil {
 		return 0, err
 	}
-	if te.WasCreated() {
+	if toFill {
 		cubeKeys := calculateAllContextCubes()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(cubeKeys))

@@ -46,8 +46,8 @@ func createTrioDetailsTableDef() *m3db.TableDefinition {
 // Connection Details Load and Save
 /***************************************************************/
 
-func loadConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
-	te, rows := GetPointEnv().SelectAllForLoad(ConnectionDetailsTable)
+func loadConnectionDetails(env *m3db.QsmEnvironment) ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
+	te, rows := env.SelectAllForLoad(ConnectionDetailsTable)
 
 	res := make([]*ConnectionDetails, 0, te.TableDef.ExpectedCount)
 	connMap := make(map[Point]*ConnectionDetails, te.TableDef.ExpectedCount)
@@ -65,12 +65,13 @@ func loadConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails
 	return res, connMap
 }
 
-func saveAllConnectionDetails() (int, error) {
-	te, inserted, err := GetPointEnv().GetForSaveAll(ConnectionDetailsTable)
+
+func saveAllConnectionDetails(env *m3db.QsmEnvironment) (int, error) {
+	te, inserted, toFill, err := env.GetForSaveAll(ConnectionDetailsTable)
 	if err != nil {
 		return 0, err
 	}
-	if te.WasCreated() {
+	if toFill {
 		connections, _ := calculateConnectionDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(connections))
@@ -91,8 +92,8 @@ func saveAllConnectionDetails() (int, error) {
 // trio Details Load and Save
 /***************************************************************/
 
-func loadTrioDetails() TrioDetailList {
-	te, rows := GetPointEnv().SelectAllForLoad(TrioDetailsTable)
+func loadTrioDetails(env *m3db.QsmEnvironment) TrioDetailList {
+	te, rows := env.SelectAllForLoad(TrioDetailsTable)
 
 	res := TrioDetailList(make([]*TrioDetails, 0, te.TableDef.ExpectedCount))
 
@@ -112,13 +113,13 @@ func loadTrioDetails() TrioDetailList {
 	return res
 }
 
-func saveAllTrioDetails() (int, error) {
-	te, inserted, err := GetPointEnv().GetForSaveAll(TrioDetailsTable)
-	if err != nil {
+func saveAllTrioDetails(env *m3db.QsmEnvironment) (int, error) {
+	te, inserted, toFill, err := env.GetForSaveAll(TrioDetailsTable)
+	if te == nil {
 		return 0, err
 	}
 
-	if te.WasCreated() {
+	if toFill {
 		trios := calculateAllTrioDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(trios))

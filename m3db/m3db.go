@@ -20,16 +20,24 @@ var Log = m3util.NewLogger("m3db", m3util.INFO)
 type QsmEnvID int
 
 const (
-	NoEnv    QsmEnvID = iota // 0
-	MainEnv                  // 1
-	TempEnv                  // 2
-	TestEnv                  // 3
-	ShellEnv                 // 4
-	IntTestEnv               // 5
-	ConfEnv = QsmEnvID(1234)
+	NoEnv        QsmEnvID = iota // 0
+	MainEnv                      // 1
+	RunEnv                       // 2
+	TestEnv                      // 3
+	ShellEnv                     // 4
+	SpaceTestEnv                 // 5
+	PointTestEnv                 // 6
+	PathTestEnv                  // 7
+	DbTempEnv                    // 8
+	PointTempEnv                 // 9
+	PathTempEnv                  // 10
+	SpaceTempEnv                 // 11
 )
 
-const QsmEnvNumberKey = "QSM_ENV_NUMBER"
+const (
+	MaxNumberOfEnvironments = 15
+	QsmEnvNumberKey         = "QSM_ENV_NUMBER"
+)
 
 type DbConnDetails struct {
 	Host     string `json:"host"`
@@ -56,11 +64,20 @@ type QsmEnvironment struct {
 var createEnvMutex sync.Mutex
 var environments map[QsmEnvID]*QsmEnvironment
 
+var TestMode bool
+
 func init() {
 	environments = make(map[QsmEnvID]*QsmEnvironment)
 }
 
-func GetDefaultEnvironment() *QsmEnvironment {
+func SetToTestMode() {
+	TestMode = true
+}
+
+func GetDefaultEnvId() QsmEnvID {
+	if TestMode {
+		Log.Fatalf("Cannot use not set pointEnv in test mode!")
+	}
 	envId := MainEnv
 	envIdFromOs := os.Getenv(QsmEnvNumberKey)
 	if envIdFromOs != "" {
@@ -70,7 +87,14 @@ func GetDefaultEnvironment() *QsmEnvironment {
 		}
 		envId = QsmEnvID(id)
 	}
-	return GetEnvironment(envId)
+	return envId
+}
+
+func GetDefaultEnvironment() *QsmEnvironment {
+	if TestMode {
+		Log.Fatalf("Cannot use default environment in test mode!")
+	}
+	return GetEnvironment(GetDefaultEnvId())
 }
 
 func GetEnvironment(envId QsmEnvID) *QsmEnvironment {

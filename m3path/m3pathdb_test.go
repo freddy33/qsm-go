@@ -8,34 +8,16 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
-var cleanedDbMutex sync.Mutex
-var cleanedDb bool
-var tempEnv *m3db.QsmEnvironment
-
-func getCleanTempDb() *m3db.QsmEnvironment {
-	cleanedDbMutex.Lock()
-	defer cleanedDbMutex.Unlock()
-
-	if cleanedDb && tempEnv != nil && tempEnv.GetConnection() != nil {
-		return tempEnv
-	}
-	tempEnv = m3db.GetEnvironment(m3db.TempEnv)
-	tempEnv.Destroy()
-	tempEnv = m3db.GetEnvironment(m3db.TempEnv)
-
-	cleanedDb = true
-
-	return tempEnv
-}
-
-func TestPathDb(t *testing.T) {
-	createTables()
+func TestCreatePathTable(t *testing.T) {
+	createTablesEnv(GetCleanTempDb(m3db.PathTempEnv))
 }
 
 func TestPointsTable(t *testing.T) {
-	env := getCleanTempDb()
+	env := GetCleanTempDb(m3db.PathTempEnv)
+
 	te, err := env.GetOrCreateTableExec(PointsTable)
 	assert.Nil(t, err)
 	if err != nil {
@@ -102,21 +84,24 @@ func RandomCInt(max m3point.CInt) m3point.CInt {
 }
 
 func TestPointsTableConcurrency(t *testing.T) {
+	env := GetFullTestDb(m3db.PathTestEnv)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(10)
 	nbRoutines := 100
-	nbRound := 20
+	nbRound := 50
+	start := time.Now()
 	wg := new(sync.WaitGroup)
 	for r:=0;r<nbRoutines;r++ {
 		wg.Add(1)
 		go func() {
 			for i := 0; i <nbRound;i++ {
 				randomPoint := RandomPoint(rdMax)
-				id := GetOrCreatePoint(randomPoint)
+				id := GetOrCreatePointEnv(env, randomPoint)
 				assert.True(t, id > 0)
 			}
 			wg.Done()
 		}()
 	}
 	wg.Wait()
+	Log.Infof("It took %v to create %d points", time.Now().Sub(start), nbRoutines*nbRound)
 }

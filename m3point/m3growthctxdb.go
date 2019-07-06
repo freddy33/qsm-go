@@ -28,8 +28,8 @@ func createGrowthContextsTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func loadGrowthContexts() []GrowthContext {
-	te, rows := GetPointEnv().SelectAllForLoad(GrowthContextsTable)
+func loadGrowthContexts(env *m3db.QsmEnvironment) []GrowthContext {
+	te, rows := env.SelectAllForLoad(GrowthContextsTable)
 	res := make([]GrowthContext, 0, te.TableDef.ExpectedCount)
 
 	for rows.Next() {
@@ -44,17 +44,17 @@ func loadGrowthContexts() []GrowthContext {
 	return res
 }
 
-func saveAllGrowthContexts() (int, error) {
-	te, inserted, err := GetPointEnv().GetForSaveAll(GrowthContextsTable)
+func saveAllGrowthContexts(env *m3db.QsmEnvironment) (int, error) {
+	te, inserted, toFill, err := env.GetForSaveAll(GrowthContextsTable)
 	if err != nil {
 		return 0, err
 	}
-	if te.WasCreated() {
-		growthCtxs := calculateAllGrowthContexts()
+	if toFill {
+		growthContexts := calculateAllGrowthContexts()
 		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthCtxs))
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthContexts))
 		}
-		for _, growthCtx := range growthCtxs {
+		for _, growthCtx := range growthContexts {
 			err := te.Insert(growthCtx.GetId(), growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex())
 			if err != nil {
 				Log.Error(err)

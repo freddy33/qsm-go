@@ -1,20 +1,22 @@
 package m3path
 
 import (
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-var allTestContexts map[m3point.GrowthType][]PathContext
+var allTestContexts [m3db.MaxNumberOfEnvironments]map[m3point.GrowthType][]PathContext
 
-func getAllTestContexts() map[m3point.GrowthType][]PathContext {
-	if allTestContexts != nil {
-		return allTestContexts
+func getAllTestContexts(env *m3db.QsmEnvironment) map[m3point.GrowthType][]PathContext {
+	envId := env.GetId()
+	if allTestContexts[envId] != nil {
+		return allTestContexts[envId]
 	}
 	res := make(map[m3point.GrowthType][]PathContext)
 
-	m3point.Initialize()
+	m3point.InitializeEnv(env, false)
 
 	idx := 0
 	for _, growthCtx := range m3point.GetAllGrowthContexts() {
@@ -30,7 +32,7 @@ func getAllTestContexts() map[m3point.GrowthType][]PathContext {
 		}
 	}
 
-	allTestContexts = res
+	allTestContexts[envId] = res
 	return res
 }
 
@@ -39,8 +41,10 @@ func TestFirstPathContextFilling(t *testing.T) {
 	Log.SetAssert(true)
 	m3point.Log.SetInfo()
 	m3point.Log.SetAssert(true)
+	m3db.SetToTestMode()
 
-	allCtx := getAllTestContexts()
+	env := GetFullTestDb(m3db.PathTestEnv)
+	allCtx := getAllTestContexts(env)
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {
 			pathCtx := MakePathContext(ctxType, ctx.GetGrowthIndex(), ctx.GetGrowthOffset(), MakeSimplePathNodeMap(2^4))

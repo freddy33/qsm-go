@@ -1,6 +1,7 @@
 package m3path
 
 import (
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"math"
@@ -46,8 +47,10 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	Log.SetAssert(true)
 	m3point.Log.SetWarn()
 	m3point.Log.SetAssert(true)
+	m3db.SetToTestMode()
 
-	allCtx := getAllTestContexts()
+	env := GetFullTestDb(m3db.PathTestEnv)
+	allCtx := getAllTestContexts(env)
 	for r := 0; r < N; r++ {
 		for _, ctx := range allCtx[pType] {
 			start := time.Now()

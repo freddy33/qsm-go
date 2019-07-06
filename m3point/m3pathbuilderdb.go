@@ -69,8 +69,8 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func loadPathBuilders() []*RootPathNodeBuilder {
-	_, rows := GetPointEnv().SelectAllForLoad(PathBuildersTable)
+func loadPathBuilders(env *m3db.QsmEnvironment) []*RootPathNodeBuilder {
+	_, rows := env.SelectAllForLoad(PathBuildersTable)
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 
 	for rows.Next() {
@@ -117,15 +117,15 @@ func loadPathBuilders() []*RootPathNodeBuilder {
 	return res
 }
 
-func saveAllPathBuilders() (int, error) {
-	te, inserted, err := GetPointEnv().GetForSaveAll(PathBuildersTable)
+func saveAllPathBuilders(env *m3db.QsmEnvironment) (int, error) {
+	te, inserted, toFill, err := env.GetForSaveAll(PathBuildersTable)
 	if err != nil {
 		return 0, err
 	}
-	if te.WasCreated() {
+	if toFill {
 		builders := calculateAllPathBuilders()
 		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders))
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
 		}
 		for cubeId, rootNode := range builders {
 			if cubeId == 0 {

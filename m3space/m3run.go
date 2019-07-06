@@ -1,6 +1,8 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3db"
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"log"
@@ -131,7 +133,10 @@ func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4
 }
 
 func runSpacePyramidWithParams(pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
-	m3point.Initialize()
+	m3db.SetToTestMode()
+	env := m3path.GetFullTestDb(m3db.SpaceTestEnv)
+	m3point.InitializeEnv(env, true)
+
 	space := MakeSpace(3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3

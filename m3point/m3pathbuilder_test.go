@@ -1,13 +1,17 @@
 package m3point
 
 import (
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestDisplayPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
-	Initialize()
+	m3db.SetToTestMode()
+
+	env := GetFullTestDb(m3db.PointTestEnv)
+	InitializeEnv(env, false)
 	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
 	growthCtx := GetGrowthContextByTypeAndIndex(GrowthType(8), 0)
 	pnb := GetPathNodeBuilder(growthCtx, 0, Origin)
@@ -18,10 +22,13 @@ func TestDisplayPathBuilders(t *testing.T) {
 }
 
 func TestAllPathBuilders(t *testing.T) {
-	SetFullTestDb()
 	Log.SetAssert(true)
 	Log.SetDebug()
-	Initialize()
+	m3db.SetToTestMode()
+
+	env := GetFullTestDb(m3db.PointTestEnv)
+	InitializeEnv(env, true)
+
 	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()

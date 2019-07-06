@@ -54,36 +54,53 @@ func (env *QsmEnvironment) SelectAllForLoad(tableName string) (*TableExec, *sql.
 	return te, rows
 }
 
-func (env *QsmEnvironment) GetForSaveAll(tableName string) (*TableExec, int, error) {
+func (env *QsmEnvironment) GetForSaveAll(tableName string) (*TableExec, int, bool, error) {
 	te, err := env.GetOrCreateTableExec(tableName)
 	if err != nil {
-		return te, 0, err
+		return te, 0, false, err
 	}
 	if te.WasCreated() {
-		return te, 0, nil
+		return te, 0, true, nil
 	} else {
 		Log.Debugf("%s table was already created. Checking number of rows.", tableName)
 		var nbRows int
 		count, err := env.GetConnection().Query(fmt.Sprintf("select count(*) from %s", te.TableDef.Name))
 		if err != nil {
 			Log.Error(err)
-			return te, 0, err
+			return te, 0, false, err
 		}
 		if !count.Next() {
 			err = QsmError(fmt.Sprintf("counting rows of table %s returned no results", te.TableDef.Name))
 			Log.Error(err)
-			return te, 0, err
+			return te, 0, false, err
 		}
 		err = count.Scan(&nbRows)
 		if err != nil {
 			Log.Error(err)
-			return te, 0, err
+			return te, 0, false, err
 		}
 		if nbRows != te.TableDef.ExpectedCount {
-			Log.Warnf("number of rows in %s is %d and should be %d", tableName, nbRows, te.TableDef.ExpectedCount)
+			if nbRows != 0 {
+				// TODO: Delete all before refill. For now error
+				return te, nbRows, false, &QsmWrongCount{tableName, nbRows, te.TableDef.ExpectedCount}
+			}
+			return te, 0, true, nil
 		}
-		return te, nbRows, nil
+		return te, nbRows, false, nil
 	}
+}
+
+type QsmWrongCount struct {
+	tableName string
+	actual, expected int
+}
+
+func (err *QsmWrongCount) Actual() int {
+	return err.actual
+}
+
+func (err *QsmWrongCount) Error() string {
+	return fmt.Sprintf("number of rows in %s is %d and should be %d", err.tableName, err.actual, err.expected)
 }
 
 func (env *QsmEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, error) {

@@ -5,6 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
 	"strings"
+	"sync"
 )
 
 const (
@@ -24,11 +25,15 @@ const (
 	SelectPointPerId    = 1
 )
 
+var pathEnvId m3db.QsmEnvID
 var pathEnv *m3db.QsmEnvironment
 
 func GetPathEnv() *m3db.QsmEnvironment {
 	if pathEnv == nil || pathEnv.GetConnection() == nil {
-		pathEnv = m3db.GetDefaultEnvironment()
+		if pathEnvId == m3db.NoEnv {
+			pathEnvId = m3db.GetDefaultEnvId()
+		}
+		pathEnv = m3db.GetEnvironment(pathEnvId)
 	}
 	return pathEnv
 }
@@ -108,7 +113,14 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 }
 
 func createTables() {
-	env := GetPathEnv()
+	createTablesEnv(GetPathEnv())
+}
+
+func GetOrCreatePoint(p m3point.Point) int64 {
+	return GetOrCreatePointEnv(GetPathEnv(), p)
+}
+
+func createTablesEnv(env *m3db.QsmEnvironment) {
 	_, err := env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PointsTable, err)
@@ -126,8 +138,8 @@ func createTables() {
 	}
 }
 
-func GetOrCreatePoint(p m3point.Point) int64 {
-	te, err := GetPathEnv().GetOrCreateTableExec(PointsTable)
+func GetOrCreatePointEnv(env *m3db.QsmEnvironment, p m3point.Point) int64 {
+	te, err :=env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Errorf("could not get points table exec due to %v", err)
 		return -1
@@ -174,5 +186,37 @@ func GetOrCreatePoint(p m3point.Point) int64 {
 				return -1
 			}
 		}
+	}
+}
+
+/***************************************************************/
+// Utility methods for test
+/***************************************************************/
+
+var dbMutex sync.Mutex
+var testDbFilled [m3db.MaxNumberOfEnvironments]bool
+
+func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
+	env := m3point.GetFullTestDb(envId)
+	pathEnvId = envId
+	pathEnv = nil
+	checkEnv(env)
+	return env
+}
+
+func GetCleanTempDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
+	env := m3point.GetCleanTempDb(envId)
+	checkEnv(env)
+	return env
+}
+
+func checkEnv(env *m3db.QsmEnvironment) {
+	envId := env.GetId()
+	dbMutex.Lock()
+	defer dbMutex.Unlock()
+	if !testDbFilled[envId] {
+		m3point.FillDbEnv(env)
+		createTablesEnv(env)
+		testDbFilled[envId] = true
 	}
 }

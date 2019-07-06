@@ -1,7 +1,10 @@
 package m3point
 
-import "testing"
+import (
+	"github.com/freddy33/qsm-go/m3db"
+	"testing"
+)
 
 func TestWriteAllTables(t *testing.T) {
-	GenerateTextFiles()
+	GenerateTextFilesEnv(GetFullTestDb(m3db.PointTestEnv))
 }

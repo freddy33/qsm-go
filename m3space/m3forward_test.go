@@ -1,6 +1,8 @@
 package m3space
 
 import (
+	"github.com/freddy33/qsm-go/m3db"
+	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +57,11 @@ func TestSpaceAllPyramids(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetWarn()
 	LogRun.SetWarn()
-	m3point.Initialize()
+
+	m3db.SetToTestMode()
+	env := m3path.GetFullTestDb(m3db.SpaceTestEnv)
+	m3point.InitializeEnv(env, true)
+
 	allContexts := m3point.GetAllContextTypes()
 	LogData.Infof("Size Type Idxs time nbPoss orgSize finalSize diff ratio")
 	maxSize := m3point.CInt(4)

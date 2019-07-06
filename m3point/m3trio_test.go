@@ -2,7 +2,9 @@ package m3point
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 )
 
@@ -40,11 +42,20 @@ func TestPosMod8(t *testing.T) {
 	assert.Equal(t, uint64(0), PosMod8(0))
 }
 
+var doOnce sync.Once
+
+func initTestTrioDetails() {
+	m3db.SetToTestMode()
+
+	env := GetFullTestDb(m3db.PointTestEnv)
+	InitializeEnv(env, false)
+}
+
 func TestAllTrioDetails(t *testing.T) {
-	Log.SetDebug()
+	Log.SetInfo()
 	Log.SetAssert(true)
 
-	Initialize()
+	doOnce.Do(initTestTrioDetails)
 
 	assert.Equal(t, 200, len(allTrioDetails))
 	for i, td := range allTrioDetails {
@@ -88,9 +99,9 @@ func TestAllTrioDetails(t *testing.T) {
 }
 
 func TestTrioDetailsPerDSIndex(t *testing.T) {
-	Log.SetDebug()
+	Log.SetInfo()
 
-	Initialize()
+	doOnce.Do(initTestTrioDetails)
 
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
 	PossibleDSArray := [NbTrioDsIndex][3]DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
@@ -182,7 +193,7 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 }
 
 func TestTrioDetailsConnectionsMethods(t *testing.T) {
-	Initialize()
+	initTestTrioDetails()
 
 	td0 := GetTrioDetails(0)
 	assert.True(t, td0.HasConnection(4))
