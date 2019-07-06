@@ -24,7 +24,7 @@ if [ "$pack" == "all" ]; then
 fi
 
 if [ "$pack" == "perf" ]; then
-    export QSM_ENV_NUMBER=10
+    export QSM_ENV_NUMBER=7
     dbLoc="was-not-set"
     confDir="was-not-set"
     . ./scripts/functions.sh

@@ -218,7 +218,13 @@ func (env *QsmEnvironment) _internalClose() error {
 }
 
 func CloseAll() {
+	toClose := make([]*QsmEnvironment, 0, len(environments))
 	for _, env := range environments {
+		if env != nil {
+			toClose = append(toClose, env)
+		}
+	}
+	for _, env := range toClose {
 		CloseEnv(env)
 	}
 }

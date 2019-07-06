@@ -198,7 +198,7 @@ func RunInsertRandomPoints() {
 	m3db.SetToTestMode()
 	env := GetFullTestDb(m3db.PathTestEnv)
 	// increase concurrency chance with low random
-	rdMax := m3point.CInt(100)
+	rdMax := m3point.CInt(10)
 	nbRoutines := 100
 	nbRound := 250
 	start := time.Now()

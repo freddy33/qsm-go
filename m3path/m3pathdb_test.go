@@ -77,8 +77,8 @@ func TestPointsTableConcurrency(t *testing.T) {
 	env := GetFullTestDb(m3db.PathTestEnv)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(100)
-	nbRoutines := 100
-	nbRound := 250
+	nbRoutines := 50
+	nbRound := 500
 	start := time.Now()
 	wg := new(sync.WaitGroup)
 	for r := 0; r < nbRoutines; r++ {
