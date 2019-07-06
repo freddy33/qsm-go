@@ -41,7 +41,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, ExpectedNbTrios, len(allTrioDetails))
 	assert.Equal(t, ExpectedNbGrowthContexts, len(allGrowthContexts))
 	assert.Equal(t, ExpectedNbCubes, len(cubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders))
+	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders)-1)
 
 	start = time.Now()
 	// force reload
@@ -56,7 +56,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, ExpectedNbTrios, len(allTrioDetails))
 	assert.Equal(t, ExpectedNbGrowthContexts, len(allGrowthContexts))
 	assert.Equal(t, ExpectedNbCubes, len(cubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders))
+	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders)-1)
 }
 
 func TestSaveAll(t *testing.T) {
