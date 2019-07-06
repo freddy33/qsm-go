@@ -1,0 +1,64 @@
+
+Commented max_prepared_transactions = 250
+rdMax=100 nbRoutines=100 nbRound=500
+ok      github.com/freddy33/qsm-go/m3path       54.674s
+
+
+m3path 2019/07/06 17:36:02 m3pathdb_test.go:109: [INFO It took 6.109565473s to create 5,000 points with max coord 100]
+--- PASS: TestPointsTableConcurrency (7.70s)
+PASS
+ok      github.com/freddy33/qsm-go/m3path       7.750s
+
+real    0m17.716s
+
+m3path 2019/07/06 17:37:11 m3pathdb_test.go:109: [INFO It took 25.957632426s to create 25,000 points with max coord 100]
+--- PASS: TestPointsTableConcurrency (27.27s)
+PASS
+ok      github.com/freddy33/qsm-go/m3path       27.324s
+
+real    0m36.385s
+
+
+shared_buffers = 512MB
+
+m3path 2019/07/06 17:39:35 m3pathdb_test.go:109: [INFO It took 25.638006132s to create 25,000 points with nb routines=100 max coord 100]
+--- PASS: TestPointsTableConcurrency (26.96s)
+PASS
+ok      github.com/freddy33/qsm-go/m3path       27.017s
+
+real    0m36.239s
+
+effective_io_concurrency = 100
+NOT SUPPORTED ON MY OS
+
+max_worker_processes = 16
+
+m3path 2019/07/06 17:48:20 m3pathdb_test.go:109: [INFO It took 27.048812492s to create 25,000 points with nb routines=100 max coord 100]
+--- PASS: TestPointsTableConcurrency (28.73s)
+PASS
+ok      github.com/freddy33/qsm-go/m3path       28.799s
+
+real    0m38.621s
+
+GOMAXPROCS=50
+
+m3path 2019/07/06 17:51:55 m3pathdb_test.go:109: [INFO It took 27.013741533s to create 25,000 points with nb routines=100 max coord 100]
+--- PASS: TestPointsTableConcurrency (28.47s)
+PASS
+ok      github.com/freddy33/qsm-go/m3path       28.530s
+
+real    0m38.984s
+
+max_worker_processes = 25
+max_parallel_workers = 25
+
+m3path 2019/07/06 17:55:15 m3pathdb_test.go:109: [INFO It took 28.122446019s to create 25,000 points with nb routines=100 max coord 100]
+--- PASS: TestPointsTableConcurrency (29.68s)
+PASS
+ok      github.com/freddy33/qsm-go/m3path       29.741s
+
+real    0m40.225s
+
+Conclusion: accessing serial counter blocking concurrency
+
+

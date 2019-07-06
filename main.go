@@ -38,6 +38,8 @@ func main() {
 		m3point.FillDb()
 	case "refilldb":
 		m3point.ReFillDb()
+	case "perf":
+		m3path.RunInsertRandomPoints()
 	default:
 		fmt.Println("The param", c, "unknown")
 	}

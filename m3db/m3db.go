@@ -23,7 +23,7 @@ const (
 	NoEnv        QsmEnvID = iota // 0
 	MainEnv                      // 1
 	RunEnv                       // 2
-	TestEnv                      // 3
+	PerfTestEnv                  // 3
 	ShellEnv                     // 4
 	SpaceTestEnv                 // 5
 	PointTestEnv                 // 6

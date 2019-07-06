@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
+	"math/rand"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -190,8 +192,50 @@ func GetOrCreatePointEnv(env *m3db.QsmEnvironment, p m3point.Point) int64 {
 }
 
 /***************************************************************/
+// perf test main
+/***************************************************************/
+func RunInsertRandomPoints() {
+	m3db.SetToTestMode()
+	env := GetFullTestDb(m3db.PathTestEnv)
+	// increase concurrency chance with low random
+	rdMax := m3point.CInt(100)
+	nbRoutines := 100
+	nbRound := 250
+	start := time.Now()
+	wg := new(sync.WaitGroup)
+	for r := 0; r < nbRoutines; r++ {
+		wg.Add(1)
+		go func() {
+			for i := 0; i < nbRound; i++ {
+				randomPoint := RandomPoint(rdMax)
+				id := GetOrCreatePointEnv(env, randomPoint)
+				if id <= 0 {
+					Log.Errorf("failed to insert %v got %d id", randomPoint, id)
+				}
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	Log.Infof("It took %v to create %d points with nb routines=%d max coord %d", time.Now().Sub(start), nbRoutines*nbRound, nbRoutines, rdMax)
+}
+
+
+/***************************************************************/
 // Utility methods for test
 /***************************************************************/
+
+func RandomPoint(max m3point.CInt) m3point.Point {
+	return m3point.Point{RandomCInt(max), RandomCInt(max), RandomCInt(max)}
+}
+
+func RandomCInt(max m3point.CInt) m3point.CInt {
+	r := m3point.CInt(rand.Int31n(int32(max)))
+	if rand.Float32() < 0.5 {
+		return -r
+	}
+	return r
+}
 
 var dbMutex sync.Mutex
 var testDbFilled [m3db.MaxNumberOfEnvironments]bool
