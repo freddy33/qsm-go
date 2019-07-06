@@ -14,6 +14,7 @@ type GrowthContext interface {
 
 type PathNodeBuilder interface {
 	fmt.Stringer
+	GetCubeId() int
 	GetTrioIndex() TrioIndex
 	GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point)
 	dumpInfo() string

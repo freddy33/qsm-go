@@ -71,6 +71,10 @@ func GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBu
 	// TODO: Verify the key below stay local and is not staying in memory
 	key := CubeKeyId{growthCtx.GetId(), createTrioCube(growthCtx, offset, c)}
 	cubeId := GetCubeIdByKey(key)
+	return GetPathNodeBuilderById(cubeId)
+}
+
+func GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
 	return pathBuilders[cubeId]
 }
 
@@ -85,6 +89,10 @@ func (pl *PathLinkBuilder) dumpInfo() string {
 /***************************************************************/
 // BasePathNodeBuilder Functions
 /***************************************************************/
+
+func (pnb *BasePathNodeBuilder) GetCubeId() int {
+	return pnb.ctx.cubeId
+}
 
 func (pnb *BasePathNodeBuilder) GetTrioIndex() TrioIndex {
 	return pnb.trIdx

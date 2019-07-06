@@ -60,12 +60,12 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = PathContextsTable
 	res.DdlColumns = fmt.Sprintf("(id serial PRIMARY KEY," +
-		" trio_ctx_id smallint NOT NULL REFERENCES %s (id),"+
-		" trio_offset smallint NOT NULL," +
+		" growth_ctx_id smallint NOT NULL REFERENCES %s (id),"+
+		" growth_offset smallint NOT NULL," +
 		" path_builders_id smallint NOT NULL REFERENCES %s (id))",
 		m3point.GrowthContextsTable, m3point.PathBuildersTable)
-	res.Insert = "(trio_ctx_id,trio_offset,path_builders_id) values ($1,$2,$3) returning id"
-	res.SelectAll = fmt.Sprintf("select id, trio_ctx_id, trio_offset path_builders_id from %s", PathContextsTable)
+	res.Insert = "(growth_ctx_id, growth_offset, path_builders_id) values ($1,$2,$3) returning id"
+	res.SelectAll = fmt.Sprintf("select id, growth_ctx_id, growth_offset, path_builders_id from %s", PathContextsTable)
 	res.ExpectedCount = -1
 	return &res
 }
@@ -120,6 +120,34 @@ func createTables() {
 
 func GetOrCreatePoint(p m3point.Point) int64 {
 	return GetOrCreatePointEnv(GetPathEnv(), p)
+}
+
+func GetPoint(pointId int64) *m3point.Point {
+	return GetPointEnv(GetPathEnv(), pointId)
+}
+
+func GetPointEnv(env *m3db.QsmEnvironment, pointId int64) *m3point.Point {
+	te, err :=env.GetOrCreateTableExec(PointsTable)
+	if err != nil {
+		Log.Errorf("could not get points table exec due to %v", err)
+		return nil
+	}
+	rows, err := te.Query(SelectPointPerId, pointId)
+	if err != nil {
+		Log.Errorf("could not select points table exec due to %v", err)
+		return nil
+	}
+	defer te.CloseRows(rows)
+	if rows.Next() {
+		res := m3point.Point{}
+		err = rows.Scan(&res[0], &res[1], &res[2])
+		if err != nil {
+			Log.Errorf("Could not read row of %s due to %v", PointsTable, err)
+		} else {
+			return &res
+		}
+	}
+	return nil
 }
 
 func createTablesEnv(env *m3db.QsmEnvironment) {

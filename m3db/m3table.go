@@ -79,7 +79,7 @@ func (env *QsmEnvironment) GetForSaveAll(tableName string) (*TableExec, int, boo
 			Log.Error(err)
 			return te, 0, false, err
 		}
-		if nbRows != te.TableDef.ExpectedCount {
+		if te.TableDef.ExpectedCount > 0 && nbRows != te.TableDef.ExpectedCount {
 			if nbRows != 0 {
 				// TODO: Delete all before refill. For now error
 				return te, nbRows, false, &QsmWrongCount{tableName, nbRows, te.TableDef.ExpectedCount}
