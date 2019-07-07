@@ -120,6 +120,20 @@ case "$1" in
 	    ensureRunningPg && dropDb && dropUser && rm $dbConfFile
 		exit $?
 		;;
+	dropall)
+	    checkDbConf || exit $?
+        echo "INFO: Dropping ALL QSM environments except 1"
+        RES=0
+        for envId in 2 3 4 5 6 7 8 9 10 11; do
+            export QSM_ENV_NUMBER=$envId
+            ./qsm db drop
+            LOOP_RES=$?
+            if [ $LOOP_RES -ne 0 ]; then
+                RES=$LOOP_RES
+            fi
+        done
+		exit $RES
+		;;
 	start)
 		ensureRunningPg
 		exit $?

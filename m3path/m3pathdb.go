@@ -40,6 +40,11 @@ func GetPathEnv() *m3db.QsmEnvironment {
 	return pathEnv
 }
 
+func Initialize() {
+	createTablesEnv(GetPathEnv())
+	m3point.Initialize()
+}
+
 func createPointsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = PointsTable
@@ -112,10 +117,6 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" from1, from2, from3," +
 		" next1, next2, next3 from %s where path_ctx_id = $1", PathNodesTable)
 	return &res
-}
-
-func createTables() {
-	createTablesEnv(GetPathEnv())
 }
 
 func GetOrCreatePoint(p m3point.Point) int64 {
@@ -224,7 +225,7 @@ func GetOrCreatePointEnv(env *m3db.QsmEnvironment, p m3point.Point) int64 {
 /***************************************************************/
 func RunInsertRandomPoints() {
 	m3db.SetToTestMode()
-	env := GetFullTestDb(m3db.PathTestEnv)
+	env := GetFullTestDb(m3db.PerfTestEnv)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(10)
 	nbRoutines := 100

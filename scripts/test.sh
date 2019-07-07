@@ -10,9 +10,6 @@ if [[ -z "$pack" ]]; then
     usage
 fi
 
-# TODO: analyze second param to test on other env. By default it's 3
-export QSM_ENV_NUMBER=3
-
 if [ "$pack" == "point" ] || [ "$pack" == "path" ] || [ "$pack" == "space" ] || [ "$pack" == "db" ] || [ "$pack" == "gl" ]; then
     go test ./m3${pack}/
     exit $?
@@ -24,7 +21,9 @@ if [ "$pack" == "all" ]; then
 fi
 
 if [ "$pack" == "perf" ]; then
-    export QSM_ENV_NUMBER=7
+    # Performance test is 3
+    export QSM_ENV_NUMBER=3
+
     dbLoc="was-not-set"
     confDir="was-not-set"
     . ./scripts/functions.sh

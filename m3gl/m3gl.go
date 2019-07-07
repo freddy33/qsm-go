@@ -79,7 +79,6 @@ func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}
 	verifyData()
-	m3point.Initialize()
 	space := m3space.MakeSpace(m3point.CInt(Max))
 	world := DisplayWorld{}
 	world.initialized(&space, glfwTime)
@@ -230,7 +229,6 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
-	m3point.Initialize()
 	triangleFiller := TriangleFiller{make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	triangleFiller.drawNodes()

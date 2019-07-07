@@ -25,13 +25,13 @@ const (
 	RunEnv                       // 2
 	PerfTestEnv                  // 3
 	ShellEnv                     // 4
-	SpaceTestEnv                 // 5
-	PointTestEnv                 // 6
-	PathTestEnv                  // 7
-	DbTempEnv                    // 8
-	PointTempEnv                 // 9
-	PathTempEnv                  // 10
-	SpaceTempEnv                 // 11
+	PointTestEnv                 // 5
+	PathTestEnv                  // 6
+	SpaceTestEnv                 // 7
+	GlTestEnv                 	 // 8
+	DbTempEnv                    // 9
+	PointTempEnv                 // 10
+	PathTempEnv                  // 11
 )
 
 const (
