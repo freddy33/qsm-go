@@ -161,11 +161,11 @@ func FillDbEnv(env *m3db.QsmEnvironment) {
 
 	n, err = saveAllGrowthContexts(env)
 	if err != nil {
-		Log.Fatalf("could not save all trio contexts due to %v", err)
+		Log.Fatalf("could not save all growth contexts due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d trio contexts", env.GetId(), n)
+		Log.Infof("Environment %d has %d growth contexts", env.GetId(), n)
 	}
 	initGrowthContexts(env)
 

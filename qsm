@@ -9,6 +9,16 @@ else
 fi
 export QSM_HOME
 
+if [ "$1" == "-env" ]; then
+    if [ -z "$2" ]; then
+        echo "ERROR: after -env need a number"
+        exit 4
+    fi
+    export QSM_ENV_NUMBER=$2
+    shift
+    shift
+fi
+
 script=$1
 shift
 
