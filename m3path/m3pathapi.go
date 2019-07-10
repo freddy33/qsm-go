@@ -34,7 +34,7 @@ type PathLink interface {
 
 type PathNode interface {
 	fmt.Stringer
-	GetPathContext() *BasePathContext
+	GetPathContext() PathContext
 	IsEnd() bool
 	IsRoot() bool
 	IsLatest() bool

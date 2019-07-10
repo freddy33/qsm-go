@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/freddy33/qsm-go/m3point"
+	"sync"
 )
 
 type ConnectionState uint8
@@ -12,15 +13,22 @@ const (
 	ConnectionNoSet ConnectionState = iota
 	ConnectionFrom
 	ConnectionNext
+	ConnectionBlocked
 )
 
 type PathContextDb struct {
-	id           int
-	growthCtx    m3point.GrowthContext
-	growthOffset int
-	rootNode     *PathNodeDb
-	pathNodeMap  PathNodeMap
-	maxD         int
+	id              int
+	growthCtx       m3point.GrowthContext
+	growthOffset    int
+	rootNode        *PathNodeDb
+	pathNodeMap     PathNodeMap
+	openNodeBuilder *OpenNodeBuilder
+}
+
+type OpenNodeBuilder struct {
+	pathCtx   *PathContextDb
+	d         int
+	openNodes []*PathNodeDb
 }
 
 func (pathCtx *PathContextDb) String() string {
@@ -62,7 +70,11 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 	rootNode.initLinks()
 
 	pathCtx.rootNode = rootNode
-	pathCtx.maxD = 0
+
+	openNodeBuilder := OpenNodeBuilder{pathCtx, 0, make([]*PathNodeDb, 1)}
+	openNodeBuilder.openNodes[0] = rootNode
+
+	pathCtx.openNodeBuilder = &openNodeBuilder
 }
 
 func (pn *PathNodeDb) initLinks() {
@@ -81,17 +93,37 @@ func (pathCtx *PathContextDb) GetRootPathNode() PathNode {
 }
 
 func (pathCtx *PathContextDb) GetNumberOfOpenNodes() int {
+	return len(pathCtx.openNodeBuilder.openNodes)
+}
+
+func (pathCtx *PathContextDb) GetAllOpenPathNodes() []PathNode {
+	col := pathCtx.openNodeBuilder.openNodes
+	res := make([]PathNode, len(col))
+	for i, n := range col {
+		res[i] = n
+	}
+	return res
+}
+
+var pathNodeDbPool = sync.Pool{
+	New: func() interface{} {
+		return new(PathNodeDb)
+	},
+}
+
+func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
+	pathCtx := onb.pathCtx
 	te, err := GetPathEnv().GetOrCreateTableExec(PathNodesTable)
 	if err != nil {
 		Log.Fatal(err)
 	}
-	rows, err := te.Query(SelectPathNodeByCtxAndDistance, pathCtx.id, pathCtx.maxD)
+	rows, err := te.Query(SelectPathNodeByCtxAndDistance, pathCtx.id, onb.d)
 	if err != nil {
 		Log.Fatal(err)
 	}
-	res := make([]PathNode, 0, 100)
+	res := make([]*PathNodeDb, 0, 100)
 	for rows.Next() {
-		pn := PathNodeDb{}
+		pn := pathNodeDbPool.Get().(*PathNodeDb)
 		var pathBuilderId, trioId int
 		from := [3]sql.NullInt64{}
 		next := [3]sql.NullInt64{}
@@ -107,11 +139,12 @@ func (pathCtx *PathContextDb) GetNumberOfOpenNodes() int {
 			pn.trioDetails = m3point.GetTrioDetails(m3point.TrioIndex(trioId))
 			for i := 0; i < 3; i++ {
 				link := new(PathLinkDb)
-				link.node = &pn
+				link.node = pn
 				link.index = i
 				if from[i].Valid && next[i].Valid {
 					Log.Errorf("Node DB entry for %d is invalid! link %d is both from and next", pn.id, i)
 				}
+				link.linkedNode = nil
 				if from[i].Valid {
 					link.connState = ConnectionFrom
 					link.linkedNodeId = int(from[i].Int64)
@@ -125,21 +158,101 @@ func (pathCtx *PathContextDb) GetNumberOfOpenNodes() int {
 				pn.links[i] = link
 			}
 		}
-		res = append(res, &pn)
+		res = append(res, pn)
 	}
-	return len(res)
+	return res
 }
 
-func (*PathContextDb) GetAllOpenPathNodes() []PathNode {
-	panic("implement me")
+func (pathCtx *PathContextDb) MoveToNextNodes() {
+	current := pathCtx.openNodeBuilder
+	next := new(OpenNodeBuilder)
+	next.d = current.d + 1
+	next.openNodes = make([]*PathNodeDb, 0, current.nextOpenNodesLen())
+	for _, on := range current.openNodes {
+		if Log.DoAssert() {
+			if on.IsEnd() {
+				Log.Errorf("An open end node builder is a dead end at %v", on.P())
+				continue
+			}
+			if !on.IsLatest() {
+				if Log.IsTrace() {
+					Log.Errorf("An open end node builder has no more active links at %v", on.P())
+				}
+				continue
+			}
+		}
+		td := on.trioDetails
+		if td == nil {
+			Log.Fatalf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
+			continue
+		}
+		nbFrom := 0
+		pnb := on.pathBuilder
+		for i, pl := range on.links {
+			switch pl.connState {
+			case ConnectionNext:
+				Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)
+			case ConnectionFrom:
+				nbFrom++
+			case ConnectionNoSet:
+				cd := td.GetConnections()[i]
+				npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
+
+				pId := GetOrCreatePoint(np)
+
+				// TODO: Find node by pathCtx and pId
+				// If exists link to it or create dead end
+
+				// Create new node
+				pn := pathNodeDbPool.Get().(*PathNodeDb)
+				pn.pathCtx = pl.node.pathCtx
+				pn.pathBuilder = npnb
+				pn.trioDetails = m3point.GetTrioDetails(npnb.GetTrioIndex())
+				pn.point = &np
+				pn.pointId = pId
+				pn.d = next.d
+				pn.initLinks()
+
+				// Link the destination node to this link
+				pl.linkedNodeId = pn.id
+				pl.linkedNode = pn
+
+				// Set one from entry to open node on and check still open node
+				isOpen := false
+				setFrom := false
+				for _, nl := range pn.links {
+					if nl.connState == ConnectionNoSet {
+						if setFrom {
+							isOpen = true
+						} else {
+							nl.connState = ConnectionFrom
+							nl.linkedNode = on
+							nl.linkedNodeId = on.id
+							setFrom = true
+						}
+					}
+				}
+				if !setFrom {
+					// link is actually a dead end the dest node cannot accept incoming
+					pl.connState = ConnectionBlocked
+					pl.linkedNode = nil
+					pl.linkedNodeId = -1
+				}
+				if isOpen {
+					next.openNodes = append(next.openNodes, pn)
+				}
+			}
+		}
+
+	}
 }
 
-func (*PathContextDb) MoveToNextNodes() {
-	panic("implement me")
+func (pathCtx *PathContextDb) PredictedNextOpenNodesLen() int {
+	return pathCtx.openNodeBuilder.nextOpenNodesLen()
 }
 
-func (*PathContextDb) PredictedNextOpenNodesLen() int {
-	panic("implement me")
+func (onb *OpenNodeBuilder) nextOpenNodesLen() int {
+	return calculatePredictedSize(onb.d, len(onb.openNodes))
 }
 
 func (*PathContextDb) dumpInfo() string {
@@ -157,12 +270,12 @@ type PathNodeDb struct {
 	links       [3]*PathLinkDb
 }
 
-func (*PathNodeDb) String() string {
-	panic("implement me")
+func (pn *PathNodeDb) String() string {
+	return fmt.Sprintf("PNDB%v-%d-%d", pn.point, pn.d, pn.trioDetails.GetId())
 }
 
-func (*PathNodeDb) GetPathContext() *BasePathContext {
-	panic("implement me")
+func (pn *PathNodeDb) GetPathContext() PathContext {
+	return pn.pathCtx
 }
 
 func (*PathNodeDb) IsEnd() bool {
@@ -209,8 +322,9 @@ func (*PathNodeDb) calcDist() int {
 	panic("implement me")
 }
 
-func (*PathNodeDb) addPathLink(connId m3point.ConnectionId) (PathLink, bool) {
-	panic("implement me")
+func (pn *PathNodeDb) addPathLink(connId m3point.ConnectionId) (PathLink, bool) {
+	Log.Fatalf("in DB path node %s never call addPathLink", pn.String())
+	return nil, false
 }
 
 func (*PathNodeDb) setOtherFrom(pl PathLink) {
@@ -226,10 +340,11 @@ type PathLinkDb struct {
 	index        int
 	connState    ConnectionState
 	linkedNodeId int
+	linkedNode   *PathNodeDb
 }
 
-func (*PathLinkDb) String() string {
-	panic("implement me")
+func (pl *PathLinkDb) String() string {
+	return fmt.Sprintf("PLDB-%d-%d", pl.connState, pl.index)
 }
 
 func (*PathLinkDb) GetSrc() PathNode {
@@ -252,8 +367,9 @@ func (*PathLinkDb) SetDeadEnd() {
 	panic("implement me")
 }
 
-func (*PathLinkDb) createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder) {
-	panic("implement me")
+func (pl *PathLinkDb) createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder) {
+	Log.Fatalf("in DB path link %s never call createDstNode", pl.String())
+	return nil, false, nil
 }
 
 func (*PathLinkDb) dumpInfo(ident int) string {

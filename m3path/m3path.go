@@ -154,6 +154,10 @@ func (pathCtx *BasePathContext) PredictedNextOpenNodesLen() int {
 			break
 		}
 	}
+	return calculatePredictedSize(d, len(pathCtx.openEndNodes))
+}
+
+func calculatePredictedSize(d int, currentLen int) int {
 	if d == 0 {
 		return 3
 	}
@@ -161,7 +165,7 @@ func (pathCtx *BasePathContext) PredictedNextOpenNodesLen() int {
 		return 6
 	}
 	// from sphere area growth of d to d+1 the ratio should be 1 + 2/d + 1/d^2
-	origLen := float64(len(pathCtx.openEndNodes))
+	origLen := float64(currentLen)
 	df := float64(d)
 	predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
 	if d <= 16 {
@@ -289,10 +293,10 @@ func (pl *BasePathLink) createDstNode(pathBuilder m3point.PathNodeBuilder) (Path
 	from := pl.src
 	dstDistance := from.D() + 1
 	pathCtx := from.GetPathContext()
-	center := pathCtx.rootPathNode.P()
-	npnb, np := pathBuilder.GetNextPathNodeBuilder(from.P().Sub(center), pl.connId, pathCtx.growthOffset)
+	center := pathCtx.GetRootPathNode().P()
+	npnb, np := pathBuilder.GetNextPathNodeBuilder(from.P().Sub(center), pl.connId, pathCtx.GetGrowthOffset())
 	realP := center.Add(np)
-	existingPn, ok := pathCtx.pathNodeMap.GetPathNode(realP)
+	existingPn, ok := pathCtx.GetPathNodeMap().GetPathNode(realP)
 
 	if ok {
 		if Log.IsTrace() {
@@ -329,7 +333,10 @@ func (pl *BasePathLink) createDstNode(pathBuilder m3point.PathNodeBuilder) (Path
 
 	// Create the new node
 	res := OutPathNode{}
-	res.pathCtx = pathCtx
+	res.pathCtx, ok = pathCtx.(*BasePathContext)
+	if !ok {
+		Log.Fatalf("could not convert path %v context to BasePathContext", pathCtx)
+	}
 	res.p = realP
 	res.d = dstDistance
 	res.trioId = npnb.GetTrioIndex()
@@ -337,7 +344,7 @@ func (pl *BasePathLink) createDstNode(pathBuilder m3point.PathNodeBuilder) (Path
 
 	pl.dst = &res
 
-	pathCtx.pathNodeMap.AddPathNode(pl.dst)
+	pathCtx.GetPathNodeMap().AddPathNode(pl.dst)
 
 	return pl.dst, true, npnb
 }
@@ -366,7 +373,7 @@ func (pl *BasePathLink) dumpInfo(ident int) string {
 // BasePathNode Functions
 /***************************************************************/
 
-func (bpn *BasePathNode) GetPathContext() *BasePathContext {
+func (bpn *BasePathNode) GetPathContext() PathContext {
 	return bpn.pathCtx
 }
 
@@ -651,7 +658,7 @@ func (epn *EndPathNodeT) IsLatest() bool {
 	return false
 }
 
-func (epn *EndPathNodeT) GetPathContext() *BasePathContext {
+func (epn *EndPathNodeT) GetPathContext() PathContext {
 	Log.Fatalf("trying to get path context from end node")
 	return nil
 }
