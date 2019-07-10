@@ -227,6 +227,18 @@ func (pn *PathNodeDb) SetPathCtx(pathCtx *PathContextDb) {
 	pn.pathCtx = pathCtx
 }
 
+func (pn *PathNodeDb) TrioDetails() *m3point.TrioDetails {
+	if pn.trioDetails == nil {
+		pn.trioDetails = m3point.GetTrioDetails(pn.trioId)
+	}
+	return pn.trioDetails
+}
+
+func (pn *PathNodeDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
+	pn.trioId = trioDetails.GetId()
+	pn.trioDetails = trioDetails
+}
+
 func (pn *PathNodeDb) String() string {
 	return fmt.Sprintf("PNDB%d-%d-%d-%d-%d", pn.id, pn.pathCtxId, pn.pointId, pn.d, pn.trioId)
 }
@@ -235,48 +247,89 @@ func (pn *PathNodeDb) GetPathContext() PathContext {
 	return pn.pathCtx
 }
 
-func (*PathNodeDb) IsEnd() bool {
-	panic("implement me")
+func (pn *PathNodeDb) IsEnd() bool {
+	return pn.id <= 0
 }
 
-func (*PathNodeDb) IsRoot() bool {
-	panic("implement me")
+func (pn *PathNodeDb) IsRoot() bool {
+	return pn.d == 0
 }
 
-func (*PathNodeDb) IsLatest() bool {
-	panic("implement me")
+func (pn *PathNodeDb) IsLatest() bool {
+	onb := pn.PathCtx().openNodeBuilder
+	if onb == nil {
+		Log.Errorf("asking for latest flag on non initialize path context %s for %s", pn.pathCtx.String(), pn.String())
+		return false
+	}
+	return pn.d >= onb.d
 }
 
-func (*PathNodeDb) P() m3point.Point {
-	panic("implement me")
+func (pn *PathNodeDb) P() m3point.Point {
+	if pn.point == nil {
+		pn.point = getPoint(pn.pointId)
+	}
+	return *pn.point
 }
 
-func (*PathNodeDb) D() int {
-	panic("implement me")
+func (pn *PathNodeDb) D() int {
+	return pn.d
 }
 
-func (*PathNodeDb) GetTrioIndex() m3point.TrioIndex {
-	panic("implement me")
+func (pn *PathNodeDb) GetTrioIndex() m3point.TrioIndex {
+	return pn.trioId
 }
 
-func (*PathNodeDb) GetFrom() PathLink {
-	panic("implement me")
+func (pn *PathNodeDb) GetFrom() PathLink {
+	for _, pl := range pn.links {
+		if pl.connState == ConnectionFrom {
+			return pl
+		}
+	}
+	return nil
 }
 
-func (*PathNodeDb) GetOtherFrom() PathLink {
-	panic("implement me")
+func (pn *PathNodeDb) GetOtherFrom() PathLink {
+	firstFound := false
+	for _, pl := range pn.links {
+		if pl.connState == ConnectionFrom {
+			if firstFound {
+				return pl
+			}
+			firstFound = true
+		}
+	}
+	return nil
 }
 
-func (*PathNodeDb) GetNext(i int) PathLink {
-	panic("implement me")
+func (pn *PathNodeDb) GetNext(i int) PathLink {
+	count := 0
+	for _, pl := range pn.links {
+		if pl.connState == ConnectionNext {
+			if count == i {
+				return pl
+			}
+			count++
+		}
+	}
+	return nil
 }
 
-func (*PathNodeDb) GetNextConnection(connId m3point.ConnectionId) PathLink {
-	panic("implement me")
+func (pn *PathNodeDb) GetNextConnection(connId m3point.ConnectionId) PathLink {
+	td := pn.TrioDetails()
+	for i, cd := range td.GetConnections() {
+		if cd.GetId() == connId && pn.links[i].connState == ConnectionNext {
+			return pn.links[i]
+		}
+	}
+	return nil
 }
 
-func (*PathNodeDb) calcDist() int {
-	panic("implement me")
+func (pn *PathNodeDb) calcDist() int {
+	from := pn.GetFrom()
+	if from == nil {
+		return 0
+	}
+	return from.GetSrc().calcDist() + 1
 }
 
 func (pn *PathNodeDb) addPathLink(connId m3point.ConnectionId) (PathLink, bool) {
@@ -292,35 +345,57 @@ func (*PathNodeDb) dumpInfo(ident int) string {
 	panic("implement me")
 }
 
-func (pl *PathLinkDb) String() string {
+func (pl PathLinkDb) String() string {
 	return fmt.Sprintf("PLDB-%d-%d", pl.connState, pl.index)
 }
 
-func (*PathLinkDb) GetSrc() PathNode {
+func (pl PathLinkDb) GetSrc() PathNode {
+	if pl.connState == ConnectionFrom {
+		if pl.linkedNode == nil {
+			pl.linkedNode = getPathNodeDb(pl.linkedNodeId)
+		}
+		return pl.linkedNode
+	}
+	if pl.connState == ConnectionNext {
+		return pl.node
+	}
+	return nil
+}
+
+func (pl PathLinkDb) GetDst() PathNode {
+	if pl.connState == ConnectionNext {
+		if pl.linkedNode == nil {
+			pl.linkedNode = getPathNodeDb(pl.linkedNodeId)
+		}
+		return pl.linkedNode
+	}
+	if pl.connState == ConnectionFrom {
+		return pl.node
+	}
+	return nil
+}
+
+func (pl PathLinkDb) GetConnId() m3point.ConnectionId {
 	panic("implement me")
 }
 
-func (*PathLinkDb) GetConnId() m3point.ConnectionId {
+func (pl PathLinkDb) HasDestination() bool {
 	panic("implement me")
 }
 
-func (*PathLinkDb) HasDestination() bool {
+func (pl PathLinkDb) IsDeadEnd() bool {
 	panic("implement me")
 }
 
-func (*PathLinkDb) IsDeadEnd() bool {
+func (pl PathLinkDb) SetDeadEnd() {
 	panic("implement me")
 }
 
-func (*PathLinkDb) SetDeadEnd() {
-	panic("implement me")
-}
-
-func (pl *PathLinkDb) createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder) {
+func (pl PathLinkDb) createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder) {
 	Log.Fatalf("in DB path link %s never call createDstNode", pl.String())
 	return nil, false, nil
 }
 
-func (*PathLinkDb) dumpInfo(ident int) string {
+func (pl PathLinkDb) dumpInfo(ident int) string {
 	panic("implement me")
 }

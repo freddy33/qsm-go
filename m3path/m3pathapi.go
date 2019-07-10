@@ -26,6 +26,7 @@ type PathLink interface {
 	GetSrc() PathNode
 	GetConnId() m3point.ConnectionId
 	HasDestination() bool
+	GetDst() PathNode
 	IsDeadEnd() bool
 	SetDeadEnd()
 	createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder)

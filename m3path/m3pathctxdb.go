@@ -125,7 +125,11 @@ func (pathCtx *PathContextDb) GetRootPathNode() PathNode {
 }
 
 func (pathCtx *PathContextDb) GetNumberOfOpenNodes() int {
-	return len(pathCtx.openNodeBuilder.openNodes)
+	onb := pathCtx.openNodeBuilder
+	if onb == nil {
+		return 0
+	}
+	return len(onb.openNodes)
 }
 
 func (pathCtx *PathContextDb) GetAllOpenPathNodes() []PathNode {

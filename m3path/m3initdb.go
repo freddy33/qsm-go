@@ -33,9 +33,8 @@ func GetPathEnv() *m3db.QsmEnvironment {
 }
 
 func InitializeDB() {
-	env := GetPathEnv()
-	m3point.InitializeDBEnv(env, false)
-	createTablesEnv(env)
+	m3point.InitializeDB()
+	createTablesEnv(GetPathEnv())
 }
 
 const (
