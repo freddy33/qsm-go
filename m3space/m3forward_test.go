@@ -60,7 +60,7 @@ func TestSpaceAllPyramids(t *testing.T) {
 
 	m3db.SetToTestMode()
 	env := m3path.GetFullTestDb(m3db.SpaceTestEnv)
-	m3point.InitializeEnv(env, true)
+	m3point.InitializeDBEnv(env, true)
 
 	allContexts := m3point.GetAllContextTypes()
 	LogData.Infof("Size Type Idxs time nbPoss orgSize finalSize diff ratio")

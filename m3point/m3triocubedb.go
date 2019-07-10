@@ -88,6 +88,11 @@ func saveAllContextCubes(env *m3db.QsmEnvironment) (int, error) {
 		return 0, err
 	}
 	if toFill {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		cubeKeys := calculateAllContextCubes()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(cubeKeys))

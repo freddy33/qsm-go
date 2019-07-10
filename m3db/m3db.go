@@ -49,6 +49,10 @@ type DbConnDetails struct {
 
 type QsmError string
 
+func MakeQsmErrorf(format string, args ...interface{}) QsmError {
+	return QsmError(fmt.Sprintf(format, args...))
+}
+
 func (qsmError QsmError) Error() string {
 	return string(qsmError)
 }

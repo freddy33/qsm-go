@@ -13,7 +13,7 @@ func GenerateTextFiles() {
 }
 
 func GenerateTextFilesEnv(env *m3db.QsmEnvironment) {
-	InitializeEnv(env, true)
+	InitializeDBEnv(env, true)
 	genDoc := m3util.GetGenDocDir()
 	writeAllTrioDetailsTable(genDoc)
 	writeAllTrioPermutationsTable(genDoc)

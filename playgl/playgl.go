@@ -50,7 +50,7 @@ func Play() {
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
 	max := int64(30 * m3point.THREE)
-	m3path.Initialize()
+	m3path.InitializeDB()
 	world = m3gl.MakeWorld(max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()
 	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)

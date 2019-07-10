@@ -123,6 +123,11 @@ func saveAllPathBuilders(env *m3db.QsmEnvironment) (int, error) {
 		return 0, err
 	}
 	if toFill {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		builders := calculateAllPathBuilders()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
@@ -137,7 +142,7 @@ func saveAllPathBuilders(env *m3db.QsmEnvironment) (int, error) {
 			for i, pl := range rootNode.pathLinks {
 				ipn, ok := pl.pathNode.(*IntermediatePathNodeBuilder)
 				if !ok {
-					err = m3db.QsmError(fmt.Sprintf("trying to convert path node to intermediate failed for %v", pl))
+					err = m3db.MakeQsmErrorf("trying to convert path node to intermediate failed for %v", pl)
 					return 0, err
 				}
 				interPNs[i] = ipn
@@ -146,7 +151,7 @@ func saveAllPathBuilders(env *m3db.QsmEnvironment) (int, error) {
 					interConnIds[i][j] = ipl.connId
 					lipn, ok := ipl.pathNode.(*LastIntermediatePathNodeBuilder)
 					if !ok {
-						err = m3db.QsmError(fmt.Sprintf("trying to convert path node to last intermediate failed for %v", ipl))
+						err = m3db.MakeQsmErrorf("trying to convert path node to last intermediate failed for %v", ipl)
 						return 0, err
 					}
 					lastInterPNs[i][j] = lipn

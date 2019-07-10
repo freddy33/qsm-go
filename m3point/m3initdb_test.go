@@ -45,7 +45,7 @@ func TestLoadOrCalculate(t *testing.T) {
 
 	start = time.Now()
 	// force reload
-	InitializeEnv(env, true)
+	InitializeDBEnv(env, true)
 	loadTime := time.Now().Sub(start)
 	Log.Infof("Took %v to load", loadTime)
 
@@ -81,9 +81,8 @@ func TestSaveAll(t *testing.T) {
 	loaded, _ := loadConnectionDetails(tempEnv)
 	assert.Equal(t, ExpectedNbConns, len(loaded))
 
-	// Init from Good DB
-	testEnv := GetFullTestDb(m3db.PointTestEnv)
-	initConnections(testEnv)
+	// Init
+	initConnections(tempEnv)
 
 	// ************ Trio Details
 
@@ -100,8 +99,8 @@ func TestSaveAll(t *testing.T) {
 	loaded2 := loadTrioDetails(tempEnv)
 	assert.Equal(t, ExpectedNbTrios, len(loaded2))
 
-	// Init from Good DB
-	initTrioDetails(testEnv)
+	// Init
+	initTrioDetails(tempEnv)
 
 	// ************ Growth Contexts
 
@@ -118,8 +117,8 @@ func TestSaveAll(t *testing.T) {
 	loaded3 := loadGrowthContexts(tempEnv)
 	assert.Equal(t, ExpectedNbGrowthContexts, len(loaded3))
 
-	// Init from Good DB
-	initGrowthContexts(testEnv)
+	// Init
+	initGrowthContexts(tempEnv)
 
 	// ************ Context Cubes
 
@@ -136,8 +135,8 @@ func TestSaveAll(t *testing.T) {
 	loaded4 := loadContextCubes(tempEnv)
 	assert.Equal(t, ExpectedNbCubes, len(loaded4))
 
-	// Init from Good DB
-	initContextCubes(testEnv)
+	// Init
+	initContextCubes(tempEnv)
 
 	// ************ Path Builders
 
@@ -155,5 +154,5 @@ func TestSaveAll(t *testing.T) {
 	assert.Equal(t, ExpectedNbPathBuilders, len(loaded5)-1)
 
 	// Init from Good DB
-	initPathBuilders(testEnv)
+	initPathBuilders(tempEnv)
 }

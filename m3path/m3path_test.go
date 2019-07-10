@@ -16,7 +16,7 @@ func getAllTestContexts(env *m3db.QsmEnvironment) map[m3point.GrowthType][]PathC
 	}
 	res := make(map[m3point.GrowthType][]PathContext)
 
-	m3point.InitializeEnv(env, false)
+	m3point.InitializeDBEnv(env, false)
 
 	idx := 0
 	for _, growthCtx := range m3point.GetAllGrowthContexts() {

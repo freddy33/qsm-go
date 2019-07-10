@@ -79,6 +79,8 @@ var EndPathLink = &BasePathLink{EndPathNode, m3point.NilConnectionId, EndPathNod
 // BasePathContext Functions
 /***************************************************************/
 
+var UseDB = false
+
 func MakePathContext(ctxType m3point.GrowthType, pIdx int, offset int, pnm PathNodeMap) PathContext {
 	return MakePathContextFromGrowthContext(m3point.GetGrowthContextByTypeAndIndex(ctxType, pIdx), offset, pnm)
 }

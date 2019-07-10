@@ -11,7 +11,7 @@ func TestDisplayPathBuilders(t *testing.T) {
 	m3db.SetToTestMode()
 
 	env := GetFullTestDb(m3db.PointTestEnv)
-	InitializeEnv(env, false)
+	InitializeDBEnv(env, false)
 	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
 	growthCtx := GetGrowthContextByTypeAndIndex(GrowthType(8), 0)
 	pnb := GetPathNodeBuilder(growthCtx, 0, Origin)
@@ -27,7 +27,7 @@ func TestAllPathBuilders(t *testing.T) {
 	m3db.SetToTestMode()
 
 	env := GetFullTestDb(m3db.PointTestEnv)
-	InitializeEnv(env, true)
+	InitializeDBEnv(env, true)
 
 	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
 	for _, ctxType := range GetAllContextTypes() {

@@ -70,7 +70,7 @@ func (env *QsmEnvironment) GetForSaveAll(tableName string) (*TableExec, int, boo
 			return te, 0, false, err
 		}
 		if !count.Next() {
-			err = QsmError(fmt.Sprintf("counting rows of table %s returned no results", te.TableDef.Name))
+			err = MakeQsmErrorf("counting rows of table %s returned no results", te.TableDef.Name)
 			Log.Error(err)
 			return te, 0, false, err
 		}
@@ -216,7 +216,7 @@ func (te *TableExec) Insert(args ...interface{}) error {
 		Log.Tracef("table %s inserted %v got %d response", te.tableName, args, rows)
 	}
 	if rows != int64(1) {
-		err = QsmError(fmt.Sprintf("insert query on table %s should have receive one result, and got %d", te.tableName, rows))
+		err = MakeQsmErrorf("insert query on table %s should have receive one result, and got %d", te.tableName, rows)
 		Log.Error(err)
 		return err
 	}
@@ -280,12 +280,12 @@ func (te *TableExec) initForTable(tableName string) error {
 	var ok bool
 	te.TableDef, ok = tableDefinitions[tableName]
 	if !ok {
-		return QsmError(fmt.Sprintf("Table definition for %s does not exists", tableName))
+		return MakeQsmErrorf("Table definition for %s does not exists", tableName)
 	}
 
 	db := te.env.GetConnection()
 	if db == nil {
-		return QsmError(fmt.Sprintf("Got a nil connection for %d", te.env.id))
+		return MakeQsmErrorf("Got a nil connection for %d", te.env.id)
 	}
 
 	resCheck := db.QueryRow("select 1 from information_schema.tables where table_schema='public' and table_name=$1", tableName)

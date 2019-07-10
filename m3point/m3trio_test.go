@@ -48,7 +48,7 @@ func initTestTrioDetails() {
 	m3db.SetToTestMode()
 
 	env := GetFullTestDb(m3db.PointTestEnv)
-	InitializeEnv(env, false)
+	InitializeDBEnv(env, false)
 }
 
 func TestAllTrioDetails(t *testing.T) {

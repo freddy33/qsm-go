@@ -32,41 +32,41 @@ func GetPointEnv() *m3db.QsmEnvironment {
 
 func checkConnInitialized() {
 	if !connectionsLoaded[pointEnvId] {
-		Log.Fatal("Connections should have been initialized! Please call m3point.Initialize() method before this!")
+		Log.Fatal("Connections should have been initialized! Please call m3point.InitializeDB() method before this!")
 	}
 }
 
 func checkTrioInitialized() {
 	if !trioDetailsLoaded[pointEnvId] {
-		Log.Fatal("Trios should have been initialized! Please call m3point.Initialize() method before this!")
+		Log.Fatal("Trios should have been initialized! Please call m3point.InitializeDB() method before this!")
 	}
 }
 
 func checkGrowthContextsInitialized() {
 	if !trioDetailsLoaded[pointEnvId] {
-		Log.Fatal("trio contexts should have been initialized! Please call m3point.Initialize() method before this!")
+		Log.Fatal("trio contexts should have been initialized! Please call m3point.InitializeDB() method before this!")
 	}
 }
 
 func checkCubesInitialized() {
 	if !cubesLoaded[pointEnvId] {
-		Log.Fatal("Cubes should have been initialized! Please call m3point.Initialize() method before this!")
+		Log.Fatal("Cubes should have been initialized! Please call m3point.InitializeDB() method before this!")
 	}
 }
 
 func checkPathBuildersInitialized() {
 	if !pathBuildersLoaded[pointEnvId] {
-		Log.Fatal("Path Builders should have been initialized! Please call m3point.Initialize() method before this!")
+		Log.Fatal("Path Builders should have been initialized! Please call m3point.InitializeDB() method before this!")
 	}
 }
 
-func Initialize() {
+func InitializeDB() {
 	env := GetPointEnv()
-	InitializeEnv(env, false)
+	InitializeDBEnv(env, false)
 	pointEnvId = env.GetId()
 }
 
-func InitializeEnv(env *m3db.QsmEnvironment, forced bool) {
+func InitializeDBEnv(env *m3db.QsmEnvironment, forced bool) {
 	if forced {
 		envId := env.GetId()
 		connectionsLoaded[envId] = false
@@ -84,6 +84,11 @@ func InitializeEnv(env *m3db.QsmEnvironment, forced bool) {
 
 func initConnections(env *m3db.QsmEnvironment) {
 	if !connectionsLoaded[env.GetId()] {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		allConnections, allConnectionsByVector = loadConnectionDetails(env)
 		connectionsLoaded[env.GetId()] = true
 		Log.Debugf("Environment %d has %d connection details", env.GetId(), len(allConnections))
@@ -92,6 +97,11 @@ func initConnections(env *m3db.QsmEnvironment) {
 
 func initTrioDetails(env *m3db.QsmEnvironment) {
 	if !trioDetailsLoaded[env.GetId()] {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		allTrioDetails = loadTrioDetails(env)
 		trioDetailsLoaded[env.GetId()] = true
 		Log.Debugf("Environment %d has %d trio details", env.GetId(), len(allTrioDetails))
@@ -100,6 +110,11 @@ func initTrioDetails(env *m3db.QsmEnvironment) {
 
 func initGrowthContexts(env *m3db.QsmEnvironment) {
 	if !growthContextsLoaded[env.GetId()] {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		allGrowthContexts = loadGrowthContexts(env)
 		growthContextsLoaded[env.GetId()] = true
 		Log.Debugf("Environment %d has %d growth contexts", env.GetId(), len(allGrowthContexts))
@@ -108,6 +123,11 @@ func initGrowthContexts(env *m3db.QsmEnvironment) {
 
 func initContextCubes(env *m3db.QsmEnvironment) {
 	if !cubesLoaded[env.GetId()] {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		cubeIdsPerKey = loadContextCubes(env)
 		cubesLoaded[env.GetId()] = true
 		Log.Debugf("Environment %d has %d cubes", env.GetId(), len(cubeIdsPerKey))
@@ -116,6 +136,11 @@ func initContextCubes(env *m3db.QsmEnvironment) {
 
 func initPathBuilders(env *m3db.QsmEnvironment) {
 	if !pathBuildersLoaded[env.GetId()] {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		pathBuilders = loadPathBuilders(env)
 		pathBuildersLoaded[env.GetId()] = true
 		Log.Debugf("Environment %d has %d path builders", env.GetId(), len(pathBuilders))

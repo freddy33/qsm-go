@@ -72,6 +72,11 @@ func saveAllConnectionDetails(env *m3db.QsmEnvironment) (int, error) {
 		return 0, err
 	}
 	if toFill {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		connections, _ := calculateConnectionDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(connections))
@@ -120,6 +125,11 @@ func saveAllTrioDetails(env *m3db.QsmEnvironment) (int, error) {
 	}
 
 	if toFill {
+		oldEnvId := pointEnvId
+		defer func () {
+			pointEnvId = oldEnvId
+		}()
+		pointEnvId = env.GetId()
 		trios := calculateAllTrioDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(trios))
