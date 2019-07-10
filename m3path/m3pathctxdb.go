@@ -31,6 +31,7 @@ func MakePathContextDBFromGrowthContext(growthCtx m3point.GrowthContext, offset 
 	err := pathCtx.insertInDb()
 	if err != nil {
 		Log.Errorf("could not save new path context %s due to %v", pathCtx.String(), err)
+		return nil
 	}
 
 	return &pathCtx

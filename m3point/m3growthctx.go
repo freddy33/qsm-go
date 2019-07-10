@@ -16,7 +16,7 @@ TODO: Create trio index for non nextMainPoint points base on growth type
 */
 type GrowthType uint8
 
-var allContextTypes = [5]GrowthType{1, 2, 3, 4, 8}
+var allGrowthTypes = [5]GrowthType{1, 2, 3, 4, 8}
 var totalNbContexts = 8 + 12 + 8 + 12 + 12
 
 type BaseGrowthContext struct {
@@ -27,24 +27,6 @@ type BaseGrowthContext struct {
 	// Index in the permutations to choose from. For type 1 and 3 [0,7] for the other in the 12 list [0,11]
 	// Max number of indexes returned by GrowthType.GetNbIndexes()
 	growthIndex int
-}
-
-// A struct representing one next nextMainPoint point where a path is going toward
-type NextPathElement struct {
-	valid  bool
-	offset int
-	// The next nextMainPoint points where p path is going to go to
-	nextMainPoint Point
-	// The trio details for this specific next nextMainPoint point
-	nextMainTd *TrioDetails
-
-	// The intermediate point before p path will reach before going to the nextMainPoint point
-	ipNearNm Point
-	// The connection used on nextMainPoint point to reach the previous intermediate point
-	nmp2ipConn *ConnectionDetails
-
-	// The connection used between the 2 intermediate points
-	p2iConn *ConnectionDetails
 }
 
 var allGrowthContexts []GrowthContext
@@ -73,7 +55,7 @@ func GetAllGrowthContexts() []GrowthContext {
 }
 
 func GetAllContextTypes() [5]GrowthType {
-	return allContextTypes
+	return allGrowthTypes
 }
 
 func (t GrowthType) String() string {

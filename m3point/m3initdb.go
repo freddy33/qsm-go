@@ -20,6 +20,11 @@ var growthContextsLoaded [m3db.MaxNumberOfEnvironments]bool
 var cubesLoaded [m3db.MaxNumberOfEnvironments]bool
 var pathBuildersLoaded [m3db.MaxNumberOfEnvironments]bool
 
+func SetDefaultEnv(env *m3db.QsmEnvironment) {
+	pointEnvId = env.GetId()
+	pointEnv = env
+}
+
 func GetPointEnv() *m3db.QsmEnvironment {
 	if pointEnv == nil || pointEnv.GetConnection() == nil {
 		if pointEnvId == m3db.NoEnv {
