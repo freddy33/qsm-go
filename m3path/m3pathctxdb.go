@@ -147,7 +147,7 @@ func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
 	if err != nil {
 		Log.Fatal(err)
 	}
-	rows, err := te.Query(SelectPathNodeByCtxAndDistance, pathCtx.id, onb.d)
+	rows, err := te.Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
 	if err != nil {
 		Log.Fatal(err)
 	}
@@ -175,9 +175,7 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 				continue
 			}
 			if !on.IsLatest() {
-				if Log.IsTrace() {
-					Log.Errorf("An open end node builder has no more active links at %v", on.P())
-				}
+				Log.Errorf("An open end node builder has no more active links at %v", on.P())
 				continue
 			}
 		}
@@ -187,6 +185,7 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 			continue
 		}
 		nbFrom := 0
+		nbBlocked := 0
 		pnb := on.pathBuilder
 		for i, pl := range on.links {
 			switch pl.connState {
@@ -194,56 +193,99 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 				Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)
 			case ConnectionFrom:
 				nbFrom++
-			case ConnectionNoSet:
+			case ConnectionBlocked:
+				nbBlocked++
+			case ConnectionNotSet:
 				cd := td.GetConnections()[i]
 				npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
 
 				pId := getOrCreatePoint(np)
 
-				// TODO: Find node by pathCtx and pId
+				var pn *PathNodeDb
+
+				pnInDB := pathCtx.getPathNodeDbByPoint(pId)
+
 				// If exists link to it or create dead end
-
-				// Create new node
-				pn := getNewPathNodeDb()
-				pn.pathCtx = pl.node.pathCtx
-				pn.pathBuilder = npnb
-				pn.trioDetails = m3point.GetTrioDetails(npnb.GetTrioIndex())
-				pn.point = &np
-				pn.pointId = pId
-				pn.d = next.d
-
-				// Link the destination node to this link
-				pl.linkedNodeId = pn.id
-				pl.linkedNode = pn
-
-				// Set one from entry to open node on and check still open node
-				isOpen := false
-				setFrom := false
-				for _, nl := range pn.links {
-					if nl.connState == ConnectionNoSet {
-						if setFrom {
-							isOpen = true
-						} else {
-							nl.connState = ConnectionFrom
-							nl.linkedNode = on
-							nl.linkedNodeId = on.id
-							setFrom = true
+				if pnInDB != nil {
+					if pnInDB.d == next.d {
+						// From same round
+						for _, foundPn := range next.openNodes {
+							if foundPn.id == pnInDB.id {
+								pn = foundPn
+								break
+							}
 						}
+						if pn == nil {
+							Log.Errorf("Got entry in DB %s p=%v with same D %d but not in collection of open nodes!", pnInDB.String(), np, next.d)
+							// Blocking link
+							pl.connState = ConnectionBlocked
+							pl.linkedNodeId = -1
+							pl.linkedNode = nil
+						} else {
+							modelError := pnInDB.setFrom(cd.GetNegId(), on)
+							// Check if connection open on the other side for adding other from
+							if modelError != nil {
+								if Log.IsDebug() {
+									Log.Debug(modelError)
+								}
+								// from cannot be set => this is blocked
+								pl.connState = ConnectionBlocked
+								pl.linkedNodeId = -1
+								pl.linkedNode = nil
+							} else {
+								// Link the destination node to this link
+								pl.connState = ConnectionNext
+								pl.linkedNodeId = pn.id
+								pl.linkedNode = pn
+							}
+						}
+					} else {
+						// already something there => blocked
+						pl.connState = ConnectionBlocked
+						pl.linkedNodeId = -1
+						pl.linkedNode = nil
 					}
-				}
-				if !setFrom {
-					// link is actually a dead end the dest node cannot accept incoming
-					pl.connState = ConnectionBlocked
-					pl.linkedNode = nil
-					pl.linkedNodeId = -1
-				}
-				if isOpen {
-					next.openNodes = append(next.openNodes, pn)
+				} else {
+					// Create new node
+					pn := getNewPathNodeDb()
+					pn.pathCtxId = pl.node.pathCtxId
+					pn.pathCtx = pl.node.pathCtx
+					pn.pathBuilderId = npnb.GetCubeId()
+					pn.pathBuilder = npnb
+					pn.trioId = npnb.GetTrioIndex()
+					pn.trioDetails = m3point.GetTrioDetails(npnb.GetTrioIndex())
+					pn.point = &np
+					pn.pointId = pId
+					pn.d = next.d
+
+					modelError := pn.setFrom(cd.GetNegId(), on)
+
+					sqlErr := pn.insertInDb()
+					if sqlErr != nil {
+						Log.Error(sqlErr)
+						continue
+					}
+
+					if modelError != nil {
+						// Error to get here on new node
+						Log.Error(modelError)
+						// from cannot be set => this is blocked
+						pl.connState = ConnectionBlocked
+						pl.linkedNodeId = -1
+						pl.linkedNode = nil
+					} else {
+						// Link the destination node to this link
+						pl.connState = ConnectionNext
+						pl.linkedNodeId = pn.id
+						pl.linkedNode = pn
+						next.openNodes = append(next.openNodes, pn)
+					}
 				}
 			}
 		}
-
 	}
+	Log.Infof("%s dist=%d : move from %d to %d open nodes", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes))
+	pathCtx.openNodeBuilder = next
 }
 
 func (pathCtx *PathContextDb) PredictedNextOpenNodesLen() int {

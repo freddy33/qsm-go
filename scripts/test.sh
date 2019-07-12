@@ -16,7 +16,7 @@ if [ "$pack" == "point" ] || [ "$pack" == "path" ] || [ "$pack" == "space" ] || 
 fi
 
 if [ "$pack" == "all" ]; then
-    go test -parallel 4 ./m3point/ ./m3path/ ./m3db/ ./m3space/ ./m3gl/
+    go test -parallel 4 ./m3db/ ./m3point/ ./m3path/ ./m3space/ ./m3gl/
     exit $?
 fi
 

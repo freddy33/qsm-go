@@ -11,7 +11,7 @@ import (
 type ConnectionState uint8
 
 const (
-	ConnectionNoSet ConnectionState = iota
+	ConnectionNotSet ConnectionState = iota
 	ConnectionFrom
 	ConnectionNext
 	ConnectionBlocked
@@ -33,7 +33,7 @@ type PathNodeDb struct {
 	point   *m3point.Point
 
 	d     int
-	links [3]PathLinkDb
+	links [3]*PathLinkDb
 }
 
 type PathLinkDb struct {
@@ -59,7 +59,7 @@ func getNewPathNodeDb() *PathNodeDb {
 	return pn
 }
 
-func releasePathNodeDb(pn *PathNodeDb) {
+func (pn *PathNodeDb) release() {
 	// Make sure it's clean before resending to pool
 	pn.setToNil()
 	pathNodeDbPool.Put(pn)
@@ -78,9 +78,13 @@ func (pn *PathNodeDb) setToNil() {
 	pn.point = nil
 	pn.d = -1
 	for i, pl := range pn.links {
+		if pl == nil {
+			pl = new(PathLinkDb)
+			pn.links[i] = pl
+		}
 		pl.node = pn
 		pl.index = i
-		pl.connState = ConnectionNoSet
+		pl.connState = ConnectionNotSet
 		pl.linkedNodeId = -1
 		pl.linkedNode = nil
 	}
@@ -92,7 +96,7 @@ func (pn *PathNodeDb) getConnectionsForDb() (uint16, [3]sql.NullInt64, [3]sql.Nu
 	next := [3]sql.NullInt64{}
 	for i, pl := range pn.links {
 		switch pl.connState {
-		case ConnectionNoSet:
+		case ConnectionNotSet:
 			from[i].Valid = false
 			from[i].Int64 = 0
 			next[i].Valid = false
@@ -120,7 +124,7 @@ func (pn *PathNodeDb) getConnectionsForDb() (uint16, [3]sql.NullInt64, [3]sql.Nu
 
 func (pn *PathNodeDb) setBlockedMask(blockedMask uint16) {
 	for i, pl := range pn.links {
-		if blockedMask & (1 << uint16(i)) != 0 {
+		if blockedMask&(1<<uint16(i)) != 0 {
 			pl.connState = ConnectionBlocked
 			pl.linkedNodeId = -1
 			pl.linkedNode = nil
@@ -141,15 +145,30 @@ func (pn *PathNodeDb) insertInDb() error {
 	return err
 }
 
-func getOrCreatePathNodeDb(pn *PathNodeDb) (bool, int64) {
-	return getOrCreatePathNodeDbEnv(GetPathEnv(), pn)
-}
-
 func getPathNodeDb(id int64) *PathNodeDb {
 	return getPathNodeDbEnv(GetPathEnv(), id)
 }
 
-func getPathNodeDbByPointEnv(env *m3db.QsmEnvironment, pointId int64) []*PathNodeDb {
+func (pathCtx *PathContextDb) getPathNodeDbByPoint(pointId int64) *PathNodeDb {
+	env := GetPathEnv()
+	te, err := env.GetOrCreateTableExec(PathNodesTable)
+	if err != nil {
+		Log.Errorf("could not get path node table exec due to %v", err)
+		return nil
+	}
+	rows, err := te.Query(SelectPathNodeByCtxAndPoint, pathCtx.id, pointId)
+	if err != nil {
+		Log.Errorf("could not select path node for ctx %d and point %d exec due to %v", pathCtx.id, pointId, err)
+		return nil
+	}
+	defer te.CloseRows(rows)
+	if rows.Next() {
+		pn, err := readRowOnlyIds(rows)
+		if err != nil {
+			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
+		}
+		return pn
+	}
 	return nil
 }
 
@@ -161,7 +180,7 @@ func getPathNodeDbEnv(env *m3db.QsmEnvironment, pathNodeId int64) *PathNodeDb {
 	}
 	rows, err := te.Query(SelectPathNodesById, pathNodeId)
 	if err != nil {
-		Log.Errorf("could not select path node table for id %d exec due to %v", pathNodeId, err)
+		Log.Errorf("could not select path node for id %d exec due to %v", pathNodeId, err)
 		return nil
 	}
 	defer te.CloseRows(rows)
@@ -201,10 +220,6 @@ func readRowOnlyIds(rows *sql.Rows) (*PathNodeDb, error) {
 		}
 	}
 	return pn, nil
-}
-
-func getOrCreatePathNodeDbEnv(env *m3db.QsmEnvironment, pn *PathNodeDb) (bool, int64) {
-	return false, -1
 }
 
 func (pn *PathNodeDb) PathCtx() *PathContextDb {
@@ -337,19 +352,59 @@ func (pn *PathNodeDb) addPathLink(connId m3point.ConnectionId) (PathLink, bool) 
 	return nil, false
 }
 
-func (*PathNodeDb) setOtherFrom(pl PathLink) {
-	panic("implement me")
+func (pn *PathNodeDb) setFrom(connId m3point.ConnectionId, fromNode *PathNodeDb) error {
+	td := pn.TrioDetails()
+	for i, cd := range td.GetConnections() {
+		if cd.GetId() == connId {
+			if pn.links[i].connState == ConnectionNotSet {
+				if Log.IsTrace() {
+					Log.Tracef("set from %s on node %s at conn %s %d.", fromNode.String(), pn.String(), connId, i)
+				}
+				pn.links[i].connState = ConnectionFrom
+				pn.links[i].linkedNode = fromNode
+				pn.links[i].linkedNodeId = fromNode.id
+				return nil
+			} else {
+				return MakeQsmModelErrorf(ConnectionNotAvailable, "Cannot set from %s on node %s at conn %s %d, since it is already %d to %d.", fromNode.String(), pn.String(), connId, i, pn.links[i].connState, pn.links[i].linkedNodeId)
+			}
+		}
+	}
+	return MakeQsmModelErrorf(ConnectionNotFound, "Could not set from on path node %s since connId %s does not exists in %s ", pn.String(), connId.String(), td.String())
+}
+
+type ErrorType int
+
+const (
+	ConnectionNotFound ErrorType = iota
+	ConnectionNotAvailable
+)
+
+type QsmModelError struct {
+	errType ErrorType
+	msg     string
+}
+
+func (err *QsmModelError) Error() string {
+	return err.msg
+}
+
+func MakeQsmModelErrorf(errType ErrorType, format string, args ...interface{}) *QsmModelError {
+	return &QsmModelError{errType, fmt.Sprintf(format, args...)}
+}
+
+func (pn *PathNodeDb) setOtherFrom(pl PathLink) {
+
 }
 
 func (*PathNodeDb) dumpInfo(ident int) string {
 	panic("implement me")
 }
 
-func (pl PathLinkDb) String() string {
+func (pl *PathLinkDb) String() string {
 	return fmt.Sprintf("PLDB-%d-%d", pl.connState, pl.index)
 }
 
-func (pl PathLinkDb) GetSrc() PathNode {
+func (pl *PathLinkDb) GetSrc() PathNode {
 	if pl.connState == ConnectionFrom {
 		if pl.linkedNode == nil {
 			pl.linkedNode = getPathNodeDb(pl.linkedNodeId)
@@ -362,7 +417,7 @@ func (pl PathLinkDb) GetSrc() PathNode {
 	return nil
 }
 
-func (pl PathLinkDb) GetDst() PathNode {
+func (pl *PathLinkDb) GetDst() PathNode {
 	if pl.connState == ConnectionNext {
 		if pl.linkedNode == nil {
 			pl.linkedNode = getPathNodeDb(pl.linkedNodeId)
@@ -375,27 +430,27 @@ func (pl PathLinkDb) GetDst() PathNode {
 	return nil
 }
 
-func (pl PathLinkDb) GetConnId() m3point.ConnectionId {
+func (pl *PathLinkDb) GetConnId() m3point.ConnectionId {
 	panic("implement me")
 }
 
-func (pl PathLinkDb) HasDestination() bool {
+func (pl *PathLinkDb) HasDestination() bool {
 	panic("implement me")
 }
 
-func (pl PathLinkDb) IsDeadEnd() bool {
+func (pl *PathLinkDb) IsDeadEnd() bool {
 	panic("implement me")
 }
 
-func (pl PathLinkDb) SetDeadEnd() {
+func (pl *PathLinkDb) SetDeadEnd() {
 	panic("implement me")
 }
 
-func (pl PathLinkDb) createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder) {
+func (pl *PathLinkDb) createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder) {
 	Log.Fatalf("in DB path link %s never call createDstNode", pl.String())
 	return nil, false, nil
 }
 
-func (pl PathLinkDb) dumpInfo(ident int) string {
+func (pl *PathLinkDb) dumpInfo(ident int) string {
 	panic("implement me")
 }

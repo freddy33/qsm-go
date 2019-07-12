@@ -7,7 +7,21 @@ import (
 	"time"
 )
 
+func TestNodeSyncPool(t *testing.T) {
+	pn := getNewPathNodeDb()
+	assert.NotNil(t, pn)
+	assert.Equal(t, int64(-1), pn.id)
+	assert.Equal(t, -1, pn.pathCtxId)
+	for i := 0; i < 3; i++ {
+		assert.Equal(t, pn, pn.links[1].node)
+	}
+
+	pn.release()
+}
+
 func TestMakeNewPathCtx(t *testing.T) {
+	Log.SetAssert(true)
+	m3point.Log.SetAssert(true)
 	Log.SetDebug()
 	m3point.Log.SetDebug()
 	//m3db.SetToTestMode()
@@ -46,7 +60,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
 
-	assert.NotNil(t,pathCtxDb.openNodeBuilder)
+	assert.NotNil(t, pathCtxDb.openNodeBuilder)
 	assert.Equal(t, pathCtxDb.rootNode, pathCtxDb.openNodeBuilder.openNodes[0])
 
 	assert.Equal(t, 0, pn.D())
@@ -64,5 +78,13 @@ func TestMakeNewPathCtx(t *testing.T) {
 	Log.Infof("root node is %s", pathCtxDb.rootNode.String())
 	Log.Infof("root node from db is %s", loadedFromDb.String())
 
-	Log.Infof("Total DB test took %v", time.Now().Sub(endInit))
+	rootCreated := time.Now()
+	Log.Infof("Total create root DB test took %v", rootCreated.Sub(endInit))
+
+	pathCtx.MoveToNextNodes()
+	assert.Equal(t, 3, pathCtx.GetNumberOfOpenNodes())
+
+	moveNext := time.Now()
+	Log.Infof("Total move next DB test took %v", moveNext.Sub(rootCreated))
+
 }

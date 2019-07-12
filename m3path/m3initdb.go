@@ -81,10 +81,12 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 }
 
 const (
-	SelectPathNodesById            = 0
-	UpdatePathNode                 = 1
-	SelectPathNodeByCtxAndDistance = 2
-	SelectPathNodeByCtx            = 3
+	SelectPathNodesById             = 0
+	UpdatePathNode                  = 1
+	SelectPathNodesByCtxAndDistance = 2
+	SelectPathNodesByCtx            = 3
+	SelectPathNodeByCtxAndPoint     = 4
+	SelectPathNodesByPoint          = 5
 )
 
 func creatPathNodesTableDef() *m3db.TableDefinition {
@@ -113,25 +115,34 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" $10,$11,$12) returning id"
 	res.SelectAll = "not to call select all on node path"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 4)
+	res.Queries = make([]string, 6)
 	selectAllFields := " id, path_ctx_id, path_builders_id, trio_id, point_id, d," +
 		" blocked_mask," +
 		" from1, from2, from3," +
 		" next1, next2, next3 "
 	res.Queries[SelectPathNodesById] = fmt.Sprintf("select "+
-		selectAllFields +
+		selectAllFields+
 		" from %s where id = $1", PathNodesTable)
 	res.Queries[UpdatePathNode] = fmt.Sprintf("update %s set"+
 		" blocked_mask = $2,"+
 		" from1 = $3, from2 = $4, from3 = $5,"+
 		" next1 = $6, next2 = $7, next3 = $8"+
 		" where id = $1", PathNodesTable)
-	res.Queries[SelectPathNodeByCtxAndDistance] = fmt.Sprintf("select "+
-		selectAllFields +
+	res.Queries[SelectPathNodesByCtxAndDistance] = fmt.Sprintf("select "+
+		selectAllFields+
 		" from %s where path_ctx_id = $1 and d = $2", PathNodesTable)
-	res.Queries[SelectPathNodeByCtx] = fmt.Sprintf("select "+
-		selectAllFields +
+	res.Queries[SelectPathNodesByCtx] = fmt.Sprintf("select "+
+		selectAllFields+
 		" from %s where path_ctx_id = $1", PathNodesTable)
+	res.Queries[SelectPathNodesByCtx] = fmt.Sprintf("select "+
+		selectAllFields+
+		" from %s where path_ctx_id = $1", PathNodesTable)
+	res.Queries[SelectPathNodeByCtxAndPoint] = fmt.Sprintf("select "+
+		selectAllFields+
+		" from %s where path_ctx_id = $1 and point_id = $2", PathNodesTable)
+	res.Queries[SelectPathNodesByPoint] = fmt.Sprintf("select "+
+		selectAllFields+
+		" from %s where point_id = $1", PathNodesTable)
 	return &res
 }
 
