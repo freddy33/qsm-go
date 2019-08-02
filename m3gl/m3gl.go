@@ -2,6 +2,7 @@ package m3gl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
@@ -74,12 +75,12 @@ type OpenGLDrawingElement struct {
 	NbVertices   int32
 }
 
-func MakeWorld(Max int64, glfwTime float64) DisplayWorld {
+func MakeWorld(env *m3db.QsmEnvironment, Max int64, glfwTime float64) DisplayWorld {
 	if Max%m3point.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}
 	verifyData()
-	space := m3space.MakeSpace(m3point.CInt(Max))
+	space := m3space.MakeSpace(env, m3point.CInt(Max))
 	world := DisplayWorld{}
 	world.initialized(&space, glfwTime)
 	world.CheckMax()

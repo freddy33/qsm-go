@@ -19,7 +19,7 @@ const (
 	FATAL
 )
 
-type Logger struct {
+type BaseLogger struct {
 	log             *log.Logger
 	level           LogLevel
 	evaluateAssert  bool
@@ -28,16 +28,16 @@ type Logger struct {
 
 var p = message.NewPrinter(language.English)
 
-func NewLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix+" ", log.LstdFlags|log.Lshortfile), level, level <= DEBUG, false}
+func NewLogger(prefix string, level LogLevel) Logger {
+	return &BaseLogger{log.New(os.Stdout, prefix+" ", log.LstdFlags|log.Lshortfile), level, level <= DEBUG, false}
 }
 
-func NewDataLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix+" ", 0), level, false, false}
+func NewDataLogger(prefix string, level LogLevel) Logger {
+	return &BaseLogger{log.New(os.Stdout, prefix+" ", 0), level, false, false}
 }
 
-func NewStatLogger(prefix string, level LogLevel) *Logger {
-	return &Logger{log.New(os.Stdout, prefix+" ", log.Ltime|log.Lmicroseconds), level, false, false}
+func NewStatLogger(prefix string, level LogLevel) Logger {
+	return &BaseLogger{log.New(os.Stdout, prefix+" ", log.Ltime|log.Lmicroseconds), level, false, false}
 }
 
 /***************************************************************/
@@ -74,42 +74,42 @@ func makeMsgFormat(level LogLevel, format string, v ...interface{}) string {
 // Logger Functions
 /***************************************************************/
 
-func (l *Logger) print(msg string) {
+func (l *BaseLogger) print(msg string) {
 	err := l.log.Output(3, msg)
 	if err != nil {
 		log.Println(err)
 	}
 }
 
-func (l *Logger) GetLevelName() string {
+func (l *BaseLogger) GetLevelName() string {
 	return GetLevelName(l.level)
 }
 
-func (l *Logger) DoAssert() bool {
+func (l *BaseLogger) DoAssert() bool {
 	return l.evaluateAssert
 }
 
-func (l *Logger) SetAssert(enable bool) {
+func (l *BaseLogger) SetAssert(enable bool) {
 	l.evaluateAssert = enable
 }
 
 // Trace Level
 
-func (l *Logger) SetTrace() {
+func (l *BaseLogger) SetTrace() {
 	l.level = TRACE
 }
 
-func (l *Logger) IsTrace() bool {
+func (l *BaseLogger) IsTrace() bool {
 	return l.level <= TRACE
 }
 
-func (l *Logger) Trace(a ...interface{}) {
+func (l *BaseLogger) Trace(a ...interface{}) {
 	if l.IsTrace() {
 		l.print(makeMsg(TRACE, a...))
 	}
 }
 
-func (l *Logger) Tracef(format string, v ...interface{}) {
+func (l *BaseLogger) Tracef(format string, v ...interface{}) {
 	if l.IsTrace() {
 		l.print(makeMsgFormat(TRACE, format, v...))
 	}
@@ -117,21 +117,21 @@ func (l *Logger) Tracef(format string, v ...interface{}) {
 
 // Debug Level
 
-func (l *Logger) SetDebug() {
+func (l *BaseLogger) SetDebug() {
 	l.level = DEBUG
 }
 
-func (l *Logger) IsDebug() bool {
+func (l *BaseLogger) IsDebug() bool {
 	return l.level <= DEBUG
 }
 
-func (l *Logger) Debug(a ...interface{}) {
+func (l *BaseLogger) Debug(a ...interface{}) {
 	if l.IsDebug() {
 		l.print(makeMsg(DEBUG, a...))
 	}
 }
 
-func (l *Logger) Debugf(format string, v ...interface{}) {
+func (l *BaseLogger) Debugf(format string, v ...interface{}) {
 	if l.IsDebug() {
 		l.print(makeMsgFormat(DEBUG, format, v...))
 	}
@@ -139,21 +139,21 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 
 // Info Level
 
-func (l *Logger) SetInfo() {
+func (l *BaseLogger) SetInfo() {
 	l.level = INFO
 }
 
-func (l *Logger) IsInfo() bool {
+func (l *BaseLogger) IsInfo() bool {
 	return l.level <= INFO
 }
 
-func (l *Logger) Info(a ...interface{}) {
+func (l *BaseLogger) Info(a ...interface{}) {
 	if l.IsInfo() {
 		l.print(makeMsg(INFO, a...))
 	}
 }
 
-func (l *Logger) Infof(format string, v ...interface{}) {
+func (l *BaseLogger) Infof(format string, v ...interface{}) {
 	if l.IsInfo() {
 		l.print(makeMsgFormat(INFO, format, v...))
 	}
@@ -161,21 +161,21 @@ func (l *Logger) Infof(format string, v ...interface{}) {
 
 // Warn Level
 
-func (l *Logger) SetWarn() {
+func (l *BaseLogger) SetWarn() {
 	l.level = WARN
 }
 
-func (l *Logger) IsWarn() bool {
+func (l *BaseLogger) IsWarn() bool {
 	return l.level <= WARN
 }
 
-func (l *Logger) Warn(a ...interface{}) {
+func (l *BaseLogger) Warn(a ...interface{}) {
 	if l.IsWarn() {
 		l.print(makeMsg(WARN, a...))
 	}
 }
 
-func (l *Logger) Warnf(format string, v ...interface{}) {
+func (l *BaseLogger) Warnf(format string, v ...interface{}) {
 	if l.IsWarn() {
 		l.print(makeMsgFormat(WARN, format, v...))
 	}
@@ -183,16 +183,16 @@ func (l *Logger) Warnf(format string, v ...interface{}) {
 
 // Error Level
 
-func (l *Logger) SetError() {
+func (l *BaseLogger) SetError() {
 	l.level = ERROR
 }
 
-func (l *Logger) IsError() bool {
+func (l *BaseLogger) IsError() bool {
 	// Always true
 	return true
 }
 
-func (l *Logger) Error(a ...interface{}) {
+func (l *BaseLogger) Error(a ...interface{}) {
 	if l.ignoreNextError {
 		l.ignoreNextError = false
 		return
@@ -202,7 +202,7 @@ func (l *Logger) Error(a ...interface{}) {
 	log.Print(msg)
 }
 
-func (l *Logger) Errorf(format string, v ...interface{}) {
+func (l *BaseLogger) Errorf(format string, v ...interface{}) {
 	if l.ignoreNextError {
 		l.ignoreNextError = false
 		return
@@ -213,18 +213,55 @@ func (l *Logger) Errorf(format string, v ...interface{}) {
 }
 
 // Fatal panic out
-func (l *Logger) Fatal(a ...interface{}) {
+func (l *BaseLogger) Fatal(a ...interface{}) {
 	msg := makeMsg(FATAL, a...)
 	l.print(msg)
 	panic(msg)
 }
 
-func (l *Logger) Fatalf(format string, v ...interface{}) {
+func (l *BaseLogger) Fatalf(format string, v ...interface{}) {
 	msg := makeMsgFormat(FATAL, format, v...)
 	l.print(msg)
 	panic(msg)
 }
 
-func (l *Logger) IgnoreNextError() {
+func (l *BaseLogger) IgnoreNextError() {
 	l.ignoreNextError = true
+}
+
+type Logger interface {
+	GetLevelName() string
+
+	DoAssert() bool
+	SetAssert(enable bool)
+
+	SetTrace()
+	IsTrace() bool
+	Trace(a ...interface{})
+	Tracef(format string, v ...interface{})
+
+	SetDebug()
+	IsDebug() bool
+	Debug(a ...interface{})
+	Debugf(format string, v ...interface{})
+
+	SetInfo()
+	IsInfo() bool
+	Info(a ...interface{})
+	Infof(format string, v ...interface{})
+
+	SetWarn()
+	IsWarn() bool
+	Warn(a ...interface{})
+	Warnf(format string, v ...interface{})
+
+	SetError()
+	IsError() bool
+	Error(a ...interface{})
+	Errorf(format string, v ...interface{})
+
+	Fatal(a ...interface{})
+	Fatalf(format string, v ...interface{})
+
+	IgnoreNextError()
 }

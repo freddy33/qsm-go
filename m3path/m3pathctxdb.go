@@ -2,15 +2,17 @@ package m3path
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
+	"sync"
 )
 
 type PathContextDb struct {
+	env *m3db.QsmEnvironment
 	id              int
 	growthCtx       m3point.GrowthContext
 	growthOffset    int
 	rootNode        *PathNodeDb
-	pathNodeMap     PathNodeMap
 	openNodeBuilder *OpenNodeBuilder
 }
 
@@ -20,12 +22,12 @@ type OpenNodeBuilder struct {
 	openNodes []*PathNodeDb
 }
 
-func MakePathContextDBFromGrowthContext(growthCtx m3point.GrowthContext, offset int, pnm PathNodeMap) PathContext {
+func MakePathContextDBFromGrowthContext(env *m3db.QsmEnvironment, growthCtx m3point.GrowthContext, offset int) PathContext {
 	pathCtx := PathContextDb{}
+	pathCtx.env = env
 	pathCtx.growthCtx = growthCtx
 	pathCtx.growthOffset = offset
 	pathCtx.rootNode = nil
-	pathCtx.pathNodeMap = pnm
 	pathCtx.openNodeBuilder = nil
 
 	err := pathCtx.insertInDb()
@@ -38,7 +40,7 @@ func MakePathContextDBFromGrowthContext(growthCtx m3point.GrowthContext, offset 
 }
 
 func (pathCtx *PathContextDb) insertInDb() error {
-	te, err := GetPathEnv().GetOrCreateTableExec(PathContextsTable)
+	te, err := pathCtx.env.GetOrCreateTableExec(PathContextsTable)
 	if err != nil {
 		return err
 	}
@@ -71,7 +73,8 @@ func (pathCtx *PathContextDb) GetGrowthIndex() int {
 }
 
 func (pathCtx *PathContextDb) GetPathNodeMap() PathNodeMap {
-	return pathCtx.pathNodeMap
+	Log.Fatalf("in DB path context %s never call GetPathNodeMap", pathCtx.String())
+	return nil
 }
 
 func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
@@ -84,15 +87,16 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 	nodeBuilder := m3point.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
 
 	rootNode := getNewPathNodeDb()
+
 	rootNode.pathCtxId = pathCtx.id
 	rootNode.pathCtx = pathCtx
-	rootNode.pathBuilderId = nodeBuilder.GetCubeId()
-	rootNode.pathBuilder = nodeBuilder
-	rootNode.trioId = nodeBuilder.GetTrioIndex()
-	rootNode.trioDetails = m3point.GetTrioDetails(rootNode.trioId)
+
+	rootNode.SetPathBuilder(nodeBuilder)
+
+	rootNode.SetTrioId(nodeBuilder.GetTrioIndex())
 
 	// But the path node here points to real points in space
-	rootNode.pointId = getOrCreatePoint(center)
+	rootNode.pointId = getOrCreatePointEnv(pathCtx.env, center)
 	rootNode.point = &center
 	rootNode.d = 0
 
@@ -103,7 +107,7 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 
 	pathCtx.rootNode = rootNode
 
-	te, err := GetPathEnv().GetOrCreateTableExec(PathContextsTable)
+	te, err := pathCtx.env.GetOrCreateTableExec(PathContextsTable)
 	if err != nil {
 		Log.Errorf("could not get path context table exec on init root node of path context %s due to %v", pathCtx.String(), err)
 		return
@@ -143,7 +147,7 @@ func (pathCtx *PathContextDb) GetAllOpenPathNodes() []PathNode {
 
 func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
 	pathCtx := onb.pathCtx
-	te, err := GetPathEnv().GetOrCreateTableExec(PathNodesTable)
+	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
 	if err != nil {
 		Log.Fatal(err)
 	}
@@ -163,11 +167,112 @@ func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
 	return res
 }
 
+func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *PathNodeDb, td *m3point.TrioDetails, wg *sync.WaitGroup) {
+	nbFrom := 0
+	nbBlocked := 0
+	pnb := on.PathBuilder()
+	for i, pl := range on.links {
+		switch pl.connState {
+		case ConnectionNext:
+			Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)
+		case ConnectionFrom:
+			nbFrom++
+		case ConnectionBlocked:
+			nbBlocked++
+		case ConnectionNotSet:
+			cd := td.GetConnections()[i]
+			npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
+
+			pId := getOrCreatePointEnv(pathCtx.env, np)
+
+			var pn *PathNodeDb
+
+			pnInDB := pathCtx.getPathNodeDbByPoint(pId)
+
+			// If exists link to it or create dead end
+			if pnInDB != nil {
+				if pnInDB.d == next.d {
+					// From same round
+					for _, foundPn := range next.openNodes {
+						if foundPn.id == pnInDB.id {
+							pn = foundPn
+							break
+						}
+					}
+					if pn == nil {
+						Log.Errorf("Got entry in DB %s p=%v with same D %d but not in collection of open nodes!", pnInDB.String(), np, next.d)
+						// Blocking link
+						pl.SetDeadEnd()
+					} else {
+						modelError := pn.setFrom(cd.GetNegId(), on)
+						// Check if connection open on the other side for adding other from
+						if modelError != nil {
+							if Log.IsDebug() {
+								Log.Debug(modelError)
+							}
+							// from cannot be set => this is blocked
+							pl.SetDeadEnd()
+						} else {
+							// Link the destination node to this link
+							pl.connState = ConnectionNext
+							pl.linkedNodeId = pn.id
+							pl.linkedNode = pn
+							err := pn.updateInDb()
+							if err != nil {
+								Log.Errorf("Got err updating new from in DB %s when updating %s", err.Error(), pn.String())
+							}
+						}
+					}
+				} else {
+					// already something there => blocked
+					pl.SetDeadEnd()
+				}
+			} else {
+				// Create new node
+				pn := getNewPathNodeDb()
+				pn.pathCtxId = pl.node.pathCtxId
+				pn.pathCtx = pl.node.pathCtx
+				pn.SetPathBuilder(npnb)
+				pn.SetTrioId(npnb.GetTrioIndex())
+				pn.point = &np
+				pn.pointId = pId
+				pn.d = next.d
+
+				modelError := pn.setFrom(cd.GetNegId(), on)
+
+				if modelError != nil {
+					// Error to get here on new node
+					Log.Error(modelError)
+					// from cannot be set => this is blocked
+					pl.SetDeadEnd()
+				} else {
+					sqlErr := pn.insertInDb()
+					if sqlErr != nil {
+						Log.Error(sqlErr)
+						continue
+					}
+					// Link the destination node to this link
+					pl.connState = ConnectionNext
+					pl.linkedNodeId = pn.id
+					pl.linkedNode = pn
+					next.openNodes = append(next.openNodes, pn)
+				}
+			}
+		}
+	}
+	err := on.updateInDb()
+	if err != nil {
+		Log.Errorf("Got err in DB %s when updating %s", err.Error(), on.String())
+	}
+	wg.Done()
+}
+
 func (pathCtx *PathContextDb) MoveToNextNodes() {
 	current := pathCtx.openNodeBuilder
 	next := new(OpenNodeBuilder)
 	next.d = current.d + 1
 	next.openNodes = make([]*PathNodeDb, 0, current.nextOpenNodesLen())
+	wg := sync.WaitGroup{}
 	for _, on := range current.openNodes {
 		if Log.DoAssert() {
 			if on.IsEnd() {
@@ -179,113 +284,22 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 				continue
 			}
 		}
-		td := on.trioDetails
+		if on.trioId == m3point.NilTrioIndex {
+			Log.Fatalf("reached a node without trio id %s %s", on.String())
+			continue
+		}
+		td := on.TrioDetails()
 		if td == nil {
 			Log.Fatalf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
 			continue
 		}
-		nbFrom := 0
-		nbBlocked := 0
-		pnb := on.pathBuilder
-		for i, pl := range on.links {
-			switch pl.connState {
-			case ConnectionNext:
-				Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)
-			case ConnectionFrom:
-				nbFrom++
-			case ConnectionBlocked:
-				nbBlocked++
-			case ConnectionNotSet:
-				cd := td.GetConnections()[i]
-				npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
-
-				pId := getOrCreatePoint(np)
-
-				var pn *PathNodeDb
-
-				pnInDB := pathCtx.getPathNodeDbByPoint(pId)
-
-				// If exists link to it or create dead end
-				if pnInDB != nil {
-					if pnInDB.d == next.d {
-						// From same round
-						for _, foundPn := range next.openNodes {
-							if foundPn.id == pnInDB.id {
-								pn = foundPn
-								break
-							}
-						}
-						if pn == nil {
-							Log.Errorf("Got entry in DB %s p=%v with same D %d but not in collection of open nodes!", pnInDB.String(), np, next.d)
-							// Blocking link
-							pl.connState = ConnectionBlocked
-							pl.linkedNodeId = -1
-							pl.linkedNode = nil
-						} else {
-							modelError := pnInDB.setFrom(cd.GetNegId(), on)
-							// Check if connection open on the other side for adding other from
-							if modelError != nil {
-								if Log.IsDebug() {
-									Log.Debug(modelError)
-								}
-								// from cannot be set => this is blocked
-								pl.connState = ConnectionBlocked
-								pl.linkedNodeId = -1
-								pl.linkedNode = nil
-							} else {
-								// Link the destination node to this link
-								pl.connState = ConnectionNext
-								pl.linkedNodeId = pn.id
-								pl.linkedNode = pn
-							}
-						}
-					} else {
-						// already something there => blocked
-						pl.connState = ConnectionBlocked
-						pl.linkedNodeId = -1
-						pl.linkedNode = nil
-					}
-				} else {
-					// Create new node
-					pn := getNewPathNodeDb()
-					pn.pathCtxId = pl.node.pathCtxId
-					pn.pathCtx = pl.node.pathCtx
-					pn.pathBuilderId = npnb.GetCubeId()
-					pn.pathBuilder = npnb
-					pn.trioId = npnb.GetTrioIndex()
-					pn.trioDetails = m3point.GetTrioDetails(npnb.GetTrioIndex())
-					pn.point = &np
-					pn.pointId = pId
-					pn.d = next.d
-
-					modelError := pn.setFrom(cd.GetNegId(), on)
-
-					sqlErr := pn.insertInDb()
-					if sqlErr != nil {
-						Log.Error(sqlErr)
-						continue
-					}
-
-					if modelError != nil {
-						// Error to get here on new node
-						Log.Error(modelError)
-						// from cannot be set => this is blocked
-						pl.connState = ConnectionBlocked
-						pl.linkedNodeId = -1
-						pl.linkedNode = nil
-					} else {
-						// Link the destination node to this link
-						pl.connState = ConnectionNext
-						pl.linkedNodeId = pn.id
-						pl.linkedNode = pn
-						next.openNodes = append(next.openNodes, pn)
-					}
-				}
-			}
-		}
+		wg.Add(1)
+		go pathCtx.makeNewNodes(current, next, on, td, &wg)
 	}
+	wg.Wait()
 	Log.Infof("%s dist=%d : move from %d to %d open nodes", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes))
 	pathCtx.openNodeBuilder = next
+	current.clear()
 }
 
 func (pathCtx *PathContextDb) PredictedNextOpenNodesLen() int {
@@ -296,6 +310,72 @@ func (onb *OpenNodeBuilder) nextOpenNodesLen() int {
 	return calculatePredictedSize(onb.d, len(onb.openNodes))
 }
 
-func (*PathContextDb) dumpInfo() string {
-	panic("implement me")
+func (onb *OpenNodeBuilder) clear() {
+	for _, on := range onb.openNodes {
+		on.release()
+	}
+}
+
+func (pathCtx *PathContextDb) dumpInfo() string {
+	return pathCtx.String()
+}
+
+func (pathCtx *PathContextDb) CountPathNode() int {
+	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
+	if err != nil {
+		Log.Errorf("could not get path node table exec due to %v", err)
+		return -1
+	}
+	row := te.QueryRow(CountPathNodesByCtx, pathCtx.id)
+	var res int
+	err = row.Scan(&res)
+	if err != nil {
+		Log.Errorf("could not count path node for id %d exec due to %v", pathCtx.id, err)
+		return -1
+	}
+	return res
+}
+
+func (pathCtx *PathContextDb) getPathNodeDb(id int64) *PathNodeDb {
+	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
+	if err != nil {
+		Log.Errorf("could not get path node table exec due to %v", err)
+		return nil
+	}
+	rows, err := te.Query(SelectPathNodesById, id)
+	if err != nil {
+		Log.Errorf("could not select path node for id %d exec due to %v", id, err)
+		return nil
+	}
+	defer te.CloseRows(rows)
+	if rows.Next() {
+		pn, err := readRowOnlyIds(rows)
+		if err != nil {
+			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
+		}
+		return pn
+	}
+	return nil
+}
+
+func (pathCtx *PathContextDb) getPathNodeDbByPoint(pointId int64) *PathNodeDb {
+	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
+	if err != nil {
+		Log.Errorf("could not get path node table exec due to %v", err)
+		return nil
+	}
+	rows, err := te.Query(SelectPathNodeByCtxAndPoint, pathCtx.id, pointId)
+	if err != nil {
+		Log.Errorf("could not select path node for ctx %d and point %d exec due to %v", pathCtx.id, pointId, err)
+		return nil
+	}
+	defer te.CloseRows(rows)
+	if rows.Next() {
+		pn, err := readRowOnlyIds(rows)
+		if err != nil {
+			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
+		}
+		return pn
+	}
+	return nil
 }

@@ -54,10 +54,10 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	for r := 0; r < N; r++ {
 		for _, ctx := range allCtx[pType] {
 			start := time.Now()
-			pathCtx := MakePathContext(ctx.GetGrowthType(), ctx.GetGrowthIndex(), ctx.GetGrowthOffset(), MakeSimplePathNodeMap(5*until*until))
+			pathCtx := MakePathContextDBFromGrowthContext(env, ctx.GetGrowthCtx(), ctx.GetGrowthOffset())
 			runPathContext(pathCtx, until)
 			t := time.Since(start)
-			LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.GetPathNodeMap().GetSize(), pathCtx.GetNumberOfOpenNodes())
+			LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.CountPathNode(), pathCtx.GetNumberOfOpenNodes())
 			if single {
 				break
 			}

@@ -19,22 +19,9 @@ func init() {
 	m3db.AddTableDef(creatPathNodesTableDef())
 }
 
-var pathEnvId m3db.QsmEnvID
-var pathEnv *m3db.QsmEnvironment
-
-func GetPathEnv() *m3db.QsmEnvironment {
-	if pathEnv == nil || pathEnv.GetConnection() == nil {
-		if pathEnvId == m3db.NoEnv {
-			pathEnvId = m3db.GetDefaultEnvId()
-		}
-		pathEnv = m3db.GetEnvironment(pathEnvId)
-	}
-	return pathEnv
-}
-
-func InitializeDB() {
-	m3point.InitializeDB()
-	createTablesEnv(GetPathEnv())
+func InitializeDBEnv(env *m3db.QsmEnvironment) {
+	m3point.InitializeDBEnv(env, true)
+	createTablesEnv(env)
 }
 
 const (
@@ -84,7 +71,7 @@ const (
 	SelectPathNodesById             = 0
 	UpdatePathNode                  = 1
 	SelectPathNodesByCtxAndDistance = 2
-	SelectPathNodesByCtx            = 3
+	CountPathNodesByCtx             = 3
 	SelectPathNodeByCtxAndPoint     = 4
 	SelectPathNodesByPoint          = 5
 )
@@ -131,11 +118,7 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.Queries[SelectPathNodesByCtxAndDistance] = fmt.Sprintf("select "+
 		selectAllFields+
 		" from %s where path_ctx_id = $1 and d = $2", PathNodesTable)
-	res.Queries[SelectPathNodesByCtx] = fmt.Sprintf("select "+
-		selectAllFields+
-		" from %s where path_ctx_id = $1", PathNodesTable)
-	res.Queries[SelectPathNodesByCtx] = fmt.Sprintf("select "+
-		selectAllFields+
+	res.Queries[CountPathNodesByCtx] = fmt.Sprintf("select count(*)"+
 		" from %s where path_ctx_id = $1", PathNodesTable)
 	res.Queries[SelectPathNodeByCtxAndPoint] = fmt.Sprintf("select "+
 		selectAllFields+
@@ -173,8 +156,6 @@ var testDbFilled [m3db.MaxNumberOfEnvironments]bool
 
 func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 	env := m3point.GetFullTestDb(envId)
-	pathEnvId = envId
-	pathEnv = nil
 	checkEnv(env)
 	return env
 }

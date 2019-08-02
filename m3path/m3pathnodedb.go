@@ -122,18 +122,16 @@ func (pn *PathNodeDb) getConnectionsForDb() (uint16, [3]sql.NullInt64, [3]sql.Nu
 	return blockedMask, from, next
 }
 
-func (pn *PathNodeDb) setBlockedMask(blockedMask uint16) {
+func (pn *PathNodeDb) setFromBlockedMask(blockedMask uint16) {
 	for i, pl := range pn.links {
 		if blockedMask&(1<<uint16(i)) != 0 {
-			pl.connState = ConnectionBlocked
-			pl.linkedNodeId = -1
-			pl.linkedNode = nil
+			pl.SetDeadEnd()
 		}
 	}
 }
 
 func (pn *PathNodeDb) insertInDb() error {
-	te, err := GetPathEnv().GetOrCreateTableExec(PathNodesTable)
+	te, err := pn.pathCtx.env.GetOrCreateTableExec(PathNodesTable)
 	if err != nil {
 		return err
 	}
@@ -145,53 +143,20 @@ func (pn *PathNodeDb) insertInDb() error {
 	return err
 }
 
-func getPathNodeDb(id int64) *PathNodeDb {
-	return getPathNodeDbEnv(GetPathEnv(), id)
-}
-
-func (pathCtx *PathContextDb) getPathNodeDbByPoint(pointId int64) *PathNodeDb {
-	env := GetPathEnv()
-	te, err := env.GetOrCreateTableExec(PathNodesTable)
+func (pn *PathNodeDb) updateInDb() error {
+	te, err := pn.pathCtx.env.GetOrCreateTableExec(PathNodesTable)
 	if err != nil {
-		Log.Errorf("could not get path node table exec due to %v", err)
-		return nil
+		return err
 	}
-	rows, err := te.Query(SelectPathNodeByCtxAndPoint, pathCtx.id, pointId)
-	if err != nil {
-		Log.Errorf("could not select path node for ctx %d and point %d exec due to %v", pathCtx.id, pointId, err)
-		return nil
+	blockedMask, from, next := pn.getConnectionsForDb()
+	updatedRows, err := te.Update(UpdatePathNode, pn.id,
+		blockedMask,
+		from[0], from[1], from[2],
+		next[0], next[1], next[2])
+	if updatedRows != 1 {
+		Log.Errorf("updating path node id %d did not return 1 row but %d in %s", pn.id, updatedRows, pn.String())
 	}
-	defer te.CloseRows(rows)
-	if rows.Next() {
-		pn, err := readRowOnlyIds(rows)
-		if err != nil {
-			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
-		}
-		return pn
-	}
-	return nil
-}
-
-func getPathNodeDbEnv(env *m3db.QsmEnvironment, pathNodeId int64) *PathNodeDb {
-	te, err := env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Errorf("could not get path node table exec due to %v", err)
-		return nil
-	}
-	rows, err := te.Query(SelectPathNodesById, pathNodeId)
-	if err != nil {
-		Log.Errorf("could not select path node for id %d exec due to %v", pathNodeId, err)
-		return nil
-	}
-	defer te.CloseRows(rows)
-	if rows.Next() {
-		pn, err := readRowOnlyIds(rows)
-		if err != nil {
-			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
-		}
-		return pn
-	}
-	return nil
+	return err
 }
 
 func readRowOnlyIds(rows *sql.Rows) (*PathNodeDb, error) {
@@ -206,7 +171,7 @@ func readRowOnlyIds(rows *sql.Rows) (*PathNodeDb, error) {
 	if err != nil {
 		return nil, err
 	}
-	pn.setBlockedMask(blockedMask)
+	pn.setFromBlockedMask(blockedMask)
 	for i, pl := range pn.links {
 		if from[i].Valid && next[i].Valid {
 			return nil, m3db.MakeQsmErrorf("Node DB entry for %d is invalid! link %d is both from and next", pn.id, i)
@@ -249,9 +214,26 @@ func (pn *PathNodeDb) TrioDetails() *m3point.TrioDetails {
 	return pn.trioDetails
 }
 
+func (pn *PathNodeDb) SetTrioId(trioId m3point.TrioIndex) {
+	pn.trioId = trioId
+	pn.trioDetails = nil
+}
+
 func (pn *PathNodeDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
 	pn.trioId = trioDetails.GetId()
 	pn.trioDetails = trioDetails
+}
+
+func (pn *PathNodeDb) PathBuilder() m3point.PathNodeBuilder {
+	if pn.pathBuilder == nil {
+		pn.pathBuilder = m3point.GetPathNodeBuilderById(pn.pathBuilderId)
+	}
+	return pn.pathBuilder
+}
+
+func (pn *PathNodeDb) SetPathBuilder(pathBuilder m3point.PathNodeBuilder) {
+	pn.pathBuilderId = pathBuilder.GetCubeId()
+	pn.pathBuilder = pathBuilder
 }
 
 func (pn *PathNodeDb) String() string {
@@ -281,7 +263,7 @@ func (pn *PathNodeDb) IsLatest() bool {
 
 func (pn *PathNodeDb) P() m3point.Point {
 	if pn.point == nil {
-		pn.point = getPoint(pn.pointId)
+		pn.point = getPointEnv(pn.pathCtx.env, pn.pointId)
 	}
 	return *pn.point
 }
@@ -407,7 +389,7 @@ func (pl *PathLinkDb) String() string {
 func (pl *PathLinkDb) GetSrc() PathNode {
 	if pl.connState == ConnectionFrom {
 		if pl.linkedNode == nil {
-			pl.linkedNode = getPathNodeDb(pl.linkedNodeId)
+			pl.linkedNode = pl.node.pathCtx.getPathNodeDb(pl.linkedNodeId)
 		}
 		return pl.linkedNode
 	}
@@ -420,7 +402,7 @@ func (pl *PathLinkDb) GetSrc() PathNode {
 func (pl *PathLinkDb) GetDst() PathNode {
 	if pl.connState == ConnectionNext {
 		if pl.linkedNode == nil {
-			pl.linkedNode = getPathNodeDb(pl.linkedNodeId)
+			pl.linkedNode = pl.node.pathCtx.getPathNodeDb(pl.linkedNodeId)
 		}
 		return pl.linkedNode
 	}
@@ -431,19 +413,33 @@ func (pl *PathLinkDb) GetDst() PathNode {
 }
 
 func (pl *PathLinkDb) GetConnId() m3point.ConnectionId {
-	panic("implement me")
+	if pl.connState == ConnectionNext {
+		return pl.node.TrioDetails().GetConnections()[pl.index].GetId()
+	}
+	if pl.connState == ConnectionFrom {
+		return pl.node.TrioDetails().GetConnections()[pl.index].GetNegId()
+	}
+	return m3point.NilConnectionId
 }
 
 func (pl *PathLinkDb) HasDestination() bool {
-	panic("implement me")
+	if pl.connState == ConnectionNext {
+		return pl.linkedNodeId > 0
+	}
+	if pl.connState == ConnectionFrom {
+		return true
+	}
+	return false
 }
 
 func (pl *PathLinkDb) IsDeadEnd() bool {
-	panic("implement me")
+	return pl.connState == ConnectionBlocked
 }
 
 func (pl *PathLinkDb) SetDeadEnd() {
-	panic("implement me")
+	pl.connState = ConnectionBlocked
+	pl.linkedNodeId = -1
+	pl.linkedNode = nil
 }
 
 func (pl *PathLinkDb) createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder) {

@@ -79,16 +79,6 @@ var EndPathLink = &BasePathLink{EndPathNode, m3point.NilConnectionId, EndPathNod
 // BasePathContext Functions
 /***************************************************************/
 
-var UseDB = false
-
-func MakePathContext(ctxType m3point.GrowthType, pIdx int, offset int, pnm PathNodeMap) PathContext {
-	if UseDB {
-		return MakePathContextDBFromGrowthContext(m3point.GetGrowthContextByTypeAndIndex(ctxType, pIdx), offset, pnm)
-	} else {
-		return MakePathContextFromGrowthContext(m3point.GetGrowthContextByTypeAndIndex(ctxType, pIdx), offset, pnm)
-	}
-}
-
 func MakePathContextFromGrowthContext(growthCtx m3point.GrowthContext, offset int, pnm PathNodeMap) PathContext {
 	pathCtx := BasePathContext{}
 	pathCtx.growthCtx = growthCtx
@@ -112,6 +102,10 @@ func (pathCtx *BasePathContext) GetGrowthType() m3point.GrowthType {
 
 func (pathCtx *BasePathContext) GetGrowthIndex() int {
 	return pathCtx.growthCtx.GetGrowthIndex()
+}
+
+func (pathCtx *BasePathContext) CountPathNode() int {
+	return pathCtx.pathNodeMap.GetSize()
 }
 
 func (pathCtx *BasePathContext) GetPathNodeMap() PathNodeMap {

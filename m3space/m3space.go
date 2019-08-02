@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
@@ -16,6 +17,8 @@ type SpaceVisitor interface {
 }
 
 type Space struct {
+	env *m3db.QsmEnvironment
+
 	// the int value of the next event id created
 	lastIdCounter EventID
 	maxEvents int
@@ -50,8 +53,9 @@ type Space struct {
 	EventOutgrowthDeadThreshold DistAndTime
 }
 
-func MakeSpace(max m3point.CInt) Space {
+func MakeSpace(env *m3db.QsmEnvironment, max m3point.CInt) Space {
 	space := Space{}
+	space.env = env
 	space.lastIdCounter = 1
 	space.maxEvents = 12
 	space.events = make([]*Event, space.maxEvents)

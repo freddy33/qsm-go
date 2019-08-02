@@ -1,6 +1,7 @@
 package m3path
 
 import (
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -24,11 +25,11 @@ func TestMakeNewPathCtx(t *testing.T) {
 	m3point.Log.SetAssert(true)
 	Log.SetDebug()
 	m3point.Log.SetDebug()
-	//m3db.SetToTestMode()
-	//env := GetFullTestDb(m3db.PathTestEnv)
-	//m3point.SetDefaultEnv(env)
+	m3db.SetToTestMode()
+	env := GetFullTestDb(m3db.PathTestEnv)
+	m3point.SetDefaultEnv(env)
 	start := time.Now()
-	InitializeDB()
+	InitializeDBEnv(env)
 	endInit := time.Now()
 	Log.Infof("Init DB took %v", endInit.Sub(start))
 
@@ -37,7 +38,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())
 	assert.Equal(t, 0, growthCtx.GetGrowthIndex())
-	pathCtx := MakePathContextDBFromGrowthContext(growthCtx, 0, MakeSimplePathNodeMap(12))
+	pathCtx := MakePathContextDBFromGrowthContext(env, growthCtx, 0)
 	assert.NotNil(t, pathCtx)
 	assert.Equal(t, 0, pathCtx.GetNumberOfOpenNodes())
 	pathCtxDb, ok := pathCtx.(*PathContextDb)
@@ -54,7 +55,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, pn, pathCtxDb.rootNode)
 
 	assert.Equal(t, pathCtxDb.rootNode.pathCtxId, ctxId)
-	assert.Equal(t, pathCtxDb.rootNode.pointId, getOrCreatePoint(testPoint))
+	assert.Equal(t, pathCtxDb.rootNode.pointId, getOrCreatePointEnv(env, testPoint))
 	// TODO: Cube index is not always the same
 	assert.True(t, 2775 == pathCtxDb.rootNode.pathBuilderId || 2721 == pathCtxDb.rootNode.pathBuilderId, "not right %d", pathCtxDb.rootNode.pathBuilderId)
 
@@ -68,7 +69,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.False(t, pn.IsEnd())
 
 	nodeId := pathCtxDb.rootNode.id
-	loadedFromDb := getPathNodeDb(nodeId)
+	loadedFromDb := pathCtxDb.getPathNodeDb(nodeId)
 	assert.NotNil(t, loadedFromDb)
 	assert.Equal(t, ctxId, loadedFromDb.pathCtxId)
 	assert.Nil(t, loadedFromDb.pathCtx)

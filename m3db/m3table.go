@@ -266,6 +266,14 @@ func (te *TableExec) Query(queryId int, args ...interface{}) (*sql.Rows, error) 
 	return rows, nil
 }
 
+func (te *TableExec) QueryRow(queryId int, args ...interface{}) *sql.Row {
+	row := te.QueriesStmt[queryId].QueryRow(args...)
+	if Log.IsTrace() {
+		Log.Tracef("query row %d on table %s with args %v", queryId, te.tableName, args)
+	}
+	return row
+}
+
 func (te *TableExec) CloseRows(rows *sql.Rows) {
 	err := rows.Close()
 	if err != nil {

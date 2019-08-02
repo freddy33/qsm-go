@@ -65,12 +65,6 @@ func checkPathBuildersInitialized() {
 	}
 }
 
-func InitializeDB() {
-	env := GetPointEnv()
-	InitializeDBEnv(env, false)
-	pointEnvId = env.GetId()
-}
-
 func InitializeDBEnv(env *m3db.QsmEnvironment, forced bool) {
 	if forced {
 		envId := env.GetId()

@@ -9,14 +9,6 @@ import (
 	"time"
 )
 
-func getOrCreatePoint(p m3point.Point) int64 {
-	return getOrCreatePointEnv(GetPathEnv(), p)
-}
-
-func getPoint(pointId int64) *m3point.Point {
-	return getPointEnv(GetPathEnv(), pointId)
-}
-
 func getPointEnv(env *m3db.QsmEnvironment, pointId int64) *m3point.Point {
 	te, err :=env.GetOrCreateTableExec(PointsTable)
 	if err != nil {

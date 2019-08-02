@@ -137,7 +137,7 @@ func runSpacePyramidWithParams(pSize m3point.CInt, ctxTypes [4]m3point.GrowthTyp
 	env := m3path.GetFullTestDb(m3db.SpaceTestEnv)
 	m3point.InitializeDBEnv(env, true)
 
-	space := MakeSpace(3 * 30)
+	space := MakeSpace(env, 3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3
 	space.SetEventOutgrowthThreshold(DistAndTime(0))
