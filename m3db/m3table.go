@@ -12,6 +12,8 @@ type TableDefinition struct {
 	SelectAll     string
 	Queries       []string
 	ExpectedCount int
+
+	ErrorFilter func(err error) bool
 }
 
 type TableExec struct {
@@ -201,6 +203,10 @@ func (te *TableExec) fillQuery(i int, query string) error {
 	return nil
 }
 
+func (te *TableExec) IsFiltered(err error) bool {
+	return err != nil && te.TableDef.ErrorFilter != nil && te.TableDef.ErrorFilter(err)
+}
+
 func (te *TableExec) Insert(args ...interface{}) error {
 	res, err := te.InsertStmt.Exec(args...)
 	if err != nil {
@@ -209,7 +215,9 @@ func (te *TableExec) Insert(args ...interface{}) error {
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		Log.Errorf("after insert on table %s with args %v extracting rows received error %v", te.tableName, args, err)
+		if !te.IsFiltered(err) {
+			Log.Errorf("after insert on table %s with args %v extracting rows received error '%s'", te.tableName, args, err.Error())
+		}
 		return err
 	}
 	if Log.IsTrace() {
@@ -217,7 +225,9 @@ func (te *TableExec) Insert(args ...interface{}) error {
 	}
 	if rows != int64(1) {
 		err = MakeQsmErrorf("insert query on table %s should have receive one result, and got %d", te.tableName, rows)
-		Log.Error(err)
+		if !te.IsFiltered(err) {
+			Log.Error(err)
+		}
 		return err
 	}
 	return nil
@@ -228,7 +238,9 @@ func (te *TableExec) InsertReturnId(args ...interface{}) (int64, error) {
 	var id int64
 	err := row.Scan(&id)
 	if err != nil {
-		Log.Errorf("inserting on table %s using query row with args %v got error %v", te.tableName, args, err)
+		if !te.IsFiltered(err) {
+			Log.Errorf("inserting on table %s using query row with args %v got error '%s'", te.tableName, args, err.Error())
+		}
 		return -1, err
 	}
 	if Log.IsTrace() {
@@ -240,7 +252,7 @@ func (te *TableExec) InsertReturnId(args ...interface{}) (int64, error) {
 func (te *TableExec) Update(queryId int, args ...interface{}) (int, error) {
 	res, err := te.QueriesStmt[queryId].Exec(args...)
 	if err != nil {
-		Log.Errorf("executing update for table %s for query %d with args %v got error %v", te.tableName, queryId, args, err)
+		Log.Errorf("executing update for table %s for query %d with args %v got error '%s'", te.tableName, queryId, args, err.Error())
 		return 0, err
 	}
 	rows, err := res.RowsAffected()

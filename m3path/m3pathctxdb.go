@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
+	"math/rand"
 	"sync"
 )
 
 type PathContextDb struct {
-	env *m3db.QsmEnvironment
+	env             *m3db.QsmEnvironment
 	id              int
 	growthCtx       m3point.GrowthContext
 	growthOffset    int
@@ -100,7 +101,7 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 	rootNode.point = &center
 	rootNode.d = 0
 
-	err := rootNode.insertInDb()
+	err, _ := rootNode.insertInDb()
 	if err != nil {
 		Log.Fatalf("could not insert the root node %s of path context %s due to %v", rootNode.String(), pathCtx.String(), err)
 	}
@@ -167,6 +168,47 @@ func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
 	return res
 }
 
+func (pathCtx *PathContextDb) setLinkOnExistingNode(current, next *OpenNodeBuilder, on *PathNodeDb, cd *m3point.ConnectionDetails, pl *PathLinkDb, pnInDB *PathNodeDb) {
+	if pnInDB.d == next.d {
+		var pn *PathNodeDb
+		// From same round
+		for _, foundPn := range next.openNodes {
+			if foundPn.id == pnInDB.id {
+				pn = foundPn
+				break
+			}
+		}
+		if pn == nil {
+			Log.Errorf("Got entry in DB %s p=%v with same D %d but not in collection of open nodes!", pnInDB.String(), pnInDB.P(), next.d)
+			// Blocking link
+			pl.SetDeadEnd()
+		} else {
+			modelError := pn.setFrom(cd.GetNegId(), on)
+			// Check if connection open on the other side for adding other from
+			if modelError != nil {
+				if Log.IsDebug() {
+					Log.Debug(modelError)
+				}
+				// from cannot be set => this is blocked
+				pl.SetDeadEnd()
+			} else {
+				// Link the destination node to this link
+				pl.connState = ConnectionNext
+				pl.linkedNodeId = pn.id
+				pl.linkedNode = pn
+			}
+			err := pn.updateInDb()
+			if err != nil {
+				Log.Errorf("Got err updating new from in DB %s when updating %s", err.Error(), pn.String())
+			}
+		}
+	} else {
+		// already something there => blocked
+		pl.SetDeadEnd()
+	}
+	pnInDB.release()
+}
+
 func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *PathNodeDb, td *m3point.TrioDetails, wg *sync.WaitGroup) {
 	nbFrom := 0
 	nbBlocked := 0
@@ -185,48 +227,12 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 
 			pId := getOrCreatePointEnv(pathCtx.env, np)
 
-			var pn *PathNodeDb
-
 			pnInDB := pathCtx.getPathNodeDbByPoint(pId)
 
 			// If exists link to it or create dead end
 			if pnInDB != nil {
-				if pnInDB.d == next.d {
-					// From same round
-					for _, foundPn := range next.openNodes {
-						if foundPn.id == pnInDB.id {
-							pn = foundPn
-							break
-						}
-					}
-					if pn == nil {
-						Log.Errorf("Got entry in DB %s p=%v with same D %d but not in collection of open nodes!", pnInDB.String(), np, next.d)
-						// Blocking link
-						pl.SetDeadEnd()
-					} else {
-						modelError := pn.setFrom(cd.GetNegId(), on)
-						// Check if connection open on the other side for adding other from
-						if modelError != nil {
-							if Log.IsDebug() {
-								Log.Debug(modelError)
-							}
-							// from cannot be set => this is blocked
-							pl.SetDeadEnd()
-						} else {
-							// Link the destination node to this link
-							pl.connState = ConnectionNext
-							pl.linkedNodeId = pn.id
-							pl.linkedNode = pn
-							err := pn.updateInDb()
-							if err != nil {
-								Log.Errorf("Got err updating new from in DB %s when updating %s", err.Error(), pn.String())
-							}
-						}
-					}
-				} else {
-					// already something there => blocked
-					pl.SetDeadEnd()
-				}
+				Log.Infof("Found same point already at %s %d", pathCtx.String(), pId)
+				pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInDB)
 			} else {
 				// Create new node
 				pn := getNewPathNodeDb()
@@ -246,9 +252,20 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 					// from cannot be set => this is blocked
 					pl.SetDeadEnd()
 				} else {
-					sqlErr := pn.insertInDb()
+					sqlErr, filtered := pn.insertInDb()
 					if sqlErr != nil {
-						Log.Error(sqlErr)
+						if filtered {
+							pnInDB = pathCtx.getPathNodeDbByPoint(pId)
+							if pnInDB == nil {
+								Log.Errorf("Cannot be!! found same point already at %s %d", pathCtx.String(), pId)
+							} else {
+								Log.Infof("Already checked and still found same point already at %s %d", pathCtx.String(), pId)
+								pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInDB)
+							}
+						} else {
+							Log.Error(sqlErr)
+						}
+						pn.release()
 						continue
 					}
 					// Link the destination node to this link
@@ -298,6 +315,7 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 	}
 	wg.Wait()
 	Log.Infof("%s dist=%d : move from %d to %d open nodes", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes))
+	next.shuffle()
 	pathCtx.openNodeBuilder = next
 	current.clear()
 }
@@ -308,6 +326,10 @@ func (pathCtx *PathContextDb) PredictedNextOpenNodesLen() int {
 
 func (onb *OpenNodeBuilder) nextOpenNodesLen() int {
 	return calculatePredictedSize(onb.d, len(onb.openNodes))
+}
+
+func (onb *OpenNodeBuilder) shuffle() {
+	rand.Shuffle(len(onb.openNodes), func(i, j int) { onb.openNodes[i], onb.openNodes[j] = onb.openNodes[j], onb.openNodes[i] })
 }
 
 func (onb *OpenNodeBuilder) clear() {

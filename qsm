@@ -9,6 +9,11 @@ else
 fi
 export QSM_HOME
 
+if [ -z "$1" ]; then
+    echo "INFO: Usage $0 [-env number] (db run test bench)"
+    exit 0
+fi
+
 if [ "$1" == "-env" ]; then
     if [ -z "$2" ]; then
         echo "ERROR: after -env need a number"

@@ -92,6 +92,9 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		PathContextsTable, m3point.PathBuildersTable, m3point.TrioDetailsTable, PointsTable,
 		PathNodesTable, PathNodesTable, PathNodesTable,
 		PathNodesTable, PathNodesTable, PathNodesTable)
+	res.ErrorFilter = func(err error) bool {
+		return err.Error() == "pq: duplicate key value violates unique constraint \"unique_point_per_path_ctx\""
+	}
 	res.Insert = "(path_ctx_id, path_builders_id, trio_id, point_id, d," +
 		" blocked_mask," +
 		" from1, from2, from3," +
