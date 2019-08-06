@@ -49,7 +49,7 @@ func TestFirstPathContextFilling(t *testing.T) {
 		for _, ctx := range allCtx[m3point.GrowthType(8)] {
 			pathCtx := MakePathContextDBFromGrowthContext(env, ctx.GetGrowthCtx(), ctx.GetGrowthOffset())
 			fillPathContext(t, pathCtx, 8*3)
-			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.CountPathNode(), pathCtx.GetNumberOfOpenNodes())
+			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
 			Log.Debug( pathCtx.dumpInfo())
 			break
 		}
@@ -71,7 +71,7 @@ func fillPathContext(t *testing.T, pathCtx PathContext, until int) {
 	pathCtx.MoveToNextNodes()
 
 	//pathNodeMap := pathCtx.GetPathNodeMap()
-	assert.Equal(t, 1+3, pathCtx.CountPathNode(), "not all points of %s are here", pathCtx.String())
+	assert.Equal(t, 1+3, pathCtx.CountAllPathNodes(), "not all points of %s are here", pathCtx.String())
 	assert.Equal(t, 3, pathCtx.GetNumberOfOpenNodes(), "not all ends of %s here", pathCtx.String())
 	//spnm, ok := pathNodeMap.(*SimplePathNodeMap)
 	//assert.True(t, ok, "should be a simple path node map for %v", pathNodeMap)
@@ -106,13 +106,14 @@ func fillPathContext(t *testing.T, pathCtx PathContext, until int) {
 }
 
 func assertPathContextState(t *testing.T, openEndNodes []PathNode) {
-	inOpenEnd := make(map[m3point.Point]bool)
+	//inOpenEnd := make(map[m3point.Point]bool)
 	for _, pn := range openEndNodes {
+		assert.True(t, pn.(*PathNodeDb).id > 0, "%v should have an id already", pn)
 		assert.NotEqual(t, m3point.NilTrioIndex, pn.GetTrioIndex(), "%v should have trio already", pn)
-		assert.Equal(t, pn.calcDist(), pn.D(), "open end path %v should have d and calcDist equal", pn)
+		//assert.Equal(t, pn.calcDist(), pn.D(), "open end path %v should have d and calcDist equal", pn)
 		// TODO: Find a way to test that open end node are mostly active
 		//assert.True(t, oep.pn.IsLatest(), "open end path %v should be active", oep.pn)
-		inOpenEnd[pn.P()] = true
+		//inOpenEnd[pn.P()] = true
 	}
 	//for p, n := range *spnm {
 	//	if !inOpenEnd[p] {

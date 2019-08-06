@@ -1,0 +1,38 @@
+=== RUN   TestHashCodeConflicts hashSize*3 run / 4
+m3point 2019/08/06 17:36:55 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,820,991 entries with 31,145 foundSame, 147,864 conflicts and 1.848300 conflict ratio and [0 1,680,811 132,797 7,086 293 4 0 0]]
+m3point 2019/08/06 17:36:55 m3point_test.go:292: [INFO Back=true Neg=true took 7.339333144s]
+m3point 2019/08/06 17:37:02 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,821,723 entries with 31,474 foundSame, 146,803 conflicts and 1.835038 conflict ratio and [0 1,682,519 131,905 7,005 288 6 0 0]]
+m3point 2019/08/06 17:37:02 m3point_test.go:298: [INFO Back=true Neg=false took 6.886048613s]
+m3point 2019/08/06 17:37:08 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,821,142 entries with 31,404 foundSame, 147,454 conflicts and 1.843175 conflict ratio and [0 1,681,323 132,513 6,996 293 15 2 0]]
+m3point 2019/08/06 17:37:08 m3point_test.go:304: [INFO Back=false Neg=false took 6.824404364s]
+m3point 2019/08/06 17:37:15 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,821,978 entries with 31,229 foundSame, 146,793 conflicts and 1.834912 conflict ratio and [0 1,682,786 131,930 6,936 313 13 0 0]]
+m3point 2019/08/06 17:37:15 m3point_test.go:310: [INFO Back=true Neg=true took 6.824110987s]
+--- PASS: TestHashCodeConflicts (27.87s)
+PASS
+
+Process finished with exit code 0
+
+=== RUN   TestHashCodeConflicts hashSize*3 run / 2
+m3point 2019/08/06 17:40:37 m3point_test.go:281: [INFO For nbRun=4,000,000, max=200, maxElements=8,000,000 we got 3,331,991 entries with 124,144 foundSame, 543,865 conflicts and 6.798312 conflict ratio and [2,841,966 440,327 45,796 3,673 218 11 0 0]]
+m3point 2019/08/06 17:40:37 m3point_test.go:292: [INFO Back=true Neg=true took 13.930243923s]
+m3point 2019/08/06 17:40:51 m3point_test.go:281: [INFO For nbRun=4,000,000, max=200, maxElements=8,000,000 we got 3,333,955 entries with 124,093 foundSame, 541,952 conflicts and 6.774400 conflict ratio and [2,845,541 439,033 45,514 3,592 260 15 0 0]]
+m3point 2019/08/06 17:40:51 m3point_test.go:298: [INFO Back=true Neg=false took 13.907170004s]
+m3point 2019/08/06 17:41:05 m3point_test.go:281: [INFO For nbRun=4,000,000, max=200, maxElements=8,000,000 we got 3,332,018 entries with 124,508 foundSame, 543,474 conflicts and 6.793425 conflict ratio and [2,842,287 440,243 45,499 3,738 238 11 2 0]]
+m3point 2019/08/06 17:41:05 m3point_test.go:304: [INFO Back=false Neg=false took 13.845167656s]
+m3point 2019/08/06 17:41:18 m3point_test.go:281: [INFO For nbRun=4,000,000, max=200, maxElements=8,000,000 we got 3,333,457 entries with 124,503 foundSame, 542,040 conflicts and 6.775500 conflict ratio and [2,844,809 439,516 45,126 3,762 234 10 0 0]]
+m3point 2019/08/06 17:41:18 m3point_test.go:310: [INFO Back=true Neg=true took 13.656368642s]
+--- PASS: TestHashCodeConflicts (55.34s)
+PASS
+
+=== RUN   TestHashCodeConflicts hashSize*2 run / 4
+m3point 2019/08/06 17:43:10 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,845,266 entries with 31,145 foundSame, 123,589 conflicts and 1.544863 conflict ratio and [1,727,215 112,697 5,174 177 2 1 0 0]]
+m3point 2019/08/06 17:43:10 m3point_test.go:292: [INFO Back=true Neg=true took 7.178109142s]
+m3point 2019/08/06 17:43:18 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,845,485 entries with 31,474 foundSame, 123,041 conflicts and 1.538013 conflict ratio and [1,727,958 112,185 5,172 168 2 0 0 0]]
+m3point 2019/08/06 17:43:18 m3point_test.go:298: [INFO Back=true Neg=false took 8.186093078s]
+m3point 2019/08/06 17:43:25 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,844,873 entries with 31,404 foundSame, 123,723 conflicts and 1.546537 conflict ratio and [1,726,616 112,965 5,124 162 6 0 0 0]]
+m3point 2019/08/06 17:43:25 m3point_test.go:304: [INFO Back=false Neg=false took 6.953130523s]
+m3point 2019/08/06 17:43:32 m3point_test.go:281: [INFO For nbRun=2,000,000, max=200, maxElements=8,000,000 we got 1,845,834 entries with 31,229 foundSame, 122,937 conflicts and 1.536712 conflict ratio and [1,728,246 112,399 5,032 154 3 0 0 0]]
+m3point 2019/08/06 17:43:32 m3point_test.go:310: [INFO Back=true Neg=true took 7.095589045s]
+--- PASS: TestHashCodeConflicts (29.41s)
+PASS
+

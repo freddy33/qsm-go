@@ -12,7 +12,7 @@ type PathContext interface {
 	GetGrowthType() m3point.GrowthType
 	GetGrowthIndex() int
 	GetPathNodeMap() PathNodeMap
-	CountPathNode() int
+	CountAllPathNodes() int
 	InitRootNode(center m3point.Point)
 	GetRootPathNode() PathNode
 	GetNumberOfOpenNodes() int

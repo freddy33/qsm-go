@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
-	"math/rand"
 	"sync"
 )
 
@@ -15,12 +14,6 @@ type PathContextDb struct {
 	growthOffset    int
 	rootNode        *PathNodeDb
 	openNodeBuilder *OpenNodeBuilder
-}
-
-type OpenNodeBuilder struct {
-	pathCtx   *PathContextDb
-	d         int
-	openNodes []*PathNodeDb
 }
 
 func MakePathContextDBFromGrowthContext(env *m3db.QsmEnvironment, growthCtx m3point.GrowthContext, offset int) PathContext {
@@ -119,10 +112,11 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 		return
 	}
 
-	openNodeBuilder := OpenNodeBuilder{pathCtx, 0, make([]*PathNodeDb, 1)}
-	openNodeBuilder.openNodes[0] = rootNode
+	onb := createNewNodeBuilder(nil)
+	onb.pathCtx = pathCtx
+	onb.addPathNode(rootNode)
 
-	pathCtx.openNodeBuilder = &openNodeBuilder
+	pathCtx.openNodeBuilder = onb
 }
 
 func (pathCtx *PathContextDb) GetRootPathNode() PathNode {
@@ -142,28 +136,6 @@ func (pathCtx *PathContextDb) GetAllOpenPathNodes() []PathNode {
 	res := make([]PathNode, len(col))
 	for i, n := range col {
 		res[i] = n
-	}
-	return res
-}
-
-func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
-	pathCtx := onb.pathCtx
-	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Fatal(err)
-	}
-	rows, err := te.Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
-	if err != nil {
-		Log.Fatal(err)
-	}
-	res := make([]*PathNodeDb, 0, 100)
-	for rows.Next() {
-		pn, err := readRowOnlyIds(rows)
-		if err != nil {
-			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
-		} else {
-			res = append(res, pn)
-		}
 	}
 	return res
 }
@@ -231,7 +203,10 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 
 			// If exists link to it or create dead end
 			if pnInDB != nil {
-				Log.Infof("Found same point already at %s %d", pathCtx.String(), pId)
+				if Log.IsDebug() {
+					Log.Debugf("Found same point already at %s %d", pathCtx.String(), pId)
+				}
+				next.selectConflict++
 				pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInDB)
 			} else {
 				// Create new node
@@ -259,7 +234,10 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 							if pnInDB == nil {
 								Log.Errorf("Cannot be!! found same point already at %s %d", pathCtx.String(), pId)
 							} else {
-								Log.Infof("Already checked and still found same point already at %s %d", pathCtx.String(), pId)
+								if Log.IsDebug() {
+									Log.Debugf("Already checked and still found same point already at %s %d", pathCtx.String(), pId)
+								}
+								next.insertConflict++
 								pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInDB)
 							}
 						} else {
@@ -272,7 +250,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 					pl.connState = ConnectionNext
 					pl.linkedNodeId = pn.id
 					pl.linkedNode = pn
-					next.openNodes = append(next.openNodes, pn)
+					next.addPathNode(pn)
 				}
 			}
 		}
@@ -286,11 +264,14 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 
 func (pathCtx *PathContextDb) MoveToNextNodes() {
 	current := pathCtx.openNodeBuilder
-	next := new(OpenNodeBuilder)
-	next.d = current.d + 1
-	next.openNodes = make([]*PathNodeDb, 0, current.nextOpenNodesLen())
+	next := createNewNodeBuilder(current)
+
 	wg := sync.WaitGroup{}
 	for _, on := range current.openNodes {
+		if on.id < 0 {
+			Log.Errorf("An open end node builder is a nil node for %s", pathCtx.String())
+			continue
+		}
 		if Log.DoAssert() {
 			if on.IsEnd() {
 				Log.Errorf("An open end node builder is a dead end at %v", on.P())
@@ -314,7 +295,7 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 		go pathCtx.makeNewNodes(current, next, on, td, &wg)
 	}
 	wg.Wait()
-	Log.Infof("%s dist=%d : move from %d to %d open nodes", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes))
+	Log.Infof("%s dist=%d : move from %d to %d open nodes with %d %d conflicts", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes), next.selectConflict, next.insertConflict)
 	next.shuffle()
 	pathCtx.openNodeBuilder = next
 	current.clear()
@@ -324,25 +305,11 @@ func (pathCtx *PathContextDb) PredictedNextOpenNodesLen() int {
 	return pathCtx.openNodeBuilder.nextOpenNodesLen()
 }
 
-func (onb *OpenNodeBuilder) nextOpenNodesLen() int {
-	return calculatePredictedSize(onb.d, len(onb.openNodes))
-}
-
-func (onb *OpenNodeBuilder) shuffle() {
-	rand.Shuffle(len(onb.openNodes), func(i, j int) { onb.openNodes[i], onb.openNodes[j] = onb.openNodes[j], onb.openNodes[i] })
-}
-
-func (onb *OpenNodeBuilder) clear() {
-	for _, on := range onb.openNodes {
-		on.release()
-	}
-}
-
 func (pathCtx *PathContextDb) dumpInfo() string {
 	return pathCtx.String()
 }
 
-func (pathCtx *PathContextDb) CountPathNode() int {
+func (pathCtx *PathContextDb) CountAllPathNodes() int {
 	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
 	if err != nil {
 		Log.Errorf("could not get path node table exec due to %v", err)

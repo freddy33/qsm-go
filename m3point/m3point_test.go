@@ -4,6 +4,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+	"time"
 )
 
 func TestDS(t *testing.T) {
@@ -259,6 +260,105 @@ func TestPointRotations(t *testing.T) {
 		assert.Equal(t, randomPoint.RotNegY().RotNegY(), randomPoint.RotPlusY().RotPlusY())
 		assert.Equal(t, randomPoint.RotNegZ().RotNegZ(), randomPoint.RotPlusZ().RotPlusZ())
 	}
+}
+
+const (
+	mapBlocks = 10
+)
+
+type HashTestEnv struct {
+	rdMax CInt
+	maxElements, hashSize, nbRun int
+	maxFails int
+
+	foundSames, conflicts, noMoreSpace int
+	mapSize int
+
+	histogram                          []int
+}
+
+func (hEnv *HashTestEnv) dumpInfo() {
+	Log.Infof("For nbRun=%d, max=%d, maxElements=%d we got %d entries with %d foundSame, %d conflicts and %f conflict ratio and %v",
+		hEnv.nbRun, hEnv.rdMax, hEnv.maxElements, hEnv.mapSize, hEnv.foundSames, hEnv.conflicts, float64(100*hEnv.conflicts)/float64(hEnv.maxElements), hEnv.histogram)
+}
+
+func TestHashCodeConflicts(t *testing.T) {
+	rdMax := CInt(200)
+
+	start := time.Now()
+	doBack = true
+	doNeg = true
+	runHashCode(t, createHashEnv(rdMax, 8))
+	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
+
+	start = time.Now()
+	doBack = true
+	doNeg = false
+	runHashCode(t, createHashEnv(rdMax, 8))
+	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
+
+	start = time.Now()
+	doBack = false
+	doNeg = false
+	runHashCode(t, createHashEnv(rdMax, 8))
+	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
+
+	start = time.Now()
+	doBack = true
+	doNeg = true
+	runHashCode(t, createHashEnv(rdMax, 8))
+	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
+}
+
+func createHashEnv(rdMax CInt, maxFails int) *HashTestEnv {
+	hEnv := new(HashTestEnv)
+	hEnv.rdMax = rdMax
+	hEnv.maxElements = int(rdMax*rdMax*rdMax)
+	hEnv.hashSize = int(float64(hEnv.maxElements)*2)
+	hEnv.nbRun = int(hEnv.maxElements/4)
+	hEnv.maxFails = maxFails
+	hEnv.histogram = make([]int, maxFails)
+	return hEnv
+}
+
+func runHashCode(t *testing.T, hEnv *HashTestEnv) {
+	hashes := make(map[int]*[]*Point, hEnv.nbRun)
+	for i := 0; i < hEnv.nbRun; i++ {
+		randomPoint := RandomPoint(hEnv.rdMax)
+		hash := randomPoint.Hash(hEnv.hashSize)
+		assert.True(t, hash >= 0 && hash < hEnv.hashSize, "hash %d not correct for %d", hash, hEnv.hashSize)
+		f, ok := hashes[hash]
+		if ok {
+			points := *f
+			foundSame := false
+			for _, op := range points {
+				if *op == randomPoint {
+					foundSame = true
+				}
+			}
+			if foundSame {
+				hEnv.foundSames++
+			} else {
+				hEnv.conflicts++
+				points = append(points, &randomPoint)
+				if len(points) > hEnv.maxFails {
+					assert.FailNow(t, "no space", "did not find space for %v in %v hash %d", randomPoint, *f, hash)
+					hEnv.noMoreSpace++
+				}
+				hashes[hash] = &points
+			}
+		} else {
+			newF := make([]*Point,1)
+			newF[0] = &randomPoint
+			hashes[hash] = &newF
+		}
+	}
+	hEnv.mapSize = len(hashes)
+	for _, f := range hashes {
+		hEnv.histogram[len(*f)-1]++
+	}
+	assert.Equal(t, 0, hEnv.noMoreSpace)
+	hEnv.dumpInfo()
 }
 
 func RandomPoint(max CInt) Point {
