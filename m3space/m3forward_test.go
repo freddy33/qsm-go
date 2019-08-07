@@ -6,6 +6,7 @@ import (
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 )
 
@@ -53,14 +54,27 @@ func createAllIndexesForContext(t assert.TestingT, ctxType m3point.GrowthType) [
 	return res
 }
 
+var envMutex sync.Mutex
+var spaceEnv *m3db.QsmEnvironment
+
+func getSpaceTestEnv() *m3db.QsmEnvironment {
+	envMutex.Lock()
+	defer envMutex.Unlock()
+	if spaceEnv != nil {
+		return spaceEnv
+	}
+	m3db.SetToTestMode()
+	spaceEnv := m3path.GetFullTestDb(m3db.SpaceTestEnv)
+	m3point.InitializeDBEnv(spaceEnv, true)
+	return spaceEnv
+}
+
 func TestSpaceAllPyramids(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetWarn()
 	LogRun.SetWarn()
 
-	m3db.SetToTestMode()
-	env := m3path.GetFullTestDb(m3db.SpaceTestEnv)
-	m3point.InitializeDBEnv(env, true)
+	getSpaceTestEnv()
 
 	allContexts := m3point.GetAllContextTypes()
 	LogData.Infof("Size Type Idxs time nbPoss orgSize finalSize diff ratio")

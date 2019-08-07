@@ -2,6 +2,7 @@ package m3point
 
 import (
 	"github.com/stretchr/testify/assert"
+	"math"
 	"math/rand"
 	"testing"
 	"time"
@@ -152,25 +153,25 @@ func TestGetNearMainPoint(t *testing.T) {
 	assert.Equal(t, ZFirst, ZFirst.GetNearMainPoint())
 	assert.Equal(t, ZFirst.Neg(), ZFirst.Neg().GetNearMainPoint())
 
-	assert.Equal(t, Origin, Point{1,0,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{-1,0,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{0,1,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{0,-1,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{0,0,1}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{0,0,-1}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{1, 0, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{-1, 0, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{0, 1, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{0, -1, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{0, 0, 1}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{0, 0, -1}.GetNearMainPoint())
 
-	assert.Equal(t, Origin, Point{1,1,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{-1,1,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{-1,1,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{-1,-1,0}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{1,1,1}.GetNearMainPoint())
-	assert.Equal(t, Origin, Point{-1,-1,-1}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{1, 1, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{-1, 1, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{-1, 1, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{-1, -1, 0}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{1, 1, 1}.GetNearMainPoint())
+	assert.Equal(t, Origin, Point{-1, -1, -1}.GetNearMainPoint())
 
-	assert.Equal(t, XFirst, Point{2,0,0}.GetNearMainPoint())
-	assert.Equal(t, XFirst, Point{2,1,0}.GetNearMainPoint())
-	assert.Equal(t, XFirst, Point{2,1,1}.GetNearMainPoint())
-	assert.Equal(t, XFirst, Point{2,1,-1}.GetNearMainPoint())
-	assert.Equal(t, XFirst, Point{2,-1,-1}.GetNearMainPoint())
+	assert.Equal(t, XFirst, Point{2, 0, 0}.GetNearMainPoint())
+	assert.Equal(t, XFirst, Point{2, 1, 0}.GetNearMainPoint())
+	assert.Equal(t, XFirst, Point{2, 1, 1}.GetNearMainPoint())
+	assert.Equal(t, XFirst, Point{2, 1, -1}.GetNearMainPoint())
+	assert.Equal(t, XFirst, Point{2, -1, -1}.GetNearMainPoint())
 }
 
 func TestPointAddSubMulNeg(t *testing.T) {
@@ -262,77 +263,93 @@ func TestPointRotations(t *testing.T) {
 	}
 }
 
-const (
-	mapBlocks = 10
-)
+type HashTestConf struct {
+	rdMax                   CInt
+	runRatio, hashSizeRatio float64
+	maxFails                int
+
+	maxElements float64
+	hashSize, nbRun int
+	dataSet                      []*Point
+}
 
 type HashTestEnv struct {
-	rdMax CInt
-	maxElements, hashSize, nbRun int
-	maxFails int
+	conf *HashTestConf
 
 	foundSames, conflicts, noMoreSpace int
-	mapSize int
+	mapSize                            int
 
-	histogram                          []int
+	hashes map[int]*[]*Point
+	histogram []int
 }
 
-func (hEnv *HashTestEnv) dumpInfo() {
-	Log.Infof("For nbRun=%d, max=%d, maxElements=%d we got %d entries with %d foundSame, %d conflicts and %f conflict ratio and %v",
-		hEnv.nbRun, hEnv.rdMax, hEnv.maxElements, hEnv.mapSize, hEnv.foundSames, hEnv.conflicts, float64(100*hEnv.conflicts)/float64(hEnv.maxElements), hEnv.histogram)
+func createHashConf(rdMax CInt, runRatio, hashSizeRatio float64, maxFails int) *HashTestConf {
+	hConf := new(HashTestConf)
+	hConf.rdMax = rdMax
+	hConf.runRatio = runRatio
+	hConf.hashSizeRatio = hashSizeRatio
+
+	hConf.maxElements = math.Pow(float64(rdMax), 3)
+	hConf.nbRun = int(hConf.maxElements / runRatio)
+	hConf.hashSize = int(float64(hConf.nbRun) * hashSizeRatio)
+
+	hConf.maxFails = maxFails
+
+	hConf.dataSet = make([]*Point, hConf.nbRun)
+	for i := 0; i < hConf.nbRun; i++ {
+		p := RandomPoint(hConf.rdMax)
+		hConf.dataSet[i] = &p
+	}
+
+	return hConf
 }
 
-func TestHashCodeConflicts(t *testing.T) {
-	rdMax := CInt(200)
-
-	start := time.Now()
-	doBack = true
-	doNeg = true
-	runHashCode(t, createHashEnv(rdMax, 8))
-	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
-
-	start = time.Now()
-	doBack = true
-	doNeg = false
-	runHashCode(t, createHashEnv(rdMax, 8))
-	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
-
-	start = time.Now()
-	doBack = false
-	doNeg = false
-	runHashCode(t, createHashEnv(rdMax, 8))
-	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
-
-	start = time.Now()
-	doBack = true
-	doNeg = true
-	runHashCode(t, createHashEnv(rdMax, 8))
-	Log.Infof("Back=%v Neg=%v took %v", doBack, doNeg, time.Now().Sub(start))
-}
-
-func createHashEnv(rdMax CInt, maxFails int) *HashTestEnv {
+func (hConf *HashTestConf) createHashEnv() *HashTestEnv {
 	hEnv := new(HashTestEnv)
-	hEnv.rdMax = rdMax
-	hEnv.maxElements = int(rdMax*rdMax*rdMax)
-	hEnv.hashSize = int(float64(hEnv.maxElements)*2)
-	hEnv.nbRun = int(hEnv.maxElements/4)
-	hEnv.maxFails = maxFails
-	hEnv.histogram = make([]int, maxFails)
+	hEnv.conf = hConf
+	hEnv.histogram = make([]int, hConf.maxFails)
+	hEnv.hashes = make(map[int]*[]*Point, hConf.nbRun)
 	return hEnv
 }
 
+func (hConf *HashTestConf) dumpInfo() {
+	Log.Infof("Conf rdMax=%d | hashSizeRatio=%f | runRatio=%f | maxElements=%f | hashSize = %d | nbRun=%d",
+		hConf.rdMax, hConf.hashSizeRatio, hConf.runRatio, hConf.maxElements, hConf.hashSize, hConf.nbRun)
+}
+
+func (hEnv *HashTestEnv) dumpInfo() {
+	hEnv.conf.dumpInfo()
+	Log.Infof("\t%d entries with %d foundSame, %d conflicts and %f conflict ratio and %v",
+		hEnv.mapSize, hEnv.foundSames, hEnv.conflicts, float64(100*hEnv.conflicts)/float64(hEnv.conf.nbRun), hEnv.histogram)
+}
+
+func TestHashCodeConflicts(t *testing.T) {
+	hConf := createHashConf(CInt(200), 2.0, 2.0, 8)
+	runHashCodeFromConf(t, hConf)
+	hConf = createHashConf(CInt(500), 27.0, 1.7, 12)
+	runHashCodeFromConf(t, hConf)
+	hConf = createHashConf(CInt(5000), 27000.0, 2.5, 12)
+	runHashCodeFromConf(t, hConf)
+}
+
+func runHashCodeFromConf(t *testing.T, hConf *HashTestConf) {
+	env := hConf.createHashEnv()
+	start := time.Now()
+	runHashCode(t, env)
+	Log.Infof("Took %v", time.Now().Sub(start))
+	env.dumpInfo()
+}
+
 func runHashCode(t *testing.T, hEnv *HashTestEnv) {
-	hashes := make(map[int]*[]*Point, hEnv.nbRun)
-	for i := 0; i < hEnv.nbRun; i++ {
-		randomPoint := RandomPoint(hEnv.rdMax)
-		hash := randomPoint.Hash(hEnv.hashSize)
-		assert.True(t, hash >= 0 && hash < hEnv.hashSize, "hash %d not correct for %d", hash, hEnv.hashSize)
-		f, ok := hashes[hash]
+	for _, randomPoint := range hEnv.conf.dataSet {
+		hash := randomPoint.Hash(hEnv.conf.hashSize)
+		assert.True(t, hash >= 0 && hash < hEnv.conf.hashSize, "hash %d not correct for %d", hash, hEnv.conf.hashSize)
+		f, ok := hEnv.hashes[hash]
 		if ok {
 			points := *f
 			foundSame := false
 			for _, op := range points {
-				if *op == randomPoint {
+				if *op == *randomPoint {
 					foundSame = true
 				}
 			}
@@ -340,25 +357,24 @@ func runHashCode(t *testing.T, hEnv *HashTestEnv) {
 				hEnv.foundSames++
 			} else {
 				hEnv.conflicts++
-				points = append(points, &randomPoint)
-				if len(points) > hEnv.maxFails {
+				points = append(points, randomPoint)
+				if len(points) > hEnv.conf.maxFails {
 					assert.FailNow(t, "no space", "did not find space for %v in %v hash %d", randomPoint, *f, hash)
 					hEnv.noMoreSpace++
 				}
-				hashes[hash] = &points
+				hEnv.hashes[hash] = &points
 			}
 		} else {
-			newF := make([]*Point,1)
-			newF[0] = &randomPoint
-			hashes[hash] = &newF
+			newF := make([]*Point, 1)
+			newF[0] = randomPoint
+			hEnv.hashes[hash] = &newF
 		}
 	}
-	hEnv.mapSize = len(hashes)
-	for _, f := range hashes {
+	hEnv.mapSize = len(hEnv.hashes)
+	for _, f := range hEnv.hashes {
 		hEnv.histogram[len(*f)-1]++
 	}
 	assert.Equal(t, 0, hEnv.noMoreSpace)
-	hEnv.dumpInfo()
 }
 
 func RandomPoint(max CInt) Point {

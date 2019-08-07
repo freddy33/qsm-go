@@ -6,12 +6,28 @@ import (
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 )
 
 type ExpectedSpaceState struct {
 	baseNodes int
 	newNodes  int
+}
+
+var envMutex sync.Mutex
+var glEnv *m3db.QsmEnvironment
+
+func getGlTestEnv() *m3db.QsmEnvironment {
+	envMutex.Lock()
+	defer envMutex.Unlock()
+	if glEnv != nil {
+		return glEnv
+	}
+	m3db.SetToTestMode()
+	glEnv := m3path.GetFullTestDb(m3db.GlTestEnv)
+	m3point.InitializeDBEnv(glEnv, true)
+	return glEnv
 }
 
 func TestSingleRedEvent(t *testing.T) {
@@ -21,7 +37,7 @@ func TestSingleRedEvent(t *testing.T) {
 
 	m3path.GetFullTestDb(m3db.GlTestEnv)
 
-	world := MakeWorld(3*9, 0.0)
+	world := MakeWorld(getGlTestEnv(), 3*9, 0.0)
 
 	assertEmptyWorld(t, &world, 3*9)
 

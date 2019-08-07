@@ -9,6 +9,8 @@ import (
 
 type PathContextDb struct {
 	env             *m3db.QsmEnvironment
+	pathNodes       *m3db.TableExec
+	points          *m3db.TableExec
 	id              int
 	growthCtx       m3point.GrowthContext
 	growthOffset    int
@@ -31,6 +33,32 @@ func MakePathContextDBFromGrowthContext(env *m3db.QsmEnvironment, growthCtx m3po
 	}
 
 	return &pathCtx
+}
+
+func (pathCtx *PathContextDb) pathNodesTe() *m3db.TableExec {
+	if pathCtx.pathNodes != nil {
+		return pathCtx.pathNodes
+	}
+	var err error
+	pathCtx.pathNodes, err = pathCtx.env.GetOrCreateTableExec(PathNodesTable)
+	if err != nil {
+		Log.Fatalf("could not get %s out of %d env due to '%s'", PathNodesTable, pathCtx.env.GetId(), err.Error())
+		return nil
+	}
+	return pathCtx.pathNodes
+}
+
+func (pathCtx *PathContextDb) pointsTe() *m3db.TableExec {
+	if pathCtx.points != nil {
+		return pathCtx.points
+	}
+	var err error
+	pathCtx.points, err = pathCtx.env.GetOrCreateTableExec(PointsTable)
+	if err != nil {
+		Log.Fatalf("could not get %s out of %d env due to '%s'", PointsTable, pathCtx.env.GetId(), err.Error())
+		return nil
+	}
+	return pathCtx.points
 }
 
 func (pathCtx *PathContextDb) insertInDb() error {
@@ -90,7 +118,7 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 	rootNode.SetTrioId(nodeBuilder.GetTrioIndex())
 
 	// But the path node here points to real points in space
-	rootNode.pointId = getOrCreatePointEnv(pathCtx.env, center)
+	rootNode.pointId = getOrCreatePointTe(pathCtx.pointsTe(), center)
 	rootNode.point = &center
 	rootNode.d = 0
 
@@ -197,7 +225,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			cd := td.GetConnections()[i]
 			npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
 
-			pId := getOrCreatePointEnv(pathCtx.env, np)
+			pId := getOrCreatePointTe(pathCtx.pointsTe(), np)
 
 			pnInDB := pathCtx.getPathNodeDbByPoint(pId)
 
@@ -310,14 +338,9 @@ func (pathCtx *PathContextDb) dumpInfo() string {
 }
 
 func (pathCtx *PathContextDb) CountAllPathNodes() int {
-	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Errorf("could not get path node table exec due to %v", err)
-		return -1
-	}
-	row := te.QueryRow(CountPathNodesByCtx, pathCtx.id)
+	row := pathCtx.pathNodesTe().QueryRow(CountPathNodesByCtx, pathCtx.id)
 	var res int
-	err = row.Scan(&res)
+	err := row.Scan(&res)
 	if err != nil {
 		Log.Errorf("could not count path node for id %d exec due to %v", pathCtx.id, err)
 		return -1
@@ -326,11 +349,7 @@ func (pathCtx *PathContextDb) CountAllPathNodes() int {
 }
 
 func (pathCtx *PathContextDb) getPathNodeDb(id int64) *PathNodeDb {
-	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Errorf("could not get path node table exec due to %v", err)
-		return nil
-	}
+	te := pathCtx.pathNodesTe()
 	rows, err := te.Query(SelectPathNodesById, id)
 	if err != nil {
 		Log.Errorf("could not select path node for id %d exec due to %v", id, err)
@@ -348,11 +367,7 @@ func (pathCtx *PathContextDb) getPathNodeDb(id int64) *PathNodeDb {
 }
 
 func (pathCtx *PathContextDb) getPathNodeDbByPoint(pointId int64) *PathNodeDb {
-	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Errorf("could not get path node table exec due to %v", err)
-		return nil
-	}
+	te := pathCtx.pathNodesTe()
 	rows, err := te.Query(SelectPathNodeByCtxAndPoint, pathCtx.id, pointId)
 	if err != nil {
 		Log.Errorf("could not select path node for ctx %d and point %d exec due to %v", pathCtx.id, pointId, err)

@@ -10,7 +10,7 @@ import (
 )
 
 func getPointEnv(env *m3db.QsmEnvironment, pointId int64) *m3point.Point {
-	te, err :=env.GetOrCreateTableExec(PointsTable)
+	te, err := env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Errorf("could not get points table exec due to %v", err)
 		return nil
@@ -34,11 +34,15 @@ func getPointEnv(env *m3db.QsmEnvironment, pointId int64) *m3point.Point {
 }
 
 func getOrCreatePointEnv(env *m3db.QsmEnvironment, p m3point.Point) int64 {
-	te, err :=env.GetOrCreateTableExec(PointsTable)
+	te, err := env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Errorf("could not get points table exec due to %v", err)
 		return -1
 	}
+	return getOrCreatePointTe(te, p)
+}
+
+func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 	rows, err := te.Query(FindPointIdPerCoord, p.X(), p.Y(), p.Z())
 	if err != nil {
 		Log.Errorf("could not select points table exec due to %v", err)
@@ -83,7 +87,6 @@ func getOrCreatePointEnv(env *m3db.QsmEnvironment, p m3point.Point) int64 {
 		}
 	}
 }
-
 
 /***************************************************************/
 // perf test main

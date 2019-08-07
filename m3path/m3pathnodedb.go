@@ -131,11 +131,9 @@ func (pn *PathNodeDb) setFromBlockedMask(blockedMask uint16) {
 }
 
 func (pn *PathNodeDb) insertInDb() (error, bool) {
-	te, err := pn.pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		return err, false
-	}
+	te := pn.pathCtx.pathNodesTe()
 	blockedMask, from, next := pn.getConnectionsForDb()
+	var err error
 	pn.id, err = te.InsertReturnId(pn.pathCtxId, pn.pathBuilderId, pn.trioId, pn.pointId, pn.d,
 		blockedMask,
 		from[0], from[1], from[2],
@@ -144,12 +142,8 @@ func (pn *PathNodeDb) insertInDb() (error, bool) {
 }
 
 func (pn *PathNodeDb) updateInDb() error {
-	te, err := pn.pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		return err
-	}
 	blockedMask, from, next := pn.getConnectionsForDb()
-	updatedRows, err := te.Update(UpdatePathNode, pn.id,
+	updatedRows, err := pn.pathCtx.pathNodesTe().Update(UpdatePathNode, pn.id,
 		blockedMask,
 		from[0], from[1], from[2],
 		next[0], next[1], next[2])

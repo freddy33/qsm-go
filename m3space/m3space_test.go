@@ -34,8 +34,11 @@ func deadState(newNodes int, deadNodes int) ExpectedSpaceState {
 func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
+
+	env := getSpaceTestEnv()
+
 	for trioIdx := 0; trioIdx < 12; trioIdx++ {
-		space := MakeSpace(3 * 9)
+		space := MakeSpace(env, 3*9)
 
 		assertEmptySpace(t, &space, 3*9)
 
@@ -83,9 +86,11 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
+	env := getSpaceTestEnv()
+
 	ctxType := m3point.GrowthType(8)
 	for trioIdx := 0; trioIdx < ctxType.GetNbIndexes(); trioIdx++ {
-		space := MakeSpace(3 * 9)
+		space := MakeSpace(env, 3*9)
 
 		assertEmptySpace(t, &space, 3*9)
 
@@ -104,7 +109,7 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 		deltaT10FromIdx0 := 0
 		deltaT11FromIdx0 := 0
 		// All odd indexes have different behavior
-		if trioIdx % 2 == 1 {
+		if trioIdx%2 == 1 {
 			deltaT8FromIdx0 = 5
 			deltaT9FromIdx0 = -11
 			deltaT10FromIdx0 = -13
@@ -133,9 +138,12 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
+
+	env := getSpaceTestEnv()
+
 	ctxType := m3point.GrowthType(8)
 	for trioIdx := 0; trioIdx < ctxType.GetNbIndexes(); trioIdx++ {
-		space := MakeSpace(3 * 9)
+		space := MakeSpace(env, 3*9)
 
 		assertEmptySpace(t, &space, 3*9)
 
@@ -154,7 +162,7 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 		deltaT10FromIdx0 := 0
 		deltaT11FromIdx0 := 0
 		// All odd indexes have different behavior
-		if trioIdx % 2 == 1 {
+		if trioIdx%2 == 1 {
 			deltaT8FromIdx0 = 5
 			deltaT9FromIdx0 = -11
 			deltaT10FromIdx0 = -13
@@ -183,9 +191,11 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
+	env := getSpaceTestEnv()
+
 	ctxType := m3point.GrowthType(1)
 	for trioIdx := 0; trioIdx < ctxType.GetNbIndexes(); trioIdx++ {
-		space := MakeSpace(3 * 9)
+		space := MakeSpace(env, 3*9)
 
 		assertEmptySpace(t, &space, 3*9)
 
@@ -225,9 +235,11 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
+	env := getSpaceTestEnv()
+
 	ctxType := m3point.GrowthType(1)
 	for trioIdx := 0; trioIdx < ctxType.GetNbIndexes(); trioIdx++ {
-		space := MakeSpace(3 * 9)
+		space := MakeSpace(env,3 * 9)
 
 		assertEmptySpace(t, &space, 3*9)
 
@@ -266,8 +278,9 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 
 func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 	Log.SetInfo()
+	env := getSpaceTestEnv()
 
-	space := MakeSpace(3 * 9)
+	space := MakeSpace(env, 3 * 9)
 
 	assertEmptySpace(t, &space, 3*9)
 
@@ -350,9 +363,9 @@ func assertSpaceStates(t *testing.T, space *Space, expectMap map[DistAndTime]Exp
 }
 
 type TestSpaceVisitor struct {
-	t * testing.T
-	contextMsg string
-	time DistAndTime
+	t                                                                   *testing.T
+	contextMsg                                                          string
+	time                                                                DistAndTime
 	totalRoots, totalNodeActive, totalMainPoints, totalMainPointsActive int
 }
 

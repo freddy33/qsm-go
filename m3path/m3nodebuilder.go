@@ -29,11 +29,7 @@ func createNewNodeBuilder(previous *OpenNodeBuilder) *OpenNodeBuilder {
 
 func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
 	pathCtx := onb.pathCtx
-	te, err := pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Fatal(err)
-	}
-	rows, err := te.Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
+	rows, err := pathCtx.pathNodesTe().Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
 	if err != nil {
 		Log.Fatal(err)
 	}

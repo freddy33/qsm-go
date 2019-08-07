@@ -66,28 +66,19 @@ func (p Point) String() string {
 	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
 }
 
-func (p Point) Hash(size int) int {
-	return p.fredHash(size)
-}
-
 const (
-	c1 = 0xcc9e2d51
-	c2 = 0x1b873593
+	c1  = 0xcc9e2d51
+	c2  = 0x1b873593
 	r1a = 15
 	r1b = 17
 	r2a = 13
 	r2b = 19
-	m  = 4
-	n  = 0xe6546b64
+	m   = 4
+	n   = 0xe6546b64
+)
 
-	)
-
-var doBack = true
-var doNeg = true
-
-func (p Point) murmurHash(size int) int {
+func (p Point) Hash(size int) int {
 	h1 := uint32(0)
-	// forward
 	for _, c := range p {
 		k1 := uint32(c)
 		k1 *= c1
@@ -96,40 +87,6 @@ func (p Point) murmurHash(size int) int {
 		h1 ^= k1
 		h1 = (h1 << r2a) | (h1 >> r2b)
 		h1 = h1*m + h1 + n
-	}
-	// backward
-	if doBack {
-		for i := 2; i >= 0 ; i-- {
-			k1 := uint32(p[i])
-			k1 *= c1
-			k1 = (k1 << r1a) | (k1 >> r1b)
-			k1 *= c2
-			h1 ^= k1
-			h1 = (h1 << r2a) | (h1 >> r2b)
-			h1 = h1*m + h1 + n
-		}
-	}
-	if doNeg {
-		// neg forward
-		for _, c := range p {
-			k1 := uint32(-c)
-			k1 *= c1
-			k1 = (k1 << r1a) | (k1 >> r1b)
-			k1 *= c2
-			h1 ^= k1
-			h1 = (h1 << r2a) | (h1 >> r2b)
-			h1 = h1*m + h1 + n
-		}
-		// neg backward
-		for i := 2; i >= 0 ; i-- {
-			k1 := uint32(-p[i])
-			k1 *= c1
-			k1 = (k1 << r1a) | (k1 >> r1b)
-			k1 *= c2
-			h1 ^= k1
-			h1 = (h1 << r2a) | (h1 >> r2b)
-			h1 = h1*m + h1 + n
-		}
 	}
 	h1 ^= h1 >> 16
 	h1 *= 0x85ebca6b
@@ -141,68 +98,6 @@ func (p Point) murmurHash(size int) int {
 		return -res
 	}
 	return res
-}
-
-func (p Point) messHash(size int) int {
-	ucs := [3]uint32{}
-	for i, c := range p {
-		if c < 0 {
-			ucs[i] = uint32(-c)<<16 + uint32(-c)>>16&0x0000FFFF
-		} else {
-			ucs[i] = uint32(c + 1)
-		}
-	}
-	result := uint32(1)
-	for _, uc := range ucs {
-		result = result*31 + uc
-	}
-	result = result % uint32(size)
-	for _, uc := range ucs {
-		result = result*41 + uc<<8
-	}
-	result = result % uint32(size)
-	for _, uc := range ucs {
-		result = result*43 + uc>>8
-	}
-	result = result % uint32(size)
-	for _, uc := range ucs {
-		result = result*31 + uc
-	}
-	res := int(result) % size
-	if res < 0 {
-		//result = uint32(res)
-		//for _, uc := range ucs {
-		//	result = result * 43 + uc
-		//}
-		return -res
-	}
-	return res
-}
-
-var p10 = [3]int{1, 100, 1000}
-
-func (p Point) fredHash(size int) int {
-	result := int(1)
-	for i, c := range p {
-		result = result*43 + p10[i]*int(c)
-	}
-	for i, c := range p {
-		result = result*43 - p10[2-i]*int(c)
-	}
-	result = result % size
-	if result < 0 {
-		for i, c := range p {
-			result = result*31 + p10[i]*int(c)
-		}
-		for i, c := range p {
-			result = result*31 - p10[2-i]*int(c)
-		}
-		result = result % size
-		if result < 0 {
-			return -result
-		}
-	}
-	return result
 }
 
 func (p Point) X() CInt {
