@@ -6,6 +6,7 @@ dbPassword=""
 dbName="not-a-database"
 dbLoc="was-not-set"
 dbConfFile="was-not-set"
+dumpDir="was-not-set"
 
 curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
 . $curDir/functions.sh
@@ -120,7 +121,7 @@ case "$1" in
 	    ensureRunningPg && dropDb && dropUser && rm $dbConfFile
 		exit $?
 		;;
-	dropall)
+	dropAll)
 	    checkDbConf || exit $?
         echo "INFO: Dropping ALL QSM environments except 1"
         RES=0
@@ -150,8 +151,12 @@ case "$1" in
 		;;
 	shell)
 	    checkDbConf || exit $?
-	    #echo $dbPassword
 	    psql -U "$dbUser" $dbName
+		exit $?
+		;;
+	dump)
+	    checkDbConf || exit $?
+	    pg_dump -U "$dbUser" $dbName | gzip > $dumpDir/$dbName-$(date "+%Y-%m-%d_%H-%M-%S").dump.sql.gz
 		exit $?
 		;;
 	rmconf)

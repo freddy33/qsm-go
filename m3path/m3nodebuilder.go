@@ -37,8 +37,14 @@ func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
 	for rows.Next() {
 		pn, err := readRowOnlyIds(rows)
 		if err != nil {
-			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
+			Log.Fatalf("Could not read row of %s due to %v", PathNodesTable, err)
 		} else {
+			if pn.pathCtxId != pathCtx.id {
+				Log.Fatalf("While retrieving all path nodes got a node with context id %d instead of %d",
+					pn.pathCtxId, pathCtx.id)
+				return nil
+			}
+			pn.pathCtx = pathCtx
 			res = append(res, pn)
 		}
 	}

@@ -45,7 +45,7 @@ func getOrCreatePointEnv(env *m3db.QsmEnvironment, p m3point.Point) int64 {
 func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 	rows, err := te.Query(FindPointIdPerCoord, p.X(), p.Y(), p.Z())
 	if err != nil {
-		Log.Errorf("could not select points table exec due to %v", err)
+		Log.Fatalf("could not select points table exec due to %v", err)
 		return -1
 	}
 	defer te.CloseRows(rows)
@@ -53,7 +53,7 @@ func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 	if rows.Next() {
 		err = rows.Scan(&id)
 		if err != nil {
-			Log.Errorf("could not convert points table id for %v due to %v", p, err)
+			Log.Fatalf("could not convert points table id for %v due to %v", p, err)
 			return -1
 		}
 		return id
@@ -67,12 +67,13 @@ func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 				// got concurrent insert, let's just reselect
 				rows, err = te.Query(FindPointIdPerCoord, p.X(), p.Y(), p.Z())
 				if err != nil {
-					Log.Errorf("could not select points table for %v after duplicate key insert exec due to %v", p, err)
+					Log.Fatalf("could not select points table for %v after duplicate key insert exec due to %v", p, err)
 					return -1
 				}
 				defer te.CloseRows(rows)
 				if !rows.Next() {
 					Log.Errorf("selecting points table for %v after duplicate key returns no rows!", p)
+					return -1
 				}
 				err = rows.Scan(&id)
 				if err != nil {
@@ -81,7 +82,7 @@ func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 				}
 				return id
 			} else {
-				Log.Errorf("got unknown points table for %v error %v", p, err)
+				Log.Fatalf("got unknown points table for %v error %v", p, err)
 				return -1
 			}
 		}

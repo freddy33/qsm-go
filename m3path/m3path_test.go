@@ -45,15 +45,15 @@ func TestFirstPathContextFilling(t *testing.T) {
 
 	env := GetFullTestDb(m3db.PathTestEnv)
 	allCtx := getAllTestContexts(env)
-	//for _, ctxType := range m3point.GetAllContextTypes() {
-		for _, ctx := range allCtx[m3point.GrowthType(8)] {
+	for _, ctxType := range m3point.GetAllContextTypes() {
+		for _, ctx := range allCtx[ctxType] {
 			pathCtx := MakePathContextDBFromGrowthContext(env, ctx.GetGrowthCtx(), ctx.GetGrowthOffset())
 			fillPathContext(t, pathCtx, 8*3)
 			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
 			Log.Debug( pathCtx.dumpInfo())
 			break
 		}
-	//}
+	}
 }
 
 func fillPathContext(t *testing.T, pathCtx PathContext, until int) {

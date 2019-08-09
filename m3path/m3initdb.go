@@ -42,6 +42,9 @@ func createPointsTableDef() *m3db.TableDefinition {
 	res.Queries[FindPointIdPerCoord] = fmt.Sprintf("select id from %s where x=$1 and y=$2 and z=$3", PointsTable)
 	res.Queries[SelectPointPerId] = fmt.Sprintf("select x,y,z from %s where id=$1", PointsTable)
 
+	res.ErrorFilter = func(err error) bool {
+		return err.Error() == "pq: duplicate key value violates unique constraint \"points_x_y_z_key\""
+	}
 	return &res
 }
 

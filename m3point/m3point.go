@@ -78,6 +78,8 @@ const (
 )
 
 func (p Point) Hash(size int) int {
+	// Using Murmur 3 implementation
+	// Found after research from https://softwareengineering.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed/145633#145633?newreg=fcc6e22e2d1647e29d38f8d710248230
 	h1 := uint32(0)
 	for _, c := range p {
 		k1 := uint32(c)

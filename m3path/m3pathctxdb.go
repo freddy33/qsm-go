@@ -287,15 +287,14 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 	if err != nil {
 		Log.Errorf("Got err in DB %s when updating %s", err.Error(), on.String())
 	}
-	wg.Done()
+	if wg != nil {
+		wg.Done()
+	}
 }
 
-func (pathCtx *PathContextDb) MoveToNextNodes() {
-	current := pathCtx.openNodeBuilder
-	next := createNewNodeBuilder(current)
-
-	wg := sync.WaitGroup{}
-	for _, on := range current.openNodes {
+func (pathCtx *PathContextDb) makeNewNodesSplit(current, next *OpenNodeBuilder, currentPos, nb int, wg *sync.WaitGroup) {
+	for i := currentPos; i < len(current.openNodes) && i < currentPos+nb; i++ {
+		on := current.openNodes[i]
 		if on.id < 0 {
 			Log.Errorf("An open end node builder is a nil node for %s", pathCtx.String())
 			continue
@@ -319,10 +318,32 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 			Log.Fatalf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
 			continue
 		}
-		wg.Add(1)
-		go pathCtx.makeNewNodes(current, next, on, td, &wg)
+		pathCtx.makeNewNodes(current, next, on, td, nil)
 	}
-	wg.Wait()
+	if wg != nil {
+		wg.Done()
+	}
+}
+
+var nbParallelProcesses = 8
+
+func (pathCtx *PathContextDb) MoveToNextNodes() {
+	current := pathCtx.openNodeBuilder
+	next := createNewNodeBuilder(current)
+
+	nbOpenNodes := len(current.openNodes)
+	if nbOpenNodes < nbParallelProcesses*3 {
+		// Too small to split
+		pathCtx.makeNewNodesSplit(current, next, 0, nbOpenNodes, nil)
+	} else {
+		sizePerSplit := int(nbOpenNodes/nbParallelProcesses)
+		wg := sync.WaitGroup{}
+		for proc := 0 ; proc < nbParallelProcesses; proc++ {
+			wg.Add(1)
+			go pathCtx.makeNewNodesSplit(current, next, proc * sizePerSplit, sizePerSplit, &wg)
+		}
+		wg.Wait()
+	}
 	Log.Infof("%s dist=%d : move from %d to %d open nodes with %d %d conflicts", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes), next.selectConflict, next.insertConflict)
 	next.shuffle()
 	pathCtx.openNodeBuilder = next
@@ -359,8 +380,15 @@ func (pathCtx *PathContextDb) getPathNodeDb(id int64) *PathNodeDb {
 	if rows.Next() {
 		pn, err := readRowOnlyIds(rows)
 		if err != nil {
-			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
+			Log.Fatalf("Could not read row of %s due to %v", PathNodesTable, err)
+			return nil
 		}
+		if pn.pathCtxId != pathCtx.id {
+			Log.Fatalf("While retrieving path node id %d got a node with context id %d instead of %d",
+				id, pn.pathCtxId, pathCtx.id)
+			return nil
+		}
+		pn.pathCtx = pathCtx
 		return pn
 	}
 	return nil
@@ -377,8 +405,15 @@ func (pathCtx *PathContextDb) getPathNodeDbByPoint(pointId int64) *PathNodeDb {
 	if rows.Next() {
 		pn, err := readRowOnlyIds(rows)
 		if err != nil {
-			Log.Errorf("Could not read row of %s due to %v", PathNodesTable, err)
+			Log.Fatalf("Could not read row of %s due to %v", PathNodesTable, err)
+			return nil
 		}
+		if pn.pathCtxId != pathCtx.id {
+			Log.Fatalf("While retrieving path node point id %d got a node with context id %d instead of %d",
+				pointId, pn.pathCtxId, pathCtx.id)
+			return nil
+		}
+		pn.pathCtx = pathCtx
 		return pn
 	}
 	return nil

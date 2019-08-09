@@ -29,6 +29,18 @@ if [ ! -d "$logDir" ]; then
     fi
 fi
 
+dumpDir="$rootDir/build/dump"
+
+if [ ! -d "$dumpDir" ]; then
+    echo "INFO: Creating dump dir $dumpDir"
+    mkdir -p $dumpDir
+    RES=$?
+    if [ $RES -ne 0 ]; then
+        echo "ERROR: could not create dump dir $dumpDir"
+        exit 13
+    fi
+fi
+
 dbLoc="/usr/local/var/postgres"
 dbLogFile="$logDir/pgout.log"
 
