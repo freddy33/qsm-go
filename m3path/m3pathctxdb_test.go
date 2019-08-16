@@ -56,8 +56,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 
 	assert.Equal(t, pathCtxDb.rootNode.pathCtxId, ctxId)
 	assert.Equal(t, pathCtxDb.rootNode.pointId, getOrCreatePointEnv(env, testPoint))
-	// TODO: Cube index is not always the same
-	assert.True(t, 2775 == pathCtxDb.rootNode.pathBuilderId || 2721 == pathCtxDb.rootNode.pathBuilderId, "not right %d", pathCtxDb.rootNode.pathBuilderId)
+	assert.Equal(t, 2614, pathCtxDb.rootNode.pathBuilderId)
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
 
@@ -72,9 +71,9 @@ func TestMakeNewPathCtx(t *testing.T) {
 	loadedFromDb := pathCtxDb.getPathNodeDb(nodeId)
 	assert.NotNil(t, loadedFromDb)
 	assert.Equal(t, ctxId, loadedFromDb.pathCtxId)
-	assert.Nil(t, loadedFromDb.pathCtx)
+	assert.Equal(t, pathCtxDb, loadedFromDb.pathCtx)
 	assert.Equal(t, nodeId, loadedFromDb.id)
-	assert.True(t, 2775 == loadedFromDb.pathBuilderId || 2721 == loadedFromDb.pathBuilderId, "not right %d", loadedFromDb.pathBuilderId)
+	assert.Equal(t, 2614, loadedFromDb.pathBuilderId)
 
 	Log.Infof("root node is %s", pathCtxDb.rootNode.String())
 	Log.Infof("root node from db is %s", loadedFromDb.String())

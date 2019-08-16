@@ -1,6 +1,9 @@
 package m3point
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type CubeOfTrioIndex struct {
 	// Index of cube center
@@ -125,6 +128,27 @@ func calculateAllContextCubes() map[CubeKeyId]int {
 		case 8:
 			cl.populate(8)
 		}
+		sort.Slice(cl.allCubes, func(i, j int) bool {
+			c1 := cl.allCubes[i]
+			c2 := cl.allCubes[j]
+			centerDiff := int(c1.center) - int(c2.center)
+			if centerDiff != 0 {
+				return centerDiff < 0
+			}
+			for cfIdx:=0; cfIdx < len(c1.centerFaces); cfIdx++ {
+				cfDiff := int(c1.centerFaces[cfIdx]) - int(c2.centerFaces[cfIdx])
+				if cfDiff != 0 {
+					return cfDiff < 0
+				}
+			}
+			for meIdx:=0; meIdx < len(c1.middleEdges); meIdx++ {
+				meDiff := int(c1.middleEdges[meIdx]) - int(c2.middleEdges[meIdx])
+				if meDiff != 0 {
+					return meDiff < 0
+				}
+			}
+			return false
+		})
 		for _, cube := range cl.allCubes {
 			key := CubeKeyId{growthCtx.GetId(), cube}
 			res[key] = cubeIdx
