@@ -20,6 +20,7 @@ var Log = m3util.NewLogger("playgl", m3util.INFO)
 const windowWidth = 800
 const windowHeight = 600
 
+// TODO: Is there another way than global?
 var world m3gl.DisplayWorld
 
 func Play() {

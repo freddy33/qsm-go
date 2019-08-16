@@ -270,7 +270,7 @@ func MakeNodeDrawingElement(space *m3space.Space, node m3space.Node) *NodeDrawin
 func MakeConnectionDrawingElement(space *m3space.Space, pl m3path.PathLink) *ConnectionDrawingElement {
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
-	cd := m3point.GetConnDetailsById(pl.GetConnId())
+	cd := m3point.GetPointPackData(space.GetEnv()).GetConnDetailsById(pl.GetConnId())
 	p := pl.GetSrc().P()
 	// Take the color of the source. TODO: Not true should be & on src and target
 	sdc.objColors = space.GetNode(p).GetColorMask(space)

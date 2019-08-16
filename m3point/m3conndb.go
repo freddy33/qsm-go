@@ -65,19 +65,13 @@ func loadConnectionDetails(env *m3db.QsmEnvironment) ([]*ConnectionDetails, map[
 	return res, connMap
 }
 
-
-func saveAllConnectionDetails(env *m3db.QsmEnvironment) (int, error) {
-	te, inserted, toFill, err := env.GetForSaveAll(ConnectionDetailsTable)
+func (ppd *PointPackData) saveAllConnectionDetails() (int, error) {
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(ConnectionDetailsTable)
 	if err != nil {
 		return 0, err
 	}
 	if toFill {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		connections, _ := calculateConnectionDetails()
+		connections, _ := ppd.calculateConnectionDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(connections))
 		}
@@ -97,8 +91,8 @@ func saveAllConnectionDetails(env *m3db.QsmEnvironment) (int, error) {
 // trio Details Load and Save
 /***************************************************************/
 
-func loadTrioDetails(env *m3db.QsmEnvironment) TrioDetailList {
-	te, rows := env.SelectAllForLoad(TrioDetailsTable)
+func (ppd *PointPackData) loadTrioDetails() TrioDetailList {
+	te, rows := ppd.env.SelectAllForLoad(TrioDetailsTable)
 
 	res := TrioDetailList(make([]*TrioDetails, 0, te.TableDef.ExpectedCount))
 
@@ -110,7 +104,7 @@ func loadTrioDetails(env *m3db.QsmEnvironment) TrioDetailList {
 			Log.Errorf("failed to load trio details line %d", len(res))
 		} else {
 			for i, cId := range connIds {
-				td.conns[i] = GetConnDetailsById(cId)
+				td.conns[i] = ppd.GetConnDetailsById(cId)
 			}
 			res = append(res, &td)
 		}
@@ -118,19 +112,14 @@ func loadTrioDetails(env *m3db.QsmEnvironment) TrioDetailList {
 	return res
 }
 
-func saveAllTrioDetails(env *m3db.QsmEnvironment) (int, error) {
-	te, inserted, toFill, err := env.GetForSaveAll(TrioDetailsTable)
+func (ppd *PointPackData) saveAllTrioDetails() (int, error) {
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioDetailsTable)
 	if te == nil {
 		return 0, err
 	}
 
 	if toFill {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		trios := calculateAllTrioDetails()
+		trios := ppd.calculateAllTrioDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(trios))
 		}

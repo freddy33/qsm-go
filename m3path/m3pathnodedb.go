@@ -203,7 +203,7 @@ func (pn *PathNodeDb) SetPathCtx(pathCtx *PathContextDb) {
 
 func (pn *PathNodeDb) TrioDetails() *m3point.TrioDetails {
 	if pn.trioDetails == nil {
-		pn.trioDetails = m3point.GetTrioDetails(pn.trioId)
+		pn.trioDetails = pn.PathCtx().ppd.GetTrioDetails(pn.trioId)
 	}
 	return pn.trioDetails
 }
@@ -220,7 +220,7 @@ func (pn *PathNodeDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
 
 func (pn *PathNodeDb) PathBuilder() m3point.PathNodeBuilder {
 	if pn.pathBuilder == nil {
-		pn.pathBuilder = m3point.GetPathNodeBuilderById(pn.pathBuilderId)
+		pn.pathBuilder = pn.PathCtx().ppd.GetPathNodeBuilderById(pn.pathBuilderId)
 	}
 	return pn.pathBuilder
 }

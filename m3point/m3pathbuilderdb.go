@@ -69,8 +69,8 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func loadPathBuilders(env *m3db.QsmEnvironment) []*RootPathNodeBuilder {
-	_, rows := env.SelectAllForLoad(PathBuildersTable)
+func (ppd *PointPackData) loadPathBuilders() []*RootPathNodeBuilder {
+	_, rows := ppd.env.SelectAllForLoad(PathBuildersTable)
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 
 	for rows.Next() {
@@ -92,10 +92,10 @@ func loadPathBuilders(env *m3db.QsmEnvironment) []*RootPathNodeBuilder {
 		if err != nil {
 			Log.Errorf("failed to load path builder line %d", len(res))
 		} else {
-			pathBuilderCtx := PathBuilderContext{GetGrowthContextById(trioIndexId), cubeId}
+			pathBuilderCtx := PathBuilderContext{ppd.GetGrowthContextById(trioIndexId), cubeId}
 			builder := RootPathNodeBuilder{}
 			builder.ctx = &pathBuilderCtx
-			rootTd := GetTrioDetails(TrioIndex(rootTrIdx))
+			rootTd := ppd.GetTrioDetails(TrioIndex(rootTrIdx))
 			builder.trIdx = rootTd.GetId()
 			for i, interTrIdx := range intersTrIdx {
 				interPathNode := IntermediatePathNodeBuilder{}
@@ -117,18 +117,13 @@ func loadPathBuilders(env *m3db.QsmEnvironment) []*RootPathNodeBuilder {
 	return res
 }
 
-func saveAllPathBuilders(env *m3db.QsmEnvironment) (int, error) {
-	te, inserted, toFill, err := env.GetForSaveAll(PathBuildersTable)
+func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(PathBuildersTable)
 	if err != nil {
 		return 0, err
 	}
 	if toFill {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		builders := calculateAllPathBuilders()
+		builders := ppd.calculateAllPathBuilders()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
 		}

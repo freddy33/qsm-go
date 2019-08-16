@@ -28,8 +28,6 @@ const (
 	TotalNumberOfCubes = 5192
 )
 
-var cubeIdsPerKey map[CubeKeyId]int
-
 /***************************************************************/
 // CubeOfTrioIndex Functions
 /***************************************************************/
@@ -111,10 +109,10 @@ func (cube CubeOfTrioIndex) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirecti
 // CubeListBuilder Functions
 /***************************************************************/
 
-func calculateAllContextCubes() map[CubeKeyId]int {
+func (ppd *PointPackData) calculateAllContextCubes() map[CubeKeyId]int {
 	res := make(map[CubeKeyId]int, TotalNumberOfCubes)
 	cubeIdx := 1
-	for _, growthCtx := range GetAllGrowthContexts() {
+	for _, growthCtx := range ppd.GetAllGrowthContexts() {
 		cl := CubeListBuilder{growthCtx, nil,}
 		switch growthCtx.GetGrowthType() {
 		case 1:
@@ -193,12 +191,12 @@ func (cl *CubeListBuilder) exists(offset int, c Point) bool {
 	return false
 }
 
-func getCubeList(growthCtx GrowthContext) *CubeListBuilder {
-	checkCubesInitialized()
+func (ppd *PointPackData) getCubeList(growthCtx GrowthContext) *CubeListBuilder {
+	ppd.checkCubesInitialized()
 	res := CubeListBuilder{}
 	res.growthCtx = growthCtx
 	res.allCubes = make([]CubeOfTrioIndex, 0, 100)
-	for cubeKey := range cubeIdsPerKey {
+	for cubeKey := range ppd.cubeIdsPerKey {
 		if cubeKey.trCtxId == growthCtx.GetId() {
 			res.allCubes = append(res.allCubes, cubeKey.cube)
 		}
@@ -206,9 +204,9 @@ func getCubeList(growthCtx GrowthContext) *CubeListBuilder {
 	return &res
 }
 
-func GetCubeById(cubeId int) CubeKeyId {
-	checkCubesInitialized()
-	for cubeKey, id := range cubeIdsPerKey {
+func (ppd *PointPackData) GetCubeById(cubeId int) CubeKeyId {
+	ppd.checkCubesInitialized()
+	for cubeKey, id := range ppd.cubeIdsPerKey {
 		if id == cubeId {
 			return cubeKey
 		}
@@ -217,9 +215,9 @@ func GetCubeById(cubeId int) CubeKeyId {
 	return CubeKeyId{-1, CubeOfTrioIndex{}}
 }
 
-func GetCubeIdByKey(cubeKey CubeKeyId) int {
-	checkCubesInitialized()
-	id, ok := cubeIdsPerKey[cubeKey]
+func (ppd *PointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
+	ppd.checkCubesInitialized()
+	id, ok := ppd.cubeIdsPerKey[cubeKey]
 	if !ok {
 		Log.Fatalf("trying to find cube %v which does not exists", cubeKey)
 		return -1

@@ -33,11 +33,11 @@ func main() {
 	case "play":
 		playgl.Play()
 	case "gentxt":
-		m3point.GenerateTextFiles()
+		m3point.GenerateTextFilesEnv(m3db.GetDefaultEnvironment())
 	case "filldb":
-		m3point.FillDb()
+		m3point.FillDbEnv(m3db.GetDefaultEnvironment())
 	case "refilldb":
-		m3point.ReFillDb()
+		m3point.ReFillDbEnv(m3db.GetDefaultEnvironment())
 	case "perf":
 		m3path.RunInsertRandomPoints()
 	default:

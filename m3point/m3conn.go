@@ -37,9 +37,6 @@ const (
 var NilConnectionId = ConnectionId(0)
 var EmptyConnDetails = ConnectionDetails{NilConnectionId, Origin, 0,}
 
-var allConnections []*ConnectionDetails
-var allConnectionsByVector map[Point]*ConnectionDetails
-
 /***************************************************************/
 // ByConnVector functions
 /***************************************************************/
@@ -167,12 +164,6 @@ func (ud UnitDirection) GetFirstPoint() Point {
 // ConnectionDetails Functions
 /***************************************************************/
 
-func GetMaxConnId() ConnectionId {
-	checkConnInitialized()
-	// The pos conn Id of the last one
-	return allConnections[len(allConnections)-1].GetPosId()
-}
-
 func (cd *ConnectionDetails) IsValid() bool {
 	return cd.Id.IsValid()
 }
@@ -258,27 +249,37 @@ func (cd *ConnectionDetails) String() string {
 	return cd.Id.String()
 }
 
-func GetConnDetailsById(id ConnectionId) *ConnectionDetails {
-	checkConnInitialized()
+/***************************************************************/
+// PointPackData Functions for ConnectionDetails
+/***************************************************************/
+
+func (ppd *PointPackData) GetMaxConnId() ConnectionId {
+	ppd.checkConnInitialized()
+	// The pos conn Id of the last one
+	return ppd.allConnections[len(ppd.allConnections)-1].GetPosId()
+}
+
+func (ppd *PointPackData) GetConnDetailsById(id ConnectionId) *ConnectionDetails {
+	ppd.checkConnInitialized()
 	if id > 0 {
-		return allConnections[2*id-2]
+		return ppd.allConnections[2*id-2]
 	} else {
-		return allConnections[-2*id-1]
+		return ppd.allConnections[-2*id-1]
 	}
 }
 
-func GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails {
-	return GetConnDetailsByVector(MakeVector(p1, p2))
+func (ppd *PointPackData) GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails {
+	return ppd.getConnDetailsByVector(MakeVector(p1, p2))
 }
 
-func GetAllConnDetailsByVector() map[Point]*ConnectionDetails {
-	checkConnInitialized()
-	return allConnectionsByVector
+func (ppd *PointPackData) getAllConnDetailsByVector() map[Point]*ConnectionDetails {
+	ppd.checkConnInitialized()
+	return ppd.allConnectionsByVector
 }
 
-func GetConnDetailsByVector(vector Point) *ConnectionDetails {
-	checkConnInitialized()
-	cd, ok := allConnectionsByVector[vector]
+func (ppd *PointPackData) getConnDetailsByVector(vector Point) *ConnectionDetails {
+	ppd.checkConnInitialized()
+	cd, ok := ppd.allConnectionsByVector[vector]
 	if !ok {
 		Log.Error("Vector", vector, "is not a known connection details")
 		return &EmptyConnDetails

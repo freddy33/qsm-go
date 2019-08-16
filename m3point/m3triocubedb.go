@@ -54,11 +54,11 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 }
 
 /***************************************************************/
-// Cubes Load and Save
+// PointPackData Functions for Cubes Load and Save
 /***************************************************************/
 
-func loadContextCubes(env *m3db.QsmEnvironment) map[CubeKeyId]int {
-	te, rows := env.SelectAllForLoad(TrioCubesTable)
+func (ppd *PointPackData) loadContextCubes() map[CubeKeyId]int {
+	te, rows := ppd.env.SelectAllForLoad(TrioCubesTable)
 	res := make(map[CubeKeyId]int, te.TableDef.ExpectedCount)
 
 	loaded := 0
@@ -82,18 +82,13 @@ func loadContextCubes(env *m3db.QsmEnvironment) map[CubeKeyId]int {
 	return res
 }
 
-func saveAllContextCubes(env *m3db.QsmEnvironment) (int, error) {
-	te, inserted, toFill, err := env.GetForSaveAll(TrioCubesTable)
+func (ppd *PointPackData) saveAllContextCubes() (int, error) {
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioCubesTable)
 	if err != nil {
 		return 0, err
 	}
 	if toFill {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		cubeKeys := calculateAllContextCubes()
+		cubeKeys := ppd.calculateAllContextCubes()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(cubeKeys))
 		}

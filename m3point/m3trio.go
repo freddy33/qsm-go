@@ -40,9 +40,6 @@ var validNextTrio [12][2]TrioIndex
 var AllMod4Permutations [12][4]TrioIndex
 var AllMod8Permutations [12][8]TrioIndex
 
-// All the possible trio details used
-var allTrioDetails TrioDetailList
-
 // Dummy trace counter for debugging recursive methods
 var _traceCounter = 0
 
@@ -52,7 +49,7 @@ var _traceCounter = 0
 
 func init() {
 	// Initial trio 0
-	allBaseTrio[0] = MakeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
+	allBaseTrio[0] = makeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
 	for i := 1; i < 4; i++ {
 		allBaseTrio[i] = allBaseTrio[i-1].PlusX()
 	}
@@ -161,7 +158,7 @@ func (l *TrioDetailList) IdList() []TrioIndex {
 func (l *TrioDetailList) ExistsByTrio(tr *TrioDetails) bool {
 	present := false
 	for _, trL := range *l {
-		if trL.GetTrio() == tr.GetTrio() {
+		if trL.getTrio() == tr.getTrio() {
 			present = true
 			break
 		}
@@ -213,10 +210,10 @@ func (l TrioDetailList) Less(i, j int) bool {
 			// Base trio, keep order as defined with 0-4 prime -> 5-7
 			var k, l int
 			for bi, bt := range allBaseTrio {
-				if bt == tr1.GetTrio() {
+				if bt == tr1.getTrio() {
 					k = bi
 				}
-				if bt == tr2.GetTrio() {
+				if bt == tr2.getTrio() {
 					l = bi
 				}
 			}
@@ -239,7 +236,7 @@ func (l TrioDetailList) Less(i, j int) bool {
 // trio Functions
 /***************************************************************/
 
-func MakeBaseConnectingVectorsTrio(points [3]Point) trio {
+func makeBaseConnectingVectorsTrio(points [3]Point) trio {
 	res := trio{}
 	// All points should be a connecting vector
 	for _, p := range points {
@@ -276,11 +273,11 @@ func (t trio) GetDSIndex() int {
 }
 
 func (t trio) PlusX() trio {
-	return MakeBaseConnectingVectorsTrio([3]Point{t[0].RotPlusX(), t[1].RotPlusX(), t[2].RotPlusX()})
+	return makeBaseConnectingVectorsTrio([3]Point{t[0].RotPlusX(), t[1].RotPlusX(), t[2].RotPlusX()})
 }
 
 func (t trio) Neg() trio {
-	return MakeBaseConnectingVectorsTrio([3]Point{t[0].Neg(), t[1].Neg(), t[2].Neg()})
+	return makeBaseConnectingVectorsTrio([3]Point{t[0].Neg(), t[1].Neg(), t[2].Neg()})
 }
 
 // Return the 6 connections possible +X, -X, +Y, -Y, +Z, -Z vectors between 2 trio
@@ -391,41 +388,6 @@ func (t trio) getMinusZVector() Point {
 // TrioDetails Functions
 /***************************************************************/
 
-func GetTrioDetails(trIdx TrioIndex) *TrioDetails {
-	checkTrioInitialized()
-	return allTrioDetails[trIdx]
-}
-
-func MakeTrioDetails(points ...Point) *TrioDetails {
-	// All points should be a connection details
-	cds := make([]*ConnectionDetails, 3)
-	for i, p := range points {
-		cd := GetConnDetailsByVector(p)
-		if cd == nil {
-			Log.Fatalf("trying to create trio with vector not a connection %v", p)
-		}
-		cds[i] = cd
-	}
-	// Order based on connection details index, and if same index Pos > Neg
-	sort.Slice(cds, func(i, j int) bool {
-		absDiff := cds[i].GetPosId() - cds[j].GetPosId()
-		if absDiff == 0 {
-			return cds[i].Id > 0
-		}
-		return absDiff < 0
-	})
-	res := TrioDetails{}
-	res.id = NilTrioIndex
-	for i, cd := range cds {
-		res.conns[i] = cd
-	}
-	if Log.IsTrace() {
-		fmt.Println(_traceCounter, res.conns[0].String(), res.conns[1].String(), res.conns[2].String())
-		_traceCounter++
-	}
-	return &res
-}
-
 func (td *TrioDetails) String() string {
 	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.id, td.conns[0].String(), td.conns[1].String(), td.conns[2].String())
 }
@@ -496,7 +458,7 @@ func (td *TrioDetails) HasConnections(cIds ...ConnectionId) bool {
 	return true
 }
 
-func (td *TrioDetails) GetTrio() trio {
+func (td *TrioDetails) getTrio() trio {
 	return trio{td.conns[0].Vector, td.conns[1].Vector, td.conns[2].Vector}
 }
 
@@ -629,8 +591,47 @@ func (td *TrioDetails) GetDSIndex() int {
 	return -1
 }
 
+/***************************************************************/
+// PointPackData Functions for TrioDetails
+/***************************************************************/
+
+func (ppd *PointPackData) GetTrioDetails(trIdx TrioIndex) *TrioDetails {
+	ppd.checkTrioInitialized()
+	return ppd.allTrioDetails[trIdx]
+}
+
+func (ppd *PointPackData) makeTrioDetails(points ...Point) *TrioDetails {
+	// All points should be a connection details
+	cds := make([]*ConnectionDetails, 3)
+	for i, p := range points {
+		cd := ppd.getConnDetailsByVector(p)
+		if cd == nil {
+			Log.Fatalf("trying to create trio with vector not a connection %v", p)
+		}
+		cds[i] = cd
+	}
+	// Order based on connection details index, and if same index Pos > Neg
+	sort.Slice(cds, func(i, j int) bool {
+		absDiff := cds[i].GetPosId() - cds[j].GetPosId()
+		if absDiff == 0 {
+			return cds[i].Id > 0
+		}
+		return absDiff < 0
+	})
+	res := TrioDetails{}
+	res.id = NilTrioIndex
+	for i, cd := range cds {
+		res.conns[i] = cd
+	}
+	if Log.IsTrace() {
+		fmt.Println(_traceCounter, res.conns[0].String(), res.conns[1].String(), res.conns[2].String())
+		_traceCounter++
+	}
+	return &res
+}
+
 // Return the new trio out of Origin + tA (with next tB or tB/tC)
-func getNextTriosDetails(tA, tB, tC trio) []*TrioDetails {
+func (ppd *PointPackData) getNextTriosDetails(tA, tB, tC trio) []*TrioDetails {
 	// 0 z=0 for first element, x connector, y connector
 	// 1 y=0 for first element, x connector, z connector
 	// 2 x=0 for first element, y connector, z connector
@@ -663,10 +664,10 @@ func getNextTriosDetails(tA, tB, tC trio) []*TrioDetails {
 		}
 	}
 	if sameBC {
-		res.addUnique(MakeTrioDetails(noZ.Neg(), xConnB, yConnB))
+		res.addUnique(ppd.makeTrioDetails(noZ.Neg(), xConnB, yConnB))
 	} else {
-		res.addUnique(MakeTrioDetails(noZ.Neg(), xConnB, yConnC))
-		res.addUnique(MakeTrioDetails(noZ.Neg(), xConnC, yConnB))
+		res.addUnique(ppd.makeTrioDetails(noZ.Neg(), xConnB, yConnC))
+		res.addUnique(ppd.makeTrioDetails(noZ.Neg(), xConnC, yConnB))
 	}
 
 	noY := tA[1]
@@ -693,10 +694,10 @@ func getNextTriosDetails(tA, tB, tC trio) []*TrioDetails {
 		}
 	}
 	if sameBC {
-		res.addUnique(MakeTrioDetails(noY.Neg(), xConnB, zConnB))
+		res.addUnique(ppd.makeTrioDetails(noY.Neg(), xConnB, zConnB))
 	} else {
-		res.addUnique(MakeTrioDetails(noY.Neg(), xConnB, zConnC))
-		res.addUnique(MakeTrioDetails(noY.Neg(), xConnC, zConnB))
+		res.addUnique(ppd.makeTrioDetails(noY.Neg(), xConnB, zConnC))
+		res.addUnique(ppd.makeTrioDetails(noY.Neg(), xConnC, zConnB))
 	}
 
 	noX := tA[2]
@@ -723,20 +724,20 @@ func getNextTriosDetails(tA, tB, tC trio) []*TrioDetails {
 		}
 	}
 	if sameBC {
-		res.addUnique(MakeTrioDetails(noX.Neg(), yConnB, zConnB))
+		res.addUnique(ppd.makeTrioDetails(noX.Neg(), yConnB, zConnB))
 	} else {
-		res.addUnique(MakeTrioDetails(noX.Neg(), yConnB, zConnC))
-		res.addUnique(MakeTrioDetails(noX.Neg(), yConnC, zConnB))
+		res.addUnique(ppd.makeTrioDetails(noX.Neg(), yConnB, zConnC))
+		res.addUnique(ppd.makeTrioDetails(noX.Neg(), yConnC, zConnB))
 	}
 
 	return res
 }
 
 /***************************************************************/
-// Calculate Connection and trio Functions
+// Calculate Connections and trio Functions
 /***************************************************************/
 
-func calculateConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
+func (ppd *PointPackData) calculateConnectionDetails() ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
 	connMap := make(map[Point]*ConnectionDetails)
 	// Going through all trio and all combination of trio, to aggregate connection details
 	for _, tr := range allBaseTrio {
@@ -816,11 +817,11 @@ func addConnDetail(connMap *map[Point]*ConnectionDetails, connVector Point) {
 	}
 }
 
-func calculateAllTrioDetails() TrioDetailList {
+func (ppd *PointPackData) calculateAllTrioDetails() TrioDetailList {
 	res := TrioDetailList(make([]*TrioDetails, 0, 200))
 	// All base trio first
 	for i, tr := range allBaseTrio {
-		td := MakeTrioDetails(tr[0], tr[1], tr[2])
+		td := ppd.makeTrioDetails(tr[0], tr[1], tr[2])
 		td.id = TrioIndex(i)
 		res.addUnique(td)
 	}
@@ -829,7 +830,7 @@ func calculateAllTrioDetails() TrioDetailList {
 	for _, tA := range allBaseTrio {
 		for _, tB := range allBaseTrio {
 			for _, tC := range allBaseTrio {
-				for _, nextTrio := range getNextTriosDetails(tA, tB, tC) {
+				for _, nextTrio := range ppd.getNextTriosDetails(tA, tB, tC) {
 					res.addUnique(nextTrio)
 				}
 			}

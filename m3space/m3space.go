@@ -83,6 +83,10 @@ func (space *Space) SetEventOutgrowthThreshold(threshold DistAndTime) {
 	space.EventOutgrowthDeadThreshold = threshold + 3*3
 }
 
+func (space *Space) GetEnv() *m3db.QsmEnvironment {
+	return space.env
+}
+
 func (space *Space) GetCurrentTime() DistAndTime {
 	return space.currentTime
 }

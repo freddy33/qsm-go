@@ -2,6 +2,7 @@ package m3point
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 )
 
 /*
@@ -20,6 +21,7 @@ var allGrowthTypes = [5]GrowthType{1, 2, 3, 4, 8}
 var totalNbContexts = 8 + 12 + 8 + 12 + 12
 
 type BaseGrowthContext struct {
+	env *m3db.QsmEnvironment
 	// A generate id used in arrays and db
 	id int
 	// The context type for this flow context
@@ -29,15 +31,13 @@ type BaseGrowthContext struct {
 	growthIndex int
 }
 
-var allGrowthContexts []GrowthContext
-
-func calculateAllGrowthContexts() []GrowthContext {
+func (ppd *PointPackData) calculateAllGrowthContexts() []GrowthContext {
 	res := make([]GrowthContext, totalNbContexts)
 	idx := 0
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			growthCtx := BaseGrowthContext{idx, ctxType, pIdx}
+			growthCtx := BaseGrowthContext{ppd.env, idx, ctxType, pIdx}
 			res[idx] = &growthCtx
 			idx++
 		}
@@ -45,13 +45,17 @@ func calculateAllGrowthContexts() []GrowthContext {
 	return res
 }
 
+func (ppd *PointPackData) getBaseTrioDetails(gowthCtx GrowthContext, mainPoint Point, offset int) *TrioDetails {
+	return ppd.GetTrioDetails(gowthCtx.GetBaseTrioIndex(gowthCtx.GetBaseDivByThree(mainPoint), offset))
+}
+
 /***************************************************************/
 // GrowthType Functions
 /***************************************************************/
 
-func GetAllGrowthContexts() []GrowthContext {
-	checkGrowthContextsInitialized()
-	return allGrowthContexts
+func (ppd *PointPackData) GetAllGrowthContexts() []GrowthContext {
+	ppd.checkGrowthContextsInitialized()
+	return ppd.allGrowthContexts
 }
 
 func GetAllContextTypes() [5]GrowthType {
@@ -85,14 +89,14 @@ func (t GrowthType) GetMaxOffset() int {
 // BaseGrowthContext Functions
 /***************************************************************/
 
-func GetGrowthContextById(id int) GrowthContext {
-	checkGrowthContextsInitialized()
-	return allGrowthContexts[id]
+func (ppd *PointPackData) GetGrowthContextById(id int) GrowthContext {
+	ppd.checkGrowthContextsInitialized()
+	return ppd.allGrowthContexts[id]
 }
 
-func GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext {
-	checkGrowthContextsInitialized()
-	for _, growthCtx := range allGrowthContexts {
+func (ppd *PointPackData) GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext {
+	ppd.checkGrowthContextsInitialized()
+	for _, growthCtx := range ppd.allGrowthContexts {
 		if growthCtx.GetGrowthType() == growthType && growthCtx.GetGrowthIndex() == index {
 			return growthCtx
 		}
@@ -105,6 +109,10 @@ func (gowthCtx *BaseGrowthContext) String() string {
 	return fmt.Sprintf("GrowthCtx%d-%d-Idx%02d", gowthCtx.id, gowthCtx.growthType, gowthCtx.growthIndex)
 }
 
+func (gowthCtx *BaseGrowthContext) GetEnv() *m3db.QsmEnvironment {
+	return gowthCtx.env
+}
+
 func (gowthCtx *BaseGrowthContext) GetId() int {
 	return gowthCtx.id
 }
@@ -115,10 +123,6 @@ func (gowthCtx *BaseGrowthContext) GetGrowthType() GrowthType {
 
 func (gowthCtx *BaseGrowthContext) GetGrowthIndex() int {
 	return gowthCtx.growthIndex
-}
-
-func (gowthCtx *BaseGrowthContext) GetBaseTrioDetails(mainPoint Point, offset int) *TrioDetails {
-	return GetTrioDetails(gowthCtx.GetBaseTrioIndex(gowthCtx.GetBaseDivByThree(mainPoint), offset))
 }
 
 func (gowthCtx *BaseGrowthContext) GetBaseDivByThree(mainPoint Point) uint64 {

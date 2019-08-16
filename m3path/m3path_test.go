@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TODO: This should be in path data of the environment
 var allTestContexts [m3db.MaxNumberOfEnvironments]map[m3point.GrowthType][]PathContext
 
 func getAllTestContexts(env *m3db.QsmEnvironment) map[m3point.GrowthType][]PathContext {
@@ -17,9 +18,10 @@ func getAllTestContexts(env *m3db.QsmEnvironment) map[m3point.GrowthType][]PathC
 	res := make(map[m3point.GrowthType][]PathContext)
 
 	m3point.InitializeDBEnv(env, false)
+	ppd := m3point.GetPointPackData(env)
 
 	idx := 0
-	for _, growthCtx := range m3point.GetAllGrowthContexts() {
+	for _, growthCtx := range ppd.GetAllGrowthContexts() {
 		ctxType := growthCtx.GetGrowthType()
 		maxOffset := ctxType.GetMaxOffset()
 		if len(res[ctxType]) == 0 {
@@ -61,7 +63,9 @@ func fillPathContext(t *testing.T, pathCtx PathContext, until int) {
 	trIdx := growthCtx.GetBaseTrioIndex(0, pathCtx.GetGrowthOffset())
 	assert.NotEqual(t, m3point.NilTrioIndex, trIdx)
 
-	td := m3point.GetTrioDetails(trIdx)
+	ppd := m3point.GetPointPackData(pathCtx.GetGrowthCtx().GetEnv())
+
+	td := ppd.GetTrioDetails(trIdx)
 	assert.NotNil(t, td)
 	assert.Equal(t, trIdx, td.GetId())
 

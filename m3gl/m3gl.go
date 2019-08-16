@@ -33,7 +33,7 @@ const (
 const (
 	AxeExtraLength = 3
 	nodes          = 2
-	connections    = 25*2
+	connections    = 25 * 2
 	axes           = 3
 )
 
@@ -230,7 +230,8 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
-	triangleFiller := TriangleFiller{make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
+	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	triangleFiller := TriangleFiller{ppd, make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	triangleFiller.drawNodes()
 	triangleFiller.drawConnections()
@@ -241,19 +242,22 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 }
 
 func (world *DisplayWorld) RedrawAxesElementsMap() {
-	triangleFiller := TriangleFiller{world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawNodesElementsMap() {
-	triangleFiller := TriangleFiller{world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawNodes()
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawConnectionsElementsMap() {
-	triangleFiller := TriangleFiller{world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawConnections()
 	world.DrawingElementsMap = triangleFiller.objMap
 }
@@ -308,6 +312,7 @@ func (world *DisplayWorld) SetMatrices() {
 }
 
 type TriangleFiller struct {
+	ppd            *m3point.PointPackData
 	objMap         map[ObjectType]OpenGLDrawingElement
 	verticesOffset int32
 	bufferOffset   int
@@ -328,11 +333,11 @@ func (t *TriangleFiller) drawNodes() {
 }
 
 func (t *TriangleFiller) drawConnections() {
-	maxConnId := m3point.GetMaxConnId()
+	maxConnId := t.ppd.GetMaxConnId()
 	for connId := m3point.ConnectionId(1); connId <= maxConnId; connId++ {
-		posConn := m3point.GetConnDetailsById(connId)
+		posConn := t.ppd.GetConnDetailsById(connId)
 		t.fill(MakeSegment(m3point.Origin, posConn.Vector, getConnectionObjectType(posConn)))
-		negConn := m3point.GetConnDetailsById(-connId)
+		negConn := t.ppd.GetConnDetailsById(-connId)
 		t.fill(MakeSegment(m3point.Origin, negConn.Vector, getConnectionObjectType(negConn)))
 	}
 }

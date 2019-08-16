@@ -12,9 +12,10 @@ func TestDisplayPathBuilders(t *testing.T) {
 
 	env := GetFullTestDb(m3db.PointTestEnv)
 	InitializeDBEnv(env, false)
-	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
-	growthCtx := GetGrowthContextByTypeAndIndex(GrowthType(8), 0)
-	pnb := GetPathNodeBuilder(growthCtx, 0, Origin)
+	ppd := GetPointPackData(env)
+	assert.Equal(t, TotalNumberOfCubes+1, len(ppd.pathBuilders))
+	growthCtx := ppd.GetGrowthContextByTypeAndIndex(GrowthType(8), 0)
+	pnb := ppd.GetPathNodeBuilder(growthCtx, 0, Origin)
 	assert.NotNil(t, pnb, "did not find builder for %s", growthCtx.String())
 	rpnb, tok := pnb.(*RootPathNodeBuilder)
 	assert.True(t, tok, "%s is not a root builder", pnb.String())
@@ -28,12 +29,13 @@ func TestAllPathBuilders(t *testing.T) {
 
 	env := GetFullTestDb(m3db.PointTestEnv)
 	InitializeDBEnv(env, true)
+	ppd := GetPointPackData(env)
 
-	assert.Equal(t, TotalNumberOfCubes+1, len(pathBuilders))
+	assert.Equal(t, TotalNumberOfCubes+1, len(ppd.pathBuilders))
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			growthCtx := GetGrowthContextByTypeAndIndex(ctxType, pIdx)
+			growthCtx := ppd.GetGrowthContextByTypeAndIndex(ctxType, pIdx)
 			maxOffset := ctxType.GetMaxOffset()
 			for offset := 0; offset < maxOffset; offset++ {
 				centerPoint := Origin
@@ -52,7 +54,7 @@ func TestAllPathBuilders(t *testing.T) {
 						}
 					}
 					assert.Equal(t, div, growthCtx.GetBaseDivByThree(centerPoint), "something wrong with div by three for %s", growthCtx.String())
-					pnb := GetPathNodeBuilder(growthCtx, offset, centerPoint)
+					pnb := ppd.GetPathNodeBuilder(growthCtx, offset, centerPoint)
 					assert.NotNil(t, pnb, "did not find builder for %s %v %v", growthCtx.String(), offset, div)
 					rpnb, tok := pnb.(*RootPathNodeBuilder)
 					assert.True(t, tok, "%s is not a root builder", pnb.String())
@@ -80,7 +82,7 @@ func TestAllPathBuilders(t *testing.T) {
 						idx := int(PosMod8(div + uint64(offset)))
 						assert.Equal(t, AllMod8Permutations[pIdx][idx], trioIdx, "wrong trio index for %s", pnb.String())
 					}
-					td := GetTrioDetails(trioIdx)
+					td := ppd.GetTrioDetails(trioIdx)
 					assert.NotNil(t, td, "did not find trio index %s for path builder %s", trioIdx.String(), pnb.String())
 					for i, cd := range td.conns {
 						assert.Equal(t, cd.Id, rpnb.pathLinks[i].connId, "connId mismatch at %d for %s", i, pnb.String())
@@ -89,7 +91,7 @@ func TestAllPathBuilders(t *testing.T) {
 						assert.NotEqual(t, NilTrioIndex, npnb.GetTrioIndex(), "no trio index for next path node at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 						assert.False(t, npnb.GetTrioIndex().IsBaseTrio(), "trio index should not a base one for builder %s", npnb.String())
 						assert.Equal(t, centerPoint.Add(cd.Vector), np, "failed next point for builder %s", npnb.String())
-						ntd := GetTrioDetails(npnb.GetTrioIndex())
+						ntd := ppd.GetTrioDetails(npnb.GetTrioIndex())
 						ipnb, iok := npnb.(*IntermediatePathNodeBuilder)
 						nbIntemediate++
 						assert.True(t, iok, "next path node not an intermediate at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
@@ -125,7 +127,7 @@ func TestAllPathBuilders(t *testing.T) {
 
 								// Make sure the way back get same trio
 								if Log.IsTrace() {
-									Log.Tracef("get back from %s %s %v", nextMainPB.String(), growthCtx.GetBaseTrioDetails(nmp, offset).String(), nmp)
+									Log.Tracef("get back from %s %s %v", nextMainPB.String(), ppd.getBaseTrioDetails(growthCtx, nmp, offset).String(), nmp)
 								}
 								backIpnb, oLip := nextMainPB.GetNextPathNodeBuilder(nmp, olipnb.nextMainConnId.GetNegId(), offset)
 								assert.NotNil(t, backIpnb, "%s next root builder is nil", nextMainPB.String())

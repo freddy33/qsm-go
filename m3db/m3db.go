@@ -28,10 +28,11 @@ const (
 	PointTestEnv                 // 5
 	PathTestEnv                  // 6
 	SpaceTestEnv                 // 7
-	GlTestEnv                 	 // 8
+	GlTestEnv                    // 8
 	DbTempEnv                    // 9
 	PointTempEnv                 // 10
 	PathTempEnv                  // 11
+	PointLoadEnv                 // 12
 )
 
 const (
@@ -57,12 +58,21 @@ func (qsmError QsmError) Error() string {
 	return string(qsmError)
 }
 
+const (
+	PointIdx     = 0
+	PathIdx      = 1
+	SpaceIdx     = 2
+	GlIdx        = 3
+	MaxDataEntry = 4
+)
+
 type QsmEnvironment struct {
 	id               QsmEnvID
 	dbDetails        DbConnDetails
 	db               *sql.DB
 	createTableMutex sync.Mutex
 	tableExecs       map[string]*TableExec
+	data             [MaxDataEntry]interface{}
 }
 
 var createEnvMutex sync.Mutex
@@ -213,6 +223,18 @@ func (env *QsmEnvironment) openDb() {
 func (env *QsmEnvironment) _internalClose() error {
 	envId := env.id
 	defer RemoveEnvFromMap(envId)
+	// clean data
+	for i := 0; i < len(env.data); i++ {
+		env.data[i] = nil
+	}
+	// clean table exec
+	for tn, te := range env.tableExecs {
+		err := te.Close()
+		if err != nil {
+			Log.Warnf("Closing table exec of envId=%d table=%s generated '%s'", env.id, tn, err.Error())
+		}
+		delete(env.tableExecs, tn)
+	}
 	db := env.db
 	env.db = nil
 	if db != nil {
@@ -280,4 +302,12 @@ func (env *QsmEnvironment) Ping() bool {
 		Log.Debugf("ping for environment %d successful", env.id)
 	}
 	return true
+}
+
+func (env *QsmEnvironment) GetData(dataIdx int) interface{} {
+	return env.data[dataIdx]
+}
+
+func (env *QsmEnvironment) SetData(dataIdx int, d interface{}) {
+	env.data[dataIdx] = d
 }

@@ -2,6 +2,7 @@ package m3space
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 )
@@ -173,6 +174,19 @@ func (bn *BaseNode) GetNbEvents() int {
 		}
 	}
 	return res
+}
+
+func (bn *BaseNode) GetPointPackData() *m3point.PointPackData {
+	return m3point.GetPointPackData(bn.GetEnv())
+}
+
+func (bn *BaseNode) GetEnv() *m3db.QsmEnvironment {
+	for _, pn := range bn.pathNodes {
+		if pn != nil && !pn.IsEnd() {
+			return pn.GetPathContext().GetGrowthCtx().GetEnv()
+		}
+	}
+	return nil
 }
 
 func (bn *BaseNode) GetNbLatestEvents() int {
@@ -479,9 +493,10 @@ func (bn *BaseNode) IsAlreadyConnected(opn *BaseNode) bool {
 	if bn.IsEmpty() || opn.IsEmpty() {
 		return false
 	}
+
 	pnp := *bn.GetPoint()
 	opnp := *opn.GetPoint()
-	cd := m3point.GetConnDetailsByPoints(pnp, opnp)
+	cd := bn.GetPointPackData().GetConnDetailsByPoints(pnp, opnp)
 	if cd == nil || !cd.IsValid() {
 		Log.Errorf("finding if 2 nodes already connected but not separated by possible connection (%v, %v)", pnp, opnp)
 		return false

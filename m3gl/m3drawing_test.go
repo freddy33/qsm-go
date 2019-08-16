@@ -16,14 +16,10 @@ type ExpectedSpaceState struct {
 }
 
 var envMutex sync.Mutex
-var glEnv *m3db.QsmEnvironment
 
 func getGlTestEnv() *m3db.QsmEnvironment {
 	envMutex.Lock()
 	defer envMutex.Unlock()
-	if glEnv != nil {
-		return glEnv
-	}
 	m3db.SetToTestMode()
 	glEnv := m3path.GetFullTestDb(m3db.GlTestEnv)
 	m3point.InitializeDBEnv(glEnv, true)

@@ -20,28 +20,30 @@ func TestLoadOrCalculate(t *testing.T) {
 	Log.SetInfo()
 	m3db.SetToTestMode()
 
-	env := GetFullTestDb(m3db.PointTestEnv)
+	env := GetFullTestDb(m3db.PointLoadEnv)
+	ppd := GetPointPackData(env)
 
 	start := time.Now()
-	allConnections, allConnectionsByVector = calculateConnectionDetails()
-	connectionsLoaded[pointEnvId] = true
-	allTrioDetails = calculateAllTrioDetails()
-	trioDetailsLoaded[pointEnvId] = true
-	allGrowthContexts = calculateAllGrowthContexts()
-	growthContextsLoaded[pointEnvId] = true
-	cubeIdsPerKey = calculateAllContextCubes()
-	cubesLoaded[pointEnvId] = true
-	pathBuilders = calculateAllPathBuilders()
-	pathBuildersLoaded[pointEnvId] = true
+	ppd.resetFlags()
+	ppd.allConnections, ppd.allConnectionsByVector = ppd.calculateConnectionDetails()
+	ppd.connectionsLoaded = true
+	ppd.allTrioDetails = ppd.calculateAllTrioDetails()
+	ppd.trioDetailsLoaded = true
+	ppd.allGrowthContexts = ppd.calculateAllGrowthContexts()
+	ppd.growthContextsLoaded = true
+	ppd.cubeIdsPerKey = ppd.calculateAllContextCubes()
+	ppd.cubesLoaded = true
+	ppd.pathBuilders = ppd.calculateAllPathBuilders()
+	ppd.pathBuildersLoaded = true
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
 
-	assert.Equal(t, ExpectedNbConns, len(allConnections))
-	assert.Equal(t, ExpectedNbConns, len(allConnectionsByVector))
-	assert.Equal(t, ExpectedNbTrios, len(allTrioDetails))
-	assert.Equal(t, ExpectedNbGrowthContexts, len(allGrowthContexts))
-	assert.Equal(t, ExpectedNbCubes, len(cubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders)-1)
+	assert.Equal(t, ExpectedNbConns, len(ppd.allConnections))
+	assert.Equal(t, ExpectedNbConns, len(ppd.allConnectionsByVector))
+	assert.Equal(t, ExpectedNbTrios, len(ppd.allTrioDetails))
+	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.allGrowthContexts))
+	assert.Equal(t, ExpectedNbCubes, len(ppd.cubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.pathBuilders)-1)
 
 	start = time.Now()
 	// force reload
@@ -51,12 +53,14 @@ func TestLoadOrCalculate(t *testing.T) {
 
 	Log.Infof("Diff calc-load = %v", calcTime - loadTime)
 
-	assert.Equal(t, ExpectedNbConns, len(allConnections))
-	assert.Equal(t, ExpectedNbConns, len(allConnectionsByVector))
-	assert.Equal(t, ExpectedNbTrios, len(allTrioDetails))
-	assert.Equal(t, ExpectedNbGrowthContexts, len(allGrowthContexts))
-	assert.Equal(t, ExpectedNbCubes, len(cubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(pathBuilders)-1)
+	// Don't forget to get ppd different after init
+	ppd = GetPointPackData(env)
+	assert.Equal(t, ExpectedNbConns, len(ppd.allConnections))
+	assert.Equal(t, ExpectedNbConns, len(ppd.allConnectionsByVector))
+	assert.Equal(t, ExpectedNbTrios, len(ppd.allTrioDetails))
+	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.allGrowthContexts))
+	assert.Equal(t, ExpectedNbCubes, len(ppd.cubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.pathBuilders)-1)
 }
 
 func TestSaveAll(t *testing.T) {
@@ -65,15 +69,16 @@ func TestSaveAll(t *testing.T) {
 	m3db.SetToTestMode()
 
 	tempEnv := GetCleanTempDb(m3db.PointTempEnv)
+	ppd := GetPointPackData(tempEnv)
 
 	// ************ Connection Details
 
-	n, err := saveAllConnectionDetails(tempEnv)
+	n, err := ppd.saveAllConnectionDetails()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbConns, n)
 
 	// Should be able to run twice
-	n, err = saveAllConnectionDetails(tempEnv)
+	n, err = ppd.saveAllConnectionDetails()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbConns, n)
 
@@ -82,77 +87,77 @@ func TestSaveAll(t *testing.T) {
 	assert.Equal(t, ExpectedNbConns, len(loaded))
 
 	// Init
-	initConnections(tempEnv)
+	ppd.initConnections()
 
 	// ************ Trio Details
 
-	n, err = saveAllTrioDetails(tempEnv)
+	n, err = ppd.saveAllTrioDetails()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbTrios, n)
 
 	// Should be able to run twice
-	n, err = saveAllTrioDetails(tempEnv)
+	n, err = ppd.saveAllTrioDetails()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbTrios, n)
 
 	// Test we can load
-	loaded2 := loadTrioDetails(tempEnv)
+	loaded2 := ppd.loadTrioDetails()
 	assert.Equal(t, ExpectedNbTrios, len(loaded2))
 
 	// Init
-	initTrioDetails(tempEnv)
+	ppd.initTrioDetails()
 
 	// ************ Growth Contexts
 
-	n, err = saveAllGrowthContexts(tempEnv)
+	n, err = ppd.saveAllGrowthContexts()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbGrowthContexts, n)
 
 	// Should be able to run twice
-	n, err = saveAllGrowthContexts(tempEnv)
+	n, err = ppd.saveAllGrowthContexts()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbGrowthContexts, n)
 
 	// Test we can load
-	loaded3 := loadGrowthContexts(tempEnv)
+	loaded3 := ppd.loadGrowthContexts()
 	assert.Equal(t, ExpectedNbGrowthContexts, len(loaded3))
 
 	// Init
-	initGrowthContexts(tempEnv)
+	ppd.initGrowthContexts()
 
 	// ************ Context Cubes
 
-	n, err = saveAllContextCubes(tempEnv)
+	n, err = ppd.saveAllContextCubes()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbCubes, n)
 
 	// Should be able to run twice
-	n, err = saveAllContextCubes(tempEnv)
+	n, err = ppd.saveAllContextCubes()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbCubes, n)
 
 	// Test we can load
-	loaded4 := loadContextCubes(tempEnv)
+	loaded4 := ppd.loadContextCubes()
 	assert.Equal(t, ExpectedNbCubes, len(loaded4))
 
 	// Init
-	initContextCubes(tempEnv)
+	ppd.initContextCubes()
 
 	// ************ Path Builders
 
-	n, err = saveAllPathBuilders(tempEnv)
+	n, err = ppd.saveAllPathBuilders()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbPathBuilders, n)
 
 	// Should be able to run twice
-	n, err = saveAllPathBuilders(tempEnv)
+	n, err = ppd.saveAllPathBuilders()
 	assert.Nil(t, err)
 	assert.Equal(t, ExpectedNbPathBuilders, n)
 
 	// Test we can load
-	loaded5 := loadPathBuilders(tempEnv)
+	loaded5 := ppd.loadPathBuilders()
 	assert.Equal(t, ExpectedNbPathBuilders, len(loaded5)-1)
 
 	// Init from Good DB
-	initPathBuilders(tempEnv)
+	ppd.initPathBuilders()
 }

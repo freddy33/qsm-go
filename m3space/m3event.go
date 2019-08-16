@@ -22,6 +22,7 @@ const (
 	YellowEvent
 )
 
+// TODO: This should be in the space data entry of the environment
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 
 type Event struct {
@@ -86,7 +87,8 @@ func (spnm *SpacePathNodeMap) IsActive(pathNode m3path.PathNode) bool {
 func (space *Space) CreateEvent(ctxType m3point.GrowthType, idx int, offset int, p m3point.Point, k EventColor) *Event {
 	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
 	space.lastIdCounter++
-	ctx := m3path.MakePathContextDBFromGrowthContext(space.env, m3point.GetGrowthContextByTypeAndIndex(ctxType, idx), offset)
+	ppd := m3point.GetPointPackData(space.env)
+	ctx := m3path.MakePathContextDBFromGrowthContext(space.env, ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset)
 	e := Event{pnm.id, space, pnm,nil, space.currentTime, k, ctx}
 	space.events[pnm.id] = &e
 	ctx.InitRootNode(p)

@@ -28,12 +28,15 @@ func createGrowthContextsTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func loadGrowthContexts(env *m3db.QsmEnvironment) []GrowthContext {
+func (ppd *PointPackData) loadGrowthContexts() []GrowthContext {
+	env := ppd.env
+
 	te, rows := env.SelectAllForLoad(GrowthContextsTable)
 	res := make([]GrowthContext, 0, te.TableDef.ExpectedCount)
 
 	for rows.Next() {
 		growthCtx := BaseGrowthContext{}
+		growthCtx.env = env
 		err := rows.Scan(&growthCtx.id, &growthCtx.growthType, &growthCtx.growthIndex)
 		if err != nil {
 			Log.Errorf("failed to load trio context line %d", len(res))
@@ -44,18 +47,15 @@ func loadGrowthContexts(env *m3db.QsmEnvironment) []GrowthContext {
 	return res
 }
 
-func saveAllGrowthContexts(env *m3db.QsmEnvironment) (int, error) {
+func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
+	env := ppd.env
+
 	te, inserted, toFill, err := env.GetForSaveAll(GrowthContextsTable)
 	if err != nil {
 		return 0, err
 	}
 	if toFill {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		growthContexts := calculateAllGrowthContexts()
+		growthContexts := ppd.calculateAllGrowthContexts()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthContexts))
 		}

@@ -9,15 +9,17 @@ func TestTrioCubeMaps(t *testing.T) {
 	Log.SetInfo()
 	Log.SetAssert(true)
 
+	ppd := getPointTestData()
+
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			growthCtx := GetGrowthContextByTypeAndIndex(ctxType, pIdx)
+			growthCtx := ppd.GetGrowthContextByTypeAndIndex(ctxType, pIdx)
 			max, cubes := findNbCubes(growthCtx)
 			// Test way above
 			nbCubesBig := distinctCubes(growthCtx, max*3)
 			assert.Equal(t, len(cubes), len(nbCubesBig), "failed test big for %s for max=%d", growthCtx.String(), max)
-			cl := getCubeList(growthCtx)
+			cl := ppd.getCubeList(growthCtx)
 			assert.Equal(t, len(cubes), len(cl.allCubes), "failed test big for %s for max=%d", growthCtx.String(), max)
 			maxOffset := ctxType.GetMaxOffset()
 			for offset := 0; offset < maxOffset; offset++ {

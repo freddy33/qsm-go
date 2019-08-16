@@ -27,13 +27,14 @@ func TestMakeNewPathCtx(t *testing.T) {
 	m3point.Log.SetDebug()
 	m3db.SetToTestMode()
 	env := GetFullTestDb(m3db.PathTestEnv)
-	m3point.SetDefaultEnv(env)
 	start := time.Now()
 	InitializeDBEnv(env)
 	endInit := time.Now()
 	Log.Infof("Init DB took %v", endInit.Sub(start))
 
-	growthCtx := m3point.GetGrowthContextById(40)
+	ppd := m3point.GetPointPackData(env)
+
+	growthCtx := ppd.GetGrowthContextById(40)
 	assert.NotNil(t, growthCtx)
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())

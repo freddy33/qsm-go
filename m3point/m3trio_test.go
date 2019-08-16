@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/stretchr/testify/assert"
-	"sync"
 	"testing"
 )
 
@@ -42,23 +41,22 @@ func TestPosMod8(t *testing.T) {
 	assert.Equal(t, uint64(0), PosMod8(0))
 }
 
-var doOnce sync.Once
-
-func initTestTrioDetails() {
+func getPointTestData() *PointPackData {
 	m3db.SetToTestMode()
 
 	env := GetFullTestDb(m3db.PointTestEnv)
 	InitializeDBEnv(env, false)
+	return GetPointPackData(env)
 }
 
 func TestAllTrioDetails(t *testing.T) {
 	Log.SetInfo()
 	Log.SetAssert(true)
 
-	doOnce.Do(initTestTrioDetails)
+	ppd := getPointTestData()
 
-	assert.Equal(t, 200, len(allTrioDetails))
-	for i, td := range allTrioDetails {
+	assert.Equal(t, 200, len(ppd.allTrioDetails))
+	for i, td := range ppd.allTrioDetails {
 		// All vec should have conn details
 		cds := td.GetConnections()
 		// Conn ID increase always
@@ -91,9 +89,9 @@ func TestAllTrioDetails(t *testing.T) {
 	}
 
 	// Check that All trio is ordered correctly
-	for i, tr := range allTrioDetails {
+	for i, tr := range ppd.allTrioDetails {
 		if i > 0 {
-			assert.True(t, allTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, allTrioDetails[i-1], i, tr)
+			assert.True(t, ppd.allTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, ppd.allTrioDetails[i-1], i, tr)
 		}
 	}
 }
@@ -101,13 +99,13 @@ func TestAllTrioDetails(t *testing.T) {
 func TestTrioDetailsPerDSIndex(t *testing.T) {
 	Log.SetInfo()
 
-	doOnce.Do(initTestTrioDetails)
+	ppd := getPointTestData()
 
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
 	PossibleDSArray := [NbTrioDsIndex][3]DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
 
-	indexInPossDS := make([]int, len(allTrioDetails))
-	for i, td := range allTrioDetails {
+	indexInPossDS := make([]int, len(ppd.allTrioDetails))
+	for i, td := range ppd.allTrioDetails {
 		cds := td.conns
 		dsArray := [3]DInt{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
@@ -124,9 +122,9 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	// Check that All trio is ordered correctly
 	countPerIndex := [NbTrioDsIndex]int{}
 	countPerIndexPerFirstConnPosId := [NbTrioDsIndex][10]int{}
-	for i, td := range allTrioDetails {
+	for i, td := range ppd.allTrioDetails {
 		if i > 0 {
-			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, allTrioDetails[i-1], i, td)
+			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, ppd.allTrioDetails[i-1], i, td)
 		}
 		dsIndex := td.GetDSIndex()
 		countPerIndex[dsIndex]++
@@ -193,9 +191,9 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 }
 
 func TestTrioDetailsConnectionsMethods(t *testing.T) {
-	initTestTrioDetails()
+	ppd := getPointTestData()
 
-	td0 := GetTrioDetails(0)
+	td0 := ppd.GetTrioDetails(0)
 	assert.True(t, td0.HasConnection(4))
 	assert.False(t, td0.HasConnection(-4))
 	assert.True(t, td0.HasConnection(-6))
@@ -208,18 +206,18 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[1])
 
 	oc := td0.OtherConnectionsFrom(4)
-	assert.Equal(t, *GetConnDetailsById(-6), *oc[0])
-	assert.Equal(t, *GetConnDetailsById(-9), *oc[1])
+	assert.Equal(t, *ppd.GetConnDetailsById(-6), *oc[0])
+	assert.Equal(t, *ppd.GetConnDetailsById(-9), *oc[1])
 
-	td92 := GetTrioDetails(92)
+	td92 := ppd.GetTrioDetails(92)
 	assert.True(t, td92.HasConnection(4))
 	assert.False(t, td92.HasConnection(-4))
 	assert.True(t, td92.HasConnection(12))
 	assert.True(t, td92.HasConnection(-12))
 
 	oc = td92.OtherConnectionsFrom(4)
-	assert.Equal(t, *GetConnDetailsById(12), *oc[0])
-	assert.Equal(t, *GetConnDetailsById(-12), *oc[1])
+	assert.Equal(t, *ppd.GetConnDetailsById(12), *oc[0])
+	assert.Equal(t, *ppd.GetConnDetailsById(-12), *oc[1])
 }
 
 func TestInitialTrioConnectingVectors(t *testing.T) {

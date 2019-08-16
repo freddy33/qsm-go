@@ -2,6 +2,7 @@ package m3point
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3db"
 	"strings"
 )
 
@@ -41,9 +42,6 @@ type PathLinkBuilder struct {
 	pathNode PathNodeBuilder
 }
 
-// The index of this slice is the cube id
-var pathBuilders []*RootPathNodeBuilder
-
 var maxOffsetPerType = map[GrowthType]int{
 	GrowthType(1): 1,
 	GrowthType(3): 4,
@@ -52,12 +50,12 @@ var maxOffsetPerType = map[GrowthType]int{
 	GrowthType(8): 8,
 }
 
-func calculateAllPathBuilders() []*RootPathNodeBuilder {
-	checkCubesInitialized()
+func (ppd *PointPackData) calculateAllPathBuilders() []*RootPathNodeBuilder {
+	ppd.checkCubesInitialized()
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 	res[0] = nil
-	for cubeKey, cubeId := range cubeIdsPerKey {
-		key := PathBuilderContext{GetGrowthContextById(cubeKey.trCtxId), cubeId}
+	for cubeKey, cubeId := range ppd.cubeIdsPerKey {
+		key := PathBuilderContext{ppd.GetGrowthContextById(cubeKey.trCtxId), cubeId}
 		root := RootPathNodeBuilder{}
 		root.ctx = &key
 		root.populate()
@@ -66,16 +64,16 @@ func calculateAllPathBuilders() []*RootPathNodeBuilder {
 	return res
 }
 
-func GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder {
-	checkPathBuildersInitialized()
+func (ppd *PointPackData) GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder {
+	ppd.checkPathBuildersInitialized()
 	// TODO: Verify the key below stay local and is not staying in memory
 	key := CubeKeyId{growthCtx.GetId(), createTrioCube(growthCtx, offset, c)}
-	cubeId := GetCubeIdByKey(key)
-	return GetPathNodeBuilderById(cubeId)
+	cubeId := ppd.GetCubeIdByKey(key)
+	return ppd.GetPathNodeBuilderById(cubeId)
 }
 
-func GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
-	return pathBuilders[cubeId]
+func (ppd *PointPackData) GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
+	return ppd.pathBuilders[cubeId]
 }
 
 /***************************************************************/
@@ -89,6 +87,14 @@ func (pl *PathLinkBuilder) dumpInfo() string {
 /***************************************************************/
 // BasePathNodeBuilder Functions
 /***************************************************************/
+
+func (pnb *BasePathNodeBuilder) GetEnv() *m3db.QsmEnvironment {
+	return pnb.ctx.growthCtx.GetEnv()
+}
+
+func (pnb *BasePathNodeBuilder) GetPointPackData() *PointPackData {
+	return GetPointPackData(pnb.ctx.growthCtx.GetEnv())
+}
 
 func (pnb *BasePathNodeBuilder) GetCubeId() int {
 	return pnb.ctx.cubeId
@@ -119,7 +125,7 @@ func (rpnb *RootPathNodeBuilder) dumpInfo() string {
 func (rpnb *RootPathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
 	for _, plb := range rpnb.pathLinks {
 		if plb.connId == connId {
-			return plb.pathNode, from.Add(GetConnDetailsById(connId).Vector)
+			return plb.pathNode, from.Add(rpnb.GetPointPackData().GetConnDetailsById(connId).Vector)
 		}
 	}
 	Log.Fatalf("trying to get next path node builder on connection %s which does not exists in %s", connId.String(), rpnb.String())
@@ -127,7 +133,7 @@ func (rpnb *RootPathNodeBuilder) GetNextPathNodeBuilder(from Point, connId Conne
 }
 
 func (rpnb *RootPathNodeBuilder) verify() {
-	td := GetTrioDetails(rpnb.trIdx)
+	td := rpnb.GetPointPackData().GetTrioDetails(rpnb.trIdx)
 	if !td.HasConnection(rpnb.pathLinks[0].connId) {
 		Log.Errorf("%s failed checking next path link 0 %s part of trio", rpnb.String(), rpnb.pathLinks[0].connId)
 	}
@@ -157,10 +163,11 @@ type NextMainPathNode struct {
 
 func (rpnb *RootPathNodeBuilder) populate() {
 	growthCtx := rpnb.ctx.growthCtx
-	cubeKey := GetCubeById(rpnb.ctx.cubeId)
+	ppd := rpnb.GetPointPackData()
+	cubeKey := ppd.GetCubeById(rpnb.ctx.cubeId)
 	cube := cubeKey.cube
 	rpnb.trIdx = cube.center
-	td := GetTrioDetails(rpnb.trIdx)
+	td := ppd.GetTrioDetails(rpnb.trIdx)
 	for i, cd := range td.conns {
 		// We are talking about the intermediate point here
 		ip := cd.Vector
@@ -172,7 +179,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 			nextMains[j].ud = ud
 			nmp := ud.GetFirstPoint()
 			nextTrIdx := cube.GetCenterFaceTrio(ud)
-			nextTd := GetTrioDetails(nextTrIdx)
+			nextTd := ppd.GetTrioDetails(nextTrIdx)
 			backConn := nextTd.getOppositeConn(ud)
 			nextMains[j].lip = nmp.Add(backConn.Vector)
 			nextMains[j].backConn = backConn
@@ -185,8 +192,8 @@ func (rpnb *RootPathNodeBuilder) populate() {
 		// We have all the last nodes let's create the intermediate one
 		// We have the three connections from ip to find the correct trio
 		var iTd *TrioDetails
-		ipConns := [2]*ConnectionDetails{GetConnDetailsByPoints(ip, nextMains[0].lip), GetConnDetailsByPoints(ip, nextMains[1].lip)}
-		for _, possTd := range allTrioDetails {
+		ipConns := [2]*ConnectionDetails{ppd.GetConnDetailsByPoints(ip, nextMains[0].lip), ppd.GetConnDetailsByPoints(ip, nextMains[1].lip)}
+		for _, possTd := range ppd.allTrioDetails {
 			if possTd.HasConnections(cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId()) {
 				iTd = possTd
 				break
@@ -210,14 +217,14 @@ func (rpnb *RootPathNodeBuilder) populate() {
 					foundUd = true
 				} else {
 					nextInterTrIdx := cube.GetMiddleEdgeTrio(nm.ud, backUd)
-					nextInterTd := GetTrioDetails(nextInterTrIdx)
+					nextInterTd := ppd.GetTrioDetails(nextInterTrIdx)
 					nextInterBackConn := nextInterTd.getOppositeConn(backUd)
 					nextInterNearMainPoint := nm.ud.GetFirstPoint().Add(backUd.GetFirstPoint()).Add(nextInterBackConn.Vector)
-					lipToOtherConn := GetConnDetailsByPoints(nm.lip, nextInterNearMainPoint)
+					lipToOtherConn := ppd.GetConnDetailsByPoints(nm.lip, nextInterNearMainPoint)
 					nm.lipnb.nextInterConnId = lipToOtherConn.GetId()
 
 					var liTd *TrioDetails
-					for _, possTd := range allTrioDetails {
+					for _, possTd := range ppd.allTrioDetails {
 						if possTd.HasConnections(ipConns[j].GetNegId(), nm.lipnb.nextInterConnId, nm.lipnb.nextMainConnId) {
 							liTd = possTd
 							break
@@ -264,15 +271,15 @@ func (ipnb *IntermediatePathNodeBuilder) dumpInfo() string {
 func (ipnb *IntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
 	for _, plb := range ipnb.pathLinks {
 		if plb.connId == connId {
-			return plb.pathNode, from.Add(GetConnDetailsById(connId).Vector)
+			return plb.pathNode, from.Add(ipnb.GetPointPackData().GetConnDetailsById(connId).Vector)
 		}
 	}
-	Log.Fatalf("trying to get next path node builder on connection %s which does not exists in %s trio %s", connId.String(), ipnb.String(), GetTrioDetails(ipnb.trIdx).String())
+	Log.Fatalf("trying to get next path node builder on connection %s which does not exists in %s trio %s", connId.String(), ipnb.String(), ipnb.trIdx.String())
 	return nil, Origin
 }
 
 func (ipnb *IntermediatePathNodeBuilder) verify() {
-	td := GetTrioDetails(ipnb.trIdx)
+	td := ipnb.GetPointPackData().GetTrioDetails(ipnb.trIdx)
 	if !td.HasConnection(ipnb.pathLinks[0].connId) {
 		Log.Errorf("%s failed checking next path link 0 %s part of trio", ipnb.String(), ipnb.pathLinks[0].connId)
 	}
@@ -297,14 +304,15 @@ func (lipnb *LastIntermediatePathNodeBuilder) dumpInfo() string {
 }
 
 func (lipnb *LastIntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
+	ppd := lipnb.GetPointPackData()
 	nextMainPoint := from.GetNearMainPoint()
 	if Log.DoAssert() {
-		oNextMainPoint := from.Add(GetConnDetailsById(lipnb.nextMainConnId).Vector)
+		oNextMainPoint := from.Add(ppd.GetConnDetailsById(lipnb.nextMainConnId).Vector)
 		if nextMainPoint != oNextMainPoint {
 			Log.Fatalf("last inter main path node %s (%s) does give a main point using %v and %s", lipnb.String(), lipnb.dumpInfo(), from, lipnb.nextMainConnId)
 		}
 	}
-	nextMainPnb := GetPathNodeBuilder(lipnb.ctx.growthCtx, offset, nextMainPoint)
+	nextMainPnb := ppd.GetPathNodeBuilder(lipnb.ctx.growthCtx, offset, nextMainPoint)
 	if lipnb.nextMainConnId == connId {
 		return nextMainPnb, nextMainPoint
 	} else if lipnb.nextInterConnId == connId {
@@ -321,7 +329,7 @@ func (lipnb *LastIntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point,
 }
 
 func (lipnb *LastIntermediatePathNodeBuilder) verify() {
-	td := GetTrioDetails(lipnb.trIdx)
+	td := lipnb.GetPointPackData().GetTrioDetails(lipnb.trIdx)
 	if !td.HasConnection(lipnb.nextMainConnId) {
 		Log.Errorf("%s %s %s failed checking next main connection part of trio", lipnb.String(), lipnb.nextMainConnId, lipnb.nextInterConnId)
 	}

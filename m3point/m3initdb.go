@@ -11,207 +11,118 @@ import (
 	"time"
 )
 
-var pointEnvId m3db.QsmEnvID
-var pointEnv *m3db.QsmEnvironment
-
-var connectionsLoaded [m3db.MaxNumberOfEnvironments]bool
-var trioDetailsLoaded [m3db.MaxNumberOfEnvironments]bool
-var growthContextsLoaded [m3db.MaxNumberOfEnvironments]bool
-var cubesLoaded [m3db.MaxNumberOfEnvironments]bool
-var pathBuildersLoaded [m3db.MaxNumberOfEnvironments]bool
-
-func SetDefaultEnv(env *m3db.QsmEnvironment) {
-	pointEnvId = env.GetId()
-	pointEnv = env
-}
-
-func GetPointEnv() *m3db.QsmEnvironment {
-	if pointEnv == nil || pointEnv.GetConnection() == nil {
-		if pointEnvId == m3db.NoEnv {
-			pointEnvId = m3db.GetDefaultEnvId()
-		}
-		pointEnv = m3db.GetEnvironment(pointEnvId)
-	}
-	return pointEnv
-}
-
-func checkConnInitialized() {
-	if !connectionsLoaded[pointEnvId] {
-		Log.Fatal("Connections should have been initialized! Please call m3point.InitializeDB() method before this!")
-	}
-}
-
-func checkTrioInitialized() {
-	if !trioDetailsLoaded[pointEnvId] {
-		Log.Fatal("Trios should have been initialized! Please call m3point.InitializeDB() method before this!")
-	}
-}
-
-func checkGrowthContextsInitialized() {
-	if !trioDetailsLoaded[pointEnvId] {
-		Log.Fatal("trio contexts should have been initialized! Please call m3point.InitializeDB() method before this!")
-	}
-}
-
-func checkCubesInitialized() {
-	if !cubesLoaded[pointEnvId] {
-		Log.Fatal("Cubes should have been initialized! Please call m3point.InitializeDB() method before this!")
-	}
-}
-
-func checkPathBuildersInitialized() {
-	if !pathBuildersLoaded[pointEnvId] {
-		Log.Fatal("Path Builders should have been initialized! Please call m3point.InitializeDB() method before this!")
-	}
-}
 
 func InitializeDBEnv(env *m3db.QsmEnvironment, forced bool) {
+	ppd := GetPointPackData(env)
 	if forced {
-		envId := env.GetId()
-		connectionsLoaded[envId] = false
-		trioDetailsLoaded[envId] = false
-		growthContextsLoaded[envId] = false
-		cubesLoaded[envId] = false
-		pathBuildersLoaded[envId] = false
+		ppd.resetFlags()
 	}
-	initConnections(env)
-	initTrioDetails(env)
-	initGrowthContexts(env)
-	initContextCubes(env)
-	initPathBuilders(env)
+	ppd.initConnections()
+	ppd.initTrioDetails()
+	ppd.initGrowthContexts()
+	ppd.initContextCubes()
+	ppd.initPathBuilders()
 }
 
-func initConnections(env *m3db.QsmEnvironment) {
-	if !connectionsLoaded[env.GetId()] {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		allConnections, allConnectionsByVector = loadConnectionDetails(env)
-		connectionsLoaded[env.GetId()] = true
-		Log.Debugf("Environment %d has %d connection details", env.GetId(), len(allConnections))
+func (ppd *PointPackData) initConnections() {
+	if !ppd.connectionsLoaded {
+		ppd.allConnections, ppd.allConnectionsByVector = loadConnectionDetails(ppd.env)
+		ppd.connectionsLoaded = true
+		Log.Debugf("Environment %d has %d connection details", ppd.GetId(), len(ppd.allConnections))
 	}
 }
 
-func initTrioDetails(env *m3db.QsmEnvironment) {
-	if !trioDetailsLoaded[env.GetId()] {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		allTrioDetails = loadTrioDetails(env)
-		trioDetailsLoaded[env.GetId()] = true
-		Log.Debugf("Environment %d has %d trio details", env.GetId(), len(allTrioDetails))
+func (ppd *PointPackData) initTrioDetails() {
+	if !ppd.trioDetailsLoaded {
+		ppd.allTrioDetails = ppd.loadTrioDetails()
+		ppd.trioDetailsLoaded = true
+		Log.Debugf("Environment %d has %d trio details", ppd.GetId(), len(ppd.allTrioDetails))
 	}
 }
 
-func initGrowthContexts(env *m3db.QsmEnvironment) {
-	if !growthContextsLoaded[env.GetId()] {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		allGrowthContexts = loadGrowthContexts(env)
-		growthContextsLoaded[env.GetId()] = true
-		Log.Debugf("Environment %d has %d growth contexts", env.GetId(), len(allGrowthContexts))
+func (ppd *PointPackData) initGrowthContexts() {
+	if !ppd.growthContextsLoaded {
+		ppd.allGrowthContexts = ppd.loadGrowthContexts()
+		ppd.growthContextsLoaded = true
+		Log.Debugf("Environment %d has %d growth contexts", ppd.GetId(), len(ppd.allGrowthContexts))
 	}
 }
 
-func initContextCubes(env *m3db.QsmEnvironment) {
-	if !cubesLoaded[env.GetId()] {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		cubeIdsPerKey = loadContextCubes(env)
-		cubesLoaded[env.GetId()] = true
-		Log.Debugf("Environment %d has %d cubes", env.GetId(), len(cubeIdsPerKey))
+func (ppd *PointPackData) initContextCubes() {
+	if !ppd.cubesLoaded {
+		ppd.cubeIdsPerKey = ppd.loadContextCubes()
+		ppd.cubesLoaded = true
+		Log.Debugf("Environment %d has %d cubes", ppd.GetId(), len(ppd.cubeIdsPerKey))
 	}
 }
 
-func initPathBuilders(env *m3db.QsmEnvironment) {
-	if !pathBuildersLoaded[env.GetId()] {
-		oldEnvId := pointEnvId
-		defer func () {
-			pointEnvId = oldEnvId
-		}()
-		pointEnvId = env.GetId()
-		pathBuilders = loadPathBuilders(env)
-		pathBuildersLoaded[env.GetId()] = true
-		Log.Debugf("Environment %d has %d path builders", env.GetId(), len(pathBuilders))
+func (ppd *PointPackData) initPathBuilders() {
+	if !ppd.pathBuildersLoaded {
+		ppd.pathBuilders = ppd.loadPathBuilders()
+		ppd.pathBuildersLoaded = true
+		Log.Debugf("Environment %d has %d path builders", ppd.GetId(), len(ppd.pathBuilders))
 	}
-}
-
-func ReFillDb() {
-	ReFillDbEnv(GetPointEnv())
 }
 
 func ReFillDbEnv(env *m3db.QsmEnvironment) {
 	env.Destroy()
-	pointEnv = nil
 	time.Sleep(100 * time.Millisecond)
-	FillDb()
-}
-
-func FillDb() {
-	FillDbEnv(GetPointEnv())
+	FillDbEnv(env)
 }
 
 func FillDbEnv(env *m3db.QsmEnvironment) {
-	n, err := saveAllConnectionDetails(env)
+	ppd := GetPointPackData(env)
+
+	n, err := ppd.saveAllConnectionDetails()
 	if err != nil {
 		Log.Fatalf("could not save all connections due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d connection details", env.GetId(), n)
+		Log.Infof("Environment %d has %d connection details", ppd.GetId(), n)
 	}
 
-	initConnections(env)
+	ppd.initConnections()
 
-	n, err = saveAllTrioDetails(env)
+	n, err = ppd.saveAllTrioDetails()
 	if err != nil {
 		Log.Fatalf("could not save all trios due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d trio details", env.GetId(), n)
+		Log.Infof("Environment %d has %d trio details", ppd.GetId(), n)
 	}
-	initTrioDetails(env)
+	ppd.initTrioDetails()
 
-	n, err = saveAllGrowthContexts(env)
+	n, err = ppd.saveAllGrowthContexts()
 	if err != nil {
 		Log.Fatalf("could not save all growth contexts due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d growth contexts", env.GetId(), n)
+		Log.Infof("Environment %d has %d growth contexts", ppd.GetId(), n)
 	}
-	initGrowthContexts(env)
+	ppd.initGrowthContexts()
 
-	n, err = saveAllContextCubes(env)
+	n, err = ppd.saveAllContextCubes()
 	if err != nil {
 		Log.Fatalf("could not save all contexts cubes due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d contexts cubes", env.GetId(), n)
+		Log.Infof("Environment %d has %d contexts cubes", ppd.GetId(), n)
 	}
-	initContextCubes(env)
+	ppd.initContextCubes()
 
-	n, err = saveAllPathBuilders(env)
+	n, err = ppd.saveAllPathBuilders()
 	if err != nil {
 		Log.Fatalf("could not save all path builders due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d path builders", env.GetId(), n)
+		Log.Infof("Environment %d has %d path builders", ppd.GetId(), n)
 	}
-	initPathBuilders(env)
+	ppd.initPathBuilders()
 }
 
 /***************************************************************/
@@ -230,14 +141,11 @@ func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
-	pointEnvId = envId
-
 	if testDbFilled[envId] {
-		pointEnv = nil
-		return GetPointEnv()
+		return m3db.GetEnvironment(envId)
 	}
 
-	envNumber := strconv.Itoa(int(pointEnvId))
+	envNumber := strconv.Itoa(int(envId))
 	origQsmId := os.Getenv(m3db.QsmEnvNumberKey)
 
 	if envNumber != origQsmId {
@@ -260,7 +168,7 @@ func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 
 	testDbFilled[envId] = true
 
-	return GetPointEnv()
+	return m3db.GetEnvironment(envId)
 }
 
 // Do not use this environment to load

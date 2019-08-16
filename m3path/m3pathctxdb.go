@@ -9,6 +9,7 @@ import (
 
 type PathContextDb struct {
 	env             *m3db.QsmEnvironment
+	ppd             *m3point.PointPackData
 	pathNodes       *m3db.TableExec
 	points          *m3db.TableExec
 	id              int
@@ -21,6 +22,7 @@ type PathContextDb struct {
 func MakePathContextDBFromGrowthContext(env *m3db.QsmEnvironment, growthCtx m3point.GrowthContext, offset int) PathContext {
 	pathCtx := PathContextDb{}
 	pathCtx.env = env
+	pathCtx.ppd = m3point.GetPointPackData(env)
 	pathCtx.growthCtx = growthCtx
 	pathCtx.growthOffset = offset
 	pathCtx.rootNode = nil
@@ -105,8 +107,10 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 		return
 	}
 
+	ppd := m3point.GetPointPackData(pathCtx.GetGrowthCtx().GetEnv())
+
 	// the path builder enforce origin as the center
-	nodeBuilder := m3point.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
+	nodeBuilder := ppd.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
 
 	rootNode := getNewPathNodeDb()
 
@@ -327,6 +331,7 @@ func (pathCtx *PathContextDb) makeNewNodesSplit(current, next *OpenNodeBuilder, 
 	}
 }
 
+// TODO: This should be in path data entry of the env
 var nbParallelProcesses = 8
 
 func (pathCtx *PathContextDb) MoveToNextNodes() {
@@ -338,11 +343,11 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 		// Too small to split
 		pathCtx.makeNewNodesSplit(current, next, 0, nbOpenNodes, nil)
 	} else {
-		sizePerSplit := int(nbOpenNodes/nbParallelProcesses)
+		sizePerSplit := int(nbOpenNodes / nbParallelProcesses)
 		wg := sync.WaitGroup{}
-		for proc := 0 ; proc < nbParallelProcesses; proc++ {
+		for proc := 0; proc < nbParallelProcesses; proc++ {
 			wg.Add(1)
-			go pathCtx.makeNewNodesSplit(current, next, proc * sizePerSplit, sizePerSplit, &wg)
+			go pathCtx.makeNewNodesSplit(current, next, proc*sizePerSplit, sizePerSplit, &wg)
 		}
 		wg.Wait()
 	}

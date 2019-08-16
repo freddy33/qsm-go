@@ -88,6 +88,10 @@ func MakePathContextFromGrowthContext(growthCtx m3point.GrowthContext, offset in
 	return &pathCtx
 }
 
+func (pathCtx *BasePathContext) GetPointPackData() *m3point.PointPackData {
+	return m3point.GetPointPackData(pathCtx.growthCtx.GetEnv())
+}
+
 func (pathCtx *BasePathContext) GetGrowthCtx() m3point.GrowthContext {
 	return pathCtx.growthCtx
 }
@@ -130,7 +134,7 @@ func (pathCtx *BasePathContext) GetAllOpenPathNodes() []PathNode {
 
 func (pathCtx *BasePathContext) InitRootNode(center m3point.Point) {
 	// the path builder enforce origin as the center
-	nodeBuilder := m3point.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
+	nodeBuilder := pathCtx.GetPointPackData().GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
 
 	rootNode := RootPathNode{}
 	rootNode.pathCtx = pathCtx
@@ -180,6 +184,7 @@ func calculatePredictedSize(d int, currentLen int) int {
 }
 
 func (pathCtx *BasePathContext) MoveToNextNodes() {
+	ppd := pathCtx.GetPointPackData()
 	newOpenNodes := make([]OpenEndPath, 0, pathCtx.PredictedNextOpenNodesLen())
 	for _, oen := range pathCtx.openEndNodes {
 		pathNode := oen.pn
@@ -194,7 +199,7 @@ func (pathCtx *BasePathContext) MoveToNextNodes() {
 			continue
 		}
 		if pathNode.IsRoot() {
-			td := m3point.GetTrioDetails(pathNode.GetTrioIndex())
+			td := ppd.GetTrioDetails(pathNode.GetTrioIndex())
 			for _, c := range td.GetConnections() {
 				pl, created := pathNode.addPathLink(c.GetId())
 				if created {
@@ -205,7 +210,7 @@ func (pathCtx *BasePathContext) MoveToNextNodes() {
 				}
 			}
 		} else {
-			td := m3point.GetTrioDetails(pathNode.GetTrioIndex())
+			td := ppd.GetTrioDetails(pathNode.GetTrioIndex())
 			if td == nil {
 				Log.Fatalf("reached a node without trio %s %s", pathNode.String(), pathNode.GetTrioIndex())
 				continue
@@ -425,7 +430,7 @@ func (rpn *RootPathNode) addPathLink(connId m3point.ConnectionId) (PathLink, boo
 			Log.Fatalf("creating a path link on root node %s pointing to non existent trio index", rpn.String())
 			return nil, false
 		}
-		td := m3point.GetTrioDetails(rpn.trioId)
+		td := rpn.pathCtx.GetPointPackData().GetTrioDetails(rpn.trioId)
 		if td == nil {
 			Log.Errorf("creating a path link on root node %s pointing to non existent trio index", rpn.String())
 			return nil, false
@@ -561,7 +566,7 @@ func (opn *OutPathNode) addPathLink(connId m3point.ConnectionId) (PathLink, bool
 			Log.Fatalf("creating a path link with source node %s pointing to non existent trio index", opn.String())
 			return nil, false
 		}
-		td := m3point.GetTrioDetails(opn.trioId)
+		td := opn.pathCtx.GetPointPackData().GetTrioDetails(opn.trioId)
 		if td == nil {
 			Log.Fatalf("creating a path link with source node %s pointing to non existent trio index", opn.String())
 			return nil, false
