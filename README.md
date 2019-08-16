@@ -16,3 +16,7 @@
 - *Event*: An ID at a node at a time
 - *EventOutgrowth*: The collection of nodes affected by a certain event at a certain distance (Distance = Current Time - Event Tick Time)
 
+# Demo
+
+Here is the OpenGL output for 4 events in pyramid shape after 26 steps:
+![](https://github.com/freddy33/qsm-go/raw/master/docs/screenshot1.png)
