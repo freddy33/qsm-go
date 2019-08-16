@@ -65,6 +65,15 @@ func (space *Space) ForwardTime() *ForwardResult {
 
 	space.currentTime++
 
+	for _, evt := range space.events {
+		if evt != nil {
+			for _, opn := range evt.pathContext.GetAllOpenPathNodes() {
+				// TODO: Remove PathNodeMap need. Use DB
+				evt.pathNodeMap.AddPathNode(opn)
+			}
+		}
+	}
+
 	newActiveNodes := NodeList(make([]Node, 0, expectedLatestNodes))
 	newActiveLinks := PathLinkList(make([]m3path.PathLink, 0, expectedLatestNodes))
 	res := MakeForwardResult()

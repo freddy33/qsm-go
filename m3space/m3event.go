@@ -27,6 +27,7 @@ var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 type Event struct {
 	id          EventID
 	space       *Space
+	pathNodeMap m3path.PathNodeMap
 	node        Node
 	created     DistAndTime
 	color       EventColor
@@ -86,9 +87,11 @@ func (space *Space) CreateEvent(ctxType m3point.GrowthType, idx int, offset int,
 	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
 	space.lastIdCounter++
 	ctx := m3path.MakePathContextDBFromGrowthContext(space.env, m3point.GetGrowthContextByTypeAndIndex(ctxType, idx), offset)
-	e := Event{pnm.id, space, nil, space.currentTime, k, ctx}
+	e := Event{pnm.id, space, pnm,nil, space.currentTime, k, ctx}
 	space.events[pnm.id] = &e
 	ctx.InitRootNode(p)
+	// TODO: Remove PathNodeMap need. Use DB
+	pnm.AddPathNode(ctx.GetRootPathNode())
 	e.node = space.GetNode(p)
 	space.activeNodes.addNode(e.node)
 	return &e

@@ -324,11 +324,11 @@ func (hEnv *HashTestEnv) dumpInfo() {
 }
 
 func TestHashCodeConflicts(t *testing.T) {
-	hConf := createHashConf(CInt(200), 2.0, 2.0, 8)
+	hConf := createHashConf(CInt(100), 2.0, 2.0, 10)
 	runHashCodeFromConf(t, hConf)
-	hConf = createHashConf(CInt(500), 27.0, 1.7, 12)
+	hConf = createHashConf(CInt(200), 7.0, 1.7, 10)
 	runHashCodeFromConf(t, hConf)
-	hConf = createHashConf(CInt(5000), 27000.0, 2.5, 12)
+	hConf = createHashConf(CInt(500), 7000.0, 2.5, 10)
 	runHashCodeFromConf(t, hConf)
 }
 
