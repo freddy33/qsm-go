@@ -150,10 +150,10 @@ func runSpacePyramidWithParams(env *m3db.QsmEnvironment, pSize m3point.CInt, ctx
 	LogRun.Infof("Starting with pyramid %v : %d", originalPyramid, GetPyramidSize(originalPyramid))
 
 	expectedTime := DistAndTime(0)
-	finalTime := DistAndTime(10 * pSize)
-	if finalTime < DistAndTime(25) {
-		finalTime = DistAndTime(25)
-	}
+	finalTime := DistAndTime(3)
+	//if finalTime < DistAndTime(25) {
+	//	finalTime = DistAndTime(25)
+	//}
 	found := false
 	var bestPyramid Pyramid
 	var bestSize m3point.DInt

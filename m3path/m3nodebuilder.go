@@ -69,7 +69,10 @@ func (onb *OpenNodeBuilder) shuffle() {
 }
 
 func (onb *OpenNodeBuilder) clear() {
-	for _, on := range onb.openNodes {
-		on.release()
+	// Do not release the first three steps
+	if onb.d > 3 {
+		for _, on := range onb.openNodes {
+			on.release()
+		}
 	}
 }

@@ -91,9 +91,10 @@ func (space *Space) ForwardTime() *ForwardResult {
 
 func (space *Space) populateActiveNodesAndLinks(n Node, res *ForwardResult, nodes *NodeList, links *PathLinkList) {
 	nbActive := n.GetNbActiveEvents(space)
-	if n.GetPoint().IsMainPoint() && nbActive >= m3point.THREE {
+	point := n.GetPoint()
+	if point != nil && point.IsMainPoint() && nbActive >= m3point.THREE {
 		tIds := MakeThreeIds(n.GetActiveEventIds(space))
-		res.addPoint(tIds, *n.GetPoint())
+		res.addPoint(tIds, *point)
 	}
 	if nbActive > 0 {
 		nodes.addNode(n)

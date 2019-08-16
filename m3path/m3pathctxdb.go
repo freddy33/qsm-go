@@ -223,7 +223,9 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			nbBlocked++
 		case ConnectionNotSet:
 			cd := td.GetConnections()[i]
-			npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
+			center := pathCtx.rootNode.P()
+			npnb, np := pnb.GetNextPathNodeBuilder(on.P().Sub(center), cd.GetId(), pathCtx.GetGrowthOffset())
+			np = np.Add(center)
 
 			pId := getOrCreatePointTe(pathCtx.pointsTe(), np)
 
@@ -344,8 +346,9 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 		}
 		wg.Wait()
 	}
-	Log.Infof("%s dist=%d : move from %d to %d open nodes with %d %d conflicts", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes), next.selectConflict, next.insertConflict)
-	next.shuffle()
+	Log.Debugf("%s dist=%d : move from %d to %d open nodes with %d %d conflicts", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes), next.selectConflict, next.insertConflict)
+	// not needed with split
+	//next.shuffle()
 	pathCtx.openNodeBuilder = next
 	current.clear()
 }

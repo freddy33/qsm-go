@@ -137,6 +137,9 @@ func (pll *PathLinkList) addFromLinkIfActive(fromLink m3path.PathLink, space *Sp
 		return
 	}
 	fromSrc := fromLink.GetSrc()
+	if fromSrc == nil || fromSrc.IsEnd() {
+		return
+	}
 	fromNode := space.GetNode(fromSrc.P())
 	if fromNode != nil && fromNode.IsPathNodeActive(fromSrc, space) {
 		*pll = append(*pll, fromLink)
