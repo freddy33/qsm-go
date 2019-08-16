@@ -19,10 +19,8 @@ const (
 // PathContext Test size optimization
 /***************************************************************/
 
-func TestAllPathSize(t *testing.T) {
-	for _, ctxType := range m3point.GetAllContextTypes() {
-		runForPathCtxType(1, 128, ctxType, true)
-	}
+func TestPathCtx8(t *testing.T) {
+	runForPathCtxType(1, 8*6, m3point.GrowthType(8), true)
 }
 
 /***************************************************************/

@@ -58,7 +58,7 @@ func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) (m3path.PathNode, boo
 	return nil, false
 }
 
-func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) {
+func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) (m3path.PathNode, bool) {
 	n := spnm.space.getOrCreateNode(pathNode.P())
 	nbLatest := n.GetNbLatestEvents()
 	n.addPathNode(spnm.id, pathNode)
@@ -67,6 +67,7 @@ func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) {
 	if nbLatest == 0 {
 		spnm.space.latestNodes = append(spnm.space.latestNodes, n)
 	}
+	return pathNode, true
 }
 
 func (spnm *SpacePathNodeMap) IsActive(pathNode m3path.PathNode) bool {
