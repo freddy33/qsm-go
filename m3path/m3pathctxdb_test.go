@@ -57,7 +57,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 
 	assert.Equal(t, pathCtxDb.rootNode.pathCtxId, ctxId)
 	assert.Equal(t, pathCtxDb.rootNode.pointId, getOrCreatePointEnv(env, testPoint))
-	assert.Equal(t, 2614, pathCtxDb.rootNode.pathBuilderId)
+	assert.Equal(t, 2601, pathCtxDb.rootNode.pathBuilderId)
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
 
@@ -74,7 +74,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, ctxId, loadedFromDb.pathCtxId)
 	assert.Equal(t, pathCtxDb, loadedFromDb.pathCtx)
 	assert.Equal(t, nodeId, loadedFromDb.id)
-	assert.Equal(t, 2614, loadedFromDb.pathBuilderId)
+	assert.Equal(t, 2601, loadedFromDb.pathBuilderId)
 
 	Log.Infof("root node is %s", pathCtxDb.rootNode.String())
 	Log.Infof("root node from db is %s", loadedFromDb.String())

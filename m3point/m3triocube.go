@@ -149,8 +149,11 @@ func (ppd *PointPackData) calculateAllContextCubes() map[CubeKeyId]int {
 		})
 		for _, cube := range cl.allCubes {
 			key := CubeKeyId{growthCtx.GetId(), cube}
-			res[key] = cubeIdx
-			cubeIdx++
+			_, alreadyIn := res[key]
+			if !alreadyIn {
+				res[key] = cubeIdx
+				cubeIdx++
+			}
 		}
 	}
 	return res
