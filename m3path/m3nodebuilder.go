@@ -1,14 +1,11 @@
 package m3path
 
-import "math/rand"
-
 type OpenNodeBuilder struct {
-	pathCtx   *PathContextDb
-	d         int
-	openNodes []*PathNodeDb
-	expectedSize int
-	openNodesMap [][3]*PathNodeDb
-	mapSize int
+	pathCtx                        *PathContextDb
+	d                              int
+	openNodes                      []*PathNodeDb
+	expectedSize                   int
+	openNodesMap                   PathNodeMap
 	selectConflict, insertConflict int
 }
 
@@ -18,22 +15,27 @@ func createNewNodeBuilder(previous *OpenNodeBuilder) *OpenNodeBuilder {
 		res.d = 0
 		res.expectedSize = 1
 		res.openNodes = make([]*PathNodeDb, 0, 1)
+		res.openNodesMap = MakeSimplePathNodeMap(1)
 	} else {
 		res.pathCtx = previous.pathCtx
 		res.d = previous.d + 1
 		res.expectedSize = previous.nextOpenNodesLen()
 		res.openNodes = make([]*PathNodeDb, 0, res.expectedSize)
+		if res.expectedSize > 32 {
+			res.openNodesMap = MakeHashPathNodeMap(res.expectedSize)
+		} else {
+			res.openNodesMap = MakeSimplePathNodeMap(res.expectedSize)
+		}
 	}
 	return res
 }
 
-func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
+func (onb *OpenNodeBuilder) fillOpenPathNodes() {
 	pathCtx := onb.pathCtx
 	rows, err := pathCtx.pathNodesTe().Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
 	if err != nil {
 		Log.Fatal(err)
 	}
-	res := make([]*PathNodeDb, 0, 100)
 	for rows.Next() {
 		pn, err := readRowOnlyIds(rows)
 		if err != nil {
@@ -42,30 +44,24 @@ func (onb *OpenNodeBuilder) fillOpenPathNodes() []*PathNodeDb {
 			if pn.pathCtxId != pathCtx.id {
 				Log.Fatalf("While retrieving all path nodes got a node with context id %d instead of %d",
 					pn.pathCtxId, pathCtx.id)
-				return nil
+				return
 			}
 			pn.pathCtx = pathCtx
-			res = append(res, pn)
+			onb.addPathNode(pn)
 		}
 	}
-	return res
 }
 
 func (onb *OpenNodeBuilder) addPathNode(pn *PathNodeDb) int {
-	if onb.expectedSize == 1 {
-		onb.openNodes = append(onb.openNodes, pn)
-	} else {
+	_, inserted := onb.openNodesMap.AddPathNode(pn)
+	if inserted {
 		onb.openNodes = append(onb.openNodes, pn)
 	}
 	return len(onb.openNodes)
 }
 
 func (onb *OpenNodeBuilder) nextOpenNodesLen() int {
-	return calculatePredictedSize(onb.d, len(onb.openNodes))
-}
-
-func (onb *OpenNodeBuilder) shuffle() {
-	rand.Shuffle(len(onb.openNodes), func(i, j int) { onb.openNodes[i], onb.openNodes[j] = onb.openNodes[j], onb.openNodes[i] })
+	return calculatePredictedSize(onb.d, onb.openNodesMap.Size())
 }
 
 func (onb *OpenNodeBuilder) clear() {
@@ -75,4 +71,6 @@ func (onb *OpenNodeBuilder) clear() {
 			on.release()
 		}
 	}
+	// Clear the map
+	onb.openNodesMap.Clear()
 }

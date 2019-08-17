@@ -109,7 +109,7 @@ func (pathCtx *BasePathContext) GetGrowthIndex() int {
 }
 
 func (pathCtx *BasePathContext) CountAllPathNodes() int {
-	return pathCtx.pathNodeMap.GetSize()
+	return pathCtx.pathNodeMap.Size()
 }
 
 func (pathCtx *BasePathContext) GetPathNodeMap() PathNodeMap {

@@ -8,7 +8,7 @@ import (
 )
 
 func TestPointMapBasic(t *testing.T) {
-	m := MakePointHashMap(10)
+	m := MakePointHashMap(10, 2)
 	p1 := Point{1, 2, 3}
 	o1, b1 := m.Put(&p1, 23)
 	assert.Equal(t, nil, o1)
@@ -27,16 +27,27 @@ func TestPointMapBasic(t *testing.T) {
 	assert.Equal(t, nil, o4)
 	assert.Equal(t, true, b4)
 	assert.Equal(t, 2, m.Size())
+
+	m.Clear()
+	assert.Equal(t, 0, m.Size())
+	o5, b5 := m.Get(&p1)
+	assert.Equal(t, nil, o5)
+	assert.Equal(t, false, b5)
 }
 
 func TestPointMapConflicts(t *testing.T) {
-	m := MakePointHashMap(4)
-	m.SetMaxConflictsAllowed(25)
+	runPointMapConflicts(t, 25, 2, 12, CInt(3))
+	runPointMapConflicts(t, 25*5, 8, 5, CInt(5))
+}
+
+func runPointMapConflicts(t *testing.T, hashSize, nbSegments, maxConflicts int, rdMax CInt) {
+	m := MakePointHashMap(hashSize, nbSegments)
+	m.SetMaxConflictsAllowed(maxConflicts)
 
 	currentSize := 0
-	for x := CInt(-3); x < 4; x++ {
-		for y := CInt(-3); y < 4; y++ {
-			for z := CInt(-3); z < 4; z++ {
+	for x := -rdMax; x <= rdMax; x++ {
+		for y := -rdMax; y <= rdMax; y++ {
+			for z := -rdMax; z <= rdMax; z++ {
 				assert.Equal(t, currentSize, m.Size())
 
 				p := Point{x, y, z}
@@ -53,6 +64,15 @@ func TestPointMapConflicts(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, phm.showedError)
 	Log.Infof("Map size=%d with maxConflicts=%d", m.Size(), m.GetCurrentMaxConflicts())
+
+	testMap := make(map[Point]DInt, m.Size())
+	m.Range(func(point Point, value interface{}) bool {
+		already, exists := testMap[point]
+		assert.False(t, exists, "Received %v %v twice", point, already)
+		testMap[point] = value.(DInt)
+		return false
+	})
+	assert.Equal(t, m.Size(), len(testMap))
 }
 
 func TestPointMapConcurrency(t *testing.T) {
@@ -101,9 +121,10 @@ func runConcurrencyTest(t *testing.T, rdMax CInt, divider, nbRoutines, maxConfli
 		}
 	}
 
+	assert.Equal(t, len(testSet), idx)
 	dataSetSize := len(testSet)
 
-	m := MakePointHashMap(int(float64(dataSetSize) * hashSizeRatio))
+	m := MakePointHashMap(int(float64(dataSetSize)*hashSizeRatio), 16)
 	m.SetMaxConflictsAllowed(maxConflicts)
 	m.(*pointHashMap).fullLocked = false
 
@@ -114,9 +135,10 @@ func runConcurrencyTest(t *testing.T, rdMax CInt, divider, nbRoutines, maxConfli
 
 	start := time.Now()
 	wg := new(sync.WaitGroup)
+	wg.Add(nbRoutines)
 	for r := 0; r < nbRoutines; r++ {
 		offset := (r % divider) * (dataSetSize / divider)
-		wg.Add(1)
+		runId := r
 		go func() {
 			for i := 0; i < nbRound; i++ {
 				idx := offset + i
@@ -125,7 +147,7 @@ func runConcurrencyTest(t *testing.T, rdMax CInt, divider, nbRoutines, maxConfli
 				}
 				if loadAndStore {
 					whl, _ := m.LoadOrStore(&testSet[idx], new(wasHereList))
-					whl.(*wasHereList).add(r)
+					whl.(*wasHereList).add(runId)
 				} else {
 					m.Put(&testSet[idx], idx)
 				}
@@ -144,9 +166,10 @@ func runConcurrencyTest(t *testing.T, rdMax CInt, divider, nbRoutines, maxConfli
 	if loadAndStore {
 		start := time.Now()
 		wg := new(sync.WaitGroup)
+		wg.Add(nbRoutines)
 		for r := 0; r < nbRoutines; r++ {
 			offset := (r % divider) * (dataSetSize / divider)
-			wg.Add(1)
+			runId := r
 			go func() {
 				for i := 0; i < nbRound; i++ {
 					idx := offset + i
@@ -156,7 +179,7 @@ func runConcurrencyTest(t *testing.T, rdMax CInt, divider, nbRoutines, maxConfli
 					whl, b := m.Get(&testSet[idx])
 					assert.True(t, b)
 					whList := whl.(*wasHereList)
-					assert.True(t, whList.has(r), "point %v failed to have %d in %v", testSet[idx], r, whList.runIds)
+					assert.True(t, whList.has(runId), "point %v of %d / %d / %d failed to have %d in %v", testSet[idx], nbRoutines, divider, nbRound, r, whList.runIds)
 				}
 				wg.Done()
 			}()

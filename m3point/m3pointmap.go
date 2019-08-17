@@ -12,6 +12,8 @@ type PointMap interface {
 	GetMaxConflictsAllowed() int
 	GetCurrentMaxConflicts() int
 	SetMaxConflictsAllowed(max int)
+	Clear()
+	Range(f func(point Point, value interface{}) bool)
 }
 
 type pointHashMapEntry struct {
@@ -24,25 +26,32 @@ type pointHashMap struct {
 	fullLocked          bool
 	maxConflictsAllowed int
 	showedError         bool
-	nbElements          int
+	nbElements          []int
 	maxConflicts        int
-	mutex               sync.Mutex
-	conflictsMutex      sync.Mutex
+	mutexes             []*sync.Mutex
 	data                []*pointHashMapEntry
 }
 
-func MakePointHashMap(mapSize int) PointMap {
+func MakePointHashMap(mapSize int, segments int) PointMap {
 	res := new(pointHashMap)
 	res.fullLocked = false
 	res.maxConflictsAllowed = DefaultMaxHashConflicts
 	res.showedError = false
-	res.nbElements = 0
+	res.nbElements = make([]int, segments)
 	res.data = make([]*pointHashMapEntry, mapSize)
+	res.mutexes = make([]*sync.Mutex, segments)
+	for i := 0; i < segments; i++ {
+		res.mutexes[i] = new(sync.Mutex)
+	}
 	return res
 }
 
 func (phm *pointHashMap) Size() int {
-	return phm.nbElements
+	res := 0
+	for _, n := range phm.nbElements {
+		res += n
+	}
+	return res
 }
 
 func (phm *pointHashMap) GetMaxConflictsAllowed() int {
@@ -88,21 +97,24 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 		return nil, false
 	}
 
+	rp := *p
+	key := rp.Hash(len(phm.data))
+
+	segmentIdx := key % len(phm.mutexes)
+	mutex := phm.mutexes[segmentIdx]
 	locked := false
 
 	if phm.fullLocked {
-		phm.mutex.Lock()
-		defer phm.mutex.Unlock()
+		mutex.Lock()
+		defer mutex.Unlock()
 		locked = true
 	}
 
-	rp := *p
-	key := rp.Hash(len(phm.data))
 	entry := phm.data[key]
 	if entry == nil {
 		if !locked {
-			phm.mutex.Lock()
-			defer phm.mutex.Unlock()
+			mutex.Lock()
+			defer mutex.Unlock()
 			locked = true
 		}
 		entry = phm.data[key]
@@ -112,7 +124,7 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 			entry.value = val
 			entry.next = nil
 			phm.data[key] = entry
-			phm.nbElements++
+			phm.nbElements[segmentIdx]++
 			if insert {
 				return nil, true
 			} else {
@@ -133,8 +145,8 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 		}
 		if entry.next == nil {
 			if !locked {
-				phm.mutex.Lock()
-				defer phm.mutex.Unlock()
+				mutex.Lock()
+				defer mutex.Unlock()
 				locked = true
 			}
 			if entry.next == nil {
@@ -147,7 +159,7 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 				newEntry.value = val
 				newEntry.next = nil
 				entry.next = newEntry
-				phm.nbElements++
+				phm.nbElements[segmentIdx]++
 				if insert {
 					return nil, true
 				} else {
@@ -157,13 +169,83 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 		}
 		deepness++
 		if !phm.showedError && deepness > phm.maxConflictsAllowed {
-			phm.conflictsMutex.Lock()
-			defer phm.conflictsMutex.Unlock()
-			if !phm.showedError {
-				Log.Errorf("The size %d of map is too small to contain %d objects since max conflicts allowed set to %d and got here %d", len(phm.data), phm.nbElements, phm.maxConflictsAllowed, deepness)
-				phm.showedError = true
-			}
+			phm.showedError = true
+			Log.Errorf("The size %d of map is too small to contain %d objects since max conflicts allowed set to %d and got here %d", len(phm.data), phm.Size(), phm.maxConflictsAllowed, deepness)
 		}
 		entry = entry.next
+	}
+}
+
+func (phm *pointHashMap) Clear() {
+	for i := 0; i < len(phm.mutexes); i++ {
+		mutex := phm.mutexes[i]
+		mutex.Lock()
+		defer mutex.Unlock()
+	}
+	// Just nilify all link list
+	for i := 0; i < len(phm.data); i++ {
+		entry := phm.data[i]
+		for {
+			if entry == nil {
+				break
+			}
+			toClear := entry
+			entry = entry.next
+			toClear.next = nil
+			toClear.value = nil
+		}
+		phm.data[i] = nil
+	}
+	for i := 0; i < len(phm.mutexes); i++ {
+		phm.nbElements[i] = 0
+	}
+}
+
+func (phm *pointHashMap) Range(f func(point Point, value interface{}) bool) {
+	nbSegments := len(phm.mutexes)
+	dataSize := len(phm.data)
+	segSize := dataSize / nbSegments
+	if segSize < 2 {
+		// Simple pass
+		for i := 0; i < dataSize; i++ {
+			entry := phm.data[i]
+			for {
+				if entry == nil {
+					break
+				}
+				if f(entry.point, entry.value) {
+					return
+				}
+				entry = entry.next
+			}
+		}
+	} else {
+		// Parallelize
+		wg := new(sync.WaitGroup)
+		wg.Add(nbSegments)
+		for segId := 0; segId < nbSegments; segId++ {
+			startIdx := dataSize * segId
+			endIdx := startIdx + dataSize
+			if endIdx > dataSize {
+				endIdx = dataSize
+			}
+			go func() {
+				for i := startIdx; i < endIdx; i++ {
+					entry := phm.data[i]
+					for {
+						if entry == nil {
+							break
+						}
+						if f(entry.point, entry.value) {
+							// TODO: find a way to stop all go routines
+							return
+						}
+						entry = entry.next
+					}
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
 	}
 }
