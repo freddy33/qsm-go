@@ -3,7 +3,6 @@ package m3point
 import (
 	"github.com/stretchr/testify/assert"
 	"math"
-	"math/rand"
 	"testing"
 	"time"
 )
@@ -236,7 +235,7 @@ func TestPointRotations(t *testing.T) {
 	nbRun := 100
 	rdMax := CInt(100000000)
 	for i := 0; i < nbRun; i++ {
-		randomPoint := RandomPoint(rdMax)
+		randomPoint := CreateRandomPoint(rdMax)
 		assert.Equal(t, Orig.Sub(randomPoint), randomPoint.Neg())
 		assert.Equal(t, randomPoint.Sub(randomPoint.Add(OneTwoThree)), OneTwoThree.Neg())
 		assert.Equal(t, randomPoint.Sub(randomPoint.Add(OneTwoThree)), OneTwoThree.Mul(-1))
@@ -297,7 +296,7 @@ func createHashConf(rdMax CInt, runRatio, hashSizeRatio float64, maxFails int) *
 
 	hConf.dataSet = make([]*Point, hConf.nbRun)
 	for i := 0; i < hConf.nbRun; i++ {
-		p := RandomPoint(hConf.rdMax)
+		p := CreateRandomPoint(hConf.rdMax)
 		hConf.dataSet[i] = &p
 	}
 
@@ -375,16 +374,4 @@ func runHashCode(t *testing.T, hEnv *HashTestEnv) {
 		hEnv.histogram[len(*f)-1]++
 	}
 	assert.Equal(t, 0, hEnv.noMoreSpace)
-}
-
-func RandomPoint(max CInt) Point {
-	return Point{RandomCInt(max), RandomCInt(max), RandomCInt(max)}
-}
-
-func RandomCInt(max CInt) CInt {
-	r := CInt(rand.Int31n(int32(max)))
-	if rand.Float32() < 0.5 {
-		return -r
-	}
-	return r
 }

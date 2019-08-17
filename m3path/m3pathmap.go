@@ -14,8 +14,7 @@ type SimplePathNodeMap map[m3point.Point]PathNode
 const MaxHashConflicts = 6
 
 type PointHashPathNodeMap struct {
-	size int
-	data []*[]PathNode
+	pointMap m3point.PointMap
 }
 
 /***************************************************************/
@@ -50,52 +49,27 @@ func (pnm *SimplePathNodeMap) IsActive(pathNode PathNode) bool {
 /***************************************************************/
 
 func MakeHashPathNodeMap(initSize int) PathNodeMap {
-	res := PointHashPathNodeMap{ 0,make([]*[]PathNode, initSize)}
+	res := PointHashPathNodeMap{m3point.MakePointHashMap(initSize)}
+	res.pointMap.SetMaxConflictsAllowed(8)
 	return &res
 }
 
 func (hnm *PointHashPathNodeMap) GetSize() int {
-	return hnm.size
+	return hnm.pointMap.Size()
 }
 
 func (hnm *PointHashPathNodeMap) GetPathNode(p m3point.Point) (PathNode, bool) {
-	key := p.Hash(len(hnm.data))
-	l := hnm.data[key]
-	for _, pn := range *l {
-		if pn != nil && pn.P() == p {
-			return pn, true
-		}
+	pn, ok := hnm.pointMap.Get(&p)
+	if ok {
+		return pn.(PathNode), true
 	}
 	return nil, false
 }
 
 func (hnm *PointHashPathNodeMap) AddPathNode(pathNode PathNode) (PathNode, bool) {
 	p := pathNode.P()
-	key := p.Hash(len(hnm.data))
-	l := hnm.data[key]
-	if l == nil {
-		newL := make([]PathNode, 3)
-		hnm.data[key] = &newL
-		// retrieving from array to limit race issue
-		l = hnm.data[key]
-	}
-	for i := 0; i < MaxHashConflicts; i++ {
-		if i >= len(*l) {
-			*(hnm.data[key]) = append(*(hnm.data[key]), pathNode)
-			hnm.size++
-			return pathNode, true
-		}
-		pn := (*l)[i]
-		if pn == nil {
-			(*l)[i] = pathNode
-			hnm.size++
-			return pathNode, true
-		} else if pn.P() == p {
-			return pn, false
-		}
-	}
-	Log.Errorf("Too many conflicts with cap %d and current size %d", len(hnm.data), hnm.size)
-	return nil, false
+	pn, inserted := hnm.pointMap.LoadOrStore(&p, pathNode)
+	return pn.(PathNode), inserted
 }
 
 func (*PointHashPathNodeMap) IsActive(pathNode PathNode) bool {

@@ -3,7 +3,6 @@ package m3path
 import (
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -105,7 +104,7 @@ func RunInsertRandomPoints() {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < nbRound; i++ {
-				randomPoint := RandomPoint(rdMax)
+				randomPoint := m3point.CreateRandomPoint(rdMax)
 				id := getOrCreatePointEnv(env, randomPoint)
 				if id <= 0 {
 					Log.Errorf("failed to insert %v got %d id", randomPoint, id)
@@ -118,18 +117,3 @@ func RunInsertRandomPoints() {
 	Log.Infof("It took %v to create %d points with nb routines=%d max coord %d", time.Now().Sub(start), nbRoutines*nbRound, nbRoutines, rdMax)
 }
 
-/***************************************************************/
-// Utility methods for test
-/***************************************************************/
-
-func RandomPoint(max m3point.CInt) m3point.Point {
-	return m3point.Point{RandomCInt(max), RandomCInt(max), RandomCInt(max)}
-}
-
-func RandomCInt(max m3point.CInt) m3point.CInt {
-	r := m3point.CInt(rand.Int31n(int32(max)))
-	if rand.Float32() < 0.5 {
-		return -r
-	}
-	return r
-}

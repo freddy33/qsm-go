@@ -80,7 +80,7 @@ func TestPointsTableConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < nbRound; i++ {
-				randomPoint := RandomPoint(rdMax)
+				randomPoint := m3point.CreateRandomPoint(rdMax)
 				id := getOrCreatePointEnv(env, randomPoint)
 				assert.True(t, id > 0)
 			}

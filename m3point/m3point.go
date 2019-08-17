@@ -3,6 +3,7 @@ package m3point
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
+	"math/rand"
 )
 
 var Log = m3util.NewLogger("m3point", m3util.INFO)
@@ -234,4 +235,20 @@ func (p Point) GetNearMainPoint() Point {
 		}
 	}
 	return res
+}
+
+/***************************************************************/
+// Utility methods for test
+/***************************************************************/
+
+func CreateRandomPoint(max CInt) Point {
+	return Point{GetRandomCInt(max), GetRandomCInt(max), GetRandomCInt(max)}
+}
+
+func GetRandomCInt(max CInt) CInt {
+	r := CInt(rand.Int31n(int32(max)))
+	if rand.Float32() < 0.5 {
+		return -r
+	}
+	return r
 }
