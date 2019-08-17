@@ -17,7 +17,8 @@ if [ ! -e "$confDir" ]; then
     exit 14
 fi
 
-logDir="$rootDir/build/log"
+buildDir="$rootDir/build"
+logDir="$buildDir/log"
 
 if [ ! -d "$logDir" ]; then
     echo "INFO: Creating log out dir $logDir"
@@ -29,7 +30,7 @@ if [ ! -d "$logDir" ]; then
     fi
 fi
 
-dumpDir="$rootDir/build/dump"
+dumpDir="$buildDir/dump"
 
 if [ ! -d "$dumpDir" ]; then
     echo "INFO: Creating dump dir $dumpDir"
@@ -41,39 +42,17 @@ if [ ! -d "$dumpDir" ]; then
     fi
 fi
 
-dbLoc="/usr/local/var/postgres"
-dbLogFile="$logDir/pgout.log"
+dbLoc="$buildDir/postgres"
 
-rotateDbLog() {
-    if [ -e "$dbLogFile" ]; then
-        mv "$dbLogFile" "$logDir/pgout-$(date "+%Y-%m-%d_%H-%M-%S").log"
+if [ ! -d "$dbLoc" ]; then
+    echo "INFO: Creating database dir $dbLoc"
+    mkdir -p $dbLoc
+    RES=$?
+    if [ $RES -ne 0 ]; then
+        echo "ERROR: could not create database dir $dbLoc"
+        exit 13
     fi
-}
-
-ensureRunningPg() {
-    serverNotRunning="$( pg_ctl -D $dbLoc status | grep "no server running" )"
-
-    if [ -n "$serverNotRunning" ]; then
-        echo "INFO: PostgreSQL server not running. Status returned $serverNotRunning"
-        echo "INFO: Starting PostgreSQL server"
-        rotateDbLog
-		pg_ctl -w -D $dbLoc start -l $dbLogFile
-        RES=$?
-        if [ $RES -ne 0 ]; then
-            echo "ERROR: Could start server"
-            exit $RES
-        fi
-    fi
-
-    serverRunning="$( pg_ctl -D $dbLoc status | grep "server is running" )"
-
-    if [ -z "$serverRunning" ]; then
-        echo "ERROR: PostgreSQL server not running. Status returned $serverRunning"
-        exit 11
-    fi
-
-    echo "INFO: PostgreSQL server up and running"
-}
+fi
 
 QSM_ENV_NUMBER=${QSM_ENV_NUMBER:=1}
 dbConfFile="$confDir/dbconn${QSM_ENV_NUMBER}.json"
@@ -95,6 +74,8 @@ checkDbConf() {
     fi
 
     echo "INFO: Reading existing conf file for test number ${QSM_ENV_NUMBER} at $dbConfFile"
+    dbPort="$( cat $dbConfFile | jq -r .port )"
+    dbHost="$( cat $dbConfFile | jq -r .host )"
     dbUser="$( cat $dbConfFile | jq -r .user )"
     dbPassword="$( cat $dbConfFile | jq -r .password )"
     dbName="$( cat $dbConfFile | jq -r .dbName )"
@@ -102,5 +83,5 @@ checkDbConf() {
         echo "ERROR: Reading conf file $dbConfFile failed since one of '$dbUser' '$dbPassword' '$dbName' is empty"
         exit 15
     fi
-    echo "INFO: Using user $dbUser on $dbName"
+    echo "INFO: Using user $dbUser on $dbHost:$dbPort/$dbName"
 }
