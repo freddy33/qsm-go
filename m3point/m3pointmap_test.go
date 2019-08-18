@@ -71,7 +71,7 @@ func runPointMapConflicts(t *testing.T, hashSize, nbSegments, maxConflicts int, 
 		assert.False(t, exists, "Received %v %v twice", point, already)
 		testMap[point] = value.(DInt)
 		return false
-	})
+	}, nbSegments)
 	assert.Equal(t, m.Size(), len(testMap))
 }
 

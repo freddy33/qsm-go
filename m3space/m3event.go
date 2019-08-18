@@ -41,6 +41,18 @@ type SpacePathNodeMap struct {
 	size int
 }
 
+func (spnm *SpacePathNodeMap) Size() int {
+	panic("implement me")
+}
+
+func (spnm *SpacePathNodeMap) Clear() {
+	panic("implement me")
+}
+
+func (spnm *SpacePathNodeMap) Range(f func(point m3point.Point, pn m3path.PathNode) bool, nbProc int) {
+	panic("implement me")
+}
+
 /***************************************************************/
 // SpacePathNodeMap Functions
 /***************************************************************/

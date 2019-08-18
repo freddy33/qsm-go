@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
-	"sync"
 )
 
 type PathContextDb struct {
@@ -160,60 +159,47 @@ func (pathCtx *PathContextDb) GetNumberOfOpenNodes() int {
 	if onb == nil {
 		return 0
 	}
-	return len(onb.openNodes)
+	return onb.openNodesMap.Size()
 }
 
+// TODO: Remove the need for this
 func (pathCtx *PathContextDb) GetAllOpenPathNodes() []PathNode {
-	col := pathCtx.openNodeBuilder.openNodes
-	res := make([]PathNode, len(col))
-	for i, n := range col {
-		res[i] = n
-	}
+	pnm := pathCtx.openNodeBuilder.openNodesMap
+	res := make([]PathNode, pnm.Size())
+	idx := 0
+	pnm.Range(func(point m3point.Point, pn PathNode) bool {
+		res[idx] = pn
+		idx++
+		return false
+	}, 1)
 	return res
 }
 
-func (pathCtx *PathContextDb) setLinkOnExistingNode(current, next *OpenNodeBuilder, on *PathNodeDb, cd *m3point.ConnectionDetails, pl *PathLinkDb, pnInDB *PathNodeDb) {
-	if pnInDB.d == next.d {
-		var pn *PathNodeDb
-		// From same round
-		for _, foundPn := range next.openNodes {
-			if foundPn.id == pnInDB.id {
-				pn = foundPn
-				break
-			}
-		}
-		if pn == nil {
-			Log.Errorf("Got entry in DB %s p=%v with same D %d but not in collection of open nodes!", pnInDB.String(), pnInDB.P(), next.d)
-			// Blocking link
-			pl.SetDeadEnd()
-		} else {
-			modelError := pn.setFrom(cd.GetNegId(), on)
-			// Check if connection open on the other side for adding other from
-			if modelError != nil {
-				if Log.IsDebug() {
-					Log.Debug(modelError)
-				}
-				// from cannot be set => this is blocked
-				pl.SetDeadEnd()
-			} else {
-				// Link the destination node to this link
-				pl.connState = ConnectionNext
-				pl.linkedNodeId = pn.id
-				pl.linkedNode = pn
-			}
-			err := pn.updateInDb()
-			if err != nil {
-				Log.Errorf("Got err updating new from in DB %s when updating %s", err.Error(), pn.String())
-			}
-		}
-	} else {
-		// already something there => blocked
+func (pathCtx *PathContextDb) setLinkOnExistingNode(current, next *OpenNodeBuilder, on *PathNodeDb, cd *m3point.ConnectionDetails, pl *PathLinkDb, pnInMap *PathNodeDb) {
+	if pnInMap.d != next.d {
+		Log.Errorf("Got entry in map %s p=%v but not same D %d != %d!", pnInMap.String(), pnInMap.P(), pnInMap.d, next.d)
+		// Blocking link
 		pl.SetDeadEnd()
+		return
 	}
-	pnInDB.release()
+	modelError := pnInMap.setFrom(cd.GetNegId(), on)
+	// Check if connection open on the other side for adding other from
+	if modelError != nil {
+		// from cannot be set => this is blocked
+		pl.SetDeadEnd()
+	} else {
+		// Link the destination node to this link
+		pl.connState = ConnectionNext
+		pl.linkedNodeId = pnInMap.id
+		pl.linkedNode = pnInMap
+	}
+	err := pnInMap.updateInDb()
+	if err != nil {
+		Log.Errorf("Got err updating new from in DB %s when updating %s", err.Error(), pnInMap.String())
+	}
 }
 
-func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *PathNodeDb, td *m3point.TrioDetails, wg *sync.WaitGroup) {
+func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *PathNodeDb, td *m3point.TrioDetails) {
 	nbFrom := 0
 	nbBlocked := 0
 	pnb := on.PathBuilder()
@@ -231,19 +217,29 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			npnb, np := pnb.GetNextPathNodeBuilder(on.P().Sub(center), cd.GetId(), pathCtx.GetGrowthOffset())
 			np = np.Add(center)
 
-			pId := getOrCreatePointTe(pathCtx.pointsTe(), np)
+			updated := false
 
-			pnInDB := pathCtx.getPathNodeDbByPoint(pId)
-
-			// If exists link to it or create dead end
-			if pnInDB != nil {
-				if Log.IsDebug() {
-					Log.Debugf("Found same point already at %s %d", pathCtx.String(), pId)
-				}
-				next.selectConflict++
-				pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInDB)
+			_, inCurrent := current.openNodesMap.GetPathNode(np)
+			if inCurrent {
+				// point back to previous distance outgrowth so d + 1 != d => dead end
+				pl.SetDeadEnd()
+				updated = true
 			} else {
+				pnInMap, _ := next.openNodesMap.GetPathNode(np)
+				if pnInMap != nil {
+					// TODO: The pnInMap may not be in DB yet =>
+					// TODO: 1. Either make the following method works with in memory path node
+					// TODO: 2. Create a method on PathNodeDb to sync with DB any time anywhere:
+					// TODO:  2.1 : It means keep track of state
+					// TODO:  2.2 : Make sure only one in memory object with given ID exists
+					pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInMap.(*PathNodeDb))
+					updated = true
+				}
+			}
+
+			if !updated {
 				// Create new node
+				pId := getOrCreatePointTe(pathCtx.pointsTe(), np)
 				pn := getNewPathNodeDb()
 				pn.pathCtxId = pl.node.pathCtxId
 				pn.pathCtx = pl.node.pathCtx
@@ -253,81 +249,46 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 				pn.pointId = pId
 				pn.d = next.d
 
-				modelError := pn.setFrom(cd.GetNegId(), on)
+				sqlErr, filtered := pn.insertInDb()
 
-				if modelError != nil {
-					// Error to get here on new node
-					Log.Error(modelError)
-					// from cannot be set => this is blocked
-					pl.SetDeadEnd()
-				} else {
-					sqlErr, filtered := pn.insertInDb()
-					if sqlErr != nil {
-						if filtered {
-							pnInDB = pathCtx.getPathNodeDbByPoint(pId)
-							if pnInDB == nil {
-								Log.Errorf("Cannot be!! found same point already at %s %d", pathCtx.String(), pId)
-							} else {
-								if Log.IsDebug() {
-									Log.Debugf("Already checked and still found same point already at %s %d", pathCtx.String(), pId)
-								}
-								next.insertConflict++
-								pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInDB)
-							}
+				if sqlErr != nil {
+					if filtered {
+						pnInDB := pathCtx.getPathNodeDbByPoint(pId)
+						if pnInDB == nil {
+							Log.Errorf("Cannot be!! found same point already at %s %d", pathCtx.String(), pId)
 						} else {
-							Log.Error(sqlErr)
+							if Log.IsDebug() {
+								Log.Debugf("Already checked and still found same point already at %s %d", pathCtx.String(), pId)
+							}
+							next.insertConflict++
+							pathCtx.setLinkOnExistingNode(current, next, on, cd, pl, pnInDB)
 						}
-						pn.release()
-						continue
+					} else {
+						Log.Error(sqlErr)
 					}
-					// Link the destination node to this link
-					pl.connState = ConnectionNext
-					pl.linkedNodeId = pn.id
-					pl.linkedNode = pn
-					next.addPathNode(pn)
+					pn.release()
+				} else {
+					// TODO: Check on inserted or not => report on conflict number
+					pn, _ := next.openNodesMap.AddPathNode(pn)
+					pnInDB := pn.(*PathNodeDb)
+					modelError := pnInDB.setFrom(cd.GetNegId(), on)
+					if modelError != nil {
+						// from cannot be set => this is blocked
+						pl.SetDeadEnd()
+					} else {
+						// Link the destination node to this link
+						pl.connState = ConnectionNext
+						pl.linkedNodeId = pnInDB.id
+						pl.linkedNode = pnInDB
+					}
 				}
 			}
 		}
 	}
+	// TODO: Verify that all path node touched are updated in DB
 	err := on.updateInDb()
 	if err != nil {
 		Log.Errorf("Got err in DB %s when updating %s", err.Error(), on.String())
-	}
-	if wg != nil {
-		wg.Done()
-	}
-}
-
-func (pathCtx *PathContextDb) makeNewNodesSplit(current, next *OpenNodeBuilder, currentPos, nb int, wg *sync.WaitGroup) {
-	for i := currentPos; i < len(current.openNodes) && i < currentPos+nb; i++ {
-		on := current.openNodes[i]
-		if on.id < 0 {
-			Log.Errorf("An open end node builder is a nil node for %s", pathCtx.String())
-			continue
-		}
-		if Log.DoAssert() {
-			if on.IsEnd() {
-				Log.Errorf("An open end node builder is a dead end at %v", on.P())
-				continue
-			}
-			if !on.IsLatest() {
-				Log.Errorf("An open end node builder has no more active links at %v", on.P())
-				continue
-			}
-		}
-		if on.trioId == m3point.NilTrioIndex {
-			Log.Fatalf("reached a node without trio id %s %s", on.String())
-			continue
-		}
-		td := on.TrioDetails()
-		if td == nil {
-			Log.Fatalf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
-			continue
-		}
-		pathCtx.makeNewNodes(current, next, on, td, nil)
-	}
-	if wg != nil {
-		wg.Done()
 	}
 }
 
@@ -338,22 +299,35 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 	current := pathCtx.openNodeBuilder
 	next := createNewNodeBuilder(current)
 
-	nbOpenNodes := len(current.openNodes)
-	if nbOpenNodes < nbParallelProcesses*3 {
-		// Too small to split
-		pathCtx.makeNewNodesSplit(current, next, 0, nbOpenNodes, nil)
-	} else {
-		sizePerSplit := int(nbOpenNodes / nbParallelProcesses)
-		wg := sync.WaitGroup{}
-		for proc := 0; proc < nbParallelProcesses; proc++ {
-			wg.Add(1)
-			go pathCtx.makeNewNodesSplit(current, next, proc*sizePerSplit, sizePerSplit, &wg)
+	current.openNodesMap.Range(func(point m3point.Point, pn PathNode) bool {
+		on := pn.(*PathNodeDb)
+		if on.id < 0 {
+			Log.Errorf("An open end node builder is a nil node for %s", pathCtx.String())
+			return false
 		}
-		wg.Wait()
-	}
+		if Log.DoAssert() {
+			if on.IsEnd() {
+				Log.Errorf("An open end node builder is a dead end at %v", on.P())
+				return false
+			}
+			if !on.IsLatest() {
+				Log.Errorf("An open end node builder has no more active links at %v", on.P())
+				return false
+			}
+		}
+		if on.trioId == m3point.NilTrioIndex {
+			Log.Fatalf("reached a node without trio id %s %s", on.String())
+			return true
+		}
+		td := on.TrioDetails()
+		if td == nil {
+			Log.Fatalf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
+			return true
+		}
+		pathCtx.makeNewNodes(current, next, on, td)
+		return false
+	}, nbParallelProcesses)
 	Log.Debugf("%s dist=%d : move from %d to %d open nodes with %d %d conflicts", pathCtx.String(), next.d, len(current.openNodes), len(next.openNodes), next.selectConflict, next.insertConflict)
-	// not needed with split
-	//next.shuffle()
 	pathCtx.openNodeBuilder = next
 	current.clear()
 }

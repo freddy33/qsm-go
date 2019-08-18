@@ -52,12 +52,9 @@ func (onb *OpenNodeBuilder) fillOpenPathNodes() {
 	}
 }
 
-func (onb *OpenNodeBuilder) addPathNode(pn *PathNodeDb) int {
-	_, inserted := onb.openNodesMap.AddPathNode(pn)
-	if inserted {
-		onb.openNodes = append(onb.openNodes, pn)
-	}
-	return len(onb.openNodes)
+func (onb *OpenNodeBuilder) addPathNode(pn *PathNodeDb) *PathNodeDb {
+	res, _ := onb.openNodesMap.AddPathNode(pn)
+	return res.(*PathNodeDb)
 }
 
 func (onb *OpenNodeBuilder) nextOpenNodesLen() int {

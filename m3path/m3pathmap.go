@@ -8,7 +8,7 @@ type PathNodeMap interface {
 	AddPathNode(pathNode PathNode) (PathNode, bool)
 	IsActive(pathNode PathNode) bool
 	Clear()
-	Range(f func(point m3point.Point, pn PathNode) bool)
+	Range(f func(point m3point.Point, pn PathNode) bool, nbProc int)
 }
 
 type SimplePathNodeMap map[m3point.Point]PathNode
@@ -55,7 +55,7 @@ func (pnm *SimplePathNodeMap) Clear() {
 	}
 }
 
-func (pnm *SimplePathNodeMap) Range(f func(point m3point.Point, pn PathNode) bool) {
+func (pnm *SimplePathNodeMap) Range(f func(point m3point.Point, pn PathNode) bool, nbProc int) {
 	for k, v := range *pnm {
 		if f(k, v) {
 			return
@@ -99,8 +99,8 @@ func (hnm *PointHashPathNodeMap) Clear() {
 	hnm.pointMap.Clear()
 }
 
-func (hnm *PointHashPathNodeMap) Range(f func(point m3point.Point, pn PathNode) bool) {
+func (hnm *PointHashPathNodeMap) Range(f func(point m3point.Point, pn PathNode) bool, nbProc int) {
 	hnm.pointMap.Range(func(point m3point.Point, value interface{}) bool {
 		return f(point, value.(PathNode))
-	})
+	}, nbProc)
 }

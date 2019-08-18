@@ -341,11 +341,17 @@ func (pn *PathNodeDb) setFrom(connId m3point.ConnectionId, fromNode *PathNodeDb)
 				pn.links[i].linkedNodeId = fromNode.id
 				return nil
 			} else {
-				return MakeQsmModelErrorf(ConnectionNotAvailable, "Cannot set from %s on node %s at conn %s %d, since it is already %d to %d.", fromNode.String(), pn.String(), connId, i, pn.links[i].connState, pn.links[i].linkedNodeId)
+				// TODO: This is very expensive and happens a lot =>
+				if Log.IsDebug() {
+					Log.Debugf("Cannot set from %s on node %s at conn %s %d, since it is already %d to %d.", fromNode.String(), pn.String(), connId, i, pn.links[i].connState, pn.links[i].linkedNodeId)
+				}
+				return MakeQsmModelErrorf(ConnectionNotAvailable, "Connection %s  not available on %d", connId.String(), pn.pointId)
 			}
 		}
 	}
-	return MakeQsmModelErrorf(ConnectionNotFound, "Could not set from on path node %s since connId %s does not exists in %s ", pn.String(), connId.String(), td.String())
+	err := MakeQsmModelErrorf(ConnectionNotFound, "Could not set from on path node %s since connId %s does not exists in %s ", pn.String(), connId.String(), td.String())
+	Log.Error(err)
+	return err
 }
 
 type ErrorType int

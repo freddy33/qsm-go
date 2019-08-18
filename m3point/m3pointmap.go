@@ -13,7 +13,7 @@ type PointMap interface {
 	GetCurrentMaxConflicts() int
 	SetMaxConflictsAllowed(max int)
 	Clear()
-	Range(f func(point Point, value interface{}) bool)
+	Range(f func(point Point, value interface{}) bool, nbProc int)
 }
 
 type pointHashMapEntry struct {
@@ -201,10 +201,9 @@ func (phm *pointHashMap) Clear() {
 	}
 }
 
-func (phm *pointHashMap) Range(f func(point Point, value interface{}) bool) {
-	nbSegments := len(phm.mutexes)
+func (phm *pointHashMap) Range(f func(point Point, value interface{}) bool, nbProc int) {
 	dataSize := len(phm.data)
-	segSize := dataSize / nbSegments
+	segSize := dataSize / nbProc
 	if segSize < 2 {
 		// Simple pass
 		for i := 0; i < dataSize; i++ {
@@ -222,8 +221,8 @@ func (phm *pointHashMap) Range(f func(point Point, value interface{}) bool) {
 	} else {
 		// Parallelize
 		wg := new(sync.WaitGroup)
-		wg.Add(nbSegments)
-		for segId := 0; segId < nbSegments; segId++ {
+		wg.Add(nbProc)
+		for segId := 0; segId < nbProc; segId++ {
 			startIdx := dataSize * segId
 			endIdx := startIdx + dataSize
 			if endIdx > dataSize {
