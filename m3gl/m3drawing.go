@@ -2,7 +2,6 @@ package m3gl
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 )
@@ -267,18 +266,15 @@ func MakeNodeDrawingElement(space *m3space.Space, node m3space.Node) *NodeDrawin
 
 }
 
-func MakeConnectionDrawingElement(space *m3space.Space, pl m3path.PathLink) *ConnectionDrawingElement {
+func MakeConnectionDrawingElement(space *m3space.Space, point m3point.Point, connId m3point.ConnectionId) *ConnectionDrawingElement {
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
-	cd := m3point.GetPointPackData(space.GetEnv()).GetConnDetailsById(pl.GetConnId())
-	p := pl.GetSrc().P()
 	// Take the color of the source. TODO: Not true should be & on src and target
-	sdc.objColors = space.GetNode(p).GetColorMask(space)
-	return &ConnectionDrawingElement{getConnectionObjectType(cd), sdc, &p,}
+	sdc.objColors = space.GetNode(point).GetColorMask(space)
+	return &ConnectionDrawingElement{getConnectionObjectType(connId), sdc, &point,}
 }
 
-func getConnectionObjectType(cd *m3point.ConnectionDetails) ObjectType {
-	cdId := cd.GetId()
+func getConnectionObjectType(cdId m3point.ConnectionId) ObjectType {
 	if cdId > 0 {
 		return ObjectType(m3point.ConnectionId(Connection00) + cdId*2)
 	} else {

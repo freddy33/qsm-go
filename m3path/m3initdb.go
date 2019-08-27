@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
+	"github.com/freddy33/qsm-go/m3util"
 	"sync"
 )
+
+var Log = m3util.NewLogger("m3path", m3util.INFO)
 
 const (
 	PointsTable       = "points"
@@ -71,12 +74,14 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 }
 
 const (
-	SelectPathNodesById             = 0
-	UpdatePathNode                  = 1
-	SelectPathNodesByCtxAndDistance = 2
-	CountPathNodesByCtx             = 3
-	SelectPathNodeByCtxAndPoint     = 4
-	SelectPathNodesByPoint          = 5
+	SelectPathNodesById int = iota
+	UpdatePathNode
+	SelectPathNodesByCtxAndDistance
+	PathNodeIdsBefore
+	ConnectedPathNodeIds
+	CountPathNodesByCtx
+	SelectPathNodeIdByCtxAndPointId
+	SelectPathNodesByPoint
 )
 
 func creatPathNodesTableDef() *m3db.TableDefinition {
@@ -88,46 +93,45 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" trio_id smallint NOT NULL REFERENCES %s (id),"+
 		" point_id bigint NOT NULL REFERENCES %s (id),"+
 		" d integer NOT NULL DEFAULT 0,"+
-		" blocked_mask smallint NOT NULL DEFAULT 0,"+
-		" from1 bigint NULL REFERENCES %s (id), from2 bigint NULL REFERENCES %s (id), from3 bigint NULL REFERENCES %s (id),"+
-		" next1 bigint NULL REFERENCES %s (id), next2 bigint NULL REFERENCES %s (id), next3 bigint NULL REFERENCES %s (id),"+
+		" connection_mask smallint NOT NULL DEFAULT 0,"+
+		" path_node1 bigint NULL REFERENCES %s (id), path_node2 bigint NULL REFERENCES %s (id), path_node3 bigint NULL REFERENCES %s (id),"+
 		" CONSTRAINT unique_point_per_path_ctx UNIQUE (path_ctx_id, point_id))",
 		PathContextsTable, m3point.PathBuildersTable, m3point.TrioDetailsTable, PointsTable,
-		PathNodesTable, PathNodesTable, PathNodesTable,
 		PathNodesTable, PathNodesTable, PathNodesTable)
 	res.ErrorFilter = func(err error) bool {
 		return err.Error() == "pq: duplicate key value violates unique constraint \"unique_point_per_path_ctx\""
 	}
 	res.Insert = "(path_ctx_id, path_builders_id, trio_id, point_id, d," +
-		" blocked_mask," +
-		" from1, from2, from3," +
-		" next1, next2, next3)" +
+		" connection_mask," +
+		" path_node1, path_node2, path_node3)" +
 		" values ($1,$2,$3,$4,$5," +
 		" $6," +
-		" $7,$8,$9," +
-		" $10,$11,$12) returning id"
+		" $7,$8,$9) returning id"
 	res.SelectAll = "not to call select all on node path"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 6)
+	res.Queries = make([]string, 8)
 	selectAllFields := " id, path_ctx_id, path_builders_id, trio_id, point_id, d," +
-		" blocked_mask," +
-		" from1, from2, from3," +
-		" next1, next2, next3 "
+		" connection_mask," +
+		" path_node1, path_node2, path_node3"
 	res.Queries[SelectPathNodesById] = fmt.Sprintf("select "+
 		selectAllFields+
 		" from %s where id = $1", PathNodesTable)
 	res.Queries[UpdatePathNode] = fmt.Sprintf("update %s set"+
-		" blocked_mask = $2,"+
-		" from1 = $3, from2 = $4, from3 = $5,"+
-		" next1 = $6, next2 = $7, next3 = $8"+
+		" connection_mask = $2,"+
+		" path_node1 = $3, path_node2 = $4, path_node3 = $5"+
 		" where id = $1", PathNodesTable)
 	res.Queries[SelectPathNodesByCtxAndDistance] = fmt.Sprintf("select "+
 		selectAllFields+
 		" from %s where path_ctx_id = $1 and d = $2", PathNodesTable)
+	res.Queries[PathNodeIdsBefore] = fmt.Sprintf("select point_id, id, d"+
+		" from %s where path_ctx_id = $1 and d < $2 and d >= $3", PathNodesTable)
+	res.Queries[PathNodeIdsBefore] = fmt.Sprintf("select point_id, id, d"+
+		" from %s where path_ctx_id = $1 and d < $2 and d >= $3", PathNodesTable)
+	res.Queries[ConnectedPathNodeIds] = fmt.Sprintf("select id"+
+		" from %s where path_ctx_id = $1 and d = $2 and (path_node1 = $3 or path_node2 = $3 or path_node3 = $3)", PathNodesTable)
 	res.Queries[CountPathNodesByCtx] = fmt.Sprintf("select count(*)"+
 		" from %s where path_ctx_id = $1", PathNodesTable)
-	res.Queries[SelectPathNodeByCtxAndPoint] = fmt.Sprintf("select "+
-		selectAllFields+
+	res.Queries[SelectPathNodeIdByCtxAndPointId] = fmt.Sprintf("select id "+
 		" from %s where path_ctx_id = $1 and point_id = $2", PathNodesTable)
 	res.Queries[SelectPathNodesByPoint] = fmt.Sprintf("select "+
 		selectAllFields+

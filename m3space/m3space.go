@@ -13,7 +13,7 @@ var Log = m3util.NewLogger("m3space", m3util.INFO)
 
 type SpaceVisitor interface {
 	VisitNode(space *Space, node Node)
-	VisitLink(space *Space, pl m3path.PathLink)
+	VisitLink(space *Space, srcPoint m3point.Point, connId m3point.ConnectionId)
 }
 
 type Space struct {
@@ -35,7 +35,7 @@ type Space struct {
 	// Extracted list from the above map of the current state at currentTime
 	latestNodes NodeList
 	activeNodes NodeList
-	activeLinks PathLinkList
+	activeLinks NodeLinkList
 
 	nbDeadNodes int
 
@@ -62,7 +62,7 @@ func MakeSpace(env *m3db.QsmEnvironment, max m3point.CInt) Space {
 	space.currentTime = 0
 	space.latestNodes = make([]Node, 0, 1)
 	space.activeNodes = make([]Node, 0, 1)
-	space.activeLinks = make([]m3path.PathLink, 0, 500)
+	space.activeLinks = make([]NodeLink, 0, 500)
 
 	space.nbDeadNodes = 0
 	space.Max = max
@@ -121,9 +121,10 @@ func (space *Space) VisitAll(visitor SpaceVisitor, onlyActive bool) {
 	if onlyActive {
 		for _, n := range space.activeNodes {
 			visitor.VisitNode(space, n)
-		}
-		for _, pl := range space.activeLinks {
-			visitor.VisitLink(space, pl)
+			nll := n.GetActiveLinks(space)
+			for _, nl := range nll {
+				visitor.VisitLink(space, nl.GetSrc(), nl.GetConnectionId())
+			}
 		}
 	} else {
 		space.nodesMap.Range(func(pI, nI interface{}) bool {

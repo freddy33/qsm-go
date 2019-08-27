@@ -1,7 +1,6 @@
 package m3space
 
 import (
-	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -395,7 +394,7 @@ func (t *TestSpaceVisitor) VisitNode(space *Space, node Node) {
 	}
 }
 
-func (t *TestSpaceVisitor) VisitLink(space *Space, pl m3path.PathLink) {
+func (t *TestSpaceVisitor) VisitLink(space *Space, srcPoint m3point.Point, connId m3point.ConnectionId) {
 }
 
 func assertSpaceSingleEvent(t *testing.T, space *Space, time DistAndTime, nbNodes, nbConnections, nbActive, nbMainPoints, nbActiveMainPoints int, contextMsg string) {

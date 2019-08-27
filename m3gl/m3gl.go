@@ -3,7 +3,6 @@ package m3gl
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
-	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3space"
 	"github.com/freddy33/qsm-go/m3util"
@@ -197,8 +196,8 @@ func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node m3sp
 	creator.offset++
 }
 
-func (creator *DrawingElementsCreator) VisitLink(space *m3space.Space, pl m3path.PathLink) {
-	creator.elements[creator.offset] = MakeConnectionDrawingElement(space, pl)
+func (creator *DrawingElementsCreator) VisitLink(space *m3space.Space, srcPoint m3point.Point, connId m3point.ConnectionId) {
+	creator.elements[creator.offset] = MakeConnectionDrawingElement(space, srcPoint, connId)
 	creator.offset++
 }
 
@@ -336,9 +335,10 @@ func (t *TriangleFiller) drawConnections() {
 	maxConnId := t.ppd.GetMaxConnId()
 	for connId := m3point.ConnectionId(1); connId <= maxConnId; connId++ {
 		posConn := t.ppd.GetConnDetailsById(connId)
-		t.fill(MakeSegment(m3point.Origin, posConn.Vector, getConnectionObjectType(posConn)))
-		negConn := t.ppd.GetConnDetailsById(-connId)
-		t.fill(MakeSegment(m3point.Origin, negConn.Vector, getConnectionObjectType(negConn)))
+		t.fill(MakeSegment(m3point.Origin, posConn.Vector, getConnectionObjectType(connId)))
+		negConnId := connId.GetNegId()
+		negConn := t.ppd.GetConnDetailsById(negConnId)
+		t.fill(MakeSegment(m3point.Origin, negConn.Vector, getConnectionObjectType(negConnId)))
 	}
 }
 

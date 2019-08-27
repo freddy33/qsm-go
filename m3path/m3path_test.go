@@ -4,38 +4,44 @@ import (
 	"github.com/freddy33/qsm-go/m3db"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 )
 
-// TODO: This should be in path data of the environment
-var allTestContexts [m3db.MaxNumberOfEnvironments]map[m3point.GrowthType][]PathContext
+var allTestContextsMutex sync.Mutex
 
 func getAllTestContexts(env *m3db.QsmEnvironment) map[m3point.GrowthType][]PathContext {
-	envId := env.GetId()
-	if allTestContexts[envId] != nil {
-		return allTestContexts[envId]
+	pathData := GetPathPackData(env)
+	if pathData.allCenterContextsLoaded {
+		return pathData.allCenterContexts
 	}
-	res := make(map[m3point.GrowthType][]PathContext)
+
+	allTestContextsMutex.Lock()
+	defer allTestContextsMutex.Unlock()
+
+	if pathData.allCenterContextsLoaded {
+		return pathData.allCenterContexts
+	}
 
 	m3point.InitializeDBEnv(env, false)
-	ppd := m3point.GetPointPackData(env)
+	pointData := m3point.GetPointPackData(env)
 
 	idx := 0
-	for _, growthCtx := range ppd.GetAllGrowthContexts() {
+	for _, growthCtx := range pointData.GetAllGrowthContexts() {
 		ctxType := growthCtx.GetGrowthType()
 		maxOffset := ctxType.GetMaxOffset()
-		if len(res[ctxType]) == 0 {
-			res[ctxType] = make([]PathContext, ctxType.GetNbIndexes()*maxOffset)
+		if len(pathData.allCenterContexts[ctxType]) == 0 {
+			pathData.allCenterContexts[ctxType] = make([]PathContext, ctxType.GetNbIndexes()*maxOffset)
 			idx = 0
 		}
 		for offset := 0; offset < maxOffset; offset++ {
-			res[ctxType][idx] = MakePathContextFromGrowthContext(growthCtx, offset, nil)
+			pathData.allCenterContexts[ctxType][idx] = MakePathContextDBFromGrowthContext(env, growthCtx, offset)
 			idx++
 		}
 	}
 
-	allTestContexts[envId] = res
-	return res
+	pathData.allCenterContextsLoaded = true
+	return pathData.allCenterContexts
 }
 
 func TestFirstPathContextFilling(t *testing.T) {
@@ -49,10 +55,9 @@ func TestFirstPathContextFilling(t *testing.T) {
 	allCtx := getAllTestContexts(env)
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {
-			pathCtx := MakePathContextDBFromGrowthContext(env, ctx.GetGrowthCtx(), ctx.GetGrowthOffset())
-			fillPathContext(t, pathCtx, 8*3)
-			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
-			Log.Debug( pathCtx.dumpInfo())
+			fillPathContext(t, ctx, 8*3)
+			Log.Infof("Run for %s got %d points %d last open end path", ctx.String(), ctx.CountAllPathNodes(), ctx.GetNumberOfOpenNodes())
+			Log.Debug(ctx.dumpInfo())
 			break
 		}
 	}
@@ -90,7 +95,6 @@ func fillPathContext(t *testing.T, pathCtx PathContext, until int) {
 			countNonMains++
 		}
 		assert.Equal(t, 1, pn.D(), "open end path %v should have distance of three", pn)
-		assert.Equal(t, pn.calcDist(), pn.D(), "open end path %v should have d and calcDist equal", pn)
 		assert.True(t, pn.IsLatest(), "open end path %v should be active", pn)
 	}
 	assert.Equal(t, 0, countMains, "not all main ends here %v", openEndNodes)

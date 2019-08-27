@@ -75,7 +75,7 @@ func (space *Space) ForwardTime() *ForwardResult {
 	}
 
 	newActiveNodes := NodeList(make([]Node, 0, expectedLatestNodes))
-	newActiveLinks := PathLinkList(make([]m3path.PathLink, 0, expectedLatestNodes))
+	newActiveLinks := NodeLinkList(make([]m3path.PathLink, 0, expectedLatestNodes))
 	res := MakeForwardResult()
 	for _, n := range space.latestNodes {
 		space.populateActiveNodesAndLinks(n, res, &newActiveNodes, &newActiveLinks)
@@ -89,7 +89,7 @@ func (space *Space) ForwardTime() *ForwardResult {
 	return res
 }
 
-func (space *Space) populateActiveNodesAndLinks(n Node, res *ForwardResult, nodes *NodeList, links *PathLinkList) {
+func (space *Space) populateActiveNodesAndLinks(n Node, res *ForwardResult, nodes *NodeList, links *NodeLinkList) {
 	nbActive := n.GetNbActiveEvents(space)
 	point := n.GetPoint()
 	if point != nil && point.IsMainPoint() && nbActive >= m3point.THREE {

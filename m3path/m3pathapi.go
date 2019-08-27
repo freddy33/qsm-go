@@ -22,36 +22,24 @@ type PathContext interface {
 	dumpInfo() string
 }
 
-type PathLink interface {
-	fmt.Stringer
-	GetSrc() PathNode
-	GetConnId() m3point.ConnectionId
-	HasDestination() bool
-	GetDst() PathNode
-	IsDeadEnd() bool
-	SetDeadEnd()
-	createDstNode(pathBuilder m3point.PathNodeBuilder) (PathNode, bool, m3point.PathNodeBuilder)
-	dumpInfo(ident int) string
-}
-
 type PathNode interface {
 	fmt.Stringer
 	GetPathContext() PathContext
-	IsEnd() bool
+
 	IsRoot() bool
 	IsLatest() bool
 	P() m3point.Point
 	D() int
 	GetTrioIndex() m3point.TrioIndex
-	GetFrom() PathLink
-	GetOtherFrom() PathLink
-	GetNext(i int) PathLink
-	GetNextConnection(connId m3point.ConnectionId) PathLink
 
-	calcDist() int
-	addPathLink(connId m3point.ConnectionId) (PathLink, bool)
-	setOtherFrom(pl PathLink)
-	dumpInfo(ident int) string
+	HasOpenConnections() bool
+	IsDeadEnd(connIdx int) bool
+	SetDeadEnd(connIdx int)
+
+	GetFrom() int64
+	GetOtherFrom() int64
+	GetNext(connIdx int) int64
+	GetNextConnection(connId m3point.ConnectionId) int64
 }
 
 

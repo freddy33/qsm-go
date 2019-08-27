@@ -14,7 +14,7 @@ type Node interface {
 	GetLatestEventIds() []EventID
 	GetNbActiveEvents(space *Space) int
 	GetActiveEventIds(space *Space) []EventID
-	GetActiveLinks(space *Space) PathLinkList
+	GetActiveLinks(space *Space) NodeLinkList
 	GetPoint() *m3point.Point
 	IsEmpty() bool
 	IsEventAlreadyPresent(id EventID) bool
@@ -45,11 +45,29 @@ type Node interface {
 	addPathNode(id EventID, pn m3path.PathNode)
 }
 
-type PathLinkList []m3path.PathLink
+type NodeLink interface {
+	GetConnectionId() m3point.ConnectionId
+	GetSrc() m3point.Point
+}
+
 type NodeList []Node
+type NodeLinkList []NodeLink
 
 type UniqueConnectionsList struct {
 	conns []m3point.ConnectionId
+}
+
+type BaseNodeLink struct {
+	connId m3point.ConnectionId
+	point  m3point.Point
+}
+
+func (bnl *BaseNodeLink) GetConnectionId() m3point.ConnectionId {
+	return bnl.connId
+}
+
+func (bnl *BaseNodeLink) GetSrc() m3point.Point {
+	return bnl.point
 }
 
 type BaseNode struct {
@@ -101,7 +119,7 @@ func (cl *UniqueConnectionsList) add(connId m3point.ConnectionId) {
 }
 
 /***************************************************************/
-// PathLinkList Functions
+// NodeLinkList Functions
 /***************************************************************/
 
 func (nl *NodeList) addNode(newNode Node) {
@@ -124,16 +142,16 @@ func (nl *NodeList) addNode(newNode Node) {
 }
 
 /***************************************************************/
-// PathLinkList Functions
+// NodeLinkList Functions
 /***************************************************************/
 
-func (pll *PathLinkList) addAll(links PathLinkList) {
+func (pll *NodeLinkList) addAll(links NodeLinkList) {
 	for _, pl := range links {
 		*pll = append(*pll, pl)
 	}
 }
 
-func (pll *PathLinkList) addFromLinkIfActive(fromLink m3path.PathLink, space *Space) {
+func (pll *NodeLinkList) addFromLinkIfActive(fromLink m3path.PathLink, space *Space) {
 	if fromLink == nil {
 		return
 	}
@@ -237,8 +255,8 @@ func (bn *BaseNode) GetActiveEventIds(space *Space) []EventID {
 	return res
 }
 
-func (bn *BaseNode) GetActiveLinks(space *Space) PathLinkList {
-	res := PathLinkList(make([]m3path.PathLink, 0, 3))
+func (bn *BaseNode) GetActiveLinks(space *Space) NodeLinkList {
+	res := NodeLinkList(make([]NodeLink, 0, 3))
 	for id, pn := range bn.pathNodes {
 		if pn != nil && !pn.IsEnd() && !pn.IsRoot() {
 			evt := space.GetEvent(EventID(id))

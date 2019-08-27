@@ -86,14 +86,12 @@ func runPathContext(pathCtx PathContext, until int) {
 }
 
 func verifyDistance(pathCtx PathContext, d int) {
-	verifyD := -1
-	for _, pn := range pathCtx.GetAllOpenPathNodes() {
-		if !pn.IsEnd() {
-			verifyD = pn.D()
-			break
+	pnm := pathCtx.(*PathContextDb).openNodeBuilder.openNodesMap
+	pnm.Range(func(point m3point.Point, pn PathNode) bool {
+		if pn.D() != d {
+			Log.Errorf("Something fishy for %s", pathCtx.String())
+			return true
 		}
-	}
-	if verifyD != d {
-		Log.Errorf("Something fishy for %s", pathCtx.String())
-	}
+		return false
+	}, 1)
 }

@@ -61,15 +61,15 @@ func (spnm *SpacePathNodeMap) GetSize() int {
 	return spnm.size
 }
 
-func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) (m3path.PathNode, bool) {
+func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) m3path.PathNode {
 	res, ok := spnm.space.nodesMap.Load(p)
 	if ok {
 		pathNode := res.(Node).GetPathNode(spnm.id)
 		if pathNode != nil {
-			return pathNode, ok
+			return pathNode
 		}
 	}
-	return nil, false
+	return nil
 }
 
 func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) (m3path.PathNode, bool) {

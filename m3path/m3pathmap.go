@@ -4,7 +4,7 @@ import "github.com/freddy33/qsm-go/m3point"
 
 type PathNodeMap interface {
 	Size() int
-	GetPathNode(p m3point.Point) (PathNode, bool)
+	GetPathNode(p m3point.Point) PathNode
 	AddPathNode(pathNode PathNode) (PathNode, bool)
 	IsActive(pathNode PathNode) bool
 	Clear()
@@ -30,9 +30,12 @@ func (pnm *SimplePathNodeMap) Size() int {
 	return len(*pnm)
 }
 
-func (pnm *SimplePathNodeMap) GetPathNode(p m3point.Point) (PathNode, bool) {
+func (pnm *SimplePathNodeMap) GetPathNode(p m3point.Point) PathNode {
 	res, ok := (*pnm)[p]
-	return res, ok
+	if !ok {
+		return nil
+	}
+	return res
 }
 
 func (pnm *SimplePathNodeMap) AddPathNode(pathNode PathNode)  (PathNode, bool) {
@@ -77,12 +80,12 @@ func (hnm *PointHashPathNodeMap) Size() int {
 	return hnm.pointMap.Size()
 }
 
-func (hnm *PointHashPathNodeMap) GetPathNode(p m3point.Point) (PathNode, bool) {
+func (hnm *PointHashPathNodeMap) GetPathNode(p m3point.Point) PathNode {
 	pn, ok := hnm.pointMap.Get(&p)
 	if ok {
-		return pn.(PathNode), true
+		return pn.(PathNode)
 	}
-	return nil, false
+	return nil
 }
 
 func (hnm *PointHashPathNodeMap) AddPathNode(pathNode PathNode) (PathNode, bool) {

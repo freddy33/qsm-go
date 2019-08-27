@@ -3,24 +3,28 @@ package m3point
 import "github.com/freddy33/qsm-go/m3db"
 
 type PointPackData struct {
-	env                                                                                         *m3db.QsmEnvironment
-	connectionsLoaded, trioDetailsLoaded, growthContextsLoaded, cubesLoaded, pathBuildersLoaded bool
+	env *m3db.QsmEnvironment
 
 	// All connection details ordered and mapped by base vector
 	allConnections         []*ConnectionDetails
 	allConnectionsByVector map[Point]*ConnectionDetails
+	connectionsLoaded      bool
 
 	// All the possible trio details used
-	allTrioDetails TrioDetailList
+	allTrioDetails    TrioDetailList
+	trioDetailsLoaded bool
 
 	// Collection of all growth context ordered
-	allGrowthContexts []GrowthContext
+	allGrowthContexts    []GrowthContext
+	growthContextsLoaded bool
 
 	// Identified all cubes uniquely
 	cubeIdsPerKey map[CubeKeyId]int
+	cubesLoaded   bool
 
 	// The index of this slice is the cube id
-	pathBuilders []*RootPathNodeBuilder
+	pathBuilders       []*RootPathNodeBuilder
+	pathBuildersLoaded bool
 }
 
 func GetPointPackData(env *m3db.QsmEnvironment) *PointPackData {
