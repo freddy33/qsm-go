@@ -1,19 +1,10 @@
 #! /bin/bash
 
 QSM_ENV_NUMBER=${QSM_ENV_NUMBER:=1}
-dbUser="not-a-user"
-dbPassword=""
-dbName="not-a-database"
-dbHost="not-a-host"
-dbPort="not-a-port"
-dbLoc="was-not-set"
-dbConfFile="was-not-set"
-dumpDir="was-not-set"
-confDir="was-not-set"
-logDir="was-not-set"
 
 curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
-. $curDir/functions.sh
+# shellcheck source=./functions.sh
+. "$curDir/functions.sh"
 
 dbError=13
 

@@ -14,7 +14,7 @@ func TestNodeSyncPool(t *testing.T) {
 	assert.Equal(t, int64(-1), pn.id)
 	assert.Equal(t, -1, pn.pathCtxId)
 	for i := 0; i < 3; i++ {
-		assert.Equal(t, pn, pn.linkNodeIds[1])
+		assert.Equal(t, int64(-3), pn.linkNodeIds[1])
 	}
 
 	pn.release()

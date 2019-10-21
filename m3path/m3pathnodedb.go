@@ -134,7 +134,7 @@ func (pn *PathNodeDb) IsInPool() bool {
 }
 
 func (pn *PathNodeDb) getConnectionMaskValue(connIdx int) uint16 {
-	return (pn.connectionMask >> uint16(ConnectionMaskBits*connIdx)) & SingleConnectionMask
+	return (pn.connectionMask >> uint16(connIdx*ConnectionMaskBits)) & SingleConnectionMask
 }
 
 func (pn *PathNodeDb) getConnectionState(connIdx int) ConnectionState {
@@ -144,9 +144,9 @@ func (pn *PathNodeDb) getConnectionState(connIdx int) ConnectionState {
 func (pn *PathNodeDb) setConnectionMask(connIdx int, maskValue uint16) {
 	allConnsMask := pn.connectionMask
 	// Zero the bit mask for this connection
-	allConnsMask &^= SingleConnectionMask << uint16(connIdx)
+	allConnsMask &^= SingleConnectionMask << uint16(connIdx*ConnectionMaskBits)
 	// Add the new mask value
-	allConnsMask |= maskValue << uint16(connIdx)
+	allConnsMask |= maskValue << uint16(connIdx*ConnectionMaskBits)
 	pn.connectionMask = allConnsMask
 	if pn.state == SyncInDbPathNode {
 		pn.state = ModifiedNode
@@ -209,6 +209,12 @@ func (pn *PathNodeDb) getConnsDataForDb() [NbConnections]sql.NullInt64 {
 					Log.Errorf("Linked id of %s not set correctly for %d since %d != %d",
 						pn.String(), i, pn.linkNodeIds[i], LinkIdNotSet)
 				}
+				/*
+					if pn.linkNodeIds[i] != LinkIdNotSet && pn.linkNodeIds[i] != NextLinkIdNotAssigned {
+						Log.Errorf("Linked id of %s not set correctly for %d since %d not in ( %d , %d ) ",
+							pn.String(), i, pn.linkNodeIds[i], LinkIdNotSet, NextLinkIdNotAssigned)
+					}
+				*/
 			}
 			pathNodeIds[i].Valid = false
 			pathNodeIds[i].Int64 = 0
