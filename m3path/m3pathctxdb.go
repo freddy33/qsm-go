@@ -81,6 +81,10 @@ func (pathCtx *PathContextDb) String() string {
 	return fmt.Sprintf("PathDB%d-%s-%d", pathCtx.id, pathCtx.growthCtx.String(), pathCtx.growthOffset)
 }
 
+func (pathCtx *PathContextDb) GetId() int {
+	return pathCtx.id
+}
+
 func (pathCtx *PathContextDb) GetGrowthCtx() m3point.GrowthContext {
 	return pathCtx.growthCtx
 }
@@ -181,14 +185,14 @@ func (pathCtx *PathContextDb) createConnection(currentD int, fromNode *PathNodeD
 	if nextPathNode.d != fromNode.d+1 {
 		Log.Errorf("Got path node %s p=%v but not correct distance since %d != %d + 1!", nextPathNode.String(), nextPathNode.P(), nextPathNode.d, fromNode.d)
 		// Blocking link
-		fromNode.SetDeadEnd(connIdx)
+		fromNode.setDeadEnd(connIdx)
 		return
 	}
 	modelError := nextPathNode.setFrom(cd.GetNegId(), fromNode)
 	// Check if connection open on the other side for adding other from
 	if modelError != nil {
 		// from cannot be set => this is blocked
-		fromNode.SetDeadEnd(connIdx)
+		fromNode.setDeadEnd(connIdx)
 	} else {
 		// Link the destination node to this link
 		fromNode.setConnectionState(connIdx, ConnectionNext)
@@ -224,7 +228,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			inCurrent := current.openNodesMap.GetPathNode(np)
 			if inCurrent != nil {
 				// point back to previous distance outgrowth so d + 1 != d => dead end
-				on.SetDeadEnd(i)
+				on.setDeadEnd(i)
 			} else {
 				var pn *PathNodeDb
 				pn1 := next.openNodesMap.GetPathNode(np)
@@ -237,7 +241,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 					if pnIdInDB > 0 {
 						next.selectConflict++
 						// point back to old distance outgrowth so dead end
-						on.SetDeadEnd(i)
+						on.setDeadEnd(i)
 					} else {
 						// Create new node
 						pn = getNewPathNodeDb()
@@ -283,9 +287,8 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 			return false
 		}
 		if !on.HasOpenConnections() {
-			// TODO: That may be very common => Switch to debug
-			if Log.IsWarn() {
-				Log.Warnf("An open end path node %s has no more active links", on.String())
+			if Log.IsDebug() {
+				Log.Debugf("An open end path node %s has no more active links", on.String())
 			}
 			return false
 		}
@@ -293,7 +296,7 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 			Log.Fatalf("reached a node without trio id %s %s", on.String())
 			return true
 		}
-		td := on.TrioDetails()
+		td := on.GetTrioDetails()
 		if td == nil {
 			Log.Fatalf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
 			return true
@@ -301,6 +304,7 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 		pathCtx.makeNewNodes(current, next, on, td)
 		return false
 	}, nbParallelProcesses)
+	// Save all the new path node to DB
 	next.openNodesMap.Range(func(point m3point.Point, pn PathNode) bool {
 		on := pn.(*PathNodeDb)
 		err := on.syncInDb()
@@ -313,6 +317,8 @@ func (pathCtx *PathContextDb) MoveToNextNodes() {
 		}
 		return false
 	}, nbParallelProcesses)
+	// Update all the previous path node to DB
+	// TODO: The update nodes may not be those only
 	current.openNodesMap.Range(func(point m3point.Point, pn PathNode) bool {
 		on := pn.(*PathNodeDb)
 		err := on.syncInDb()

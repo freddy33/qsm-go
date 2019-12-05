@@ -385,11 +385,20 @@ func (t trio) getMinusZVector() Point {
 }
 
 /***************************************************************/
-// TrioDetails Functions
+// GetTrioDetails Functions
 /***************************************************************/
 
 func (td *TrioDetails) String() string {
 	return fmt.Sprintf("T%02d: (%s, %s, %s)", td.id, td.conns[0].String(), td.conns[1].String(), td.conns[2].String())
+}
+
+func (td *TrioDetails) GetConnectionIdx(connId ConnectionId) int {
+	for idx, c := range td.conns {
+		if c.Id == connId {
+			return idx
+		}
+	}
+	return -1
 }
 
 func (td *TrioDetails) HasConnection(connId ConnectionId) bool {
@@ -592,7 +601,7 @@ func (td *TrioDetails) GetDSIndex() int {
 }
 
 /***************************************************************/
-// PointPackData Functions for TrioDetails
+// PointPackData Functions for GetTrioDetails
 /***************************************************************/
 
 func (ppd *PointPackData) GetTrioDetails(trIdx TrioIndex) *TrioDetails {

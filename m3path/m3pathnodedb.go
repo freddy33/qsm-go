@@ -385,7 +385,7 @@ func (pn *PathNodeDb) SetPathCtx(pathCtx *PathContextDb) {
 	pn.pathCtx = pathCtx
 }
 
-func (pn *PathNodeDb) TrioDetails() *m3point.TrioDetails {
+func (pn *PathNodeDb) GetTrioDetails() *m3point.TrioDetails {
 	if pn.trioDetails == nil {
 		pn.trioDetails = pn.PathCtx().ppd.GetTrioDetails(pn.trioId)
 	}
@@ -419,14 +419,17 @@ func (pn *PathNodeDb) String() string {
 }
 
 func (pn *PathNodeDb) GetPathContext() PathContext {
+	pn.check()
 	return pn.pathCtx
 }
 
 func (pn *PathNodeDb) IsRoot() bool {
+	pn.check()
 	return pn.d == 0
 }
 
 func (pn *PathNodeDb) IsLatest() bool {
+	pn.check()
 	onb := pn.PathCtx().openNodeBuilder
 	if onb == nil {
 		Log.Errorf("asking for latest flag on non initialize path context %s for %s", pn.pathCtx.String(), pn.String())
@@ -436,6 +439,7 @@ func (pn *PathNodeDb) IsLatest() bool {
 }
 
 func (pn *PathNodeDb) HasOpenConnections() bool {
+	pn.check()
 	for i := 0; i < NbConnections; i++ {
 		if pn.getConnectionState(i) == ConnectionNotSet {
 			return true
@@ -444,17 +448,36 @@ func (pn *PathNodeDb) HasOpenConnections() bool {
 	return false
 }
 
+func (pn *PathNodeDb) IsFrom(connIdx int) bool {
+	pn.check()
+	return pn.getConnectionState(connIdx) == ConnectionFrom
+}
+
+func (pn *PathNodeDb) IsNext(connIdx int) bool {
+	pn.check()
+	return pn.getConnectionState(connIdx) == ConnectionNext
+}
+
 func (pn *PathNodeDb) IsDeadEnd(connIdx int) bool {
+	pn.check()
 	return pn.getConnectionState(connIdx) == ConnectionBlocked
 }
 
-func (pn *PathNodeDb) SetDeadEnd(connIdx int) {
+func (pn *PathNodeDb) setDeadEnd(connIdx int) {
+	pn.check()
 	pn.setConnectionState(connIdx, ConnectionBlocked)
 	pn.linkNodeIds[connIdx] = DeadEndId
 	pn.linkNodes[connIdx] = nil
 }
 
+func (pn *PathNodeDb) check() {
+	if pn.IsInPool() {
+		Log.Fatalf("Cannot use in pool path node for %s", pn.String())
+	}
+}
+
 func (pn *PathNodeDb) P() m3point.Point {
+	pn.check()
 	if pn.point == nil {
 		if pn.pointId <= 0 {
 			Log.Fatalf("Cannot retrieve point not already set for %s", pn.String())
@@ -471,33 +494,12 @@ func (pn *PathNodeDb) P() m3point.Point {
 }
 
 func (pn *PathNodeDb) D() int {
+	pn.check()
 	return pn.d
 }
 
 func (pn *PathNodeDb) GetTrioIndex() m3point.TrioIndex {
 	return pn.trioId
-}
-
-func (pn *PathNodeDb) GetFrom() int64 {
-	for i := 0; i < NbConnections; i++ {
-		if pn.getConnectionState(i) == ConnectionFrom {
-			return pn.linkNodeIds[i]
-		}
-	}
-	return LinkIdNotSet
-}
-
-func (pn *PathNodeDb) GetOtherFrom() int64 {
-	firstFound := false
-	for i := 0; i < NbConnections; i++ {
-		if pn.getConnectionState(i) == ConnectionFrom {
-			if firstFound {
-				return pn.linkNodeIds[i]
-			}
-			firstFound = true
-		}
-	}
-	return LinkIdNotSet
 }
 
 func (pn *PathNodeDb) GetNext(connIdx int) int64 {
@@ -508,7 +510,7 @@ func (pn *PathNodeDb) GetNext(connIdx int) int64 {
 }
 
 func (pn *PathNodeDb) GetNextConnection(connId m3point.ConnectionId) int64 {
-	td := pn.TrioDetails()
+	td := pn.GetTrioDetails()
 	for i, cd := range td.GetConnections() {
 		if cd.GetId() == connId {
 			if pn.getConnectionState(i) != ConnectionNext {
@@ -522,7 +524,7 @@ func (pn *PathNodeDb) GetNextConnection(connId m3point.ConnectionId) int64 {
 }
 
 func (pn *PathNodeDb) setFrom(connId m3point.ConnectionId, fromNode *PathNodeDb) error {
-	td := pn.TrioDetails()
+	td := pn.GetTrioDetails()
 	for i, cd := range td.GetConnections() {
 		if cd.GetId() == connId {
 			if pn.getConnectionState(i) == ConnectionNotSet {

@@ -123,7 +123,7 @@ func (space *Space) VisitAll(visitor SpaceVisitor, onlyActive bool) {
 			visitor.VisitNode(space, n)
 			nll := n.GetActiveLinks(space)
 			for _, nl := range nll {
-				visitor.VisitLink(space, nl.GetSrc(), nl.GetConnectionId())
+				visitor.VisitLink(space, nl.GetSrc(), nl.GetConnId())
 			}
 		}
 	} else {

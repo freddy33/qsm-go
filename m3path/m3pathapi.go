@@ -7,6 +7,7 @@ import (
 
 type PathContext interface {
 	fmt.Stringer
+	GetId() int
 	GetGrowthCtx() m3point.GrowthContext
 	GetGrowthOffset() int
 	GetGrowthType() m3point.GrowthType
@@ -33,13 +34,11 @@ type PathNode interface {
 	GetTrioIndex() m3point.TrioIndex
 
 	HasOpenConnections() bool
+	IsFrom(connIdx int) bool
+	IsNext(connIdx int) bool
 	IsDeadEnd(connIdx int) bool
-	SetDeadEnd(connIdx int)
 
-	GetFrom() int64
-	GetOtherFrom() int64
-	GetNext(connIdx int) int64
-	GetNextConnection(connId m3point.ConnectionId) int64
+	GetTrioDetails() *m3point.TrioDetails
 }
 
 

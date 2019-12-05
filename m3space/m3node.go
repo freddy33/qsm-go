@@ -46,7 +46,7 @@ type Node interface {
 }
 
 type NodeLink interface {
-	GetConnectionId() m3point.ConnectionId
+	GetConnId() m3point.ConnectionId
 	GetSrc() m3point.Point
 }
 
@@ -62,7 +62,7 @@ type BaseNodeLink struct {
 	point  m3point.Point
 }
 
-func (bnl *BaseNodeLink) GetConnectionId() m3point.ConnectionId {
+func (bnl *BaseNodeLink) GetConnId() m3point.ConnectionId {
 	return bnl.connId
 }
 
@@ -95,15 +95,15 @@ func (cl *UniqueConnectionsList) exist(connId m3point.ConnectionId) bool {
 	return false
 }
 
-func (cl *UniqueConnectionsList) addLink(pl m3path.PathLink) {
-	if pl != nil && pl.HasDestination() {
-		cl.add(pl.GetConnId())
+func (cl *UniqueConnectionsList) addLink(nl NodeLink) {
+	if nl != nil {
+		cl.add(nl.GetConnId())
 	}
 }
 
-func (cl *UniqueConnectionsList) addFromLink(pl m3path.PathLink) {
-	if pl != nil {
-		cl.add(pl.GetConnId().GetNegId())
+func (cl *UniqueConnectionsList) addFromLink(nl NodeLink) {
+	if nl != nil {
+		cl.add(nl.GetConnId().GetNegId())
 	}
 }
 
@@ -151,20 +151,6 @@ func (pll *NodeLinkList) addAll(links NodeLinkList) {
 	}
 }
 
-func (pll *NodeLinkList) addFromLinkIfActive(fromLink m3path.PathLink, space *Space) {
-	if fromLink == nil {
-		return
-	}
-	fromSrc := fromLink.GetSrc()
-	if fromSrc == nil || fromSrc.IsEnd() {
-		return
-	}
-	fromNode := space.GetNode(fromSrc.P())
-	if fromNode != nil && fromNode.IsPathNodeActive(fromSrc, space) {
-		*pll = append(*pll, fromLink)
-	}
-}
-
 /***************************************************************/
 // BaseNode Functions
 /***************************************************************/
@@ -176,7 +162,7 @@ func (bn *BaseNode) String() string {
 	}
 	p := m3point.Origin
 	for _, pn := range bn.pathNodes {
-		if pn != nil && !pn.IsEnd() {
+		if pn != nil {
 			p = pn.P()
 			break
 		}
@@ -187,7 +173,7 @@ func (bn *BaseNode) String() string {
 func (bn *BaseNode) GetNbEvents() int {
 	res := 0
 	for _, pn := range bn.pathNodes {
-		if pn != nil && !pn.IsEnd() {
+		if pn != nil {
 			res++
 		}
 	}
@@ -200,7 +186,7 @@ func (bn *BaseNode) GetPointPackData() *m3point.PointPackData {
 
 func (bn *BaseNode) GetEnv() *m3db.QsmEnvironment {
 	for _, pn := range bn.pathNodes {
-		if pn != nil && !pn.IsEnd() {
+		if pn != nil {
 			return pn.GetPathContext().GetGrowthCtx().GetEnv()
 		}
 	}
@@ -256,13 +242,27 @@ func (bn *BaseNode) GetActiveEventIds(space *Space) []EventID {
 }
 
 func (bn *BaseNode) GetActiveLinks(space *Space) NodeLinkList {
+	if space.EventOutgrowthThreshold <= DistAndTime(0) {
+		// No chance of active links with activity at 0
+		return NodeLinkList(nil)
+	}
 	res := NodeLinkList(make([]NodeLink, 0, 3))
 	for id, pn := range bn.pathNodes {
-		if pn != nil && !pn.IsEnd() && !pn.IsRoot() {
+		if pn != nil && !pn.IsRoot() {
 			evt := space.GetEvent(EventID(id))
 			if bn.IsEventActive(evt) {
-				res.addFromLinkIfActive(pn.GetFrom(), space)
-				res.addFromLinkIfActive(pn.GetOtherFrom(), space)
+				td := pn.GetTrioDetails()
+				for i := 0; i < m3path.NbConnections; i++ {
+					if pn.IsFrom(i) {
+						conn := td.GetConnections()[i]
+						fromP := pn.P().Add(conn.Vector)
+						nl := BaseNodeLink{
+							conn.GetNegId(),
+							fromP,
+						}
+						res = append(res, &nl)
+					}
+				}
 			}
 		}
 	}
@@ -275,7 +275,7 @@ func (bn *BaseNode) GetPoint() *m3point.Point {
 		return nil
 	}
 	for _, pn := range bn.pathNodes {
-		if pn != nil && !pn.IsEnd() {
+		if pn != nil {
 			p := pn.P()
 			return &p
 		}
@@ -288,7 +288,7 @@ func (bn *BaseNode) IsEmpty() bool {
 }
 
 func (bn *BaseNode) IsEventAlreadyPresent(id EventID) bool {
-	return bn.pathNodes[id] != nil && !bn.pathNodes[id].IsEnd()
+	return bn.pathNodes[id] != nil
 }
 
 func (bn *BaseNode) GetPathNode(id EventID) m3path.PathNode {
@@ -340,9 +340,9 @@ func (bn *BaseNode) HasRoot() bool {
 }
 
 func (bn *BaseNode) GetEventForPathNode(pathNode m3path.PathNode, space *Space) *Event {
-	for id, pn := range bn.pathNodes {
-		if pn == pathNode {
-			return space.GetEvent(EventID(id))
+	for _, evt := range space.events {
+		if evt != nil && evt.pathContext != nil && evt.pathContext.GetId() == pathNode.GetPathContext().GetId() {
+			return evt
 		}
 	}
 	return nil
@@ -445,7 +445,7 @@ func (bn *BaseNode) IsDead(space *Space) bool {
 		return false
 	}
 	for id, n := range bn.pathNodes {
-		if n != nil && !n.IsEnd() {
+		if n != nil {
 			if n.IsRoot() {
 				return false
 			}
@@ -463,7 +463,7 @@ func (bn *BaseNode) GetStateString(space *Space) string {
 	evtIds := make([]EventID, nbEvts)
 	idx := 0
 	for id, n := range bn.pathNodes {
-		if n != nil && !n.IsEnd() {
+		if n != nil {
 			evtIds[idx] = EventID(id)
 			idx++
 		}
@@ -484,18 +484,16 @@ func (bn *BaseNode) addPathNode(id EventID, n m3path.PathNode) {
 
 func (bn *BaseNode) GetConnections() *UniqueConnectionsList {
 	usedConns := UniqueConnectionsList{}
-	for _, n := range bn.pathNodes {
-		if n != nil && !n.IsEnd() {
-			max := 2
-			if n.IsRoot() {
-				max = 3
-			}
-			for j := 0; j < max; j++ {
-				usedConns.addLink(n.GetNext(j))
-			}
-			if !n.IsRoot() {
-				usedConns.addFromLink(n.GetFrom())
-				usedConns.addFromLink(n.GetOtherFrom())
+	for _, pn := range bn.pathNodes {
+		if pn != nil {
+			td := pn.GetTrioDetails()
+			for i := 0; i < m3path.NbConnections; i++ {
+				if pn.IsFrom(i) {
+					usedConns.add(td.GetConnections()[i].GetNegId())
+				}
+				if pn.IsNext(i) {
+					usedConns.add(td.GetConnections()[i].GetId())
+				}
 			}
 		}
 	}
@@ -520,10 +518,11 @@ func (bn *BaseNode) IsAlreadyConnected(opn *BaseNode) bool {
 		return false
 	}
 	for id, n := range bn.pathNodes {
-		if n != nil && !n.IsEnd() {
-			pl := n.GetNextConnection(cd.GetId())
+		if n != nil {
+			td := n.GetTrioDetails()
+			isNext := n.IsNext(td.GetConnectionIdx(cd.GetId()))
 			on := opn.GetPathNode(EventID(id))
-			if on != nil && !on.IsEnd() && pl != nil && pl.GetSrc() == on {
+			if on != nil && isNext {
 				return true
 			}
 		}

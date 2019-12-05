@@ -1,7 +1,6 @@
 package m3space
 
 import (
-	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"sort"
@@ -75,7 +74,7 @@ func (space *Space) ForwardTime() *ForwardResult {
 	}
 
 	newActiveNodes := NodeList(make([]Node, 0, expectedLatestNodes))
-	newActiveLinks := NodeLinkList(make([]m3path.PathLink, 0, expectedLatestNodes))
+	newActiveLinks := NodeLinkList(make([]NodeLink, 0, expectedLatestNodes))
 	res := MakeForwardResult()
 	for _, n := range space.latestNodes {
 		space.populateActiveNodesAndLinks(n, res, &newActiveNodes, &newActiveLinks)
