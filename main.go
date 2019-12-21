@@ -6,6 +6,7 @@ import (
 	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/playgl"
 	"os"
 )
 
@@ -28,8 +29,8 @@ func main() {
 	defer m3db.CloseAll()
 	switch c {
 	case "play":
-		fmt.Println("Not yet ready to play full DB mode")
-		//playgl.Play()
+		//fmt.Println("Not yet ready to play full DB mode")
+		playgl.Play()
 	case "gentxt":
 		m3point.GenerateTextFilesEnv(m3db.GetDefaultEnvironment())
 	case "filldb":

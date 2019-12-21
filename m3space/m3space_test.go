@@ -375,7 +375,7 @@ type TestSpaceVisitor struct {
 }
 
 func (t *TestSpaceVisitor) VisitNode(space *Space, node Node) {
-	if node.HasRoot() {
+	if node.HasRoot(space) {
 		t.totalRoots++
 	}
 	if node.IsActive(space) {

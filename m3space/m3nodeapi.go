@@ -11,7 +11,7 @@ type Node interface {
 	GetPoint() *m3point.Point
 
 	IsEmpty() bool
-	HasRoot() bool
+	HasRoot(space *Space) bool
 
 	GetNbEvents() int
 	GetNbLatestEvents() int

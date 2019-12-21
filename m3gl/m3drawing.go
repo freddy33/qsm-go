@@ -289,7 +289,7 @@ func (n NodeDrawingElement) Key() ObjectType {
 
 func (n NodeDrawingElement) Display(filter SpaceDrawingFilter) bool {
 	if n.objectType == NodeActive {
-		if n.node.HasRoot() {
+		if n.node.HasRoot(filter.Space) {
 			return true
 		}
 		return n.sdc.objColors&filter.EventColorMask != 0 && n.sdc.howManyColors() >= filter.EventOutgrowthManyColorsThreshold

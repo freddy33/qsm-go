@@ -79,21 +79,19 @@ func (cl *UniqueConnectionsList) add(connId m3point.ConnectionId) {
 /***************************************************************/
 
 func (nl *NodeList) addNode(newNode Node) {
-	/*
-		if newNode == nil {
+	if newNode == nil {
+		return
+	}
+	p := newNode.GetPoint()
+	if p == nil {
+		return
+	}
+	for _, n := range *nl {
+		if n == newNode {
 			return
 		}
-		p := newNode.GetPoint()
-		if p == nil {
-			return
-		}
-		for _, n := range *nl {
-			if n == newNode {
-				return
-			}
-		}
-		// TODO: put the point in the node and test by point
-	*/
+	}
+
 	*nl = append(*nl, newNode)
 }
 
@@ -262,11 +260,11 @@ func (bn *BaseNode) GetEventDistFromCurrent(evt *Event) DistAndTime {
 	return evt.space.currentTime - bn.GetAccessed(evt)
 }
 
-func (bn *BaseNode) HasRoot() bool {
+func (bn *BaseNode) HasRoot(space *Space) bool {
 	nel := bn.head
 	for nel != nil {
-		pn := nel.cur.GetPathNode()
-		if pn != nil && pn.IsRoot() {
+		evt := space.GetEvent(nel.cur.evtId)
+		if nel.cur.IsRoot(evt) {
 			return true
 		}
 		nel = nel.next
@@ -372,7 +370,7 @@ func (bn *BaseNode) GetStateString(space *Space) string {
 		evtIds = append(evtIds, nel.cur.evtId)
 		nel = nel.next
 	}
-	if bn.HasRoot() {
+	if bn.HasRoot(space) {
 		return fmt.Sprintf("root node %v:%v", bn.p, evtIds)
 	}
 	return fmt.Sprintf("node %v: %v", bn.p, evtIds)

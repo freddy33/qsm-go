@@ -23,7 +23,13 @@ func (ne *BaseNodeEvent) GetPathNodeId() int64 {
 }
 
 func (ne *BaseNodeEvent) GetPathNode() m3path.PathNode {
-	return ne.pathNode
+	pn := ne.pathNode
+	if pn != nil && pn.GetId() == m3path.InPoolId {
+		// nilify for now
+		ne.pathNode = nil
+		return nil
+	}
+	return pn
 }
 
 func (ne *BaseNodeEvent) IsRoot(evt *Event) bool {
@@ -59,9 +65,9 @@ func (ne *BaseNodeEvent) IsActive(space *Space) bool {
 func (ne *BaseNodeEvent) IsActiveNext(space *Space) bool {
 	evt := space.GetEvent(ne.evtId)
 	if ne.IsRoot(evt) {
-		return true
+		return false
 	}
-	return ne.GetDistFromCurrent(space) <= space.EventOutgrowthThreshold
+	return ne.GetDistFromCurrent(space) < space.EventOutgrowthThreshold
 }
 
 // Return true if path node is old. Dead node are also old
