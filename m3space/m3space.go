@@ -3,7 +3,6 @@ package m3space
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3db"
-	"github.com/freddy33/qsm-go/m3path"
 	"github.com/freddy33/qsm-go/m3point"
 	"github.com/freddy33/qsm-go/m3util"
 	"sync"
@@ -87,6 +86,10 @@ func (space *Space) GetEnv() *m3db.QsmEnvironment {
 	return space.env
 }
 
+func (space *Space) GetPointPackData() *m3point.PointPackData {
+	return m3point.GetPointPackData(space.GetEnv())
+}
+
 func (space *Space) GetCurrentTime() DistAndTime {
 	return space.currentTime
 }
@@ -153,14 +156,15 @@ func (space *Space) GetNode(p m3point.Point) Node {
 	return res.(Node)
 }
 
-func (space *Space) newEmptyNode() Node {
+func (space *Space) newEmptyNode(p m3point.Point) Node {
 	an := new(BaseNode)
-	an.pathNodes = make([]m3path.PathNode, space.maxEvents)
+	an.p = p
+	an.head = nil
 	return an
 }
 
 func (space *Space) getOrCreateNode(p m3point.Point) Node {
-	res, loaded := space.nodesMap.LoadOrStore(p, space.newEmptyNode())
+	res, loaded := space.nodesMap.LoadOrStore(p, space.newEmptyNode(p))
 	if !loaded {
 		space.nbNodes++
 		for _, c := range p {

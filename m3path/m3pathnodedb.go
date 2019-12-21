@@ -476,6 +476,10 @@ func (pn *PathNodeDb) check() {
 	}
 }
 
+func (pn *PathNodeDb) GetId() int64 {
+	return pn.id
+}
+
 func (pn *PathNodeDb) P() m3point.Point {
 	pn.check()
 	if pn.point == nil {

@@ -92,7 +92,7 @@ func (phm *pointHashMap) LoadOrStore(p *Point, val interface{}) (interface{}, bo
 	return phm.internalPut(p, val, false)
 }
 
-func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (interface{}, bool) {
+func (phm *pointHashMap) internalPut(p *Point, val interface{}, overrideValue bool) (interface{}, bool) {
 	if p == nil {
 		return nil, false
 	}
@@ -104,6 +104,7 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 	mutex := phm.mutexes[segmentIdx]
 	locked := false
 
+	// TODO: Moved to lock free insert using atomic.CompareAndSwapPointer
 	if phm.fullLocked {
 		mutex.Lock()
 		defer mutex.Unlock()
@@ -125,7 +126,7 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 			entry.next = nil
 			phm.data[key] = entry
 			phm.nbElements[segmentIdx]++
-			if insert {
+			if overrideValue {
 				return nil, true
 			} else {
 				return entry.value, true
@@ -135,7 +136,7 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 	deepness := 0
 	for {
 		if entry.point == rp {
-			if insert {
+			if overrideValue {
 				oldVal := entry.value
 				entry.value = val
 				return oldVal, false
@@ -160,7 +161,7 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, insert bool) (in
 				newEntry.next = nil
 				entry.next = newEntry
 				phm.nbElements[segmentIdx]++
-				if insert {
+				if overrideValue {
 					return nil, true
 				} else {
 					return newEntry.value, true

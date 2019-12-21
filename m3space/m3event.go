@@ -75,7 +75,7 @@ func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) m3path.PathNode {
 func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) (m3path.PathNode, bool) {
 	n := spnm.space.getOrCreateNode(pathNode.P())
 	nbLatest := n.GetNbLatestEvents()
-	n.addPathNode(spnm.id, pathNode)
+	n.addPathNode(spnm.id, pathNode, spnm.space)
 	spnm.size++
 	// New latest node
 	if nbLatest == 0 {

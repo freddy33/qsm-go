@@ -92,7 +92,10 @@ func (onb *OpenNodeBuilder) clear() {
 	// Do not release the first three steps
 	if onb.d > 3 {
 		onb.openNodesMap.Range(func(point m3point.Point, pn PathNode) bool {
-			pn.(*PathNodeDb).release()
+			// do not release root nodes
+			if !pn.IsRoot() {
+				pn.(*PathNodeDb).release()
+			}
 			return false
 		}, nbParallelProcesses)
 	}

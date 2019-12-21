@@ -25,6 +25,7 @@ type PathContext interface {
 
 type PathNode interface {
 	fmt.Stringer
+	GetId() int64
 	GetPathContext() PathContext
 
 	IsRoot() bool
