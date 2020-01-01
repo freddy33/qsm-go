@@ -9,7 +9,7 @@ import (
 	"github.com/freddy33/qsm-go/m3space"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"runtime"
 	"strings"
