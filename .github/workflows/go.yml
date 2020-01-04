@@ -23,7 +23,7 @@ jobs:
 
       - name: Get Go dependencies
         run: |
-          export GOPROXY=https://gocenter.io
+          export GOPROXY="https://fredsimon.artifactoryonline.com/artifactory/api/go/go"
           go mod download
           go get -v -t -d ./...
 

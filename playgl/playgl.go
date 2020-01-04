@@ -51,16 +51,16 @@ func Play() {
 	// ******************************************************************
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
-	max := int64(30 * m3point.THREE)
+	max := int64(3 * m3point.THREE)
 	env := m3db.GetDefaultEnvironment()
 	m3path.InitializeDBEnv(env)
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()
-	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)
+	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(5)
 	world.WorldSpace.EventOutgrowthOldThreshold = m3space.DistAndTime(50)
-	world.WorldSpace.CreatePyramid(20)
-	world.CreateDrawingElements()
 	world.WorldSpace.MaxConnections = 3
+	world.WorldSpace.CreateSingleEventCenter()
+	world.CreateDrawingElements()
 
 	// Configure the vertex and fragment shaders
 	prog, err := newProgram(vertexShaderFull, fragmentShader)

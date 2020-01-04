@@ -9,9 +9,12 @@ import (
 // Type declaration
 /***************************************************************/
 
-// trio of connection vectors from any point using connections only
+// trio of connection vectors from any point using connections only.
+// This type is used to calculate the TrioDetails and ignored after.
+// All of the rest of the code use mainly the trio index value.
 type trio [3]Point
 
+// The unique well defined number of a Trio used on a connected point which we call later a Node
 type TrioIndex uint8
 
 // A bigger struct than trio to keep more info on how points grow from a trio index
@@ -51,7 +54,7 @@ func init() {
 	// Initial trio 0
 	allBaseTrio[0] = makeBaseConnectingVectorsTrio([3]Point{{1, 1, 0}, {-1, 0, -1}, {0, -1, 1}})
 	for i := 1; i < 4; i++ {
-		allBaseTrio[i] = allBaseTrio[i-1].PlusX()
+		allBaseTrio[i] = allBaseTrio[i-1].RotPlusX()
 	}
 	// Initial trio 0 prime
 	for i := 0; i < 4; i++ {
@@ -272,7 +275,7 @@ func (t trio) GetDSIndex() int {
 	return -1
 }
 
-func (t trio) PlusX() trio {
+func (t trio) RotPlusX() trio {
 	return makeBaseConnectingVectorsTrio([3]Point{t[0].RotPlusX(), t[1].RotPlusX(), t[2].RotPlusX()})
 }
 

@@ -104,7 +104,7 @@ func (phm *pointHashMap) internalPut(p *Point, val interface{}, overrideValue bo
 	mutex := phm.mutexes[segmentIdx]
 	locked := false
 
-	// TODO: Moved to lock free insert using atomic.CompareAndSwapPointer
+	// TODO: Moved to lock free insert using atomic.CompareAndSwapPointer Issue #12
 	if phm.fullLocked {
 		mutex.Lock()
 		defer mutex.Unlock()
