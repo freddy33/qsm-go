@@ -44,7 +44,7 @@ type PathLinkBuilder struct {
 
 var maxOffsetPerType = map[GrowthType]int{
 	GrowthType(1): 1,
-	GrowthType(3): 4,
+	GrowthType(3): 3,
 	GrowthType(2): 2,
 	GrowthType(4): 4,
 	GrowthType(8): 8,
