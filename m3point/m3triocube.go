@@ -168,9 +168,9 @@ func (cl *CubeListBuilder) populate(max CInt) {
 		allCubesMap[cube]++
 	}
 	// Go through space
-	for x := CInt(-max); x <= max; x++ {
-		for y := CInt(-max); y <= max; y++ {
-			for z := CInt(-max); z <= max; z++ {
+	for x := -max; x <= max; x++ {
+		for y := -max; y <= max; y++ {
+			for z := -max; z <= max; z++ {
 				cube := createTrioCube(cl.growthCtx, 0, Point{x, y, z}.Mul(THREE))
 				allCubesMap[cube]++
 			}
