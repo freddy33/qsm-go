@@ -42,14 +42,6 @@ type PathLinkBuilder struct {
 	pathNode PathNodeBuilder
 }
 
-var maxOffsetPerType = map[GrowthType]int{
-	GrowthType(1): 1,
-	GrowthType(3): 3,
-	GrowthType(2): 2,
-	GrowthType(4): 4,
-	GrowthType(8): 8,
-}
-
 func (ppd *PointPackData) calculateAllPathBuilders() []*RootPathNodeBuilder {
 	ppd.checkCubesInitialized()
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)

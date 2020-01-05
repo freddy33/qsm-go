@@ -20,6 +20,14 @@ type GrowthType uint8
 var allGrowthTypes = [5]GrowthType{1, 2, 3, 4, 8}
 var totalNbContexts = 8 + 12 + 8 + 12 + 12
 
+var maxOffsetPerType = map[GrowthType]int{
+	GrowthType(1): 1,
+	GrowthType(3): 3,
+	GrowthType(2): 2,
+	GrowthType(4): 4,
+	GrowthType(8): 8,
+}
+
 type BaseGrowthContext struct {
 	env *m3db.QsmEnvironment
 	// A generate id used in arrays and db

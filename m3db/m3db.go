@@ -101,6 +101,7 @@ func GetDefaultEnvId() QsmEnvID {
 		}
 		envId = QsmEnvID(id)
 	}
+	Log.Infof("Using default environment %d", envId)
 	return envId
 }
 
