@@ -23,6 +23,7 @@ dbLogFile="$logDir/pgout.log"
 is_pg_10="no"
 if [ -d "/usr/lib/postgresql/10/bin" ]; then
   echo "INFO: Adding /usr/lib/postgresql/10/bin to path"
+  sudo chmod a+w /var/run/postgresql
   export PATH=/usr/lib/postgresql/10/bin:$PATH
   is_pg_10="yes"
 fi
