@@ -9,12 +9,12 @@ curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
 dbError=13
 
 if [ "$logDir" == "was-not-set" ]; then
-    echo "ERROR: functions.sh did not set the logDir var"
-    exit 5
+  echo "ERROR: functions.sh did not set the logDir var"
+  exit 5
 fi
 if [ "$confDir" == "was-not-set" ]; then
-    echo "ERROR: functions.sh did not set the confDir var"
-    exit 5
+  echo "ERROR: functions.sh did not set the confDir var"
+  exit 5
 fi
 
 dbLogFile="$logDir/pgout.log"
@@ -54,7 +54,7 @@ ensureRunningPg() {
           echo "INFO: Copying basic PostgreSQL server configuration"
           cp $confDir/postgresql.conf $dbLoc/postgresql.conf
         fi
-		    pg_ctl -w -D $dbLoc start -l $dbLogFile
+        pg_ctl -o "-F -p $dbPort" -w -D $dbLoc start -l $dbLogFile
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could start postgresql DB server"
@@ -169,72 +169,73 @@ EOF
 }
 
 case "$1" in
-	check)
-	    checkDbConf || exit $?
-        echo "INFO: Checking all good for QSM dev using:"
-        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
-		ensureRunningPg && ensureUser && ensureDb
-		exit $?
-		;;
-	drop)
-	    checkDbConf || exit $?
-        echo "INFO: Dropping QSM environment:"
-        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
-	    ensureRunningPg && dropDb && dropUser && rm $dbConfFile
-		exit $?
-		;;
-	dropAll)
-	    checkDbConf || exit $?
-        echo "INFO: Dropping ALL QSM environments except 1"
-        RES=0
-        for envId in 2 3 4 5 6 7 8 9 10 11; do
-            export QSM_ENV_NUMBER=$envId
-            ./qsm db drop
-            LOOP_RES=$?
-            if [ $LOOP_RES -ne 0 ]; then
-                RES=$LOOP_RES
-            fi
-        done
-		exit $RES
-		;;
-	start)
-		ensureRunningPg
-		exit $?
-		;;
-	stop)
-		pg_ctl -D $dbLoc stop
-		exit $?
-		;;
-	conf)
-	    checkDbConf || exit $?
-        echo "INFO: Checked configuration for QSM environment:"
-        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
-		exit 0
-		;;
-	shell)
-	    checkDbConf || exit $?
-	    psql -h $dbHost -p $dbPort -U "$dbUser" $dbName
-		exit $?
-		;;
-	dump)
-	    checkDbConf || exit $?
-	    pg_dump -U "$dbUser" $dbName | gzip > $dumpDir/$dbName-$(date "+%Y-%m-%d_%H-%M-%S").dump.sql.gz
-		exit $?
-		;;
-	rmconf)
-		rm $dbConfFile
-		exit $?
-		;;
-	status)
-	    checkDbConf || exit $?
-        echo "INFO: Checking PostgreSQL using:"
-        echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
-		pg_ctl -D $dbLoc status
-		exit $?
-		;;
-	*)
-		echo "ERROR: Command $1 unknown"
-		exit 1
+  check)
+    checkDbConf || exit $?
+    echo "INFO: Checking all good for QSM dev using:"
+    echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+    ensureRunningPg && ensureUser && ensureDb
+    exit $?
+    ;;
+  drop)
+    checkDbConf || exit $?
+    echo "INFO: Dropping QSM environment:"
+    echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+    ensureRunningPg && dropDb && dropUser && rm $dbConfFile
+    exit $?
+    ;;
+  dropAll)
+    checkDbConf || exit $?
+    echo "INFO: Dropping ALL QSM environments except 1"
+    RES=0
+    for envId in 2 3 4 5 6 7 8 9 10 11; do
+      export QSM_ENV_NUMBER=$envId
+      ./qsm db drop
+      LOOP_RES=$?
+      if [ $LOOP_RES -ne 0 ]; then
+        RES=$LOOP_RES
+      fi
+    done
+    exit $RES
+    ;;
+  start)
+    checkDbConf || exit $?
+    ensureRunningPg
+    exit $?
+    ;;
+  stop)
+    pg_ctl -D $dbLoc stop
+    exit $?
+    ;;
+  conf)
+    checkDbConf || exit $?
+    echo "INFO: Checked configuration for QSM environment:"
+    echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+    exit 0
+    ;;
+  shell)
+    checkDbConf || exit $?
+    psql -h $dbHost -p $dbPort -U "$dbUser" $dbName
+    exit $?
+    ;;
+  dump)
+    checkDbConf || exit $?
+    pg_dump -U "$dbUser" $dbName | gzip > $dumpDir/$dbName-$(date "+%Y-%m-%d_%H-%M-%S").dump.sql.gz
+    exit $?
+    ;;
+  rmconf)
+    rm $dbConfFile
+    exit $?
+    ;;
+  status)
+    checkDbConf || exit $?
+    echo "INFO: Checking PostgreSQL using:"
+    echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
+    pg_ctl -D $dbLoc status
+    exit $?
+    ;;
+  *)
+    echo "ERROR: Command $1 unknown"
+    exit 1
 esac
 
 
