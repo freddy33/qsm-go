@@ -19,6 +19,12 @@ fi
 
 dbLogFile="$logDir/pgout.log"
 
+# Add postgresql bin if exists
+if [ -d "/usr/lib/postgresql/10/bin" ]; then
+  echo "INFO: Adding /usr/lib/postgresql/10/bin to path"
+  export PATH=/usr/lib/postgresql/10/bin:$PATH
+fi
+
 rotateDbLog() {
     if [ -e "$dbLogFile" ]; then
         mv "$dbLogFile" "$logDir/pgout-$(date "+%Y-%m-%d_%H-%M-%S").log"
