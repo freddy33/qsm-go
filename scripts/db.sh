@@ -20,9 +20,11 @@ fi
 dbLogFile="$logDir/pgout.log"
 
 # Add postgresql bin if exists
+is_pg_10="no"
 if [ -d "/usr/lib/postgresql/10/bin" ]; then
   echo "INFO: Adding /usr/lib/postgresql/10/bin to path"
   export PATH=/usr/lib/postgresql/10/bin:$PATH
+  is_pg_10="yes"
 fi
 
 rotateDbLog() {
@@ -48,11 +50,15 @@ ensureRunningPg() {
     if [[ $serverStatus == *"no server running" ]]; then
         echo "INFO: PostgreSQL server not running. Starting PostgreSQL server"
         rotateDbLog
-        cp $confDir/postgresql.conf $dbLoc/postgresql.conf
-		pg_ctl -w -D $dbLoc start -l $dbLogFile
+        if [ "$is_pg_10" == "no" ]; then
+          echo "INFO: Copying basic PostgreSQL server configuration"
+          cp $confDir/postgresql.conf $dbLoc/postgresql.conf
+        fi
+		    pg_ctl -w -D $dbLoc start -l $dbLogFile
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could start postgresql DB server"
+            tail -50 $dbLogFile
             exit $RES
         fi
         serverStatus="$( pg_ctl -D $dbLoc status 2>&1 )"
