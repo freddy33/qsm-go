@@ -8,11 +8,23 @@
 - Space *events* are identified and are happening on a node at a time.
 - Event *outgrowth* are developing through the graph of nodes.
 
+# Windows Installation
+- Install WSL (Windows Subsystem for Linux) with Ubuntu:
+  - In PowerShell as Administrator run: `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux`
+  - Restart and in Microsoft Store add Ubuntu
+  - Run bash and test you have the needed applications:
+    - sudo apt install jq
+    - sudo apt install git
+  - Download and install golang: https://golang.org/dl/ NOTE: By default it's installed under `C:\Go` good for this
+  - Download and Install MinGW-W64: https://sourceforge.net/projects/mingw-w64/ IMPORTANT: Make sure to choose x86_64 architecture, and install under `C:\tools` it\'ll be easier.
+    - Add the `mingw64/bin` folder in the global PATH windows env variable.
+
+
 # Type Definitions
 
 - *Point*: a location in integer cartesian space
 - *Node*: is in a certain point connected to 3 other nodes
-- *TickTime*: the unsigned int telling time
+- *DistTime*: the unsigned int telling time
 - *Event*: An ID at a node at a time
 - *EventOutgrowth*: The collection of nodes affected by a certain event at a certain distance (Distance = Current Time - Event Tick Time)
 

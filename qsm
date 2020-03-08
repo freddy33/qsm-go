@@ -27,4 +27,8 @@ fi
 script=$1
 shift
 
+if [ -z "$GOPROXY" ]; then
+    export GOPROXY="https://fredsimon.jfrog.io/fredsimon/api/go/go"
+fi
+
 cd $QSM_HOME && ./scripts/${script}.sh $@
