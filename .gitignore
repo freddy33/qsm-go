@@ -6,7 +6,7 @@
 *.iml
 
 # Executable
-qsm-go
+/qsm-go*
 /*.test
 
 # gen build folders
@@ -16,4 +16,3 @@ build/
 *.test
 
 conf/dbconn*.json
-
