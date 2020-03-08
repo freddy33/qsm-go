@@ -35,7 +35,7 @@ logDir="$buildDir/log"
 
 if [ ! -d "$logDir" ]; then
     echo "INFO: Creating log out dir $logDir"
-    mkdir -p $logDir
+    mkdir -p "$logDir"
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: could not create log dir $logDir"
@@ -47,7 +47,7 @@ dumpDir="$buildDir/dump"
 
 if [ ! -d "$dumpDir" ]; then
     echo "INFO: Creating dump dir $dumpDir"
-    mkdir -p $dumpDir
+    mkdir -p "$dumpDir"
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: could not create dump dir $dumpDir"
@@ -59,7 +59,7 @@ dbLoc="$buildDir/postgres"
 
 if [ ! -d "$dbLoc" ]; then
     echo "INFO: Creating database dir $dbLoc"
-    mkdir -p $dbLoc
+    mkdir -p "$dbLoc"
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: could not create database dir $dbLoc"
@@ -78,7 +78,7 @@ checkDbConf() {
         genUser="qsmu${QSM_ENV_NUMBER}"
         genPassword="qsm$RANDOM"
         genName="qsmdb${QSM_ENV_NUMBER}"
-        cat $confDir/db-template.json | jq --arg pass "$genPassword" --arg user "$genUser" --arg db "$genName" '.password=$pass | .user=$user | .dbName=$db' > $dbConfFile
+        cat "$confDir/db-template.json" | jq --arg pass "$genPassword" --arg user "$genUser" --arg db "$genName" '.password=$pass | .user=$user | .dbName=$db' > "$dbConfFile"
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could create conf file $dbConfFile"
@@ -87,11 +87,11 @@ checkDbConf() {
     fi
 
     echo "INFO: Reading existing conf file for test number ${QSM_ENV_NUMBER} at $dbConfFile"
-    dbPort="$( cat $dbConfFile | jq -r .port )"
-    dbHost="$( cat $dbConfFile | jq -r .host )"
-    dbUser="$( cat $dbConfFile | jq -r .user )"
-    dbPassword="$( cat $dbConfFile | jq -r .password )"
-    dbName="$( cat $dbConfFile | jq -r .dbName )"
+    dbPort="$( cat "$dbConfFile" | jq -r .port )"
+    dbHost="$( cat "$dbConfFile" | jq -r .host )"
+    dbUser="$( cat "$dbConfFile" | jq -r .user )"
+    dbPassword="$( cat "$dbConfFile" | jq -r .password )"
+    dbName="$( cat "$dbConfFile" | jq -r .dbName )"
     if [ -z "$dbUser" ] || [ -z "$dbPassword" ] || [ -z "$dbName" ]; then
         echo "ERROR: Reading conf file $dbConfFile failed since one of '$dbUser' '$dbPassword' '$dbName' is empty"
         exit 15

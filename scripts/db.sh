@@ -76,7 +76,7 @@ ensureRunningPg() {
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could not start postgresql DB server"
-            tail -50 $dbLogFile
+            tail -50 "$dbLogFile"
             exit $RES
         fi
         sleep 3
@@ -238,18 +238,18 @@ case "$1" in
     ;;
   dump)
     checkDbConf || exit $?
-    pg_dump$pg_ext -U "$dbUser" $dbName | gzip > $dumpDir/$dbName-$(date "+%Y-%m-%d_%H-%M-%S").dump.sql.gz
+    pg_dump$pg_ext -U "$dbUser" $dbName | gzip > "$dumpDir/$dbName-$(date "+%Y-%m-%d_%H-%M-%S").dump.sql.gz"
     exit $?
     ;;
   rmconf)
-    rm $dbConfFile
+    rm "$dbConfFile"
     exit $?
     ;;
   status)
     checkDbConf || exit $?
     echo "INFO: Checking PostgreSQL using:"
     echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
-    pg_ctl$pg_ext -D $dbLoc status
+    pg_ctl$pg_ext -D "$dbLoc" status
     exit $?
     ;;
   *)
