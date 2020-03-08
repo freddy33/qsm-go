@@ -9,7 +9,7 @@
 - Event *outgrowth* are developing through the graph of nodes.
 
 # Windows Installation
-- Install WSL (Windows Subsystem for Linux) with Ubuntu:
+- Install WSL (Windows Subsystem for Linux) with Ubuntu ( info from https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/ ):
   - In PowerShell as Administrator run: `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux`
   - Restart and in Microsoft Store add Ubuntu
   - Run bash and test you have the needed applications:

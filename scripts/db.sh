@@ -17,6 +17,13 @@ if [ "$confDir" == "was-not-set" ]; then
   exit 5
 fi
 
+pg_ext=""
+dbLocExe="$dbLoc"
+if [ "$is_windows" == "yes" ]; then
+  pg_ext=".exe"
+  dbLocExe="$(wslpath -w "$dbLoc")"
+fi
+
 dbLogFile="$logDir/pgout.log"
 
 # Add postgresql bin if exists
@@ -34,51 +41,62 @@ rotateDbLog() {
     fi
 }
 
-ensureRunningPg() {
-    serverStatus="$( pg_ctl -D $dbLoc status 2>&1 )"
+getServerStatus() {
+  serverStatus="$( pg_ctl$pg_ext -D "$dbLocExe" status 2>&1 )"
+  serverStatus="${serverStatus//$'\r'}"
+}
 
-    if [[ $serverStatus == *"not a database cluster directory" ]]; then
-        echo "INFO: PostgreSQL folder $dbLoc not initialized as DB. Initializing DB"
-        initdb -D $dbLoc
+ensureRunningPg() {
+    getServerStatus
+    echo "testing if $serverStatus is a db"
+    if [[ "$serverStatus" == *"not a database cluster directory" ]]; then
+        echo "INFO: PostgreSQL folder $dbLocExe not initialized as DB. Initializing DB"
+        initdb$pg_ext -D "$dbLocExe"
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could initialize DB directory"
             exit $RES
         fi
-        serverStatus="$( pg_ctl -D $dbLoc status 2>&1 )"
+        getServerStatus
     fi
 
     if [[ $serverStatus == *"no server running" ]]; then
         echo "INFO: PostgreSQL server not running. Starting PostgreSQL server"
         rotateDbLog
-        if [ "$is_pg_10" == "no" ]; then
+        if [ "$is_pg_10" == "no" ] && [ "$is_windows" == "no" ]; then
           echo "INFO: Copying basic PostgreSQL server configuration"
           cp $confDir/postgresql.conf $dbLoc/postgresql.conf
         fi
-        pg_ctl -o "-F -p $dbPort" -w -D $dbLoc start -l $dbLogFile
+        if [ "$is_windows" == "yes" ]; then
+          dbLogFileExe="$(wslpath -w "$dbLogFile")"
+        else
+          dbLogFileExe="$dbLocFile"
+        fi
+        pg_ctl$pg_ext -o "-F -p $dbPort" -w -D "$dbLocExe" start -l "$dbLogFileExe"
         RES=$?
         if [ $RES -ne 0 ]; then
-            echo "ERROR: Could start postgresql DB server"
+            echo "ERROR: Could not start postgresql DB server"
             tail -50 $dbLogFile
             exit $RES
         fi
-        serverStatus="$( pg_ctl -D $dbLoc status 2>&1 )"
+        sleep 3
+        getServerStatus
     fi
 
     echo "INFO: Current DB status $serverStatus"
 
     if [[ $serverStatus == *"server is running"* ]]; then
-        echo "INFO: PostgreSQL server up and running"
+        echo "INFO: PostgreSQL server at $dbLocExe up and running"
         return 0
     fi
 
-    echo "ERROR: PostgreSQL server at $dbLoc not running."
+    echo "ERROR: PostgreSQL server at $dbLocExe not running."
     exit 11
 }
 
 ensureUser() {
     echo "INFO: Checking user $dbUser"
-    checkUser=$(psql -h $dbHost -p $dbPort -qAt postgres -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';")
+    checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';")
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for user presence"
@@ -88,7 +106,7 @@ ensureUser() {
         echo "INFO: User $dbUser already exists"
     else
         echo "INFO: Creating user $dbUser"
-        psql -h $dbHost -p $dbPort -qAt postgres -c "create user $dbUser with encrypted password '$dbPassword';"
+        psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "create user $dbUser with encrypted password '$dbPassword';"
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Failed to create user $dbUser"
@@ -100,7 +118,7 @@ ensureUser() {
 
 ensureDb() {
     echo "INFO: Checking db $dbName"
-    checkDb=$(psql -h $dbHost -p $dbPort -qAt postgres -c "SELECT 1 FROM pg_database WHERE datname='$dbName';")
+    checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "SELECT 1 FROM pg_database WHERE datname='$dbName';")
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for DB presence"
@@ -110,7 +128,7 @@ ensureDb() {
         echo "INFO: Database $dbName already exists"
     else
         echo "INFO: Creating database $dbName"
-        psql -h $dbHost -p $dbPort -qAt postgres <<EOF
+        psql$pg_ext -h $dbHost -p $dbPort -qAt postgres <<EOF
 create database $dbName;
 grant all privileges on database $dbName to $dbUser;
 EOF
@@ -125,7 +143,7 @@ EOF
 
 dropUser() {
     echo "INFO: Dropping user $dbUser"
-    checkUser=$(psql -h $dbHost -p $dbPort -qAt postgres -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';")
+    checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';")
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for user presence"
@@ -133,7 +151,7 @@ dropUser() {
     fi
     if [ "x$checkUser" == "x1" ]; then
         echo "INFO: User $dbUser exists => deleting it"
-        psql -h $dbHost -p $dbPort -qAt postgres -c "drop user $dbUser;"
+        psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "drop user $dbUser;"
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Failed to drop user $dbUser"
@@ -147,7 +165,7 @@ dropUser() {
 
 dropDb() {
     echo "INFO: Dropping db $dbName"
-    checkDb=$(psql -h $dbHost -p $dbPort -qAt postgres -c "SELECT 1 FROM pg_database WHERE datname='$dbName';")
+    checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "SELECT 1 FROM pg_database WHERE datname='$dbName';")
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for DB presence"
@@ -155,7 +173,7 @@ dropDb() {
     fi
     if [ "x$checkDb" == "x1" ]; then
         echo "INFO: Database $dbName exists => Dropping it"
-        psql -h $dbHost -p $dbPort -qAt postgres <<EOF
+        psql$pg_ext -h $dbHost -p $dbPort -qAt postgres <<EOF
 drop database $dbName;
 EOF
         RES=$?
@@ -204,7 +222,7 @@ case "$1" in
     exit $?
     ;;
   stop)
-    pg_ctl -D $dbLoc stop
+    pg_ctl$pg_ext -D "$dbLocExe" stop
     exit $?
     ;;
   conf)
@@ -215,12 +233,12 @@ case "$1" in
     ;;
   shell)
     checkDbConf || exit $?
-    psql -h $dbHost -p $dbPort -U "$dbUser" $dbName
+    psql$pg_ext -h $dbHost -p $dbPort -U "$dbUser" $dbName
     exit $?
     ;;
   dump)
     checkDbConf || exit $?
-    pg_dump -U "$dbUser" $dbName | gzip > $dumpDir/$dbName-$(date "+%Y-%m-%d_%H-%M-%S").dump.sql.gz
+    pg_dump$pg_ext -U "$dbUser" $dbName | gzip > $dumpDir/$dbName-$(date "+%Y-%m-%d_%H-%M-%S").dump.sql.gz
     exit $?
     ;;
   rmconf)
@@ -231,12 +249,10 @@ case "$1" in
     checkDbConf || exit $?
     echo "INFO: Checking PostgreSQL using:"
     echo -ne "QSM_ENV_NUMBER=${QSM_ENV_NUMBER}\ndbName=$dbName\ndbUser=$dbUser\n"
-    pg_ctl -D $dbLoc status
+    pg_ctl$pg_ext -D $dbLoc status
     exit $?
     ;;
   *)
     echo "ERROR: Command $1 unknown"
     exit 1
 esac
-
-

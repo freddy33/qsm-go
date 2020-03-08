@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ -z "$QSM_HOME" ]; then
-    echo "ERROR: QSM scripts not cqlled from qsm launcher"
+    echo "ERROR: QSM scripts not be called out of the qsm launcher"
     exit 12
 fi
 
@@ -15,6 +15,19 @@ confDir="$rootDir/conf"
 if [ ! -e "$confDir" ]; then
     echo "ERROR: Did not find conf dir $confDir"
     exit 14
+fi
+
+go_exe="$(which go)"
+if [ $? -eq 0 ]; then
+  is_windows="no"
+else
+  go_exe="$(which go.exe)"
+  if [ $? -eq 0 ]; then
+    is_windows="yes"
+  else
+    echo "ERROR: did not find go or go.exe"
+    exit 14
+  fi
 fi
 
 buildDir="$rootDir/build"

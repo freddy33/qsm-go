@@ -10,13 +10,17 @@ if [[ -z "$pack" ]]; then
     usage
 fi
 
+curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
+# shellcheck source=./functions.sh
+. "$curDir/functions.sh"
+
 if [ "$pack" == "point" ] || [ "$pack" == "path" ] || [ "$pack" == "space" ] || [ "$pack" == "db" ] || [ "$pack" == "gl" ]; then
-    go test ./m3${pack}/
+    $go_exe test ./m3${pack}/
     exit $?
 fi
 
 if [ "$pack" == "all" ]; then
-    go test -parallel 4 ./m3db/ ./m3point/ ./m3path/ ./m3space/ ./m3gl/
+    $go_exe test -parallel 4 ./m3db/ ./m3point/ ./m3path/ ./m3space/ ./m3gl/
     exit $?
 fi
 
