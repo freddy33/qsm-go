@@ -81,7 +81,7 @@ ensureRunningPg() {
             tail -50 "$dbLogFile"
             exit $RES
         fi
-        sleep 3
+        sleep 1
         executed_pgctl="yes"
         getServerStatus
     fi
@@ -104,6 +104,7 @@ ensureRunningPg() {
 ensureUser() {
     echo "INFO: Checking user $dbUser"
     checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';" postgres)
+    checkUser="${checkUser//$'\r'}"
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for user presence"
@@ -126,6 +127,7 @@ ensureUser() {
 ensureDb() {
     echo "INFO: Checking db $dbName"
     checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "SELECT 1 FROM pg_database WHERE datname='$dbName';" postgres)
+    checkDb="${checkDb//$'\r'}"
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for DB presence"
@@ -151,6 +153,7 @@ EOF
 dropUser() {
     echo "INFO: Dropping user $dbUser"
     checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';" postgres)
+    checkUser="${checkUser//$'\r'}"
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for user presence"
@@ -173,6 +176,7 @@ dropUser() {
 dropDb() {
     echo "INFO: Dropping db $dbName"
     checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "SELECT 1 FROM pg_database WHERE datname='$dbName';" postgres)
+    checkDb="${checkDb//$'\r'}"
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for DB presence"
