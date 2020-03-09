@@ -68,13 +68,15 @@ ensureRunningPg() {
           echo "INFO: Copying basic PostgreSQL server configuration"
           cp $confDir/postgresql.conf $dbLoc/postgresql.conf
         fi
+
         if [ "$is_windows" == "yes" ]; then
-          dbLogFileExe="$(wslpath -w "$dbLogFile")"
+            dbLogFileExe="$(wslpath -w "$dbLogFile")"
+            db_start_command="pg_ctl$pg_ext -o \"-F -p $dbPort\" -w -D \"$dbLocExe\" start -l \"$dbLogFileExe\""
+            echo "Executing '$db_start_command'"
+            $db_start_command &
         else
-          dbLogFileExe="$dbLocFile"
+            pg_ctl$pg_ext -o "-F -p $dbPort" -w -D $dbLoc start -l $dbLogFile
         fi
-        echo "Executing 'pg_ctl$pg_ext -o \"-F -p $dbPort\" -w -D \"$dbLocExe\" start -l \"$dbLogFileExe\"'"
-        pg_ctl$pg_ext -o "-F -p $dbPort" -w -D "$dbLocExe" start -l "$dbLogFileExe" &
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could not start postgresql DB server"
