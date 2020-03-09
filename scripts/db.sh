@@ -60,6 +60,7 @@ ensureRunningPg() {
         getServerStatus
     fi
 
+    executed_pgctl="no"
     if [[ $serverStatus == *"no server running" ]]; then
         echo "INFO: PostgreSQL server not running. Starting PostgreSQL server"
         rotateDbLog
@@ -72,7 +73,8 @@ ensureRunningPg() {
         else
           dbLogFileExe="$dbLocFile"
         fi
-        pg_ctl$pg_ext -o "-F -p $dbPort" -w -D "$dbLocExe" start -l "$dbLogFileExe"
+        echo "Executing 'pg_ctl$pg_ext -o \"-F -p $dbPort\" -w -D \"$dbLocExe\" start -l \"$dbLogFileExe\"'"
+        pg_ctl$pg_ext -o "-F -p $dbPort" -w -D "$dbLocExe" start -l "$dbLogFileExe" &
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Could not start postgresql DB server"
@@ -80,6 +82,7 @@ ensureRunningPg() {
             exit $RES
         fi
         sleep 3
+        executed_pgctl="yes"
         getServerStatus
     fi
 
@@ -91,12 +94,16 @@ ensureRunningPg() {
     fi
 
     echo "ERROR: PostgreSQL server at $dbLocExe not running."
+    if [ "$executed_pgctl" == "yes" ]; then
+        echo "ERROR: Executed the pg control command to start server and still not up. The log shows:"
+        tail -50 "$dbLogFile"
+    fi
     exit 11
 }
 
 ensureUser() {
     echo "INFO: Checking user $dbUser"
-    checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';")
+    checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';" postgres)
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for user presence"
@@ -106,7 +113,7 @@ ensureUser() {
         echo "INFO: User $dbUser already exists"
     else
         echo "INFO: Creating user $dbUser"
-        psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "create user $dbUser with encrypted password '$dbPassword';"
+        psql$pg_ext -h $dbHost -p $dbPort -qAt -c "create user $dbUser with encrypted password '$dbPassword';" postgres
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Failed to create user $dbUser"
@@ -118,7 +125,7 @@ ensureUser() {
 
 ensureDb() {
     echo "INFO: Checking db $dbName"
-    checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "SELECT 1 FROM pg_database WHERE datname='$dbName';")
+    checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "SELECT 1 FROM pg_database WHERE datname='$dbName';" postgres)
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for DB presence"
@@ -143,7 +150,7 @@ EOF
 
 dropUser() {
     echo "INFO: Dropping user $dbUser"
-    checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';")
+    checkUser=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "select 1 from pg_catalog.pg_user u where u.usename='$dbUser';" postgres)
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for user presence"
@@ -151,7 +158,7 @@ dropUser() {
     fi
     if [ "x$checkUser" == "x1" ]; then
         echo "INFO: User $dbUser exists => deleting it"
-        psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "drop user $dbUser;"
+        psql$pg_ext -h $dbHost -p $dbPort -qAt -c "drop user $dbUser;" postgres
         RES=$?
         if [ $RES -ne 0 ]; then
             echo "ERROR: Failed to drop user $dbUser"
@@ -165,7 +172,7 @@ dropUser() {
 
 dropDb() {
     echo "INFO: Dropping db $dbName"
-    checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt postgres -c "SELECT 1 FROM pg_database WHERE datname='$dbName';")
+    checkDb=$(psql$pg_ext -h $dbHost -p $dbPort -qAt -c "SELECT 1 FROM pg_database WHERE datname='$dbName';" postgres)
     RES=$?
     if [ $RES -ne 0 ]; then
         echo "ERROR: Failed to check for DB presence"
