@@ -13,6 +13,7 @@ import (
 func WslPath(path string) string {
 	wp := strings.ReplaceAll(path, "\\", "/")
 	wp = strings.ReplaceAll(wp, "C:", "/mnt/c")
+	wp = strings.ReplaceAll(wp, " ", "\\ ")
 	return wp
 }
 

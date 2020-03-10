@@ -69,11 +69,11 @@ ensureRunningPg() {
 
         if [ "$is_windows" == "yes" ]; then
             dbLogFileExe="$(wslpath -w "$dbLogFile")"
-            db_start_command="pg_ctl$pg_ext -o \"-F -p $dbPort\" -w -D \"$dbLocExe\" start -l \"$dbLogFileExe\""
+            db_start_command="pg_ctl$exe_ext -o \"-F -p $dbPort\" -w -D \"$dbLocExe\" start -l \"$dbLogFileExe\""
             echo "Executing '$db_start_command'"
             $db_start_command &
         else
-            pg_ctl$pg_ext -o "-F -p $dbPort" -w -D $dbLoc start -l $dbLogFile
+            pg_ctl -o "-F -p $dbPort" -w -D $dbLoc start -l $dbLogFile
         fi
         RES=$?
         if [ $RES -ne 0 ]; then

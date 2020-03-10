@@ -20,10 +20,12 @@ fi
 exe_ext=""
 go_exe="$(which go)"
 if [ $? -eq 0 ]; then
+  echo "INFO: Using Unix"
   is_windows="no"
 else
   go_exe="$(which go.exe)"
   if [ $? -eq 0 ]; then
+    echo "INFO: Using Windows"
     is_windows="yes"
     exe_ext=".exe"
   else
