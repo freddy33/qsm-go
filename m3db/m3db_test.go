@@ -5,7 +5,6 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,9 +22,9 @@ func TestDbConf(t *testing.T) {
 	assert.True(t, strings.HasSuffix(confDir, "conf"), "conf dir %s does end with conf", confDir)
 
 	testConfFile := filepath.Join(confDir, "dbconn1234.json")
-	cmd := exec.Command("cp", filepath.Join(confDir, "db-test.json"), testConfFile)
-	err := cmd.Run()
-	m3util.ExitOnError(err)
+	dbTestFile := filepath.Join(confDir, "db-test.json")
+	CopyFile(dbTestFile, testConfFile)
+
 	defer silentDeleteFile(testConfFile)
 
 	testConfEnv := QsmEnvID(1234)

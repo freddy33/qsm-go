@@ -9,8 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strconv"
 	"sync"
 )
@@ -149,7 +147,7 @@ func createNewEnv(envId QsmEnvID) *QsmEnvironment {
 	env.id = envId
 	env.tableExecs = make(map[string]*TableExec)
 
-	env.checkOsEnv()
+	checkOsEnv(env.GetEnvNumber())
 	env.fillDbConf()
 	env.openDb()
 
@@ -164,29 +162,6 @@ func SetEnvQuietly(key, value string) {
 
 func (env *QsmEnvironment) GetEnvNumber() string {
 	return strconv.Itoa(int(env.id))
-}
-
-func (env *QsmEnvironment) checkOsEnv() {
-	envNumber := env.GetEnvNumber()
-	origQsmId := os.Getenv(QsmEnvNumberKey)
-
-	if envNumber != origQsmId {
-		// Reset the env var to what it was on exit of this method
-		defer SetEnvQuietly(QsmEnvNumberKey, origQsmId)
-		// set the env var correctly
-		m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, envNumber))
-	}
-
-	rootDir := m3util.GetGitRootDir()
-	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "check")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		Log.Fatalf("failed to check environment %d at OS level due to %v with output: ***\n%s\n***", env.id, err, string(out))
-	} else {
-		if Log.IsDebug() {
-			Log.Debugf("check environment %d at OS output: ***\n%s\n***", env.id, string(out))
-		}
-	}
 }
 
 func (env *QsmEnvironment) fillDbConf() {
@@ -265,32 +240,12 @@ func CloseEnv(env *QsmEnvironment) {
 }
 
 func (env *QsmEnvironment) Destroy() {
-	envId := env.id
+	envNumber := env.GetEnvNumber()
 	err := env._internalClose()
 	if err != nil {
 		Log.Error(err)
 	}
-
-	envNumber := env.GetEnvNumber()
-	origQsmId := os.Getenv(QsmEnvNumberKey)
-
-	if envNumber != origQsmId {
-		// Reset the env var to what it was on exit of this method
-		defer SetEnvQuietly(QsmEnvNumberKey, origQsmId)
-		// set the env var correctly
-		m3util.ExitOnError(os.Setenv(QsmEnvNumberKey, envNumber))
-	}
-
-	rootDir := m3util.GetGitRootDir()
-	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "db", "drop")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		Log.Errorf("failed to destroy environment %d at OS level due to %v with output: ***\n%s\n***", envId, err, string(out))
-	} else {
-		if Log.IsDebug() {
-			Log.Debugf("destroy environment %d at OS level output: ***\n%s\n***", envId, string(out))
-		}
-	}
+	DbDrop(envNumber)
 }
 
 func (env *QsmEnvironment) Ping() bool {

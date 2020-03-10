@@ -2,15 +2,10 @@ package m3point
 
 import (
 	"github.com/freddy33/qsm-go/m3db"
-	"github.com/freddy33/qsm-go/m3util"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 )
-
 
 func InitializeDBEnv(env *m3db.QsmEnvironment, forced bool) {
 	ppd := GetPointPackData(env)
@@ -146,25 +141,8 @@ func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 	}
 
 	envNumber := strconv.Itoa(int(envId))
-	origQsmId := os.Getenv(m3db.QsmEnvNumberKey)
 
-	if envNumber != origQsmId {
-		// Reset the env var to what it was on exit of this method
-		defer m3db.SetEnvQuietly(m3db.QsmEnvNumberKey, origQsmId)
-		// set the env var correctly
-		m3util.ExitOnError(os.Setenv(m3db.QsmEnvNumberKey, envNumber))
-	}
-
-	rootDir := m3util.GetGitRootDir()
-	cmd := exec.Command("bash", filepath.Join(rootDir, "qsm"), "run", "filldb")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		Log.Fatalf("failed to fill db for test environment %s at OS level due to %v with output: ***\n%s\n***", envNumber, err, string(out))
-	} else {
-		if Log.IsDebug() {
-			Log.Debugf("check environment %s at OS output: ***\n%s\n***", envNumber, string(out))
-		}
-	}
+	m3db.FillDb(envNumber)
 
 	testDbFilled[envId] = true
 
@@ -193,4 +171,3 @@ func GetCleanTempDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 
 	return env
 }
-
