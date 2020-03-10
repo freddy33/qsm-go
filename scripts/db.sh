@@ -19,7 +19,7 @@ fi
 
 dbLocExe="$dbLoc"
 if [ "$is_windows" == "yes" ]; then
-  dbLocExe="$(wslpath -w "$dbLoc")"
+  dbLocExe=$(wslpath -w "$dbLoc")
 fi
 
 dbLogFile="$logDir/pgout.log"
@@ -68,10 +68,9 @@ ensureRunningPg() {
         fi
 
         if [ "$is_windows" == "yes" ]; then
-            dbLogFileExe="$(wslpath -w "$dbLogFile")"
-            db_start_command="pg_ctl$exe_ext -o \"-F -p $dbPort\" -w -D \"$dbLocExe\" start -l \"$dbLogFileExe\""
-            echo "Executing '$db_start_command'"
-            $db_start_command &
+            dbLogFileExe=$(wslpath -w "$dbLogFile")
+            echo "Executing 'pg_ctl$exe_ext -o \"-F -p $dbPort\" -w -D \"$dbLocExe\" start -l \"$dbLogFileExe\"'"
+            pg_ctl$exe_ext -o "-F -p $dbPort" -w -D "$dbLocExe" start -l "$dbLogFileExe" &
         else
             pg_ctl -o "-F -p $dbPort" -w -D $dbLoc start -l $dbLogFile
         fi
