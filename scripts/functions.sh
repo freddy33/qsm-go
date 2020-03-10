@@ -17,6 +17,7 @@ if [ ! -e "$confDir" ]; then
     exit 14
 fi
 
+exe_ext=""
 go_exe="$(which go)"
 if [ $? -eq 0 ]; then
   is_windows="no"
@@ -24,6 +25,7 @@ else
   go_exe="$(which go.exe)"
   if [ $? -eq 0 ]; then
     is_windows="yes"
+    exe_ext=".exe"
   else
     echo "ERROR: did not find go or go.exe"
     exit 14
