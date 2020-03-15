@@ -59,7 +59,7 @@ func Play() {
 	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)
 	world.WorldSpace.EventOutgrowthOldThreshold = m3space.DistAndTime(50)
 	world.WorldSpace.MaxConnections = 3
-	world.WorldSpace.CreateEvent(8, 0, 0, m3point.Origin, m3space.RedEvent)
+	world.WorldSpace.CreateEvent(2, 0, 0, m3point.Origin, m3space.RedEvent)
 	world.CreateDrawingElements()
 
 	// Configure the vertex and fragment shaders

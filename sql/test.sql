@@ -10,15 +10,17 @@ select path_ctx_id, count(*) from path_nodes
 group by path_ctx_id;
 
 select d, count(*) from path_nodes
-where path_ctx_id = 35
+where path_ctx_id = 2
 group by d
 order by d;
 
-select pn.d, p.x, p.y, p.z, sqrt(p.x*p.x+p.y*p.y+p.z*p.z) cart_d
+
+select ct.d, count(ct.id), avg(ct.cart_d), min(ct.cart_d), max(ct.cart_d) from
+(select pn.d d, pn.id id, sqrt(p.x*p.x+p.y*p.y+p.z*p.z) cart_d
 from path_nodes as pn
     join points as p on pn.point_id = p.id
-where pn.path_ctx_id=35 and pn.d=8
-order by cart_d;
+where pn.path_ctx_id=2) ct
+group by d;
 
 
 
