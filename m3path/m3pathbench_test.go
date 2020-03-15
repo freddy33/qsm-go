@@ -20,7 +20,7 @@ const (
 /***************************************************************/
 
 func TestPathCtx8(t *testing.T) {
-	runForPathCtxType(1, 120, m3point.GrowthType(8), true)
+	runForPathCtxType(1, 32, m3point.GrowthType(8), true)
 }
 
 /***************************************************************/
