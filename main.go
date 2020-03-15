@@ -41,6 +41,7 @@ func main() {
 		m3path.RunInsertRandomPoints()
 	default:
 		fmt.Println("The param", c, "unknown")
+		os.Exit(1)
 	}
 	fmt.Println("Finished Executing", c)
 }

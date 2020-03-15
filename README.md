@@ -1,5 +1,9 @@
 # Quantum State Machine in Golang
 
+# What is QSM?
+Also called Quantum Cellular Automaton
+[Here](https://docs.google.com/presentation/d/1obaWWSiWTeHr3bYDxal9hmJ3GWxsTIpDBZtQgdUjxIk/edit?usp=sharing) is a presentation about the project.
+
 # Principles
 - No floating points. Quantum is the name, so *integers* should be able to express the Universe!
 - *Space* is a graph with each *Node* being connected to *three* and only three other nodes. This is since: "Three shall be the number thou shalt count, and the number of the counting shall be three."
@@ -12,12 +16,12 @@
 - Install WSL (Windows Subsystem for Linux) with Ubuntu ( info from https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/ ):
   - In PowerShell as Administrator run: `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux`
   - Restart and in Microsoft Store add Ubuntu
-  - Run bash and test you have the needed applications:
-    - sudo apt install jq
-    - sudo apt install git
-  - Download and install golang: https://golang.org/dl/ NOTE: By default it's installed under `C:\Go` good for this
-  - Download and Install MinGW-W64: https://sourceforge.net/projects/mingw-w64/ IMPORTANT: Make sure to choose x86_64 architecture, and install under `C:\tools` it\'ll be easier.
-    - Add the `mingw64/bin` folder in the global PATH windows env variable.
+- Run bash and test you have the needed applications:
+  - sudo apt install jq
+  - sudo apt install git
+- Download and install golang: https://golang.org/dl/ NOTE: By default it's installed under `C:\Go` good for this
+- Download and Install MinGW-W64: https://sourceforge.net/projects/mingw-w64/ IMPORTANT: Make sure to choose x86_64 architecture, and install under `C:\tools` it\'ll be easier.
+  - Add the `mingw64/bin` folder in the global PATH windows env variable.
 
 
 # Type Definitions
