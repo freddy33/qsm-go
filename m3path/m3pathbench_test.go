@@ -12,7 +12,7 @@ import (
 var LogDataTest = m3util.NewDataLogger("DATA", m3util.DEBUG)
 
 const (
-	BenchNbRound    = 51
+	BenchNbRound = 51
 )
 
 /***************************************************************/
@@ -20,7 +20,7 @@ const (
 /***************************************************************/
 
 func TestPathCtx8(t *testing.T) {
-	runForPathCtxType(1, 8*6, m3point.GrowthType(8), true)
+	runForPathCtxType(1, 32, m3point.GrowthType(8), true)
 }
 
 /***************************************************************/
@@ -74,7 +74,7 @@ func runPathContext(pathCtx PathContext, until int) {
 			finalLen := pathCtx.GetNumberOfOpenNodes()
 			df := float64(d)
 			predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
-			actualRatio := float64(finalLen)/origLen
+			actualRatio := float64(finalLen) / origLen
 			errorBar := math.Abs(actualRatio-predictedRatio) / predictedRatio
 			if predictedIntLen < finalLen {
 				LogDataTest.Errorf("%s: Distance %d orig=%.0f final=%.0f predictLen=%d actualRatio=%.5f predictedRatio=%.5f errorBar=%f", pathCtx.String(), d, origLen, finalLen, predictedIntLen, actualRatio, predictedRatio, errorBar)
