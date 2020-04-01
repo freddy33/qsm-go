@@ -28,13 +28,36 @@ where pn.path_ctx_id=37 and pn.d<=120
 order by cart_d;
 
 
-select ct.d, count(ct.id), avg(ct.cart_d),avg(ct.cart_d)/ct.d "ratio(avg/d)", min(ct.cart_d), max(ct.cart_d)
+select ct.d as D,
+       count(ct.id) as NB,
+       avg(ct.cart_d) as avg_cart_d,
+       avg(ct.cart_d)/ct.d as "ratio(avg/d)",
+       min(ct.cart_d) as min_cart_d,
+       max(ct.cart_d) as max_cart_d
 from (select pn.d d, pn.id id, sqrt(p.x * p.x + p.y * p.y + p.z * p.z) cart_d
       from path_nodes as pn
                join points as p on pn.point_id = p.id
       where pn.path_ctx_id = 37 and pn.d=120) ct
 group by d;
 
+select d
+        , count(id) FILTER (WHERE connection_mask = 273) AS NB_3F
+        , count(id) FILTER (WHERE connection_mask in (274, 289, 529)) AS NB_2F
+        , count(id) FILTER (WHERE connection_mask in (290, 530, 545)) AS NB_1F
+from path_nodes pn
+where pn.path_ctx_id = 1
+group by d;
+
+select d, id, path_node1, path_node2, path_node3,
+       (case
+            when connection_mask = 546 then 'center'
+            when connection_mask = 273 then '3F'
+            when connection_mask in (274, 289, 529) then '2F'
+            when connection_mask in (290, 530, 545) then '1F'
+            else 'open'
+           end) mask_display
+from path_nodes pn
+where pn.path_ctx_id = 1 and pn.d <= 5;
 
 select ct.d, count(ct.id), min(ct.cart_d), max(ct.cart_d),
        avg(ct.cart_d),avg(ct.cart_d)/ct.d "ratio(avg/d)"
