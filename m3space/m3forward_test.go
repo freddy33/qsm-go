@@ -70,35 +70,38 @@ func getSpaceTestEnv() *m3db.QsmEnvironment {
 }
 
 func TestSpaceAllPyramids(t *testing.T) {
+	LogData.SetInfo()
+	m3path.Log.SetWarn()
 	Log.SetWarn()
 	LogStat.SetWarn()
 	LogRun.SetWarn()
 
 	env := getSpaceTestEnv()
 
-	allContexts := m3point.GetAllContextTypes()
+	ctxs := [4]m3point.GrowthType{8, 8, 8, 8}
+
+	// TODO: go through the offsets
+	offsets := [4]int{0, 0, 0, 0}
+
 	LogData.Infof("Size Type Idxs time nbPoss orgSize finalSize diff ratio")
-	maxSize := m3point.CInt(4)
+	maxSize := m3point.CInt(10)
 	maxIndexes := 20
-	for pSize := m3point.CInt(4); pSize <= maxSize; pSize++ {
-		for _, ctxType := range allContexts {
-			nbFound := 0
-			ctxs := [4]m3point.GrowthType{ctxType, ctxType, ctxType, ctxType}
-			allIndexes := createAllIndexesForContext(t, ctxType)
-			for i, idxs := range allIndexes {
-				found, originalPyramid, time, finalPyramid, nbPoss := runSpacePyramidWithParams(env, pSize, ctxs, idxs, [4]int{0, 0, 0, 0})
-				if found {
-					orgSize := GetPyramidSize(originalPyramid)
-					finalSize := GetPyramidSize(finalPyramid)
-					diff := m3point.AbsDInt(orgSize - finalSize)
-					ratio := float64(diff) / float64(orgSize)
-					LogData.Infof("%d %d %v %d %d %d %d %d %.5f",
-						pSize, ctxType, idxs, time, nbPoss, orgSize, finalSize, diff, ratio)
-					nbFound++
-				}
-				if nbFound > 10 || i > maxIndexes {
-					break
-				}
+	for pSize := m3point.CInt(8); pSize <= maxSize; pSize++ {
+		nbFound := 0
+		allIndexes := createAllIndexesForContext(t, 8)
+		for i, idxs := range allIndexes {
+			found, originalPyramid, time, finalPyramid, nbPoss := runSpacePyramidWithParams(env, pSize, ctxs, idxs, offsets)
+			if found {
+				orgSize := GetPyramidSize(originalPyramid)
+				finalSize := GetPyramidSize(finalPyramid)
+				diff := m3point.AbsDInt(orgSize - finalSize)
+				ratio := float64(diff) / float64(orgSize)
+				LogData.Infof("%d %d %v %d %d %d %d %d %.5f",
+					pSize, 8, idxs, time, nbPoss, orgSize, finalSize, diff, ratio)
+				nbFound++
+			}
+			if nbFound > 10 || i > maxIndexes {
+				break
 			}
 		}
 	}
