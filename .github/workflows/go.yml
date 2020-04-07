@@ -15,7 +15,8 @@ jobs:
 
       - name: Set up *nix dependencies
         run: |
-          sudo -E apt-add-repository -y "deb https://fredsimon.jfrog.io/artifactory/debian bionic InRelease"
+          sudo -E apt-add-repository -y "deb https://fredsimon.jfrog.io/artifactory/debian bionic universe"
+          sudo -E apt-add-repository -y "deb https://fredsimon.jfrog.io/artifactory/debian bionic multiverse"
           sudo apt-get install postgresql
           export PATH=/usr/lib/postgresql/10/bin:$PATH
 
