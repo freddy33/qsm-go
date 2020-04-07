@@ -15,7 +15,7 @@ jobs:
 
       - name: Set up *nix dependencies
         run: |
-          sudo apt-get install postgresql
+          sudo apt-get install postgresql libasound2-dev libglew-dev libgles2-mesa-dev libalut-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
           export PATH=/usr/lib/postgresql/10/bin:$PATH
 
       - name: Check out code into the Go module directory
