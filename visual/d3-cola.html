@@ -1,0 +1,14 @@
+<script src="https://d3js.org/d3.v4.js"></script>
+<script src="http://marvl.infotech.monash.edu/webcola/cola.v3.min.js"></script>
+<script>
+    var d3cola = cola.d3adaptor()
+        .linkDistance(30)
+        .size([width, height]);
+    d3cola
+        .nodes(graph.nodes)
+        .links(graph.links)
+        .constraints(graph.constraints)
+        .symmetricDiffLinkLengths(5)
+        .avoidOverlaps(true)
+        .start(10,15,20);
+</script>

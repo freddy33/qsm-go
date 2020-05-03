@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<h1>First html document</h1>
+
+<!-- Add a svg shape. Note that the 'target' class is attributed to the circle -->
+<svg id="dataviz_area" height=200 width=450></svg>
+
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<!--<script src="https://d3js.org/d3-dispatch.v1.min.js"></script>-->
+<!--<script src="https://d3js.org/d3-quadtree.v1.min.js"></script>-->
+<!--<script src="https://d3js.org/d3-timer.v1.min.js"></script>-->
+<!--<script src="https://d3js.org/d3-force.v2.min.js"></script>-->
+
+<script>
+    var svg = d3.select("#dataviz_area")
+
+    svg.append("circle")
+        .attr("cx", 2).attr("cy", 2).attr("r", 40).style("fill", "blue");
+    svg.append("circle")
+        .attr("cx", 140).attr("cy", 70).attr("r", 40).style("fill", "red");
+    svg.append("circle")
+        .attr("cx", 300).attr("cy", 100).attr("r", 40).style("fill", "green");
+</script>
+
