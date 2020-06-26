@@ -11,7 +11,7 @@ if [ ! -e "$rootDir/.git" ]; then
     exit 13
 fi
 
-confDir="$rootDir/conf"
+confDir="$rootDir/backend/conf"
 if [ ! -e "$confDir" ]; then
     echo "ERROR: Did not find conf dir $confDir"
     exit 14

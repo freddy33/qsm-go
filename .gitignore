@@ -15,4 +15,4 @@ build/
 # Profiling
 *.test
 
-conf/dbconn*.json
+backend/conf/dbconn*.json
