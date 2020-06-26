@@ -64,9 +64,9 @@ func (ppd *PointPackData) loadContextCubes() map[CubeKeyId]int {
 	loaded := 0
 	for rows.Next() {
 		var cubeId int
-		var trCtxId int
+		var growthCtxId int
 		cube := CubeOfTrioIndex{}
-		err := rows.Scan(&cubeId, &trCtxId, &cube.center,
+		err := rows.Scan(&cubeId, &growthCtxId, &cube.center,
 			&cube.centerFaces[0], &cube.centerFaces[1], &cube.centerFaces[2], &cube.centerFaces[3], &cube.centerFaces[4], &cube.centerFaces[5],
 			&cube.middleEdges[0], &cube.middleEdges[1], &cube.middleEdges[2], &cube.middleEdges[3],
 			&cube.middleEdges[4], &cube.middleEdges[5], &cube.middleEdges[6], &cube.middleEdges[7],
@@ -74,7 +74,7 @@ func (ppd *PointPackData) loadContextCubes() map[CubeKeyId]int {
 		if err != nil {
 			Log.Errorf("failed to load trio context line %d due to %v", loaded, err)
 		} else {
-			key := CubeKeyId{trCtxId,cube}
+			key := CubeKeyId{growthCtxId, cube}
 			res[key] = cubeId
 		}
 		loaded++
@@ -94,7 +94,7 @@ func (ppd *PointPackData) saveAllContextCubes() (int, error) {
 		}
 		for cubeKey, cubeId := range cubeKeys {
 			cube := cubeKey.cube
-			err := te.Insert(cubeId, cubeKey.trCtxId, cube.center,
+			err := te.Insert(cubeId, cubeKey.growthCtxId, cube.center,
 				cube.centerFaces[0], cube.centerFaces[1], cube.centerFaces[2], cube.centerFaces[3], cube.centerFaces[4], cube.centerFaces[5],
 				cube.middleEdges[0], cube.middleEdges[1], cube.middleEdges[2], cube.middleEdges[3],
 				cube.middleEdges[4], cube.middleEdges[5], cube.middleEdges[6], cube.middleEdges[7],

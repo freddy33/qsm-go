@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package m3api;
+
+message PointMsg {
+    sint32 x = 2;
+    sint32 y = 3;
+    sint32 z = 4;
+}
+
+message ConnectionMsg {
+    sint32 conn_id = 1;
+    PointMsg vector = 2;
+    int64 ds = 3;
+}
+
+message TrioMsg {
+    int32 trio_id = 1;
+    repeated sint32 conn_ids = 2;
+}
+
+message GrowthContextMsg {
+    int32 growth_context_id = 1;
+    int32 growth_type = 2;
+    int32 growth_index = 3;
+}
+
+message CubeOfTrioMsg {
+    int32 cube_id = 1;
+    int32 growth_context_id = 2;
+    int32 center_trio_id = 3;
+    repeated int32 center_faces_trio_ids = 4;
+    repeated int32 middle_edges_trio_ids = 5;
+}
+
+message PathBuilderContextMsg {
+    int32 path_builder_id = 1;
+    int32 growth_context_id = 2;
+    int32 cube_id = 3;
+}
+
+message PathContextMsg {
+    int32 path_ctx_id = 1;
+    int32 growth_context_id = 2;
+    int32 growth_offset = 3;
+}
+
+message PathNodeMsg {
+    int64 path_node_id = 1;
+    int32 path_ctx_id = 2;
+    PointMsg point = 3;
+    int64 d = 4;
+    int32 path_builder_id = 5;
+    int32 trio_id = 6;
+    uint32 connection_mask = 7;
+    repeated int64 linked_path_node_ids = 8;
+}

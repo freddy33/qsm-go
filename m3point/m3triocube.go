@@ -15,8 +15,8 @@ type CubeOfTrioIndex struct {
 }
 
 type CubeKeyId struct {
-	trCtxId int
-	cube    CubeOfTrioIndex
+	growthCtxId int
+	cube        CubeOfTrioIndex
 }
 
 type CubeListBuilder struct {
@@ -113,7 +113,7 @@ func (ppd *PointPackData) calculateAllContextCubes() map[CubeKeyId]int {
 	res := make(map[CubeKeyId]int, TotalNumberOfCubes)
 	cubeIdx := 1
 	for _, growthCtx := range ppd.GetAllGrowthContexts() {
-		cl := CubeListBuilder{growthCtx, nil,}
+		cl := CubeListBuilder{growthCtx, nil}
 		switch growthCtx.GetGrowthType() {
 		case 1:
 			cl.populate(1)
@@ -133,13 +133,13 @@ func (ppd *PointPackData) calculateAllContextCubes() map[CubeKeyId]int {
 			if centerDiff != 0 {
 				return centerDiff < 0
 			}
-			for cfIdx:=0; cfIdx < len(c1.centerFaces); cfIdx++ {
+			for cfIdx := 0; cfIdx < len(c1.centerFaces); cfIdx++ {
 				cfDiff := int(c1.centerFaces[cfIdx]) - int(c2.centerFaces[cfIdx])
 				if cfDiff != 0 {
 					return cfDiff < 0
 				}
 			}
-			for meIdx:=0; meIdx < len(c1.middleEdges); meIdx++ {
+			for meIdx := 0; meIdx < len(c1.middleEdges); meIdx++ {
 				meDiff := int(c1.middleEdges[meIdx]) - int(c2.middleEdges[meIdx])
 				if meDiff != 0 {
 					return meDiff < 0
@@ -200,7 +200,7 @@ func (ppd *PointPackData) getCubeList(growthCtx GrowthContext) *CubeListBuilder 
 	res.growthCtx = growthCtx
 	res.allCubes = make([]CubeOfTrioIndex, 0, 100)
 	for cubeKey := range ppd.cubeIdsPerKey {
-		if cubeKey.trCtxId == growthCtx.GetId() {
+		if cubeKey.growthCtxId == growthCtx.GetId() {
 			res.allCubes = append(res.allCubes, cubeKey.cube)
 		}
 	}

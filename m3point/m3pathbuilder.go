@@ -47,7 +47,7 @@ func (ppd *PointPackData) calculateAllPathBuilders() []*RootPathNodeBuilder {
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 	res[0] = nil
 	for cubeKey, cubeId := range ppd.cubeIdsPerKey {
-		key := PathBuilderContext{ppd.GetGrowthContextById(cubeKey.trCtxId), cubeId}
+		key := PathBuilderContext{ppd.GetGrowthContextById(cubeKey.growthCtxId), cubeId}
 		root := RootPathNodeBuilder{}
 		root.ctx = &key
 		root.populate()

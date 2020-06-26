@@ -216,7 +216,7 @@ case "$1" in
     checkDbConf || exit $?
     echo "INFO: Dropping ALL QSM environments except 1"
     RES=0
-    for envId in 2 3 4 5 6 7 8 9 10 11; do
+    for envId in 2 3 4 5 6 7 8 9 10 11 12; do
       export QSM_ENV_NUMBER=$envId
       ./qsm db drop
       LOOP_RES=$?
