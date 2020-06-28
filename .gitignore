@@ -6,13 +6,12 @@
 *.iml
 
 # Executable
-/qsm-go*
-/*.test
+/model/model
+/ui/ui
+/backend/backend
+*.test
 
 # gen build folders
 build/
-
-# Profiling
-*.test
 
 backend/conf/dbconn*.json

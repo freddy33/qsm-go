@@ -114,4 +114,3 @@ func RunInsertRandomPoints() {
 	wg.Wait()
 	Log.Infof("It took %v to create %d points with nb routines=%d max coord %d", time.Now().Sub(start), nbRoutines*nbRound, nbRoutines, rdMax)
 }
-

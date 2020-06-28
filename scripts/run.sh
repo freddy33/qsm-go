@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-    echo "Usage qsm run [refilldb, filldb, gentxt, play]"
+    echo "Usage qsm run [refilldb, filldb, gentxt, play, perf]"
     exit 1
 }
 
@@ -9,13 +9,25 @@ if [[ -z "$1" ]]; then
     usage
 fi
 
-if [ "$1" != "play" ] && [ "$1" == "gentxt" ] && [ "$1" != "filldb" ] && [ "$1" != "refilldb" ]; then
-    echo "ERROR: Run command $1 unknown"
-    usage
-fi
-
 curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
 # shellcheck source=./functions.sh
 . "$curDir/functions.sh"
+if [[ $? -ne 0 ]]; then
+    echo "ERROR: failed to load functions at $curDir/functions.sh"
+    exit 2
+fi
 
-$go_exe build && ./qsm-go$exe_ext $@
+commandName=$1
+
+case "$commandName" in
+    play)
+    cd ${rootDir}/ui && ${go_exe} build && ./ui $@
+    ;;
+    gentxt|*filldb|perf)
+    cd ${rootDir}/model && ${go_exe} build && ./model $@
+    ;;
+    *)
+    echo "ERROR: Run command $commandName unknown"
+    usage
+    ;;
+esac

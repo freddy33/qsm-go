@@ -82,7 +82,7 @@ func GetBuildDir() string {
 }
 
 func GetConfDir() string {
-	b, p := DirExists(GetGitRootDir(), "conf")
+	b, p := DirExists(GetGitRootDir(), "backend/conf")
 	if !b {
 		Log.Fatalf("conf dir %s does not exists!", p)
 		return ""

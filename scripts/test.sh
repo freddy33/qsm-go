@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-    echo "Usage qsm test [package name = point, path, space, gl, db, all, perf]"
+    echo "Usage qsm test [package name = util, model, ui, backend, all, perf]"
     exit 1
 }
 
@@ -9,43 +9,58 @@ pack="$1"
 if [[ -z "$pack" ]]; then
     usage
 fi
+shift
 
+dbLoc="was-not-set"
+confDir="was-not-set"
 curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
 # shellcheck source=./functions.sh
 . "$curDir/functions.sh"
 
-if [ "$pack" == "point" ] || [ "$pack" == "path" ] || [ "$pack" == "space" ] || [ "$pack" == "db" ] || [ "$pack" == "gl" ]; then
-    $go_exe test ./m3${pack}/
-    exit $?
-fi
+test_util() {
+    cd ${rootDir}/utils && go test ./m3db/
+}
 
-if [ "$pack" == "all" ]; then
-    $go_exe test -parallel 4 ./m3db/ ./m3point/ ./m3path/ ./m3space/ ./m3gl/
-    exit $?
-fi
+test_model() {
+    cd ${rootDir}/model && go test ./m3point/ ./m3path/ ./m3space/
+}
 
-if [ "$pack" == "perf" ]; then
+test_backend() {
+    cd ${rootDir}/backend && go test ./m3api/
+}
+
+test_ui() {
+    cd ${rootDir}/ui && go test ./m3gl/
+}
+
+test_perf() {
     # Performance test is 3
     export QSM_ENV_NUMBER=3
 
-    dbLoc="was-not-set"
-    confDir="was-not-set"
-    . ./scripts/functions.sh
-
-    ./qsm db stop
+    ${rootDir}/qsm db stop
     cp $confDir/postgresql.conf $dbLoc/postgresql.conf && ./qsm db drop && ./qsm run filldb
     if [ $? -ne 0 ]; then
         echo "ERROR: Setting perf DB failed!"
-        exit 13
+        return 13
     fi
     export GOMAXPROCS=50
-    ./qsm run perf
+    ${rootDir}/qsm run perf
     if [ $? -ne 0 ]; then
         echo "ERROR: executing perf DB test returned error"
-        exit 3
+        return 3
     fi
-    exit 0
-fi
+    return 0
+}
 
-echo "Package $pack unknown"
-usage
+case "$pack" in
+    util|model|ui|backend|perf)
+    test_${pack}
+    ;;
+    all)
+    #test_util && test_model && test_backend && test_ui
+    test_util && test_model && test_ui
+    ;;
+    *)
+    usage
+    ;;
+esac

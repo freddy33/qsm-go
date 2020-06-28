@@ -44,6 +44,16 @@ func NewStatLogger(prefix string, level LogLevel) Logger {
 // General Functions
 /***************************************************************/
 
+func ReadVerbose() {
+	if len(os.Args) > 1 {
+		for i := 1; i<len(os.Args); i++ {
+			if os.Args[i] == "-v" {
+				// Make all logger debug level
+			}
+		}
+	}
+}
+
 func GetLevelName(level LogLevel) string {
 	switch level {
 	case TRACE:
