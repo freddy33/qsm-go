@@ -66,7 +66,7 @@ func loadConnectionDetails(env *m3db.QsmEnvironment) ([]*ConnectionDetails, map[
 }
 
 func (ppd *PointPackData) saveAllConnectionDetails() (int, error) {
-	te, inserted, toFill, err := ppd.env.GetForSaveAll(ConnectionDetailsTable)
+	te, inserted, toFill, err := ppd.Env.GetForSaveAll(ConnectionDetailsTable)
 	if err != nil {
 		return 0, err
 	}
@@ -92,7 +92,7 @@ func (ppd *PointPackData) saveAllConnectionDetails() (int, error) {
 /***************************************************************/
 
 func (ppd *PointPackData) loadTrioDetails() TrioDetailList {
-	te, rows := ppd.env.SelectAllForLoad(TrioDetailsTable)
+	te, rows := ppd.Env.SelectAllForLoad(TrioDetailsTable)
 
 	res := TrioDetailList(make([]*TrioDetails, 0, te.TableDef.ExpectedCount))
 
@@ -113,7 +113,7 @@ func (ppd *PointPackData) loadTrioDetails() TrioDetailList {
 }
 
 func (ppd *PointPackData) saveAllTrioDetails() (int, error) {
-	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioDetailsTable)
+	te, inserted, toFill, err := ppd.Env.GetForSaveAll(TrioDetailsTable)
 	if te == nil {
 		return 0, err
 	}

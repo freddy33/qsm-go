@@ -45,7 +45,7 @@ func (ppd *PointPackData) calculateAllGrowthContexts() []GrowthContext {
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			growthCtx := BaseGrowthContext{ppd.env, idx, ctxType, pIdx}
+			growthCtx := BaseGrowthContext{ppd.Env, idx, ctxType, pIdx}
 			res[idx] = &growthCtx
 			idx++
 		}
@@ -63,7 +63,7 @@ func (ppd *PointPackData) getBaseTrioDetails(gowthCtx GrowthContext, mainPoint P
 
 func (ppd *PointPackData) GetAllGrowthContexts() []GrowthContext {
 	ppd.checkGrowthContextsInitialized()
-	return ppd.allGrowthContexts
+	return ppd.AllGrowthContexts
 }
 
 func GetAllContextTypes() [5]GrowthType {
@@ -99,12 +99,12 @@ func (t GrowthType) GetMaxOffset() int {
 
 func (ppd *PointPackData) GetGrowthContextById(id int) GrowthContext {
 	ppd.checkGrowthContextsInitialized()
-	return ppd.allGrowthContexts[id]
+	return ppd.AllGrowthContexts[id]
 }
 
 func (ppd *PointPackData) GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext {
 	ppd.checkGrowthContextsInitialized()
-	for _, growthCtx := range ppd.allGrowthContexts {
+	for _, growthCtx := range ppd.AllGrowthContexts {
 		if growthCtx.GetGrowthType() == growthType && growthCtx.GetGrowthIndex() == index {
 			return growthCtx
 		}

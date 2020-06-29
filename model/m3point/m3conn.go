@@ -256,15 +256,15 @@ func (cd *ConnectionDetails) String() string {
 func (ppd *PointPackData) GetMaxConnId() ConnectionId {
 	ppd.checkConnInitialized()
 	// The pos conn Id of the last one
-	return ppd.allConnections[len(ppd.allConnections)-1].GetPosId()
+	return ppd.AllConnections[len(ppd.AllConnections)-1].GetPosId()
 }
 
 func (ppd *PointPackData) GetConnDetailsById(id ConnectionId) *ConnectionDetails {
 	ppd.checkConnInitialized()
 	if id > 0 {
-		return ppd.allConnections[2*id-2]
+		return ppd.AllConnections[2*id-2]
 	} else {
-		return ppd.allConnections[-2*id-1]
+		return ppd.AllConnections[-2*id-1]
 	}
 }
 
@@ -274,12 +274,12 @@ func (ppd *PointPackData) GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetail
 
 func (ppd *PointPackData) getAllConnDetailsByVector() map[Point]*ConnectionDetails {
 	ppd.checkConnInitialized()
-	return ppd.allConnectionsByVector
+	return ppd.AllConnectionsByVector
 }
 
 func (ppd *PointPackData) getConnDetailsByVector(vector Point) *ConnectionDetails {
 	ppd.checkConnInitialized()
-	cd, ok := ppd.allConnectionsByVector[vector]
+	cd, ok := ppd.AllConnectionsByVector[vector]
 	if !ok {
 		Log.Error("Vector", vector, "is not a known connection details")
 		return &EmptyConnDetails

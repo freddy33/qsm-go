@@ -70,7 +70,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 /***************************************************************/
 
 func (ppd *PointPackData) loadPathBuilders() []*RootPathNodeBuilder {
-	_, rows := ppd.env.SelectAllForLoad(PathBuildersTable)
+	_, rows := ppd.Env.SelectAllForLoad(PathBuildersTable)
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 
 	for rows.Next() {
@@ -102,7 +102,7 @@ func (ppd *PointPackData) loadPathBuilders() []*RootPathNodeBuilder {
 				interPathNode.ctx = builder.ctx
 				interPathNode.trIdx = TrioIndex(interTrIdx)
 				for j := 0; j < 2; j++ {
-					lastPathNode := LastIntermediatePathNodeBuilder{}
+					lastPathNode := LastPathNodeBuilder{}
 					lastPathNode.ctx = builder.ctx
 					lastPathNode.trIdx = TrioIndex(lastIntersTrIdx[i][j])
 					lastPathNode.nextMainConnId = ConnectionId(nextMainConnIds[i][j])
@@ -118,7 +118,7 @@ func (ppd *PointPackData) loadPathBuilders() []*RootPathNodeBuilder {
 }
 
 func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
-	te, inserted, toFill, err := ppd.env.GetForSaveAll(PathBuildersTable)
+	te, inserted, toFill, err := ppd.Env.GetForSaveAll(PathBuildersTable)
 	if err != nil {
 		return 0, err
 	}
@@ -133,7 +133,7 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 			}
 			interPNs := [3]*IntermediatePathNodeBuilder{}
 			interConnIds := [3][2]ConnectionId{}
-			lastInterPNs := [3][2]*LastIntermediatePathNodeBuilder{}
+			lastInterPNs := [3][2]*LastPathNodeBuilder{}
 			for i, pl := range rootNode.pathLinks {
 				ipn, ok := pl.pathNode.(*IntermediatePathNodeBuilder)
 				if !ok {
@@ -144,7 +144,7 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 				for j := 0; j < 2; j++ {
 					ipl := ipn.pathLinks[j]
 					interConnIds[i][j] = ipl.connId
-					lipn, ok := ipl.pathNode.(*LastIntermediatePathNodeBuilder)
+					lipn, ok := ipl.pathNode.(*LastPathNodeBuilder)
 					if !ok {
 						err = m3db.MakeQsmErrorf("trying to convert path node to last intermediate failed for %v", ipl)
 						return 0, err

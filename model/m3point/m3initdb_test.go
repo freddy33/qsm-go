@@ -25,25 +25,25 @@ func TestLoadOrCalculate(t *testing.T) {
 
 	start := time.Now()
 	ppd.resetFlags()
-	ppd.allConnections, ppd.allConnectionsByVector = ppd.calculateConnectionDetails()
-	ppd.connectionsLoaded = true
-	ppd.allTrioDetails = ppd.calculateAllTrioDetails()
-	ppd.trioDetailsLoaded = true
-	ppd.allGrowthContexts = ppd.calculateAllGrowthContexts()
-	ppd.growthContextsLoaded = true
-	ppd.cubeIdsPerKey = ppd.calculateAllContextCubes()
-	ppd.cubesLoaded = true
-	ppd.pathBuilders = ppd.calculateAllPathBuilders()
-	ppd.pathBuildersLoaded = true
+	ppd.AllConnections, ppd.AllConnectionsByVector = ppd.calculateConnectionDetails()
+	ppd.ConnectionsLoaded = true
+	ppd.AllTrioDetails = ppd.calculateAllTrioDetails()
+	ppd.TrioDetailsLoaded = true
+	ppd.AllGrowthContexts = ppd.calculateAllGrowthContexts()
+	ppd.GrowthContextsLoaded = true
+	ppd.CubeIdsPerKey = ppd.calculateAllContextCubes()
+	ppd.CubesLoaded = true
+	ppd.PathBuilders = ppd.calculateAllPathBuilders()
+	ppd.PathBuildersLoaded = true
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
 
-	assert.Equal(t, ExpectedNbConns, len(ppd.allConnections))
-	assert.Equal(t, ExpectedNbConns, len(ppd.allConnectionsByVector))
-	assert.Equal(t, ExpectedNbTrios, len(ppd.allTrioDetails))
-	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.allGrowthContexts))
-	assert.Equal(t, ExpectedNbCubes, len(ppd.cubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.pathBuilders)-1)
+	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
+	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
+	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
+	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.AllGrowthContexts))
+	assert.Equal(t, ExpectedNbCubes, len(ppd.CubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.PathBuilders)-1)
 
 	start = time.Now()
 	// force reload
@@ -55,12 +55,12 @@ func TestLoadOrCalculate(t *testing.T) {
 
 	// Don't forget to get ppd different after init
 	ppd = GetPointPackData(env)
-	assert.Equal(t, ExpectedNbConns, len(ppd.allConnections))
-	assert.Equal(t, ExpectedNbConns, len(ppd.allConnectionsByVector))
-	assert.Equal(t, ExpectedNbTrios, len(ppd.allTrioDetails))
-	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.allGrowthContexts))
-	assert.Equal(t, ExpectedNbCubes, len(ppd.cubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.pathBuilders)-1)
+	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
+	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
+	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
+	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.AllGrowthContexts))
+	assert.Equal(t, ExpectedNbCubes, len(ppd.CubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.PathBuilders)-1)
 }
 
 func TestSaveAll(t *testing.T) {

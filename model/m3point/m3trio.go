@@ -609,7 +609,7 @@ func (td *TrioDetails) GetDSIndex() int {
 
 func (ppd *PointPackData) GetTrioDetails(trIdx TrioIndex) *TrioDetails {
 	ppd.checkTrioInitialized()
-	return ppd.allTrioDetails[trIdx]
+	return ppd.AllTrioDetails[trIdx]
 }
 
 func (ppd *PointPackData) makeTrioDetails(points ...Point) *TrioDetails {

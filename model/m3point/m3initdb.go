@@ -20,42 +20,42 @@ func InitializeDBEnv(env *m3db.QsmEnvironment, forced bool) {
 }
 
 func (ppd *PointPackData) initConnections() {
-	if !ppd.connectionsLoaded {
-		ppd.allConnections, ppd.allConnectionsByVector = loadConnectionDetails(ppd.env)
-		ppd.connectionsLoaded = true
-		Log.Debugf("Environment %d has %d connection details", ppd.GetId(), len(ppd.allConnections))
+	if !ppd.ConnectionsLoaded {
+		ppd.AllConnections, ppd.AllConnectionsByVector = loadConnectionDetails(ppd.Env)
+		ppd.ConnectionsLoaded = true
+		Log.Debugf("Environment %d has %d connection details", ppd.GetEnvId(), len(ppd.AllConnections))
 	}
 }
 
 func (ppd *PointPackData) initTrioDetails() {
-	if !ppd.trioDetailsLoaded {
-		ppd.allTrioDetails = ppd.loadTrioDetails()
-		ppd.trioDetailsLoaded = true
-		Log.Debugf("Environment %d has %d trio details", ppd.GetId(), len(ppd.allTrioDetails))
+	if !ppd.TrioDetailsLoaded {
+		ppd.AllTrioDetails = ppd.loadTrioDetails()
+		ppd.TrioDetailsLoaded = true
+		Log.Debugf("Environment %d has %d trio details", ppd.GetEnvId(), len(ppd.AllTrioDetails))
 	}
 }
 
 func (ppd *PointPackData) initGrowthContexts() {
-	if !ppd.growthContextsLoaded {
-		ppd.allGrowthContexts = ppd.loadGrowthContexts()
-		ppd.growthContextsLoaded = true
-		Log.Debugf("Environment %d has %d growth contexts", ppd.GetId(), len(ppd.allGrowthContexts))
+	if !ppd.GrowthContextsLoaded {
+		ppd.AllGrowthContexts = ppd.loadGrowthContexts()
+		ppd.GrowthContextsLoaded = true
+		Log.Debugf("Environment %d has %d growth contexts", ppd.GetEnvId(), len(ppd.AllGrowthContexts))
 	}
 }
 
 func (ppd *PointPackData) initContextCubes() {
-	if !ppd.cubesLoaded {
-		ppd.cubeIdsPerKey = ppd.loadContextCubes()
-		ppd.cubesLoaded = true
-		Log.Debugf("Environment %d has %d cubes", ppd.GetId(), len(ppd.cubeIdsPerKey))
+	if !ppd.CubesLoaded {
+		ppd.CubeIdsPerKey = ppd.loadContextCubes()
+		ppd.CubesLoaded = true
+		Log.Debugf("Environment %d has %d cubes", ppd.GetEnvId(), len(ppd.CubeIdsPerKey))
 	}
 }
 
 func (ppd *PointPackData) initPathBuilders() {
-	if !ppd.pathBuildersLoaded {
-		ppd.pathBuilders = ppd.loadPathBuilders()
-		ppd.pathBuildersLoaded = true
-		Log.Debugf("Environment %d has %d path builders", ppd.GetId(), len(ppd.pathBuilders))
+	if !ppd.PathBuildersLoaded {
+		ppd.PathBuilders = ppd.loadPathBuilders()
+		ppd.PathBuildersLoaded = true
+		Log.Debugf("Environment %d has %d path builders", ppd.GetEnvId(), len(ppd.PathBuilders))
 	}
 }
 
@@ -74,7 +74,7 @@ func FillDbEnv(env *m3db.QsmEnvironment) {
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d connection details", ppd.GetId(), n)
+		Log.Infof("Environment %d has %d connection details", ppd.GetEnvId(), n)
 	}
 
 	ppd.initConnections()
@@ -85,7 +85,7 @@ func FillDbEnv(env *m3db.QsmEnvironment) {
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d trio details", ppd.GetId(), n)
+		Log.Infof("Environment %d has %d trio details", ppd.GetEnvId(), n)
 	}
 	ppd.initTrioDetails()
 
@@ -95,7 +95,7 @@ func FillDbEnv(env *m3db.QsmEnvironment) {
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d growth contexts", ppd.GetId(), n)
+		Log.Infof("Environment %d has %d growth contexts", ppd.GetEnvId(), n)
 	}
 	ppd.initGrowthContexts()
 
@@ -105,7 +105,7 @@ func FillDbEnv(env *m3db.QsmEnvironment) {
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d contexts cubes", ppd.GetId(), n)
+		Log.Infof("Environment %d has %d contexts cubes", ppd.GetEnvId(), n)
 	}
 	ppd.initContextCubes()
 
@@ -115,7 +115,7 @@ func FillDbEnv(env *m3db.QsmEnvironment) {
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d path builders", ppd.GetId(), n)
+		Log.Infof("Environment %d has %d path builders", ppd.GetEnvId(), n)
 	}
 	ppd.initPathBuilders()
 }

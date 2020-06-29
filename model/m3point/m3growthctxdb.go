@@ -29,7 +29,7 @@ func createGrowthContextsTableDef() *m3db.TableDefinition {
 /***************************************************************/
 
 func (ppd *PointPackData) loadGrowthContexts() []GrowthContext {
-	env := ppd.env
+	env := ppd.Env
 
 	te, rows := env.SelectAllForLoad(GrowthContextsTable)
 	res := make([]GrowthContext, 0, te.TableDef.ExpectedCount)
@@ -48,7 +48,7 @@ func (ppd *PointPackData) loadGrowthContexts() []GrowthContext {
 }
 
 func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
-	env := ppd.env
+	env := ppd.Env
 
 	te, inserted, toFill, err := env.GetForSaveAll(GrowthContextsTable)
 	if err != nil {

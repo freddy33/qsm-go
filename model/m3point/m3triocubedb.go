@@ -58,7 +58,7 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 /***************************************************************/
 
 func (ppd *PointPackData) loadContextCubes() map[CubeKeyId]int {
-	te, rows := ppd.env.SelectAllForLoad(TrioCubesTable)
+	te, rows := ppd.Env.SelectAllForLoad(TrioCubesTable)
 	res := make(map[CubeKeyId]int, te.TableDef.ExpectedCount)
 
 	loaded := 0
@@ -83,7 +83,7 @@ func (ppd *PointPackData) loadContextCubes() map[CubeKeyId]int {
 }
 
 func (ppd *PointPackData) saveAllContextCubes() (int, error) {
-	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioCubesTable)
+	te, inserted, toFill, err := ppd.Env.GetForSaveAll(TrioCubesTable)
 	if err != nil {
 		return 0, err
 	}

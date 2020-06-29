@@ -33,25 +33,25 @@ message CubeOfTrioMsg {
     repeated int32 middle_edges_trio_ids = 5;
 }
 
-message PathBuilderContextMsg {
-    int32 path_builder_id = 1;
-    int32 growth_context_id = 2;
-    int32 cube_id = 3;
+message RootPathNodeBuilderMsg {
+    int32 cube_id = 1;
+    int32 trio_id = 2;
+    repeated IntermediatePathNodeBuilderMsg inter_node_builders = 3;
 }
 
-message PathContextMsg {
-    int32 path_ctx_id = 1;
-    int32 growth_context_id = 2;
-    int32 growth_offset = 3;
+message IntermediatePathNodeBuilderMsg {
+    int32 cube_id = 1;
+    int32 trio_id = 2;
+    sint32 link1_conn_id = 3;
+    LastPathNodeBuilderMsg last_node_builder1 = 4;
+    sint32 link2_conn_id = 5;
+    LastPathNodeBuilderMsg last_node_builder2 = 6;
 }
 
-message PathNodeMsg {
-    int64 path_node_id = 1;
-    int32 path_ctx_id = 2;
-    PointMsg point = 3;
-    int64 d = 4;
-    int32 path_builder_id = 5;
-    int32 trio_id = 6;
-    uint32 connection_mask = 7;
-    repeated int64 linked_path_node_ids = 8;
+message LastPathNodeBuilderMsg {
+    int32 cube_id = 1;
+    int32 trio_id = 2;
+    sint32 next_main_conn_id = 3;
+    sint32 next_inter_conn_id = 4;
 }
+

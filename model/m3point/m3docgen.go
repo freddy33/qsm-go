@@ -200,7 +200,7 @@ func (ppd *PointPackData) writeAllTrioDetailsTable(dir string) {
 
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, ppd.GetTrioTableCsv())
-	for _, td := range ppd.allTrioDetails {
+	for _, td := range ppd.AllTrioDetails {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v %s\n", td.id.String(), td.conns[0].Vector, td.conns[0].String()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[1].Vector, td.conns[1].String()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].String()))

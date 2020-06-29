@@ -31,7 +31,7 @@ type IntermediatePathNodeBuilder struct {
 	pathLinks [2]PathLinkBuilder
 }
 
-type LastIntermediatePathNodeBuilder struct {
+type LastPathNodeBuilder struct {
 	BasePathNodeBuilder
 	nextMainConnId  ConnectionId
 	nextInterConnId ConnectionId
@@ -46,7 +46,7 @@ func (ppd *PointPackData) calculateAllPathBuilders() []*RootPathNodeBuilder {
 	ppd.checkCubesInitialized()
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 	res[0] = nil
-	for cubeKey, cubeId := range ppd.cubeIdsPerKey {
+	for cubeKey, cubeId := range ppd.CubeIdsPerKey {
 		key := PathBuilderContext{ppd.GetGrowthContextById(cubeKey.growthCtxId), cubeId}
 		root := RootPathNodeBuilder{}
 		root.ctx = &key
@@ -65,7 +65,7 @@ func (ppd *PointPackData) GetPathNodeBuilder(growthCtx GrowthContext, offset int
 }
 
 func (ppd *PointPackData) GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
-	return ppd.pathBuilders[cubeId]
+	return ppd.PathBuilders[cubeId]
 }
 
 /***************************************************************/
@@ -150,7 +150,7 @@ type NextMainPathNode struct {
 	ud       UnitDirection
 	lip      Point
 	backConn *ConnectionDetails
-	lipnb    *LastIntermediatePathNodeBuilder
+	lipnb    *LastPathNodeBuilder
 }
 
 func (rpnb *RootPathNodeBuilder) populate() {
@@ -175,7 +175,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 			backConn := nextTd.getOppositeConn(ud)
 			nextMains[j].lip = nmp.Add(backConn.Vector)
 			nextMains[j].backConn = backConn
-			lipnb := LastIntermediatePathNodeBuilder{}
+			lipnb := LastPathNodeBuilder{}
 			lipnb.ctx = rpnb.ctx
 			lipnb.nextMainConnId = backConn.GetNegId()
 			nextMains[j].lipnb = &lipnb
@@ -185,7 +185,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 		// We have the three connections from ip to find the correct trio
 		var iTd *TrioDetails
 		ipConns := [2]*ConnectionDetails{ppd.GetConnDetailsByPoints(ip, nextMains[0].lip), ppd.GetConnDetailsByPoints(ip, nextMains[1].lip)}
-		for _, possTd := range ppd.allTrioDetails {
+		for _, possTd := range ppd.AllTrioDetails {
 			if possTd.HasConnections(cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId()) {
 				iTd = possTd
 				break
@@ -216,7 +216,7 @@ func (rpnb *RootPathNodeBuilder) populate() {
 					nm.lipnb.nextInterConnId = lipToOtherConn.GetId()
 
 					var liTd *TrioDetails
-					for _, possTd := range ppd.allTrioDetails {
+					for _, possTd := range ppd.AllTrioDetails {
 						if possTd.HasConnections(ipConns[j].GetNegId(), nm.lipnb.nextInterConnId, nm.lipnb.nextMainConnId) {
 							liTd = possTd
 							break
@@ -284,18 +284,18 @@ func (ipnb *IntermediatePathNodeBuilder) verify() {
 }
 
 /***************************************************************/
-// LastIntermediatePathNodeBuilder Functions
+// LastPathNodeBuilder Functions
 /***************************************************************/
 
-func (lipnb *LastIntermediatePathNodeBuilder) String() string {
+func (lipnb *LastPathNodeBuilder) String() string {
 	return fmt.Sprintf("LINB-%s-%s", lipnb.ctx.String(), lipnb.trIdx.String())
 }
 
-func (lipnb *LastIntermediatePathNodeBuilder) dumpInfo() string {
+func (lipnb *LastPathNodeBuilder) dumpInfo() string {
 	return fmt.Sprintf("LINB-%s %s %s", lipnb.trIdx.String(), lipnb.nextMainConnId, lipnb.nextInterConnId)
 }
 
-func (lipnb *LastIntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
+func (lipnb *LastPathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
 	ppd := lipnb.GetPointPackData()
 	nextMainPoint := from.GetNearMainPoint()
 	if Log.DoAssert() {
@@ -320,7 +320,7 @@ func (lipnb *LastIntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point,
 	return nil, Origin
 }
 
-func (lipnb *LastIntermediatePathNodeBuilder) verify() {
+func (lipnb *LastPathNodeBuilder) verify() {
 	td := lipnb.GetPointPackData().GetTrioDetails(lipnb.trIdx)
 	if !td.HasConnection(lipnb.nextMainConnId) {
 		Log.Errorf("%s %s %s failed checking next main connection part of trio", lipnb.String(), lipnb.nextMainConnId, lipnb.nextInterConnId)

@@ -199,7 +199,7 @@ func (ppd *PointPackData) getCubeList(growthCtx GrowthContext) *CubeListBuilder 
 	res := CubeListBuilder{}
 	res.growthCtx = growthCtx
 	res.allCubes = make([]CubeOfTrioIndex, 0, 100)
-	for cubeKey := range ppd.cubeIdsPerKey {
+	for cubeKey := range ppd.CubeIdsPerKey {
 		if cubeKey.growthCtxId == growthCtx.GetId() {
 			res.allCubes = append(res.allCubes, cubeKey.cube)
 		}
@@ -209,7 +209,7 @@ func (ppd *PointPackData) getCubeList(growthCtx GrowthContext) *CubeListBuilder 
 
 func (ppd *PointPackData) GetCubeById(cubeId int) CubeKeyId {
 	ppd.checkCubesInitialized()
-	for cubeKey, id := range ppd.cubeIdsPerKey {
+	for cubeKey, id := range ppd.CubeIdsPerKey {
 		if id == cubeId {
 			return cubeKey
 		}
@@ -220,7 +220,7 @@ func (ppd *PointPackData) GetCubeById(cubeId int) CubeKeyId {
 
 func (ppd *PointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
 	ppd.checkCubesInitialized()
-	id, ok := ppd.cubeIdsPerKey[cubeKey]
+	id, ok := ppd.CubeIdsPerKey[cubeKey]
 	if !ok {
 		Log.Fatalf("trying to find cube %v which does not exists", cubeKey)
 		return -1

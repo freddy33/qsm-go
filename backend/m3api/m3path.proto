@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package m3api;
+
+import "m3point.proto";
+
+message PathContextMsg {
+    int32 path_ctx_id = 1;
+    int32 growth_context_id = 2;
+    int32 growth_offset = 3;
+}
+
+message PathNodeMsg {
+    int64 path_node_id = 1;
+    int32 path_ctx_id = 2;
+    PointMsg point = 3;
+    int64 d = 4;
+    int32 path_builder_id = 5;
+    int32 trio_id = 6;
+    uint32 connection_mask = 7;
+    repeated int64 linked_path_node_ids = 8;
+}

@@ -55,8 +55,8 @@ func TestAllTrioDetails(t *testing.T) {
 
 	ppd := getPointTestData()
 
-	assert.Equal(t, 200, len(ppd.allTrioDetails))
-	for i, td := range ppd.allTrioDetails {
+	assert.Equal(t, 200, len(ppd.AllTrioDetails))
+	for i, td := range ppd.AllTrioDetails {
 		// All vec should have conn details
 		cds := td.GetConnections()
 		// Conn ID increase always
@@ -89,9 +89,9 @@ func TestAllTrioDetails(t *testing.T) {
 	}
 
 	// Check that All trio is ordered correctly
-	for i, tr := range ppd.allTrioDetails {
+	for i, tr := range ppd.AllTrioDetails {
 		if i > 0 {
-			assert.True(t, ppd.allTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, ppd.allTrioDetails[i-1], i, tr)
+			assert.True(t, ppd.AllTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, ppd.AllTrioDetails[i-1], i, tr)
 		}
 	}
 }
@@ -104,8 +104,8 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
 	PossibleDSArray := [NbTrioDsIndex][3]DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
 
-	indexInPossDS := make([]int, len(ppd.allTrioDetails))
-	for i, td := range ppd.allTrioDetails {
+	indexInPossDS := make([]int, len(ppd.AllTrioDetails))
+	for i, td := range ppd.AllTrioDetails {
 		cds := td.conns
 		dsArray := [3]DInt{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
@@ -122,9 +122,9 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	// Check that All trio is ordered correctly
 	countPerIndex := [NbTrioDsIndex]int{}
 	countPerIndexPerFirstConnPosId := [NbTrioDsIndex][10]int{}
-	for i, td := range ppd.allTrioDetails {
+	for i, td := range ppd.AllTrioDetails {
 		if i > 0 {
-			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, ppd.allTrioDetails[i-1], i, td)
+			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, ppd.AllTrioDetails[i-1], i, td)
 		}
 		dsIndex := td.GetDSIndex()
 		countPerIndex[dsIndex]++
