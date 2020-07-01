@@ -55,3 +55,10 @@ message LastPathNodeBuilderMsg {
     sint32 next_inter_conn_id = 4;
 }
 
+message PointPackDataMsg {
+    repeated ConnectionMsg all_connections = 1;
+    repeated TrioMsg all_trios = 2;
+    repeated GrowthContextMsg all_growth_contexts = 3;
+    repeated CubeOfTrioMsg all_cubes = 4;
+    repeated RootPathNodeBuilderMsg all_path_node_builders = 5;
+}
