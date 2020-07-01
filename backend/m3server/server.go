@@ -26,6 +26,10 @@ func (app *QsmApp) AddHandler(path string, handleFunc func(http.ResponseWriter, 
 	})
 }
 
+func GetEnvironment(r *http.Request) *m3db.QsmEnvironment {
+	return m3db.GetEnvironment(r.Context().Value(QSM_CTX_ENV_ID_KEY).(m3db.QsmEnvID))
+}
+
 func home(w http.ResponseWriter, r *http.Request) {
 	_, err := fmt.Fprintf(w, "REST APIs at /point-data\nUsing env id=%d", r.Context().Value(QSM_CTX_ENV_ID_KEY))
 	if err != nil {

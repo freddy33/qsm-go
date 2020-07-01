@@ -24,9 +24,11 @@ func GetPointPackData(env *m3db.QsmEnvironment) *m3point.PointPackData {
 
 func GetPointData(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-protobuf; messageType=backend.m3api.PointPackDataMsg")
-	env := m3db.GetEnvironment(r.Context().Value(QSM_CTX_ENV_ID_KEY).(m3db.QsmEnvID))
+
+	env := GetEnvironment(r)
 	ppd := GetPointPackData(env)
 	msg := m3api.PointPackDataMsg{}
+
 	msg.AllConnections = make([]*m3api.ConnectionMsg, len(ppd.AllConnections))
 	for idx, conn := range ppd.AllConnections {
 		msg.AllConnections[idx] = &m3api.ConnectionMsg{
@@ -35,7 +37,63 @@ func GetPointData(w http.ResponseWriter, r *http.Request) {
 			Ds:     int64(conn.ConnDS),
 		}
 	}
-	fmt.Println("sending all connections", len(msg.AllConnections))
+	Log.Debug("sending all connections", len(msg.AllConnections))
+
+	msg.AllTrios = make([]*m3api.TrioMsg, len(ppd.AllTrioDetails))
+	for idx, tr := range ppd.AllTrioDetails {
+		msg.AllTrios[idx] = &m3api.TrioMsg{TrioId: int32(tr.GetId()), ConnIds: []int32{
+			int32(tr.GetConnections()[0].GetId()),
+			int32(tr.GetConnections()[1].GetId()),
+			int32(tr.GetConnections()[2].GetId()),
+		}}
+	}
+	Log.Debug("sending all trios", len(msg.AllTrios))
+
+	msg.AllGrowthContexts = make([]*m3api.GrowthContextMsg, len(ppd.AllGrowthContexts))
+	for idx, gc := range ppd.AllGrowthContexts {
+		msg.AllGrowthContexts[idx] = &m3api.GrowthContextMsg{
+			GrowthContextId: int32(gc.GetId()),
+			GrowthType:      int32(gc.GetGrowthType()),
+			GrowthIndex:     int32(gc.GetGrowthIndex()),
+		}
+	}
+	Log.Debug("sending all growth context", len(msg.AllGrowthContexts))
+
+	msg.AllCubes = make([]*m3api.CubeOfTrioMsg, len(ppd.CubeIdsPerKey)+1)
+	// Dummy 0 cube
+	msg.AllCubes[0] = &m3api.CubeOfTrioMsg{CubeId: int32(0)}
+	for cubeKey, id := range ppd.CubeIdsPerKey {
+		cubeOfTrio := cubeKey.GetCube()
+		centerFaces := cubeOfTrio.GetCenterFaces()
+		middleEdges := cubeOfTrio.GetMiddleEdges()
+		msg.AllCubes[id] = &m3api.CubeOfTrioMsg{
+			CubeId:             int32(id),
+			GrowthContextId:    int32(cubeKey.GetGrowthCtxId()),
+			CenterTrioId:       int32(cubeOfTrio.GetCenter()),
+			CenterFacesTrioIds: convertToInt32Slice(centerFaces[:]),
+			MiddleEdgesTrioIds: convertToInt32Slice(middleEdges[:]),
+		}
+	}
+	Log.Debug("sending all cubes", len(msg.AllCubes))
+
+	msg.AllPathNodeBuilders = make([]*m3api.RootPathNodeBuilderMsg, len(ppd.PathBuilders))
+	for idx, pb := range ppd.PathBuilders {
+		if idx == 0 {
+			// Dummy 0 cube Id
+			msg.AllPathNodeBuilders[idx] = &m3api.RootPathNodeBuilderMsg{
+				CubeId: int32(0),
+				TrioId: int32(m3point.NilTrioIndex),
+			}
+		} else {
+			msg.AllPathNodeBuilders[idx] = &m3api.RootPathNodeBuilderMsg{
+				CubeId:            int32(pb.GetCubeId()),
+				TrioId:            int32(pb.GetTrioIndex()),
+				InterNodeBuilders: convertToInterMsg(pb.GetPathLinks()),
+			}
+		}
+	}
+	Log.Debug("sending all root path builders", len(msg.AllPathNodeBuilders))
+
 	data, err := proto.Marshal(&msg)
 	if err != nil {
 		Log.Warnf("Failed to marshal Point Package Data due to: %q", err.Error())
@@ -49,4 +107,39 @@ func GetPointData(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		Log.Errorf("failed to send data to response due to %q", err.Error())
 	}
+}
+
+func convertToInt32Slice(trIds []m3point.TrioIndex) []int32 {
+	res := make([]int32, len(trIds))
+	for idx, tr := range trIds {
+		res[idx] = int32(tr)
+	}
+	return res
+}
+
+func convertToLastMsg(pnb m3point.PathNodeBuilder) *m3api.LastPathNodeBuilderMsg {
+	lpnb := pnb.(*m3point.LastPathNodeBuilder)
+	return &m3api.LastPathNodeBuilderMsg{
+		CubeId:          int32(lpnb.GetCubeId()),
+		TrioId:          int32(lpnb.GetTrioIndex()),
+		NextMainConnId:  int32(lpnb.GetNextMainConnId()),
+		NextInterConnId: int32(lpnb.GetNextInterConnId()),
+	}
+}
+
+func convertToInterMsg(pls []m3point.PathLinkBuilder) []*m3api.IntermediatePathNodeBuilderMsg {
+	res := make([]*m3api.IntermediatePathNodeBuilderMsg, len(pls))
+	for idx, pl := range pls {
+		pnb := pl.GetPathNodeBuilder().(*m3point.IntermediatePathNodeBuilder)
+		nextPls := pnb.GetPathLinks()
+		res[idx] = &m3api.IntermediatePathNodeBuilderMsg{
+			CubeId:           int32(pnb.GetCubeId()),
+			TrioId:           int32(pnb.GetTrioIndex()),
+			Link1ConnId:      int32(nextPls[0].GetConnectionId()),
+			LastNodeBuilder1: convertToLastMsg(nextPls[0].GetPathNodeBuilder()),
+			Link2ConnId:      int32(nextPls[1].GetConnectionId()),
+			LastNodeBuilder2: convertToLastMsg(nextPls[1].GetPathNodeBuilder()),
+		}
+	}
+	return res
 }

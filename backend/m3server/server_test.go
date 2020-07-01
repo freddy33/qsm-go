@@ -3,6 +3,7 @@ package m3server
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3api"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,7 @@ func TestHome(t *testing.T) {
 }
 
 func TestReadPointData(t *testing.T) {
+	Log.SetDebug()
 	req, err := http.NewRequest("GET", "/point-data", nil)
 	assert.NoError(t, err, "Could create request")
 	rr := httptest.NewRecorder()
@@ -53,4 +55,8 @@ func TestReadPointData(t *testing.T) {
 	err = proto.Unmarshal(b, pMsg)
 	assert.NoError(t, err, "Fail to marshall bytes of /point-data")
 	assert.Equal(t, 50, len(pMsg.AllConnections))
+	assert.Equal(t, 200, len(pMsg.AllTrios))
+	assert.Equal(t, 52, len(pMsg.AllGrowthContexts))
+	assert.Equal(t, m3point.TotalNumberOfCubes+1, len(pMsg.AllCubes))
+	assert.Equal(t, m3point.TotalNumberOfCubes+1, len(pMsg.AllPathNodeBuilders))
 }

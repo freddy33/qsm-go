@@ -19,6 +19,14 @@ type CubeKeyId struct {
 	cube        CubeOfTrioIndex
 }
 
+func (c CubeKeyId) GetGrowthCtxId() int {
+	return c.growthCtxId
+}
+
+func (c CubeKeyId) GetCube() CubeOfTrioIndex {
+	return c.cube
+}
+
 type CubeListBuilder struct {
 	growthCtx GrowthContext
 	allCubes  []CubeOfTrioIndex
@@ -93,8 +101,16 @@ func (cube CubeOfTrioIndex) String() string {
 	return fmt.Sprintf("CK-%s-%s-%s-%s", cube.center.String(), cube.centerFaces[0].String(), cube.centerFaces[1].String(), cube.middleEdges[0].String())
 }
 
-func (cube CubeOfTrioIndex) GetCenterTrio() TrioIndex {
+func (cube CubeOfTrioIndex) GetCenter() TrioIndex {
 	return cube.center
+}
+
+func (cube CubeOfTrioIndex) GetCenterFaces() [6]TrioIndex {
+	return cube.centerFaces
+}
+
+func (cube CubeOfTrioIndex) GetMiddleEdges() [12]TrioIndex {
+	return cube.middleEdges
 }
 
 func (cube CubeOfTrioIndex) GetCenterFaceTrio(ud UnitDirection) TrioIndex {
