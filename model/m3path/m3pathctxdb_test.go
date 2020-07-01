@@ -2,7 +2,7 @@ package m3path
 
 import (
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -25,8 +25,8 @@ func TestMakeNewPathCtx(t *testing.T) {
 	m3point.Log.SetAssert(true)
 	Log.SetDebug()
 	m3point.Log.SetDebug()
-	m3db.SetToTestMode()
-	env := GetFullTestDb(m3db.PathTestEnv)
+	m3util.SetToTestMode()
+	env := GetFullTestDb(m3util.PathTestEnv)
 	start := time.Now()
 	InitializeDBEnv(env)
 	endInit := time.Now()

@@ -7,7 +7,7 @@ import (
 
 type GrowthContext interface {
 	fmt.Stringer
-	GetEnv() *m3db.QsmEnvironment
+	GetEnv() *m3db.QsmDbEnvironment
 	GetId() int
 	GetGrowthType() GrowthType
 	GetGrowthIndex() int
@@ -17,7 +17,7 @@ type GrowthContext interface {
 
 type PathNodeBuilder interface {
 	fmt.Stringer
-	GetEnv() *m3db.QsmEnvironment
+	GetEnv() *m3db.QsmDbEnvironment
 	GetCubeId() int
 	GetTrioIndex() TrioIndex
 	GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point)

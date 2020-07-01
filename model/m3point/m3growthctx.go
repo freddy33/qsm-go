@@ -29,7 +29,7 @@ var maxOffsetPerType = map[GrowthType]int{
 }
 
 type BaseGrowthContext struct {
-	env *m3db.QsmEnvironment
+	env *m3db.QsmDbEnvironment
 	// A generate id used in arrays and db
 	id int
 	// The context type for this flow context
@@ -117,7 +117,7 @@ func (gowthCtx *BaseGrowthContext) String() string {
 	return fmt.Sprintf("GrowthCtx%d-%d-Idx%02d", gowthCtx.id, gowthCtx.growthType, gowthCtx.growthIndex)
 }
 
-func (gowthCtx *BaseGrowthContext) GetEnv() *m3db.QsmEnvironment {
+func (gowthCtx *BaseGrowthContext) GetEnv() *m3db.QsmDbEnvironment {
 	return gowthCtx.env
 }
 

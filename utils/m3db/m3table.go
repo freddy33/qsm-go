@@ -3,6 +3,7 @@ package m3db
 import (
 	"database/sql"
 	"fmt"
+	"github.com/freddy33/qsm-go/utils/m3util"
 )
 
 type TableDefinition struct {
@@ -17,12 +18,12 @@ type TableDefinition struct {
 }
 
 type TableExec struct {
-	envId     QsmEnvID
+	envId     m3util.QsmEnvID
 	tableName string
 	checked   bool
 	created   bool
 
-	env         *QsmEnvironment
+	env         *QsmDbEnvironment
 	TableDef    *TableDefinition
 	InsertStmt  *sql.Stmt
 	QueriesStmt []*sql.Stmt
@@ -38,7 +39,7 @@ func AddTableDef(tDef *TableDefinition) {
 	tableDefinitions[tDef.Name] = tDef
 }
 
-func (env *QsmEnvironment) SelectAllForLoad(tableName string) (*TableExec, *sql.Rows) {
+func (env *QsmDbEnvironment) SelectAllForLoad(tableName string) (*TableExec, *sql.Rows) {
 	te, err := env.GetOrCreateTableExec(tableName)
 	if err != nil {
 		Log.Fatalf("could not load due to error while getting table exec %v", err)
@@ -56,7 +57,7 @@ func (env *QsmEnvironment) SelectAllForLoad(tableName string) (*TableExec, *sql.
 	return te, rows
 }
 
-func (env *QsmEnvironment) GetForSaveAll(tableName string) (*TableExec, int, bool, error) {
+func (env *QsmDbEnvironment) GetForSaveAll(tableName string) (*TableExec, int, bool, error) {
 	te, err := env.GetOrCreateTableExec(tableName)
 	if err != nil {
 		return te, 0, false, err
@@ -105,14 +106,14 @@ func (err *QsmWrongCount) Error() string {
 	return fmt.Sprintf("number of rows in %s is %d and should be %d", err.tableName, err.actual, err.expected)
 }
 
-func (env *QsmEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, error) {
+func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, error) {
 	env.createTableMutex.Lock()
 	defer env.createTableMutex.Unlock()
 
 	tableExec, ok := env.tableExecs[tableName]
 	if ok {
 		if Log.IsTrace() {
-			Log.Tracef("Table execution for environment %d and tableName '%s' already in map", env.id, tableName)
+			Log.Tracef("Table execution for environment %d and tableName '%s' already in map", env.GetId(), tableName)
 		}
 		if tableExec.checked {
 			// Now the table exists
@@ -120,14 +121,14 @@ func (env *QsmEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, e
 			return tableExec, nil
 		}
 		if Log.IsDebug() {
-			Log.Debugf("Table execution for environment %d tableName '%s' was not checked! Redoing checks.", env.id, tableName)
+			Log.Debugf("Table execution for environment %d tableName '%s' was not checked! Redoing checks.", env.GetId(), tableName)
 		}
 	} else {
 		if Log.IsDebug() {
-			Log.Debugf("Creating table execution for environment %d tableName=%s", env.id, tableName)
+			Log.Debugf("Creating table execution for environment %d tableName=%s", env.GetId(), tableName)
 		}
 		tableExec = new(TableExec)
-		tableExec.envId = env.id
+		tableExec.envId = env.GetId()
 		tableExec.env = env
 	}
 
@@ -305,7 +306,7 @@ func (te *TableExec) initForTable(tableName string) error {
 
 	db := te.env.GetConnection()
 	if db == nil {
-		return MakeQsmErrorf("Got a nil connection for %d", te.env.id)
+		return MakeQsmErrorf("Got a nil connection for %d", te.env.GetId())
 	}
 
 	resCheck := db.QueryRow("select 1 from information_schema.tables where table_schema='public' and table_name=$1", tableName)

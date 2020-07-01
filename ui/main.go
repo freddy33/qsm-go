@@ -25,6 +25,6 @@ func main() {
 			}
 		}
 	}
-	defer m3db.CloseAll()
+	defer m3util.CloseAll()
 	playgl.Play()
 }

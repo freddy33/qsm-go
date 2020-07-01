@@ -2,7 +2,7 @@ package m3point
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -42,9 +42,9 @@ func TestPosMod8(t *testing.T) {
 }
 
 func getPointTestData() *PointPackData {
-	m3db.SetToTestMode()
+	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3db.PointTestEnv)
+	env := GetFullTestDb(m3util.PointTestEnv)
 	InitializeDBEnv(env, false)
 	return GetPointPackData(env)
 }

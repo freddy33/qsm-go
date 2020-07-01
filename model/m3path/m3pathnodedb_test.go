@@ -1,14 +1,14 @@
 package m3path
 
 import (
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestPathNodeDbConnMask(t *testing.T) {
-	m3db.SetToTestMode()
-	env := GetFullTestDb(m3db.PathTestEnv)
+	m3util.SetToTestMode()
+	env := GetFullTestDb(m3util.PathTestEnv)
 	InitializeDBEnv(env)
 
 	pn := getNewPathNodeDb()

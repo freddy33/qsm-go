@@ -3,6 +3,7 @@ package m3path
 import (
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
@@ -10,7 +11,7 @@ import (
 
 var allTestContextsMutex sync.Mutex
 
-func getAllTestContexts(env *m3db.QsmEnvironment) map[m3point.GrowthType][]PathContext {
+func getAllTestContexts(env *m3db.QsmDbEnvironment) map[m3point.GrowthType][]PathContext {
 	pathData := GetPathPackData(env)
 	if pathData.allCenterContextsLoaded {
 		return pathData.allCenterContexts
@@ -49,9 +50,9 @@ func TestFirstPathContextFilling(t *testing.T) {
 	Log.SetAssert(true)
 	m3point.Log.SetInfo()
 	m3point.Log.SetAssert(true)
-	m3db.SetToTestMode()
+	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3db.PathTestEnv)
+	env := GetFullTestDb(m3util.PathTestEnv)
 	allCtx := getAllTestContexts(env)
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		for _, ctx := range allCtx[ctxType] {

@@ -2,6 +2,7 @@ package m3point
 
 import (
 	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -18,9 +19,9 @@ const(
 func TestLoadOrCalculate(t *testing.T) {
 	m3db.Log.SetInfo()
 	Log.SetInfo()
-	m3db.SetToTestMode()
+	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3db.PointLoadEnv)
+	env := GetFullTestDb(m3util.PointLoadEnv)
 	ppd := GetPointPackData(env)
 
 	start := time.Now()
@@ -66,9 +67,9 @@ func TestLoadOrCalculate(t *testing.T) {
 func TestSaveAll(t *testing.T) {
 	m3db.Log.SetDebug()
 	Log.SetDebug()
-	m3db.SetToTestMode()
+	m3util.SetToTestMode()
 
-	tempEnv := GetCleanTempDb(m3db.PointTempEnv)
+	tempEnv := GetCleanTempDb(m3util.PointTempEnv)
 	ppd := GetPointPackData(tempEnv)
 
 	// ************ Connection Details

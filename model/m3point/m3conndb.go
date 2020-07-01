@@ -46,7 +46,7 @@ func createTrioDetailsTableDef() *m3db.TableDefinition {
 // Connection Details Load and Save
 /***************************************************************/
 
-func loadConnectionDetails(env *m3db.QsmEnvironment) ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
+func loadConnectionDetails(env *m3db.QsmDbEnvironment) ([]*ConnectionDetails, map[Point]*ConnectionDetails) {
 	te, rows := env.SelectAllForLoad(ConnectionDetailsTable)
 
 	res := make([]*ConnectionDetails, 0, te.TableDef.ExpectedCount)

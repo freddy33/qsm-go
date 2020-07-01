@@ -1,16 +1,16 @@
 package m3point
 
 import (
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestDisplayPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
-	m3db.SetToTestMode()
+	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3db.PointTestEnv)
+	env := GetFullTestDb(m3util.PointTestEnv)
 	InitializeDBEnv(env, false)
 	ppd := GetPointPackData(env)
 	assert.Equal(t, TotalNumberOfCubes+1, len(ppd.PathBuilders))
@@ -25,9 +25,9 @@ func TestDisplayPathBuilders(t *testing.T) {
 func TestAllPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
 	Log.SetDebug()
-	m3db.SetToTestMode()
+	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3db.PointTestEnv)
+	env := GetFullTestDb(m3util.PointTestEnv)
 	InitializeDBEnv(env, true)
 	ppd := GetPointPackData(env)
 

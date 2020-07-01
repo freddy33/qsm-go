@@ -131,7 +131,7 @@ func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4
 	space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
-func runSpacePyramidWithParams(env *m3db.QsmEnvironment, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
+func runSpacePyramidWithParams(env *m3db.QsmDbEnvironment, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
 	space := MakeSpace(env, 3 * 30)
 	space.MaxConnections = 3
 	space.blockOnSameEvent = 3

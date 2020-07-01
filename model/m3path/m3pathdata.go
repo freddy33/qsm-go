@@ -3,10 +3,11 @@ package m3path
 import (
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 )
 
 type PathPackData struct {
-	env           *m3db.QsmEnvironment
+	env           *m3db.QsmDbEnvironment
 	pathCtxMap    map[int]*PathContextDb
 	pathNodeCache map[int64]*PathNodeDb
 
@@ -15,7 +16,7 @@ type PathPackData struct {
 	allCenterContextsLoaded bool
 }
 
-func makePathPackData(env *m3db.QsmEnvironment) *PathPackData {
+func makePathPackData(env *m3db.QsmDbEnvironment) *PathPackData {
 	res := new(PathPackData)
 	res.env = env
 	res.pathCtxMap = make(map[int]*PathContextDb, 2^8)
@@ -24,11 +25,21 @@ func makePathPackData(env *m3db.QsmEnvironment) *PathPackData {
 	return res
 }
 
-func GetPathPackData(env *m3db.QsmEnvironment) *PathPackData {
-	if env.GetData(m3db.PathIdx) == nil {
-		env.SetData(m3db.PathIdx, makePathPackData(env))
+func GetPathPackData(env *m3db.QsmDbEnvironment) *PathPackData {
+	if env.GetData(m3util.PathIdx) == nil {
+		env.SetData(m3util.PathIdx, makePathPackData(env))
 	}
-	return env.GetData(m3db.PathIdx).(*PathPackData)
+	return env.GetData(m3util.PathIdx).(*PathPackData)
+}
+
+func (ppd *PathPackData) GetEnvId() m3util.QsmEnvID {
+	if ppd == nil {
+		return m3util.NoEnv
+	}
+	if ppd.env == nil {
+		return m3util.NoEnv
+	}
+	return ppd.env.GetId()
 }
 
 func (ppd *PathPackData) GetPathCtx(id int) PathContext {

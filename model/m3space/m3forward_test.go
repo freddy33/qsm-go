@@ -55,16 +55,16 @@ func createAllIndexesForContext(t assert.TestingT, ctxType m3point.GrowthType) [
 }
 
 var envMutex sync.Mutex
-var spaceEnv *m3db.QsmEnvironment
+var spaceEnv *m3db.QsmDbEnvironment
 
-func getSpaceTestEnv() *m3db.QsmEnvironment {
+func getSpaceTestEnv() *m3db.QsmDbEnvironment {
 	envMutex.Lock()
 	defer envMutex.Unlock()
 	if spaceEnv != nil {
 		return spaceEnv
 	}
-	m3db.SetToTestMode()
-	spaceEnv := m3path.GetFullTestDb(m3db.SpaceTestEnv)
+	m3util.SetToTestMode()
+	spaceEnv := m3path.GetFullTestDb(m3util.SpaceTestEnv)
 	m3point.InitializeDBEnv(spaceEnv, true)
 	return spaceEnv
 }

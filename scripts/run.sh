@@ -20,6 +20,14 @@ fi
 commandName=$1
 
 case "$commandName" in
+    build)
+    cd ${rootDir}/model && ${go_exe} build && \
+    cd ${rootDir}/backend && ${go_exe} build && \
+    cd ${rootDir}/ui && ${go_exe} build
+    ;;
+    backend)
+    cd ${rootDir}/backend && ${go_exe} build && ./backend $@
+    ;;
     play)
     cd ${rootDir}/ui && ${go_exe} build && ./ui $@
     ;;

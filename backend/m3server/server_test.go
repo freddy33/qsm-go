@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3api"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -14,9 +14,9 @@ import (
 	"testing"
 )
 
-var apps = make(map[m3db.QsmEnvID]*QsmApp, 20)
+var apps = make(map[m3util.QsmEnvID]*QsmApp, 20)
 
-func getApp(envId m3db.QsmEnvID) *QsmApp {
+func getApp(envId m3util.QsmEnvID) *QsmApp {
 	_, ok := apps[envId]
 	if !ok {
 		apps[envId] = MakeApp(envId)
@@ -28,7 +28,7 @@ func TestHome(t *testing.T) {
 	req, err := http.NewRequest("GET", "/", nil)
 	assert.NoError(t, err, "Could create request")
 	rr := httptest.NewRecorder()
-	getApp(m3db.PointTestEnv).Router.ServeHTTP(rr, req)
+	getApp(m3util.PointTestEnv).Router.ServeHTTP(rr, req)
 	assert.NoError(t, err, "Fail to call /")
 	fmt.Println(rr.Body.String())
 }
@@ -38,7 +38,7 @@ func TestReadPointData(t *testing.T) {
 	req, err := http.NewRequest("GET", "/point-data", nil)
 	assert.NoError(t, err, "Could create request")
 	rr := httptest.NewRecorder()
-	getApp(m3db.PointTestEnv).Router.ServeHTTP(rr, req)
+	getApp(m3util.PointTestEnv).Router.ServeHTTP(rr, req)
 	assert.NoError(t, err, "Fail to call /point-data")
 	contentType := rr.Header().Get("Content-Type")
 	contentTypeSplit := strings.Split(contentType, ";")

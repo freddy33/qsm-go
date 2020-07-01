@@ -26,14 +26,14 @@ func main() {
 		}
 	}
 	fmt.Println("Executing", c)
-	defer m3db.CloseAll()
+	defer m3util.CloseAll()
 	switch c {
 	case "gentxt":
-		m3point.GenerateTextFilesEnv(m3db.GetDefaultEnvironment())
+		m3point.GenerateTextFilesEnv(m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment))
 	case "filldb":
-		m3point.FillDbEnv(m3db.GetDefaultEnvironment())
+		m3point.FillDbEnv(m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment))
 	case "refilldb":
-		m3point.ReFillDbEnv(m3db.GetDefaultEnvironment())
+		m3point.ReFillDbEnv(m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment))
 	case "perf":
 		m3path.RunInsertRandomPoints()
 	default:

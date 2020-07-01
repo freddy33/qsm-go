@@ -52,7 +52,7 @@ func Play() {
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
 	max := int64(9 * m3point.THREE)
-	env := m3db.GetDefaultEnvironment()
+	env := m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment)
 	m3path.InitializeDBEnv(env)
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()

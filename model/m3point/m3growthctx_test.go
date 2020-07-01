@@ -2,14 +2,14 @@ package m3point
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestConnectionDetailsInGrowthContext(t *testing.T) {
-	m3db.SetToTestMode()
-	env := GetFullTestDb(m3db.PointTestEnv)
+	m3util.SetToTestMode()
+	env := GetFullTestDb(m3util.PointTestEnv)
 	ppd := GetPointPackData(env)
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()

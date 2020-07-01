@@ -22,7 +22,7 @@ func init() {
 	m3db.AddTableDef(creatPathNodesTableDef())
 }
 
-func InitializeDBEnv(env *m3db.QsmEnvironment) {
+func InitializeDBEnv(env *m3db.QsmDbEnvironment) {
 	m3point.InitializeDBEnv(env, true)
 	createTablesEnv(env)
 }
@@ -139,7 +139,7 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	return &res
 }
 
-func createTablesEnv(env *m3db.QsmEnvironment) {
+func createTablesEnv(env *m3db.QsmDbEnvironment) {
 	_, err := env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PointsTable, err)
@@ -162,21 +162,21 @@ func createTablesEnv(env *m3db.QsmEnvironment) {
 /***************************************************************/
 
 var dbMutex sync.Mutex
-var testDbFilled [m3db.MaxNumberOfEnvironments]bool
+var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
-func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
+func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	env := m3point.GetFullTestDb(envId)
 	checkEnv(env)
 	return env
 }
 
-func GetCleanTempDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
+func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	env := m3point.GetCleanTempDb(envId)
 	checkEnv(env)
 	return env
 }
 
-func checkEnv(env *m3db.QsmEnvironment) {
+func checkEnv(env *m3db.QsmDbEnvironment) {
 	envId := env.GetId()
 	dbMutex.Lock()
 	defer dbMutex.Unlock()

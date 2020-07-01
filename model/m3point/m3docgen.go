@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-func GenerateTextFilesEnv(env *m3db.QsmEnvironment) {
+func GenerateTextFilesEnv(env *m3db.QsmDbEnvironment) {
 	InitializeDBEnv(env, true)
 	genDoc := m3util.GetGenDocDir()
 

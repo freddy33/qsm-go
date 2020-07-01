@@ -16,7 +16,7 @@ type SpaceVisitor interface {
 }
 
 type Space struct {
-	env *m3db.QsmEnvironment
+	env *m3db.QsmDbEnvironment
 
 	// the int value of the next event id created
 	lastIdCounter EventID
@@ -52,7 +52,7 @@ type Space struct {
 	EventOutgrowthDeadThreshold DistAndTime
 }
 
-func MakeSpace(env *m3db.QsmEnvironment, max m3point.CInt) Space {
+func MakeSpace(env *m3db.QsmDbEnvironment, max m3point.CInt) Space {
 	space := Space{}
 	space.env = env
 	space.lastIdCounter = 1
@@ -82,7 +82,7 @@ func (space *Space) SetEventOutgrowthThreshold(threshold DistAndTime) {
 	space.EventOutgrowthDeadThreshold = threshold + 3*3
 }
 
-func (space *Space) GetEnv() *m3db.QsmEnvironment {
+func (space *Space) GetEnv() *m3db.QsmDbEnvironment {
 	return space.env
 }
 

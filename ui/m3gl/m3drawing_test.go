@@ -5,6 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
@@ -17,11 +18,11 @@ type ExpectedSpaceState struct {
 
 var envMutex sync.Mutex
 
-func getGlTestEnv() *m3db.QsmEnvironment {
+func getGlTestEnv() *m3db.QsmDbEnvironment {
 	envMutex.Lock()
 	defer envMutex.Unlock()
-	m3db.SetToTestMode()
-	glEnv := m3path.GetFullTestDb(m3db.GlTestEnv)
+	m3util.SetToTestMode()
+	glEnv := m3path.GetFullTestDb(m3util.GlTestEnv)
 	m3point.InitializeDBEnv(glEnv, true)
 	return glEnv
 }
@@ -29,9 +30,9 @@ func getGlTestEnv() *m3db.QsmEnvironment {
 func TestSingleRedEvent(t *testing.T) {
 	Log.SetDebug()
 	m3space.Log.SetDebug()
-	m3db.SetToTestMode()
+	m3util.SetToTestMode()
 
-	m3path.GetFullTestDb(m3db.GlTestEnv)
+	m3path.GetFullTestDb(m3util.GlTestEnv)
 
 	world := MakeWorld(getGlTestEnv(), 3*9, 0.0)
 

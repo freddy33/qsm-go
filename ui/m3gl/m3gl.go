@@ -74,7 +74,7 @@ type OpenGLDrawingElement struct {
 	NbVertices   int32
 }
 
-func MakeWorld(env *m3db.QsmEnvironment, Max int64, glfwTime float64) DisplayWorld {
+func MakeWorld(env *m3db.QsmDbEnvironment, Max int64, glfwTime float64) DisplayWorld {
 	if Max%m3point.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}

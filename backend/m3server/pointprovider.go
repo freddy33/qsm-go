@@ -12,14 +12,14 @@ import (
 
 var Log = m3util.NewLogger("m3server", m3util.INFO)
 
-func GetPointPackData(env *m3db.QsmEnvironment) *m3point.PointPackData {
-	if env.GetData(m3db.PointIdx) == nil {
+func GetPointPackData(env *m3db.QsmDbEnvironment) *m3point.PointPackData {
+	if env.GetData(m3util.PointIdx) == nil {
 		ppd := new(m3point.PointPackData)
 		ppd.Env = env
-		env.SetData(m3db.PointIdx, ppd)
+		env.SetData(m3util.PointIdx, ppd)
 		// do not return ppd but always the pointer in env data array
 	}
-	return env.GetData(m3db.PointIdx).(*m3point.PointPackData)
+	return env.GetData(m3util.PointIdx).(*m3point.PointPackData)
 }
 
 func GetPointData(w http.ResponseWriter, r *http.Request) {

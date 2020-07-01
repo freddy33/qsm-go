@@ -88,7 +88,7 @@ func (pl *PathLinkBuilder) GetPathNodeBuilder() PathNodeBuilder {
 // BasePathNodeBuilder Functions
 /***************************************************************/
 
-func (pnb *BasePathNodeBuilder) GetEnv() *m3db.QsmEnvironment {
+func (pnb *BasePathNodeBuilder) GetEnv() *m3db.QsmDbEnvironment {
 	return pnb.ctx.growthCtx.GetEnv()
 }
 

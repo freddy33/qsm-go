@@ -8,7 +8,7 @@ import (
 )
 
 type PathContextDb struct {
-	env             *m3db.QsmEnvironment
+	env             *m3db.QsmDbEnvironment
 	ppd             *m3point.PointPackData
 	pathNodes       *m3db.TableExec
 	points          *m3db.TableExec
@@ -19,7 +19,7 @@ type PathContextDb struct {
 	openNodeBuilder *OpenNodeBuilder
 }
 
-func MakePathContextDBFromGrowthContext(env *m3db.QsmEnvironment, growthCtx m3point.GrowthContext, offset int) PathContext {
+func MakePathContextDBFromGrowthContext(env *m3db.QsmDbEnvironment, growthCtx m3point.GrowthContext, offset int) PathContext {
 	pathCtx := PathContextDb{}
 	pathCtx.env = env
 	pathCtx.ppd = m3point.GetPointPackData(env)

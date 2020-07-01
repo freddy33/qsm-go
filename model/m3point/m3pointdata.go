@@ -1,9 +1,12 @@
 package m3point
 
-import "github.com/freddy33/qsm-go/utils/m3db"
+import (
+	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
+)
 
 type PointData interface {
-	GetEnvId() m3db.QsmEnvID
+	GetEnvId() m3util.QsmEnvID
 	GetMaxConnId() ConnectionId
 	GetConnDetailsById(id ConnectionId) *ConnectionDetails
 	GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails
@@ -19,7 +22,7 @@ type PointData interface {
 }
 
 type PointPackData struct {
-	Env *m3db.QsmEnvironment
+	Env *m3db.QsmDbEnvironment
 
 	// All connection details ordered and mapped by base vector
 	AllConnections         []*ConnectionDetails
@@ -43,22 +46,22 @@ type PointPackData struct {
 	PathBuildersLoaded bool
 }
 
-func GetPointPackData(env *m3db.QsmEnvironment) *PointPackData {
-	if env.GetData(m3db.PointIdx) == nil {
+func GetPointPackData(env *m3db.QsmDbEnvironment) *PointPackData {
+	if env.GetData(m3util.PointIdx) == nil {
 		ppd := new(PointPackData)
 		ppd.Env = env
-		env.SetData(m3db.PointIdx, ppd)
+		env.SetData(m3util.PointIdx, ppd)
 		// do not return ppd but always the pointer in Env data array
 	}
-	return env.GetData(m3db.PointIdx).(*PointPackData)
+	return env.GetData(m3util.PointIdx).(*PointPackData)
 }
 
-func (ppd *PointPackData) GetEnvId() m3db.QsmEnvID {
+func (ppd *PointPackData) GetEnvId() m3util.QsmEnvID {
 	if ppd == nil {
-		return m3db.NoEnv
+		return m3util.NoEnv
 	}
 	if ppd.Env == nil {
-		return m3db.NoEnv
+		return m3util.NoEnv
 	}
 	return ppd.Env.GetId()
 }

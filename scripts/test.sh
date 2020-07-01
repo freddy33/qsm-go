@@ -26,7 +26,7 @@ test_model() {
 }
 
 test_backend() {
-    cd ${rootDir}/backend && go test ./m3api/
+    cd ${rootDir}/backend && go test ./m3server/
 }
 
 test_ui() {
@@ -57,8 +57,7 @@ case "$pack" in
     test_${pack}
     ;;
     all)
-    #test_util && test_model && test_backend && test_ui
-    test_util && test_model && test_ui
+    test_util && test_model && test_backend && test_ui
     ;;
     *)
     usage

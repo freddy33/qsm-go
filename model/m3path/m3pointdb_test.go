@@ -2,7 +2,7 @@ package m3path
 
 import (
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"sync"
@@ -11,8 +11,8 @@ import (
 )
 
 func TestPointsTable(t *testing.T) {
-	m3db.SetToTestMode()
-	env := GetCleanTempDb(m3db.PathTempEnv)
+	m3util.SetToTestMode()
+	env := GetCleanTempDb(m3util.PathTempEnv)
 
 	te, err := env.GetOrCreateTableExec(PointsTable)
 	assert.Nil(t, err)
@@ -68,8 +68,8 @@ func TestPointsTable(t *testing.T) {
 }
 
 func TestPointsTableConcurrency(t *testing.T) {
-	m3db.SetToTestMode()
-	env := GetFullTestDb(m3db.PerfTestEnv)
+	m3util.SetToTestMode()
+	env := GetFullTestDb(m3util.PerfTestEnv)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(100)
 	nbRoutines := 50

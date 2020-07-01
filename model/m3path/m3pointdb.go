@@ -3,12 +3,13 @@ package m3path
 import (
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"strings"
 	"sync"
 	"time"
 )
 
-func getPointEnv(env *m3db.QsmEnvironment, pointId int64) (*m3point.Point, error) {
+func getPointEnv(env *m3db.QsmDbEnvironment, pointId int64) (*m3point.Point, error) {
 	te, err := env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		return nil, m3db.MakeQsmErrorf("could not get points table exec due to '%s'", err.Error())
@@ -30,7 +31,7 @@ func getPointEnv(env *m3db.QsmEnvironment, pointId int64) (*m3point.Point, error
 	return nil, m3db.MakeQsmErrorf("point id %d does not exists!", pointId)
 }
 
-func getOrCreatePointEnv(env *m3db.QsmEnvironment, p m3point.Point) int64 {
+func getOrCreatePointEnv(env *m3db.QsmDbEnvironment, p m3point.Point) int64 {
 	te, err := env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Errorf("could not get points table exec due to %v", err)
@@ -90,8 +91,8 @@ func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 // perf test main
 /***************************************************************/
 func RunInsertRandomPoints() {
-	m3db.SetToTestMode()
-	env := GetFullTestDb(m3db.PerfTestEnv)
+	m3util.SetToTestMode()
+	env := GetFullTestDb(m3util.PerfTestEnv)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(10)
 	nbRoutines := 100

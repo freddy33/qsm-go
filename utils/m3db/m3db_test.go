@@ -29,9 +29,9 @@ func TestDbConf(t *testing.T) {
 
 	defer silentDeleteFile(testConfFile)
 
-	testConfEnv := QsmEnvID(1234)
-	env := new(QsmEnvironment)
-	env.id = testConfEnv
+	testConfEnv := m3util.QsmEnvID(1234)
+	env := new(QsmDbEnvironment)
+	env.Id = testConfEnv
 
 	env.fillDbConf()
 	connDetails := env.GetDbConf()
@@ -44,9 +44,9 @@ func TestDbConf(t *testing.T) {
 
 func TestEnvCreationAndDestroy(t *testing.T) {
 	Log.SetDebug()
-	env := GetEnvironment(DbTempEnv)
+	env := m3util.GetEnvironment(m3util.DbTempEnv).(*QsmDbEnvironment)
 	if env == nil {
-		assert.NotNil(t, env, "could not create environment %d", DbTempEnv)
+		assert.NotNil(t, env, "could not create environment %d", m3util.DbTempEnv)
 		return
 	}
 	defer env.Destroy()

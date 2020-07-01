@@ -132,3 +132,8 @@ func WriteAll(writer *csv.Writer, records [][]string) {
 func Write(writer *csv.Writer, records []string) {
 	ExitOnError(writer.Write(records))
 }
+
+func SetEnvQuietly(key, value string) {
+	ExitOnError(os.Setenv(key, value))
+}
+

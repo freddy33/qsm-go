@@ -2,12 +2,13 @@ package m3point
 
 import (
 	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 	"strconv"
 	"sync"
 	"time"
 )
 
-func InitializeDBEnv(env *m3db.QsmEnvironment, forced bool) {
+func InitializeDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
 	ppd := GetPointPackData(env)
 	if forced {
 		ppd.resetFlags()
@@ -59,13 +60,13 @@ func (ppd *PointPackData) initPathBuilders() {
 	}
 }
 
-func ReFillDbEnv(env *m3db.QsmEnvironment) {
+func ReFillDbEnv(env *m3db.QsmDbEnvironment) {
 	env.Destroy()
 	time.Sleep(1000 * time.Millisecond)
 	FillDbEnv(env)
 }
 
-func FillDbEnv(env *m3db.QsmEnvironment) {
+func FillDbEnv(env *m3db.QsmDbEnvironment) {
 	ppd := GetPointPackData(env)
 
 	n, err := ppd.saveAllConnectionDetails()
@@ -125,11 +126,11 @@ func FillDbEnv(env *m3db.QsmEnvironment) {
 /***************************************************************/
 
 var dbMutex sync.Mutex
-var cleanedDb [m3db.MaxNumberOfEnvironments]bool
-var testDbFilled [m3db.MaxNumberOfEnvironments]bool
+var cleanedDb [m3util.MaxNumberOfEnvironments]bool
+var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
-func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
-	if !m3db.TestMode {
+func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+	if !m3util.TestMode {
 		Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
 	}
 
@@ -137,7 +138,7 @@ func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 	defer dbMutex.Unlock()
 
 	if testDbFilled[envId] {
-		return m3db.GetEnvironment(envId)
+		return m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
 	}
 
 	envNumber := strconv.Itoa(int(envId))
@@ -146,16 +147,16 @@ func GetFullTestDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 
 	testDbFilled[envId] = true
 
-	return m3db.GetEnvironment(envId)
+	return m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
 }
 
 // Do not use this environment to load
-func GetCleanTempDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
-	if !m3db.TestMode {
+func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+	if !m3util.TestMode {
 		Log.Fatalf("Cannot use GetCleanTempDb in non test mode!")
 	}
 
-	env := m3db.GetEnvironment(envId)
+	env := m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
 
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
@@ -166,7 +167,7 @@ func GetCleanTempDb(envId m3db.QsmEnvID) *m3db.QsmEnvironment {
 
 	env.Destroy()
 
-	env = m3db.GetEnvironment(envId)
+	env = m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
 	cleanedDb[envId] = true
 
 	return env
