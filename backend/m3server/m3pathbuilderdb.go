@@ -178,8 +178,96 @@ func (ppd *PointPackData) calculateAllPathBuilders() []*m3point.RootPathNodeBuil
 	for cubeKey, cubeId := range ppd.CubeIdsPerKey {
 		root := m3point.RootPathNodeBuilder{}
 		root.Ctx = &m3point.PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(cubeKey.GrowthCtxId), CubeId: cubeId}
-		root.Populate()
+		ppd.Populate(&root)
 		res[cubeId] = &root
 	}
 	return res
+}
+
+func (ppd *PointPackData) Populate(rpnb *m3point.RootPathNodeBuilder) {
+	growthCtx := rpnb.Ctx.GrowthCtx
+	cubeKey := ppd.GetCubeById(rpnb.Ctx.CubeId)
+	cube := cubeKey.Cube
+	rpnb.TrIdx = cube.Center
+	td := ppd.GetTrioDetails(rpnb.TrIdx)
+	for i, cd := range td.Conns {
+		// We are talking about the intermediate point here
+		ip := cd.Vector
+
+		// From each center out connection there 2 last PNB
+		// They can be filled from the 2 unit directions of the base vector
+		nextMains := [2]m3point.NextMainPathNode{}
+		for j, ud := range cd.GetDirections() {
+			nextMains[j].Ud = ud
+			nmp := ud.GetFirstPoint()
+			nextTrIdx := cube.GetCenterFaceTrio(ud)
+			nextTd := ppd.GetTrioDetails(nextTrIdx)
+			backConn := nextTd.GetOppositeConn(ud)
+			nextMains[j].Lip = nmp.Add(backConn.Vector)
+			nextMains[j].BackConn = backConn
+			lipnb := m3point.LastPathNodeBuilder{}
+			lipnb.Ctx = rpnb.Ctx
+			lipnb.NextMainConnId = backConn.GetNegId()
+			nextMains[j].Lipnb = &lipnb
+		}
+
+		// We have all the last nodes let's create the intermediate one
+		// We have the three connections from ip to find the correct trio
+		var iTd *m3point.TrioDetails
+		ipConns := [2]*m3point.ConnectionDetails{ppd.GetConnDetailsByPoints(ip, nextMains[0].Lip), ppd.GetConnDetailsByPoints(ip, nextMains[1].Lip)}
+		for _, possTd := range ppd.AllTrioDetails {
+			if possTd.HasConnections(cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId()) {
+				iTd = possTd
+				break
+			}
+		}
+		if iTd == nil {
+			Log.Fatalf("did not find any trio details matching %s %s %s in %s cube %s", cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId(), growthCtx.String(), cube.String())
+			return
+		}
+
+		ipnb := m3point.IntermediatePathNodeBuilder{}
+		ipnb.Ctx = rpnb.Ctx
+		ipnb.TrIdx = iTd.GetId()
+
+		// Find the trio index for filling the last intermediate
+		for j, nm := range nextMains {
+			backUds := nm.BackConn.GetDirections()
+			foundUd := false
+			for _, backUd := range backUds {
+				if backUd.GetOpposite() == nm.Ud {
+					foundUd = true
+				} else {
+					nextInterTrIdx := cube.GetMiddleEdgeTrio(nm.Ud, backUd)
+					nextInterTd := ppd.GetTrioDetails(nextInterTrIdx)
+					nextInterBackConn := nextInterTd.GetOppositeConn(backUd)
+					nextInterNearMainPoint := nm.Ud.GetFirstPoint().Add(backUd.GetFirstPoint()).Add(nextInterBackConn.Vector)
+					lipToOtherConn := ppd.GetConnDetailsByPoints(nm.Lip, nextInterNearMainPoint)
+					nm.Lipnb.NextInterConnId = lipToOtherConn.GetId()
+
+					var liTd *m3point.TrioDetails
+					for _, possTd := range ppd.AllTrioDetails {
+						if possTd.HasConnections(ipConns[j].GetNegId(), nm.Lipnb.NextInterConnId, nm.Lipnb.NextMainConnId) {
+							liTd = possTd
+							break
+						}
+					}
+					if liTd == nil {
+						Log.Fatalf("did not find any trio details matching %s %s %s in %s cube %s", ipConns[j].GetNegId(), nm.Lipnb.NextInterConnId, nm.Lipnb.NextMainConnId, growthCtx.String(), cube.String())
+						return
+					}
+					nm.Lipnb.TrIdx = liTd.GetId()
+				}
+			}
+			if !foundUd {
+				Log.Fatalf("direction mess between trio details %s %s and %d %v", td.String(), iTd.String(), nm.Ud, backUds)
+			}
+			nm.Lipnb.Verify()
+			ipnb.PathLinks[j] = m3point.PathLinkBuilder{ConnId: ipConns[j].GetId(), PathNode: nm.Lipnb}
+		}
+		ipnb.Verify()
+
+		rpnb.PathLinks[i] = m3point.PathLinkBuilder{ConnId: cd.Id, PathNode: &ipnb}
+	}
+	rpnb.Verify()
 }

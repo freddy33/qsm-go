@@ -22,7 +22,7 @@ type PathNodeBuilder interface {
 	GetTrioIndex() TrioIndex
 	GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point)
 	dumpInfo() string
-	verify()
+	Verify()
 }
 
 

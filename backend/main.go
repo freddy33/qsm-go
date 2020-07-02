@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3server"
-	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"log"
@@ -27,9 +26,6 @@ func main() {
 			didSomething = true
 		case "filldb":
 			m3server.FillDbEnv(m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment))
-			didSomething = true
-		case "perf":
-			m3path.RunInsertRandomPoints()
 			didSomething = true
 		case "-port":
 			port = others[i+1]

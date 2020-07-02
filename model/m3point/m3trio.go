@@ -190,7 +190,7 @@ func (td *TrioDetails) getConn(ud UnitDirection) *ConnectionDetails {
 	return nil
 }
 
-func (td *TrioDetails) getOppositeConn(ud UnitDirection) *ConnectionDetails {
+func (td *TrioDetails) GetOppositeConn(ud UnitDirection) *ConnectionDetails {
 	return td.getConn(ud.GetOpposite())
 }
 

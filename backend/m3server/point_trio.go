@@ -389,6 +389,10 @@ func addConnDetail(connMap *map[m3point.Point]*m3point.ConnectionDetails, connVe
 }
 
 func (ppd *PointPackData) calculateAllTrioDetails() TrioDetailList {
+	ppd.ValidNextTrio = validNextTrio
+	ppd.AllMod4Permutations = AllMod4Permutations
+	ppd.AllMod8Permutations = AllMod8Permutations
+
 	res := TrioDetailList(make([]*m3point.TrioDetails, 0, 200))
 	// All base trio first
 	for i, tr := range allBaseTrio {
