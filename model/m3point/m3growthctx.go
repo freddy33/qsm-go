@@ -2,7 +2,7 @@ package m3point
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/utils/m3util"
 )
 
 /*
@@ -18,7 +18,7 @@ TODO: Create trio index for non nextMainPoint points base on growth type
 type GrowthType uint8
 
 var allGrowthTypes = [5]GrowthType{1, 2, 3, 4, 8}
-var totalNbContexts = 8 + 12 + 8 + 12 + 12
+var TotalNbContexts = 8 + 12 + 8 + 12 + 12
 
 var maxOffsetPerType = map[GrowthType]int{
 	GrowthType(1): 1,
@@ -29,39 +29,25 @@ var maxOffsetPerType = map[GrowthType]int{
 }
 
 type BaseGrowthContext struct {
-	env *m3db.QsmDbEnvironment
+	Env m3util.QsmEnvironment
 	// A generate id used in arrays and db
-	id int
+	Id int
 	// The context type for this flow context
-	growthType GrowthType
+	GrowthType GrowthType
 	// Index in the permutations to choose from. For type 1 and 3 [0,7] for the other in the 12 list [0,11]
 	// Max number of indexes returned by GrowthType.GetNbIndexes()
-	growthIndex int
+	GrowthIndex int
 }
 
-func (ppd *PointPackData) calculateAllGrowthContexts() []GrowthContext {
-	res := make([]GrowthContext, totalNbContexts)
-	idx := 0
-	for _, ctxType := range GetAllContextTypes() {
-		nbIndexes := ctxType.GetNbIndexes()
-		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			growthCtx := BaseGrowthContext{ppd.Env, idx, ctxType, pIdx}
-			res[idx] = &growthCtx
-			idx++
-		}
-	}
-	return res
-}
-
-func (ppd *PointPackData) getBaseTrioDetails(gowthCtx GrowthContext, mainPoint Point, offset int) *TrioDetails {
-	return ppd.GetTrioDetails(gowthCtx.GetBaseTrioIndex(gowthCtx.GetBaseDivByThree(mainPoint), offset))
+func (ppd *BasePointPackData) GetBaseTrioDetails(growthCtx GrowthContext, mainPoint Point, offset int) *TrioDetails {
+	return ppd.GetTrioDetails(growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), offset))
 }
 
 /***************************************************************/
 // GrowthType Functions
 /***************************************************************/
 
-func (ppd *PointPackData) GetAllGrowthContexts() []GrowthContext {
+func (ppd *BasePointPackData) GetAllGrowthContexts() []GrowthContext {
 	ppd.checkGrowthContextsInitialized()
 	return ppd.AllGrowthContexts
 }
@@ -97,12 +83,12 @@ func (t GrowthType) GetMaxOffset() int {
 // BaseGrowthContext Functions
 /***************************************************************/
 
-func (ppd *PointPackData) GetGrowthContextById(id int) GrowthContext {
+func (ppd *BasePointPackData) GetGrowthContextById(id int) GrowthContext {
 	ppd.checkGrowthContextsInitialized()
 	return ppd.AllGrowthContexts[id]
 }
 
-func (ppd *PointPackData) GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext {
+func (ppd *BasePointPackData) GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext {
 	ppd.checkGrowthContextsInitialized()
 	for _, growthCtx := range ppd.AllGrowthContexts {
 		if growthCtx.GetGrowthType() == growthType && growthCtx.GetGrowthIndex() == index {
@@ -114,23 +100,23 @@ func (ppd *PointPackData) GetGrowthContextByTypeAndIndex(growthType GrowthType, 
 }
 
 func (gowthCtx *BaseGrowthContext) String() string {
-	return fmt.Sprintf("GrowthCtx%d-%d-Idx%02d", gowthCtx.id, gowthCtx.growthType, gowthCtx.growthIndex)
+	return fmt.Sprintf("GrowthCtx%d-%d-Idx%02d", gowthCtx.Id, gowthCtx.GrowthType, gowthCtx.GrowthIndex)
 }
 
-func (gowthCtx *BaseGrowthContext) GetEnv() *m3db.QsmDbEnvironment {
-	return gowthCtx.env
+func (gowthCtx *BaseGrowthContext) GetEnv() m3util.QsmEnvironment {
+	return gowthCtx.Env
 }
 
 func (gowthCtx *BaseGrowthContext) GetId() int {
-	return gowthCtx.id
+	return gowthCtx.Id
 }
 
 func (gowthCtx *BaseGrowthContext) GetGrowthType() GrowthType {
-	return gowthCtx.growthType
+	return gowthCtx.GrowthType
 }
 
 func (gowthCtx *BaseGrowthContext) GetGrowthIndex() int {
-	return gowthCtx.growthIndex
+	return gowthCtx.GrowthIndex
 }
 
 func (gowthCtx *BaseGrowthContext) GetBaseDivByThree(mainPoint Point) uint64 {
@@ -140,24 +126,24 @@ func (gowthCtx *BaseGrowthContext) GetBaseDivByThree(mainPoint Point) uint64 {
 	return uint64(AbsDIntFromC(mainPoint[0])/3 + AbsDIntFromC(mainPoint[1])/3 + AbsDIntFromC(mainPoint[2])/3)
 }
 
-func (gowthCtx *BaseGrowthContext) GetBaseTrioIndex(divByThree uint64, offset int) TrioIndex {
-	ctxTrIdx := TrioIndex(gowthCtx.growthIndex)
-	if gowthCtx.growthType == 1 {
+func (gowthCtx *BaseGrowthContext) GetBaseTrioIndex(ppd *BasePointPackData, divByThree uint64, offset int) TrioIndex {
+	ctxTrIdx := TrioIndex(gowthCtx.GrowthIndex)
+	if gowthCtx.GrowthType == 1 {
 		// Always same value
 		return ctxTrIdx
 	}
-	if gowthCtx.growthType == 3 {
-		// Center on trio index ctx.GetGrowthIndex() and then use X, Y, Z where conn are 1
-		mod2 := PosMod2(divByThree)
+	if gowthCtx.GrowthType == 3 {
+		// Center on trio index Ctx.GetGrowthIndex() and then use X, Y, Z where conn are 1
+		mod2 := m3util.PosMod2(divByThree)
 		if mod2 == 0 {
 			return ctxTrIdx
 		}
 		mod3 := int(((divByThree-1)/2 + uint64(offset)) % 3)
-		if gowthCtx.growthIndex < 4 {
-			return TrioIndex(validNextTrio[3*gowthCtx.growthIndex+mod3][1])
+		if gowthCtx.GrowthIndex < 4 {
+			return ppd.ValidNextTrio[3*gowthCtx.GrowthIndex+mod3][1]
 		}
 		count := 0
-		for _, validTrio := range validNextTrio {
+		for _, validTrio := range ppd.ValidNextTrio {
 			if validTrio[1] == ctxTrIdx {
 				if count == mod3 {
 					return validTrio[0]
@@ -169,20 +155,20 @@ func (gowthCtx *BaseGrowthContext) GetBaseTrioIndex(divByThree uint64, offset in
 	}
 
 	divByThreeWithOffset := uint64(offset) + divByThree
-	switch gowthCtx.growthType {
+	switch gowthCtx.GrowthType {
 	case 2:
-		permutationMap := validNextTrio[gowthCtx.growthIndex]
-		idx := int(PosMod2(divByThreeWithOffset))
+		permutationMap := ppd.ValidNextTrio[gowthCtx.GrowthIndex]
+		idx := int(m3util.PosMod2(divByThreeWithOffset))
 		return permutationMap[idx]
 	case 4:
-		permutationMap := AllMod4Permutations[gowthCtx.growthIndex]
-		idx := int(PosMod4(divByThreeWithOffset))
+		permutationMap := ppd.AllMod4Permutations[gowthCtx.GrowthIndex]
+		idx := int(m3util.PosMod4(divByThreeWithOffset))
 		return permutationMap[idx]
 	case 8:
-		permutationMap := AllMod8Permutations[gowthCtx.growthIndex]
-		idx := int(PosMod8(divByThreeWithOffset))
+		permutationMap := ppd.AllMod8Permutations[gowthCtx.GrowthIndex]
+		idx := int(m3util.PosMod8(divByThreeWithOffset))
 		return permutationMap[idx]
 	}
-	Log.Fatalf("event permutation type %d in context %s-%d is invalid!", gowthCtx.growthIndex, gowthCtx.String(), offset)
+	Log.Fatalf("event permutation type %d in context %s-%d is invalid!", gowthCtx.GrowthIndex, gowthCtx.String(), offset)
 	return NilTrioIndex
 }

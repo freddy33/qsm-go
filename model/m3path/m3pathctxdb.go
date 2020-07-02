@@ -9,7 +9,7 @@ import (
 
 type PathContextDb struct {
 	env             *m3db.QsmDbEnvironment
-	ppd             *m3point.PointPackData
+	ppd             *m3point.BasePointPackData
 	pathNodes       *m3db.TableExec
 	points          *m3db.TableExec
 	id              int

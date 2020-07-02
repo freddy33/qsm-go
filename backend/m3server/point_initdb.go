@@ -1,17 +1,34 @@
-package m3point
+package m3server
 
 import (
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
-	"strconv"
-	"sync"
-	"time"
 )
 
-func InitializeDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
-	ppd := GetPointPackData(env)
+type PointPackData struct {
+	m3point.BasePointPackData
+	Env *m3db.QsmDbEnvironment
+}
+
+func GetPointPackData(env m3util.QsmEnvironment) (*PointPackData, bool) {
+	newData := env.GetData(m3util.PointIdx) == nil
+	if newData {
+		ppd := new(PointPackData)
+		ppd.EnvId = env.GetId()
+		ppd.Env = env.(*m3db.QsmDbEnvironment)
+		env.SetData(m3util.PointIdx, ppd)
+		// do not return ppd but always the pointer in env data array
+	}
+	return env.GetData(m3util.PointIdx).(*PointPackData), newData
+}
+
+func InitializePointDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
+	ppd, newData := GetPointPackData(env)
 	if forced {
-		ppd.resetFlags()
+		ppd.ResetFlags()
+	} else if !newData {
+		return
 	}
 	ppd.initConnections()
 	ppd.initTrioDetails()
@@ -60,14 +77,8 @@ func (ppd *PointPackData) initPathBuilders() {
 	}
 }
 
-func ReFillDbEnv(env *m3db.QsmDbEnvironment) {
-	env.Destroy()
-	time.Sleep(1000 * time.Millisecond)
-	FillDbEnv(env)
-}
-
 func FillDbEnv(env *m3db.QsmDbEnvironment) {
-	ppd := GetPointPackData(env)
+	ppd, _ := GetPointPackData(env)
 
 	n, err := ppd.saveAllConnectionDetails()
 	if err != nil {
@@ -119,56 +130,4 @@ func FillDbEnv(env *m3db.QsmDbEnvironment) {
 		Log.Infof("Environment %d has %d path builders", ppd.GetEnvId(), n)
 	}
 	ppd.initPathBuilders()
-}
-
-/***************************************************************/
-// Utility methods for test
-/***************************************************************/
-
-var dbMutex sync.Mutex
-var cleanedDb [m3util.MaxNumberOfEnvironments]bool
-var testDbFilled [m3util.MaxNumberOfEnvironments]bool
-
-func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	if !m3util.TestMode {
-		Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
-	}
-
-	dbMutex.Lock()
-	defer dbMutex.Unlock()
-
-	if testDbFilled[envId] {
-		return m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
-	}
-
-	envNumber := strconv.Itoa(int(envId))
-
-	m3db.FillDb(envNumber)
-
-	testDbFilled[envId] = true
-
-	return m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
-}
-
-// Do not use this environment to load
-func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	if !m3util.TestMode {
-		Log.Fatalf("Cannot use GetCleanTempDb in non test mode!")
-	}
-
-	env := m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
-
-	dbMutex.Lock()
-	defer dbMutex.Unlock()
-
-	if cleanedDb[envId] {
-		return env
-	}
-
-	env.Destroy()
-
-	env = m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
-	cleanedDb[envId] = true
-
-	return env
 }

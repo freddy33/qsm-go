@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-    echo "Usage qsm run [refilldb, filldb, gentxt, play, perf]"
+    echo "Usage qsm run [build, server, filldb, gentxt, play, perf]"
     exit 1
 }
 
@@ -17,22 +17,30 @@ if [[ $? -ne 0 ]]; then
     exit 2
 fi
 
+runServer() {
+    outLog=${logDir}/backend.log
+    if [ -e "$outLog" ]; then
+        mv "$outLog" "$logDir/backend-$(date "+%Y-%m-%d_%H-%M-%S").log"
+    fi
+    cd ${rootDir}/backend && ${go_exe} build && ./backend $@ 1> $outLog 2>&1 &
+    sleep 1
+}
+
 commandName=$1
 
 case "$commandName" in
     build)
-    cd ${rootDir}/model && ${go_exe} build && \
     cd ${rootDir}/backend && ${go_exe} build && \
     cd ${rootDir}/ui && ${go_exe} build
-    ;;
-    backend)
-    cd ${rootDir}/backend && ${go_exe} build && ./backend $@
     ;;
     play)
     cd ${rootDir}/ui && ${go_exe} build && ./ui $@
     ;;
+    server)
+    runServer $@
+    ;;
     gentxt|*filldb|perf)
-    cd ${rootDir}/model && ${go_exe} build && ./model $@
+    cd ${rootDir}/backend && ${go_exe} build && ./backend $@
     ;;
     *)
     echo "ERROR: Run command $commandName unknown"

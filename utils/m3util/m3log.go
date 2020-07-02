@@ -26,10 +26,13 @@ type BaseLogger struct {
 	ignoreNextError bool
 }
 
+var allLogs = make(map[string]Logger)
 var p = message.NewPrinter(language.English)
 
 func NewLogger(prefix string, level LogLevel) Logger {
-	return &BaseLogger{log.New(os.Stdout, prefix+" ", log.LstdFlags|log.Lshortfile), level, level <= DEBUG, false}
+	l := &BaseLogger{log.New(os.Stdout, prefix+" ", log.LstdFlags|log.Lshortfile), level, level <= DEBUG, false}
+	allLogs[prefix] = l
+	return l
 }
 
 func NewDataLogger(prefix string, level LogLevel) Logger {
@@ -44,14 +47,21 @@ func NewStatLogger(prefix string, level LogLevel) Logger {
 // General Functions
 /***************************************************************/
 
-func ReadVerbose() {
+func ReadVerbose() []string {
+	others := make([]string, 0)
 	if len(os.Args) > 1 {
 		for i := 1; i<len(os.Args); i++ {
 			if os.Args[i] == "-v" {
 				// Make all logger debug level
+				for _, l := range allLogs {
+					l.SetDebug()
+				}
+			} else {
+				others = append(others, os.Args[i])
 			}
 		}
 	}
+	return others
 }
 
 func GetLevelName(level LogLevel) string {

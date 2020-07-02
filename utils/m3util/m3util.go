@@ -2,6 +2,7 @@ package m3util
 
 import (
 	"encoding/csv"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -120,6 +121,10 @@ func CloseFile(file *os.File) {
 	ExitOnError(file.Close())
 }
 
+func CloseBody(body io.ReadCloser) {
+	ExitOnError(body.Close())
+}
+
 func WriteNextString(file *os.File, text string) {
 	_, err := file.WriteString(text)
 	ExitOnError(err)
@@ -135,5 +140,17 @@ func Write(writer *csv.Writer, records []string) {
 
 func SetEnvQuietly(key, value string) {
 	ExitOnError(os.Setenv(key, value))
+}
+
+func PosMod2(i uint64) uint64 {
+	return i & 0x0000000000000001
+}
+
+func PosMod4(i uint64) uint64 {
+	return i & 0x0000000000000003
+}
+
+func PosMod8(i uint64) uint64 {
+	return i & 0x0000000000000007
 }
 

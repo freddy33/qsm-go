@@ -1,57 +1,59 @@
-package m3point
+package m3server
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestPosMod2(t *testing.T) {
-	Log.SetDebug()
-	assert.Equal(t, uint64(1), PosMod2(5))
-	assert.Equal(t, uint64(0), PosMod2(4))
-	assert.Equal(t, uint64(1), PosMod2(3))
-	assert.Equal(t, uint64(0), PosMod2(2))
-	assert.Equal(t, uint64(1), PosMod2(1))
-	assert.Equal(t, uint64(0), PosMod2(0))
+	m3point.Log.SetDebug()
+	assert.Equal(t, uint64(1), m3util.PosMod2(5))
+	assert.Equal(t, uint64(0), m3util.PosMod2(4))
+	assert.Equal(t, uint64(1), m3util.PosMod2(3))
+	assert.Equal(t, uint64(0), m3util.PosMod2(2))
+	assert.Equal(t, uint64(1), m3util.PosMod2(1))
+	assert.Equal(t, uint64(0), m3util.PosMod2(0))
 }
 
 func TestPosMod4(t *testing.T) {
-	Log.SetDebug()
-	assert.Equal(t, uint64(1), PosMod4(5))
-	assert.Equal(t, uint64(0), PosMod4(4))
-	assert.Equal(t, uint64(3), PosMod4(3))
-	assert.Equal(t, uint64(2), PosMod4(2))
-	assert.Equal(t, uint64(1), PosMod4(1))
-	assert.Equal(t, uint64(0), PosMod4(0))
+	m3point.Log.SetDebug()
+	assert.Equal(t, uint64(1), m3util.PosMod4(5))
+	assert.Equal(t, uint64(0), m3util.PosMod4(4))
+	assert.Equal(t, uint64(3), m3util.PosMod4(3))
+	assert.Equal(t, uint64(2), m3util.PosMod4(2))
+	assert.Equal(t, uint64(1), m3util.PosMod4(1))
+	assert.Equal(t, uint64(0), m3util.PosMod4(0))
 }
 
 func TestPosMod8(t *testing.T) {
-	Log.SetDebug()
-	assert.Equal(t, uint64(1), PosMod8(9))
-	assert.Equal(t, uint64(0), PosMod8(8))
-	assert.Equal(t, uint64(7), PosMod8(7))
-	assert.Equal(t, uint64(6), PosMod8(6))
-	assert.Equal(t, uint64(5), PosMod8(5))
-	assert.Equal(t, uint64(4), PosMod8(4))
-	assert.Equal(t, uint64(3), PosMod8(3))
-	assert.Equal(t, uint64(2), PosMod8(2))
-	assert.Equal(t, uint64(1), PosMod8(1))
-	assert.Equal(t, uint64(0), PosMod8(0))
+	m3point.Log.SetDebug()
+	assert.Equal(t, uint64(1), m3util.PosMod8(9))
+	assert.Equal(t, uint64(0), m3util.PosMod8(8))
+	assert.Equal(t, uint64(7), m3util.PosMod8(7))
+	assert.Equal(t, uint64(6), m3util.PosMod8(6))
+	assert.Equal(t, uint64(5), m3util.PosMod8(5))
+	assert.Equal(t, uint64(4), m3util.PosMod8(4))
+	assert.Equal(t, uint64(3), m3util.PosMod8(3))
+	assert.Equal(t, uint64(2), m3util.PosMod8(2))
+	assert.Equal(t, uint64(1), m3util.PosMod8(1))
+	assert.Equal(t, uint64(0), m3util.PosMod8(0))
 }
 
 func getPointTestData() *PointPackData {
 	m3util.SetToTestMode()
 
 	env := GetFullTestDb(m3util.PointTestEnv)
-	InitializeDBEnv(env, false)
-	return GetPointPackData(env)
+	InitializePointDBEnv(env, false)
+	ppd, _ := GetPointPackData(env)
+	return ppd
 }
 
 func TestAllTrioDetails(t *testing.T) {
-	Log.SetInfo()
-	Log.SetAssert(true)
+	m3point.Log.SetInfo()
+	m3point.Log.SetAssert(true)
 
 	ppd := getPointTestData()
 
@@ -70,21 +72,21 @@ func TestAllTrioDetails(t *testing.T) {
 				assert.True(t, c.IsBaseConnection(), "found non base connection %s in %d = %s", c.String(), i, td.String())
 			}
 			// all find connection with assertion are good
-			assert.NotNil(t, td.getPlusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getMinusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getPlusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getMinusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getPlusZConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getMinusZConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetPlusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetMinusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetPlusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetMinusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetPlusZConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetMinusZConn(), "trio %d = %s did not find conn", i, td.String())
 			// all find connection without assertion are good
-			Log.SetAssert(false)
-			assert.NotNil(t, td.getPlusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getMinusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getPlusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getMinusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getPlusZConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.getMinusZConn(), "trio %d = %s did not find conn", i, td.String())
-			Log.SetAssert(true)
+			m3point.Log.SetAssert(false)
+			assert.NotNil(t, td.GetPlusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetMinusXConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetPlusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetMinusYConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetPlusZConn(), "trio %d = %s did not find conn", i, td.String())
+			assert.NotNil(t, td.GetMinusZConn(), "trio %d = %s did not find conn", i, td.String())
+			m3point.Log.SetAssert(true)
 		}
 	}
 
@@ -97,17 +99,17 @@ func TestAllTrioDetails(t *testing.T) {
 }
 
 func TestTrioDetailsPerDSIndex(t *testing.T) {
-	Log.SetInfo()
+	m3point.Log.SetInfo()
 
 	ppd := getPointTestData()
 
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
-	PossibleDSArray := [NbTrioDsIndex][3]DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
+	PossibleDSArray := [m3point.NbTrioDsIndex][3]m3point.DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
 
 	indexInPossDS := make([]int, len(ppd.AllTrioDetails))
 	for i, td := range ppd.AllTrioDetails {
-		cds := td.conns
-		dsArray := [3]DInt{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
+		cds := td.Conns
+		dsArray := [3]m3point.DInt{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
 		for k, posDsArray := range PossibleDSArray {
 			if posDsArray == dsArray {
@@ -120,15 +122,15 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	}
 
 	// Check that All trio is ordered correctly
-	countPerIndex := [NbTrioDsIndex]int{}
-	countPerIndexPerFirstConnPosId := [NbTrioDsIndex][10]int{}
+	countPerIndex := [m3point.NbTrioDsIndex]int{}
+	countPerIndexPerFirstConnPosId := [m3point.NbTrioDsIndex][10]int{}
 	for i, td := range ppd.AllTrioDetails {
 		if i > 0 {
 			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, ppd.AllTrioDetails[i-1], i, td)
 		}
 		dsIndex := td.GetDSIndex()
 		countPerIndex[dsIndex]++
-		countPerIndexPerFirstConnPosId[dsIndex][td.conns[0].GetPosId()]++
+		countPerIndexPerFirstConnPosId[dsIndex][td.Conns[0].GetPosId()]++
 	}
 	assert.Equal(t, 8, countPerIndex[0])
 	assert.Equal(t, 3*2*2, countPerIndex[1])
@@ -200,10 +202,10 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	assert.False(t, td0.HasConnection(6))
 	assert.True(t, td0.HasConnection(-9))
 	assert.False(t, td0.HasConnection(9))
-	Log.IgnoreNextError()
+	m3point.Log.IgnoreNextError()
 	failedOc := td0.OtherConnectionsFrom(-4)
-	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[0])
-	assert.Equal(t, (*ConnectionDetails)(nil), failedOc[1])
+	assert.Equal(t, (*m3point.ConnectionDetails)(nil), failedOc[0])
+	assert.Equal(t, (*m3point.ConnectionDetails)(nil), failedOc[1])
 
 	oc := td0.OtherConnectionsFrom(4)
 	assert.Equal(t, *ppd.GetConnDetailsById(-6), *oc[0])
@@ -221,35 +223,35 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 }
 
 func TestInitialTrioConnectingVectors(t *testing.T) {
-	Log.SetDebug()
-	assert.Equal(t, allBaseTrio[0][0], Point{1, 1, 0})
-	assert.Equal(t, allBaseTrio[0][1], Point{-1, 0, -1})
+	m3point.Log.SetDebug()
+	assert.Equal(t, allBaseTrio[0][0], m3point.Point{1, 1, 0})
+	assert.Equal(t, allBaseTrio[0][1], m3point.Point{-1, 0, -1})
 	assert.Equal(t, allBaseTrio[0][1], allBaseTrio[0][0].RotPlusX().RotPlusY().RotPlusY())
-	assert.Equal(t, allBaseTrio[0][2], Point{0, -1, 1})
+	assert.Equal(t, allBaseTrio[0][2], m3point.Point{0, -1, 1})
 	assert.Equal(t, allBaseTrio[0][2], allBaseTrio[0][0].RotPlusY().RotPlusX().RotPlusX())
 
-	assert.Equal(t, allBaseTrio[4][0], Point{-1, -1, 0})
-	assert.Equal(t, allBaseTrio[4][1], Point{1, 0, 1})
-	assert.Equal(t, allBaseTrio[4][2], Point{0, 1, -1})
+	assert.Equal(t, allBaseTrio[4][0], m3point.Point{-1, -1, 0})
+	assert.Equal(t, allBaseTrio[4][1], m3point.Point{1, 0, 1})
+	assert.Equal(t, allBaseTrio[4][2], m3point.Point{0, 1, -1})
 }
 
 func TestAllBaseTrio(t *testing.T) {
-	Log.SetDebug()
+	m3point.Log.SetDebug()
 	for i, tr := range allBaseTrio {
-		assert.Equal(t, CInt(0), tr[0][2], "Failed on trio %d", i)
-		assert.Equal(t, CInt(0), tr[1][1], "Failed on trio %d", i)
-		assert.Equal(t, CInt(0), tr[2][0], "Failed on trio %d", i)
-		BackToOrig := Origin
+		assert.Equal(t, m3point.CInt(0), tr[0][2], "Failed on trio %d", i)
+		assert.Equal(t, m3point.CInt(0), tr[1][1], "Failed on trio %d", i)
+		assert.Equal(t, m3point.CInt(0), tr[2][0], "Failed on trio %d", i)
+		BackToOrig := m3point.Origin
 		for j, vec := range tr {
 			for c := 0; c < 3; c++ {
-				abs := AbsCInt(vec[c])
-				assert.True(t, CInt(1) == abs || CInt(0) == abs, "Something wrong with coordinate of connecting vector %d %d %d = %v", i, j, c, vec)
+				abs := m3point.AbsCInt(vec[c])
+				assert.True(t, m3point.CInt(1) == abs || m3point.CInt(0) == abs, "Something wrong with coordinate of connecting vector %d %d %d = %v", i, j, c, vec)
 			}
-			assert.Equal(t, DInt(2), vec.DistanceSquared(), "Failed vec at %d %d", i, j)
+			assert.Equal(t, m3point.DInt(2), vec.DistanceSquared(), "Failed vec at %d %d", i, j)
 			assert.True(t, vec.IsBaseConnectingVector(), "Failed vec at %d %d", i, j)
 			BackToOrig = BackToOrig.Add(vec)
 		}
-		assert.Equal(t, Origin, BackToOrig, "Something wrong with sum of trio %d %v", i, tr)
+		assert.Equal(t, m3point.Origin, BackToOrig, "Something wrong with sum of trio %d %v", i, tr)
 		for j, tB := range allBaseTrio {
 			assertIsGenericNonBaseConnectingVector(t, GetNonBaseConnections(tr, tB), i, j)
 		}
@@ -257,14 +259,14 @@ func TestAllBaseTrio(t *testing.T) {
 }
 
 func TestAllFull5Trio(t *testing.T) {
-	Log.SetDebug()
+	m3point.Log.SetDebug()
 	idxMap := createAll8IndexMap()
 	// All trio with prime (neg of all vec) will have a full 5 connection length
 	for i := 0; i < 4; i++ {
-		nextTrio := [2]TrioIndex{TrioIndex(i), TrioIndex(i + 4)}
+		nextTrio := [2]m3point.TrioIndex{m3point.TrioIndex(i), m3point.TrioIndex(i + 4)}
 		assertValidNextTrio(t, nextTrio, i)
 
-		// All conns are only 5
+		// All Conns are only 5
 		assertIsFull5NonBaseConnectingVector(t, GetNonBaseConnections(allBaseTrio[nextTrio[0]], allBaseTrio[nextTrio[1]]), i, -1)
 		idxMap[nextTrio[0]]++
 		idxMap[nextTrio[1]]++
@@ -277,7 +279,7 @@ func TestAllValidTrio(t *testing.T) {
 	for i, nextTrio := range validNextTrio {
 		assertValidNextTrio(t, nextTrio, i)
 
-		// All conns are 3 or 1, no more 5
+		// All Conns are 3 or 1, no more 5
 		assertIsThreeOr1NonBaseConnectingVector(t, GetNonBaseConnections(allBaseTrio[nextTrio[0]], allBaseTrio[nextTrio[1]]), i, -1)
 		idxMap[nextTrio[0]]++
 		idxMap[nextTrio[1]]++
@@ -312,10 +314,10 @@ func TestAllMod8Permutations(t *testing.T) {
 	}
 }
 
-func assertExistsInValidNextTrio(t *testing.T, startIdx TrioIndex, endIdx TrioIndex, msg string) {
+func assertExistsInValidNextTrio(t *testing.T, startIdx m3point.TrioIndex, endIdx m3point.TrioIndex, msg string) {
 	assert.NotEqual(t, startIdx, endIdx, "start and end index cannot be equal for %s", msg)
 	// Order the indexes
-	trioToFind := [2]TrioIndex{NilTrioIndex, NilTrioIndex}
+	trioToFind := [2]m3point.TrioIndex{m3point.NilTrioIndex, m3point.NilTrioIndex}
 	if startIdx >= 4 {
 		trioToFind[1] = startIdx
 	} else {
@@ -327,8 +329,8 @@ func assertExistsInValidNextTrio(t *testing.T, startIdx TrioIndex, endIdx TrioIn
 		trioToFind[0] = endIdx
 	}
 
-	assert.True(t, trioToFind[0] != NilTrioIndex && trioToFind[0] <= 3, "Something wrong with trioToFind first value for %s", msg)
-	assert.True(t, trioToFind[1] != NilTrioIndex && trioToFind[1] >= 4 && trioToFind[1] <= 7, "Something wrong with trioToFind second value for %s", msg)
+	assert.True(t, trioToFind[0] != m3point.NilTrioIndex && trioToFind[0] <= 3, "Something wrong with trioToFind first value for %s", msg)
+	assert.True(t, trioToFind[1] != m3point.NilTrioIndex && trioToFind[1] >= 4 && trioToFind[1] <= 7, "Something wrong with trioToFind second value for %s", msg)
 
 	foundNextTrio := false
 	for _, nextTrio := range validNextTrio {
@@ -339,30 +341,30 @@ func assertExistsInValidNextTrio(t *testing.T, startIdx TrioIndex, endIdx TrioIn
 	assert.True(t, foundNextTrio, "Did not find trio %v in list of valid trio for %s", trioToFind, msg)
 }
 
-func assertValidNextTrio(t *testing.T, nextTrio [2]TrioIndex, i int) {
+func assertValidNextTrio(t *testing.T, nextTrio [2]m3point.TrioIndex, i int) {
 	assert.NotEqual(t, nextTrio[0], nextTrio[1], "Something wrong with nextTrio index %d %v", i, nextTrio)
-	assert.True(t, nextTrio[0] != NilTrioIndex && nextTrio[0] <= 3, "Something wrong with nextTrio first value index %d %v", i, nextTrio)
-	assert.True(t, nextTrio[1] != NilTrioIndex && nextTrio[1] >= 4 && nextTrio[1] <= 7, "Something wrong with nextTrio second value index %d %v", i, nextTrio)
+	assert.True(t, nextTrio[0] != m3point.NilTrioIndex && nextTrio[0] <= 3, "Something wrong with nextTrio first value index %d %v", i, nextTrio)
+	assert.True(t, nextTrio[1] != m3point.NilTrioIndex && nextTrio[1] >= 4 && nextTrio[1] <= 7, "Something wrong with nextTrio second value index %d %v", i, nextTrio)
 }
 
-func createAll8IndexMap() map[TrioIndex]int {
-	res := make(map[TrioIndex]int)
-	for i := TrioIndex(0); i < 8; i++ {
+func createAll8IndexMap() map[m3point.TrioIndex]int {
+	res := make(map[m3point.TrioIndex]int)
+	for i := m3point.TrioIndex(0); i < 8; i++ {
 		res[i] = 0
 	}
 	return res
 }
 
-func assertAllIndexUsed(t *testing.T, idxMap map[TrioIndex]int, expectedTimes int, msg string) {
+func assertAllIndexUsed(t *testing.T, idxMap map[m3point.TrioIndex]int, expectedTimes int, msg string) {
 	assert.Equal(t, 8, len(idxMap))
-	for i := TrioIndex(0); i < 8; i++ {
+	for i := m3point.TrioIndex(0); i < 8; i++ {
 		v, ok := idxMap[i]
 		assert.True(t, ok, "did not find index %d in %v for %s", i, idxMap, msg)
 		assert.Equal(t, expectedTimes, v, "failed nb times at index %d in %v for %s", i, idxMap, msg)
 	}
 }
 
-func assertIsGenericNonBaseConnectingVector(t *testing.T, conns [6]Point, i, j int) {
+func assertIsGenericNonBaseConnectingVector(t *testing.T, conns [6]m3point.Point, i, j int) {
 	for _, conn := range conns {
 		assert.True(t, conn.IsConnectionVector(), "Found wrong connection %v at %d %d", conn, i, j)
 		assert.False(t, conn.IsBaseConnectingVector(), "Found wrong connection %v at %d %d", conn, i, j)
@@ -371,7 +373,7 @@ func assertIsGenericNonBaseConnectingVector(t *testing.T, conns [6]Point, i, j i
 	}
 }
 
-func assertIsThreeOr1NonBaseConnectingVector(t *testing.T, conns [6]Point, i, j int) {
+func assertIsThreeOr1NonBaseConnectingVector(t *testing.T, conns [6]m3point.Point, i, j int) {
 	for _, conn := range conns {
 		assert.True(t, conn.IsOnlyOneAndZero(), "Found wrong connection %v at %d %d", conn, i, j)
 		assert.True(t, conn.IsConnectionVector(), "Found wrong connection %v at %d %d", conn, i, j)
@@ -381,7 +383,7 @@ func assertIsThreeOr1NonBaseConnectingVector(t *testing.T, conns [6]Point, i, j 
 	}
 }
 
-func assertIsFull5NonBaseConnectingVector(t *testing.T, conns [6]Point, i, j int) {
+func assertIsFull5NonBaseConnectingVector(t *testing.T, conns [6]m3point.Point, i, j int) {
 	for _, conn := range conns {
 		assert.True(t, conn.IsOnlyTwoOneAndZero(), "Found wrong connection %v at %d %d", conn, i, j)
 		assert.True(t, conn.IsConnectionVector(), "Found wrong connection %v at %d %d", conn, i, j)

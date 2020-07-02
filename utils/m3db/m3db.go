@@ -52,7 +52,8 @@ func createNewEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	env.Id = envId
 	env.tableExecs = make(map[string]*TableExec)
 
-	checkOsEnv(env.GetEnvNumber())
+	m3util.RunQsm(envId, "db", "check")
+
 	env.fillDbConf()
 	env.openDb()
 
@@ -120,12 +121,11 @@ func (env *QsmDbEnvironment) InternalClose() error {
 }
 
 func (env *QsmDbEnvironment) Destroy() {
-	envNumber := env.GetEnvNumber()
 	err := env.InternalClose()
 	if err != nil {
 		Log.Error(err)
 	}
-	DbDrop(envNumber)
+	m3util.RunQsm(env.GetId(), "db", "drop")
 }
 
 func (env *QsmDbEnvironment) Ping() bool {
@@ -139,4 +139,3 @@ func (env *QsmDbEnvironment) Ping() bool {
 	}
 	return true
 }
-

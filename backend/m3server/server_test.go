@@ -2,7 +2,7 @@ package m3server
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/m3api"
+	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/golang/protobuf/proto"

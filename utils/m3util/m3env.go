@@ -1,6 +1,7 @@
 package m3util
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -56,12 +57,16 @@ type BaseQsmEnvironment struct {
 	data [MaxDataEntry]QsmDataPack
 }
 
+func (envId QsmEnvID) String() string {
+	return strconv.Itoa(int(envId))
+}
+
 func (env *BaseQsmEnvironment) GetId() QsmEnvID {
 	return env.Id
 }
 
 func (env *BaseQsmEnvironment) GetEnvNumber() string {
-	return strconv.Itoa(int(env.Id))
+	return env.Id.String()
 }
 
 func (env *BaseQsmEnvironment) GetData(dataIdx int) QsmDataPack {
@@ -92,6 +97,14 @@ func SetToTestMode() {
 	TestMode = true
 }
 
+func ReadEnvId(sourceInfo string, envIdStr string) QsmEnvID {
+	id, err := strconv.ParseInt(envIdStr, 10, 16)
+	if err != nil {
+		Log.Fatalf("The variable from %s is not a DB number but %s", sourceInfo, envIdStr)
+	}
+	return QsmEnvID(id)
+}
+
 func GetDefaultEnvId() QsmEnvID {
 	if TestMode {
 		Log.Fatalf("Cannot use not set pointEnv in test mode!")
@@ -99,11 +112,7 @@ func GetDefaultEnvId() QsmEnvID {
 	envId := MainEnv
 	envIdFromOs := os.Getenv(QsmEnvNumberKey)
 	if envIdFromOs != "" {
-		id, err := strconv.ParseInt(envIdFromOs, 10, 16)
-		if err != nil {
-			Log.Fatalf("The %s environment variable is not a DB number but %s", QsmEnvNumberKey, envIdFromOs)
-		}
-		envId = QsmEnvID(id)
+		envId = ReadEnvId(fmt.Sprintf("env var %q", QsmEnvNumberKey), envIdFromOs)
 	}
 	Log.Infof("Using default environment %d", envId)
 	return envId

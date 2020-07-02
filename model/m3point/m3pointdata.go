@@ -1,7 +1,6 @@
 package m3point
 
 import (
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 )
 
@@ -15,14 +14,13 @@ type PointData interface {
 	GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder
 	GetPathNodeBuilderById(cubeId int) PathNodeBuilder
 	GetTrioDetails(trIdx TrioIndex) *TrioDetails
-	GetTrioTransitionTableTxt() map[Int2][7]string
 	GetTrioTableCsv() [][]string
 	GetCubeById(cubeId int) CubeKeyId
 	GetCubeIdByKey(cubeKey CubeKeyId) int
 }
 
-type PointPackData struct {
-	Env *m3db.QsmDbEnvironment
+type BasePointPackData struct {
+	EnvId m3util.QsmEnvID
 
 	// All connection details ordered and mapped by base vector
 	AllConnections         []*ConnectionDetails
@@ -30,8 +28,11 @@ type PointPackData struct {
 	ConnectionsLoaded      bool
 
 	// All the possible trio details used
-	AllTrioDetails    TrioDetailList
-	TrioDetailsLoaded bool
+	AllTrioDetails      []*TrioDetails
+	ValidNextTrio       [12][2]TrioIndex
+	AllMod4Permutations [12][4]TrioIndex
+	AllMod8Permutations [12][8]TrioIndex
+	TrioDetailsLoaded   bool
 
 	// Collection of all growth context ordered
 	AllGrowthContexts    []GrowthContext
@@ -46,27 +47,24 @@ type PointPackData struct {
 	PathBuildersLoaded bool
 }
 
-func GetPointPackData(env *m3db.QsmDbEnvironment) *PointPackData {
-	if env.GetData(m3util.PointIdx) == nil {
-		ppd := new(PointPackData)
-		ppd.Env = env
-		env.SetData(m3util.PointIdx, ppd)
-		// do not return ppd but always the pointer in Env data array
-	}
-	return env.GetData(m3util.PointIdx).(*PointPackData)
-}
-
-func (ppd *PointPackData) GetEnvId() m3util.QsmEnvID {
+func (ppd *BasePointPackData) GetEnvId() m3util.QsmEnvID {
 	if ppd == nil {
 		return m3util.NoEnv
 	}
-	if ppd.Env == nil {
-		return m3util.NoEnv
-	}
-	return ppd.Env.GetId()
+	return ppd.EnvId
 }
 
-func (ppd *PointPackData) resetFlags() {
+func GetPointPackData(env m3util.QsmEnvironment) *BasePointPackData {
+	if env.GetData(m3util.PointIdx) == nil {
+		ppd := new(BasePointPackData)
+		ppd.EnvId = env.GetId()
+		env.SetData(m3util.PointIdx, ppd)
+		// do not return ppd but always the pointer in Env data array
+	}
+	return env.GetData(m3util.PointIdx).(*BasePointPackData)
+}
+
+func (ppd *BasePointPackData) ResetFlags() {
 	ppd.ConnectionsLoaded = false
 	ppd.TrioDetailsLoaded = false
 	ppd.GrowthContextsLoaded = false
@@ -74,31 +72,31 @@ func (ppd *PointPackData) resetFlags() {
 	ppd.PathBuildersLoaded = false
 }
 
-func (ppd *PointPackData) checkConnInitialized() {
+func (ppd *BasePointPackData) CheckConnInitialized() {
 	if !ppd.ConnectionsLoaded {
 		Log.Fatalf("Connections should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}
 }
 
-func (ppd *PointPackData) checkTrioInitialized() {
+func (ppd *BasePointPackData) checkTrioInitialized() {
 	if !ppd.TrioDetailsLoaded {
 		Log.Fatalf("Trios should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}
 }
 
-func (ppd *PointPackData) checkGrowthContextsInitialized() {
+func (ppd *BasePointPackData) checkGrowthContextsInitialized() {
 	if !ppd.TrioDetailsLoaded {
 		Log.Fatalf("trio contexts should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}
 }
 
-func (ppd *PointPackData) checkCubesInitialized() {
+func (ppd *BasePointPackData) CheckCubesInitialized() {
 	if !ppd.CubesLoaded {
 		Log.Fatalf("Cubes should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}
 }
 
-func (ppd *PointPackData) checkPathBuildersInitialized() {
+func (ppd *BasePointPackData) checkPathBuildersInitialized() {
 	if !ppd.PathBuildersLoaded {
 		Log.Fatalf("Path Builders should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}

@@ -53,7 +53,7 @@ func Play() {
 	// ******************************************************************
 	max := int64(9 * m3point.THREE)
 	env := m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment)
-	m3path.InitializeDBEnv(env)
+	m3path.InitializePathDBEnv(env)
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()
 	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)

@@ -66,10 +66,9 @@ func TestFirstPathContextFilling(t *testing.T) {
 
 func fillPathContext(t *testing.T, pathCtx PathContext, until int) {
 	growthCtx := pathCtx.GetGrowthCtx()
-	trIdx := growthCtx.GetBaseTrioIndex(0, pathCtx.GetGrowthOffset())
+	ppd := m3point.GetPointPackData(growthCtx.GetEnv())
+	trIdx := growthCtx.GetBaseTrioIndex(ppd, 0, pathCtx.GetGrowthOffset())
 	assert.NotEqual(t, m3point.NilTrioIndex, trIdx)
-
-	ppd := m3point.GetPointPackData(pathCtx.GetGrowthCtx().GetEnv())
 
 	td := ppd.GetTrioDetails(trIdx)
 	assert.NotNil(t, td)

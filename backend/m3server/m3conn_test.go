@@ -1,13 +1,14 @@
-package m3point
+package m3server
 
 import (
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestConnectionDetails(t *testing.T) {
-	Log.SetDebug()
+	m3point.Log.SetDebug()
 	m3util.SetToTestMode()
 
 	env := GetFullTestDb(m3util.PointTestEnv)
@@ -33,7 +34,7 @@ func TestConnectionDetails(t *testing.T) {
 		assert.Equal(t, 2, sameNumber, "Should have 2 with same conn number for %d", currentNumber)
 	}
 
-	countConnId := make(map[ConnectionId]int)
+	countConnId := make(map[m3point.ConnectionId]int)
 	for i, tA := range allBaseTrio {
 		for j, tB := range allBaseTrio {
 			connVectors := GetNonBaseConnections(tA, tB)
@@ -45,5 +46,5 @@ func TestConnectionDetails(t *testing.T) {
 			}
 		}
 	}
-	Log.Debug("ConnId usage:", countConnId)
+	m3point.Log.Debug("ConnId usage:", countConnId)
 }

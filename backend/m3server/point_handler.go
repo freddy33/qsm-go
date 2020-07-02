@@ -2,9 +2,8 @@ package m3server
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/m3api"
+	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/golang/protobuf/proto"
 	"net/http"
@@ -12,21 +11,11 @@ import (
 
 var Log = m3util.NewLogger("m3server", m3util.INFO)
 
-func GetPointPackData(env *m3db.QsmDbEnvironment) *m3point.PointPackData {
-	if env.GetData(m3util.PointIdx) == nil {
-		ppd := new(m3point.PointPackData)
-		ppd.Env = env
-		env.SetData(m3util.PointIdx, ppd)
-		// do not return ppd but always the pointer in env data array
-	}
-	return env.GetData(m3util.PointIdx).(*m3point.PointPackData)
-}
-
-func GetPointData(w http.ResponseWriter, r *http.Request) {
+func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-protobuf; messageType=backend.m3api.PointPackDataMsg")
 
 	env := GetEnvironment(r)
-	ppd := GetPointPackData(env)
+	ppd, _ := GetPointPackData(env)
 	msg := m3api.PointPackDataMsg{}
 
 	msg.AllConnections = make([]*m3api.ConnectionMsg, len(ppd.AllConnections))
@@ -48,6 +37,25 @@ func GetPointData(w http.ResponseWriter, r *http.Request) {
 		}}
 	}
 	Log.Debug("sending all trios", len(msg.AllTrios))
+
+	msg.ValidNextTrioIds = make([]int32, 12*2)
+	for idx, pair := range validNextTrio {
+		msg.ValidNextTrioIds[idx*2] = int32(pair[0])
+		msg.ValidNextTrioIds[idx*2+1] = int32(pair[1])
+	}
+	msg.Mod4PermutationsTrioIds = make([]int32, 12*4)
+	for idx, quad := range AllMod4Permutations {
+		for k := 0; k < 4; k++ {
+			msg.Mod4PermutationsTrioIds[idx*4+k] = int32(quad[k])
+		}
+	}
+	msg.Mod8PermutationsTrioIds = make([]int32, 12*8)
+	for idx, eight := range AllMod8Permutations {
+		for k := 0; k < 8; k++ {
+			msg.Mod8PermutationsTrioIds[idx*8+k] = int32(eight[k])
+		}
+	}
+	Log.Debug("sending all valid trios and permutations")
 
 	msg.AllGrowthContexts = make([]*m3api.GrowthContextMsg, len(ppd.AllGrowthContexts))
 	for idx, gc := range ppd.AllGrowthContexts {

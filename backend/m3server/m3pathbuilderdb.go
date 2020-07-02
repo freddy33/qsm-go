@@ -1,7 +1,8 @@
-package m3point
+package m3server
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
 )
 
@@ -61,7 +62,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 		" conn31, last_inter31, next_main_conn31, next_inter_conn31,"+
 		" conn32, last_inter32, next_main_conn32, next_inter_conn32"+
 		" from %s", PathBuildersTable)
-	res.ExpectedCount = TotalNumberOfCubes
+	res.ExpectedCount = m3point.TotalNumberOfCubes
 	return &res
 }
 
@@ -69,9 +70,9 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func (ppd *PointPackData) loadPathBuilders() []*RootPathNodeBuilder {
+func (ppd *PointPackData) loadPathBuilders() []*m3point.RootPathNodeBuilder {
 	_, rows := ppd.Env.SelectAllForLoad(PathBuildersTable)
-	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
+	res := make([]*m3point.RootPathNodeBuilder, m3point.TotalNumberOfCubes+1)
 
 	for rows.Next() {
 		var cubeId, trioIndexId int
@@ -90,26 +91,26 @@ func (ppd *PointPackData) loadPathBuilders() []*RootPathNodeBuilder {
 			&connIds[2][0], &lastIntersTrIdx[2][0], &nextMainConnIds[2][0], &nextInterConnIds[2][0],
 			&connIds[2][1], &lastIntersTrIdx[2][1], &nextMainConnIds[2][1], &nextInterConnIds[2][1])
 		if err != nil {
-			Log.Errorf("failed to load path builder line %d", len(res))
+			m3point.Log.Errorf("failed to load path builder line %d", len(res))
 		} else {
-			pathBuilderCtx := PathBuilderContext{ppd.GetGrowthContextById(trioIndexId), cubeId}
-			builder := RootPathNodeBuilder{}
-			builder.ctx = &pathBuilderCtx
-			rootTd := ppd.GetTrioDetails(TrioIndex(rootTrIdx))
-			builder.trIdx = rootTd.GetId()
+			pathBuilderCtx := m3point.PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(trioIndexId), CubeId: cubeId}
+			builder := m3point.RootPathNodeBuilder{}
+			builder.Ctx = &pathBuilderCtx
+			rootTd := ppd.GetTrioDetails(m3point.TrioIndex(rootTrIdx))
+			builder.TrIdx = rootTd.GetId()
 			for i, interTrIdx := range intersTrIdx {
-				interPathNode := IntermediatePathNodeBuilder{}
-				interPathNode.ctx = builder.ctx
-				interPathNode.trIdx = TrioIndex(interTrIdx)
+				interPathNode := m3point.IntermediatePathNodeBuilder{}
+				interPathNode.Ctx = builder.Ctx
+				interPathNode.TrIdx = m3point.TrioIndex(interTrIdx)
 				for j := 0; j < 2; j++ {
-					lastPathNode := LastPathNodeBuilder{}
-					lastPathNode.ctx = builder.ctx
-					lastPathNode.trIdx = TrioIndex(lastIntersTrIdx[i][j])
-					lastPathNode.nextMainConnId = ConnectionId(nextMainConnIds[i][j])
-					lastPathNode.nextInterConnId = ConnectionId(nextInterConnIds[i][j])
-					interPathNode.pathLinks[j] = PathLinkBuilder{ConnectionId(connIds[i][j]), &lastPathNode}
+					lastPathNode := m3point.LastPathNodeBuilder{}
+					lastPathNode.Ctx = builder.Ctx
+					lastPathNode.TrIdx = m3point.TrioIndex(lastIntersTrIdx[i][j])
+					lastPathNode.NextMainConnId = m3point.ConnectionId(nextMainConnIds[i][j])
+					lastPathNode.NextInterConnId = m3point.ConnectionId(nextInterConnIds[i][j])
+					interPathNode.PathLinks[j] = m3point.PathLinkBuilder{ConnId: m3point.ConnectionId(connIds[i][j]), PathNode: &lastPathNode}
 				}
-				builder.pathLinks[i] = PathLinkBuilder{rootTd.conns[i].GetId(), &interPathNode}
+				builder.PathLinks[i] = m3point.PathLinkBuilder{ConnId: rootTd.Conns[i].GetId(), PathNode: &interPathNode}
 			}
 			res[cubeId] = &builder
 		}
@@ -124,27 +125,27 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 	}
 	if toFill {
 		builders := ppd.calculateAllPathBuilders()
-		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
+		if m3point.Log.IsDebug() {
+			m3point.Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
 		}
 		for cubeId, rootNode := range builders {
 			if cubeId == 0 {
 				continue
 			}
-			interPNs := [3]*IntermediatePathNodeBuilder{}
-			interConnIds := [3][2]ConnectionId{}
-			lastInterPNs := [3][2]*LastPathNodeBuilder{}
-			for i, pl := range rootNode.pathLinks {
-				ipn, ok := pl.pathNode.(*IntermediatePathNodeBuilder)
+			interPNs := [3]*m3point.IntermediatePathNodeBuilder{}
+			interConnIds := [3][2]m3point.ConnectionId{}
+			lastInterPNs := [3][2]*m3point.LastPathNodeBuilder{}
+			for i, pl := range rootNode.PathLinks {
+				ipn, ok := pl.PathNode.(*m3point.IntermediatePathNodeBuilder)
 				if !ok {
 					err = m3db.MakeQsmErrorf("trying to convert path node to intermediate failed for %v", pl)
 					return 0, err
 				}
 				interPNs[i] = ipn
 				for j := 0; j < 2; j++ {
-					ipl := ipn.pathLinks[j]
-					interConnIds[i][j] = ipl.connId
-					lipn, ok := ipl.pathNode.(*LastPathNodeBuilder)
+					ipl := ipn.PathLinks[j]
+					interConnIds[i][j] = ipl.ConnId
+					lipn, ok := ipl.PathNode.(*m3point.LastPathNodeBuilder)
 					if !ok {
 						err = m3db.MakeQsmErrorf("trying to convert path node to last intermediate failed for %v", ipl)
 						return 0, err
@@ -152,20 +153,33 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 					lastInterPNs[i][j] = lipn
 				}
 			}
-			err := te.Insert(cubeId, rootNode.ctx.growthCtx.GetId(), rootNode.trIdx,
-				interPNs[0].trIdx, interPNs[1].trIdx, interPNs[2].trIdx,
-				interConnIds[0][0], lastInterPNs[0][0].trIdx, lastInterPNs[0][0].nextMainConnId, lastInterPNs[0][0].nextInterConnId,
-				interConnIds[0][1], lastInterPNs[0][1].trIdx, lastInterPNs[0][1].nextMainConnId, lastInterPNs[0][1].nextInterConnId,
-				interConnIds[1][0], lastInterPNs[1][0].trIdx, lastInterPNs[1][0].nextMainConnId, lastInterPNs[1][0].nextInterConnId,
-				interConnIds[1][1], lastInterPNs[1][1].trIdx, lastInterPNs[1][1].nextMainConnId, lastInterPNs[1][1].nextInterConnId,
-				interConnIds[2][0], lastInterPNs[2][0].trIdx, lastInterPNs[2][0].nextMainConnId, lastInterPNs[2][0].nextInterConnId,
-				interConnIds[2][1], lastInterPNs[2][1].trIdx, lastInterPNs[2][1].nextMainConnId, lastInterPNs[2][1].nextInterConnId)
+			err := te.Insert(cubeId, rootNode.Ctx.GrowthCtx.GetId(), rootNode.TrIdx,
+				interPNs[0].TrIdx, interPNs[1].TrIdx, interPNs[2].TrIdx,
+				interConnIds[0][0], lastInterPNs[0][0].TrIdx, lastInterPNs[0][0].NextMainConnId, lastInterPNs[0][0].NextInterConnId,
+				interConnIds[0][1], lastInterPNs[0][1].TrIdx, lastInterPNs[0][1].NextMainConnId, lastInterPNs[0][1].NextInterConnId,
+				interConnIds[1][0], lastInterPNs[1][0].TrIdx, lastInterPNs[1][0].NextMainConnId, lastInterPNs[1][0].NextInterConnId,
+				interConnIds[1][1], lastInterPNs[1][1].TrIdx, lastInterPNs[1][1].NextMainConnId, lastInterPNs[1][1].NextInterConnId,
+				interConnIds[2][0], lastInterPNs[2][0].TrIdx, lastInterPNs[2][0].NextMainConnId, lastInterPNs[2][0].NextInterConnId,
+				interConnIds[2][1], lastInterPNs[2][1].TrIdx, lastInterPNs[2][1].NextMainConnId, lastInterPNs[2][1].NextInterConnId)
 			if err != nil {
-				Log.Error(err)
+				m3point.Log.Error(err)
 			} else {
 				inserted++
 			}
 		}
 	}
 	return inserted, nil
+}
+
+func (ppd *PointPackData) calculateAllPathBuilders() []*m3point.RootPathNodeBuilder {
+	ppd.CheckCubesInitialized()
+	res := make([]*m3point.RootPathNodeBuilder, m3point.TotalNumberOfCubes+1)
+	res[0] = nil
+	for cubeKey, cubeId := range ppd.CubeIdsPerKey {
+		root := m3point.RootPathNodeBuilder{}
+		root.Ctx = &m3point.PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(cubeKey.GrowthCtxId), CubeId: cubeId}
+		root.Populate()
+		res[cubeId] = &root
+	}
+	return res
 }

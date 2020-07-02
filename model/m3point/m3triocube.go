@@ -2,34 +2,28 @@ package m3point
 
 import (
 	"fmt"
-	"sort"
 )
 
 type CubeOfTrioIndex struct {
 	// Index of cube center
-	center TrioIndex
+	Center TrioIndex
 	// Indexes of center of cube face ordered by +X, -X, +Y, -Y, +Z, -Z
-	centerFaces [6]TrioIndex
+	CenterFaces [6]TrioIndex
 	// Indexes of middle of edges of the cube ordered by +X+Y, +X-Y, +X+Z, +X-Z, -X+Y, -X-Y, -X+Z, -X-Z, +Y+Z, +Y-Z, -Y+Z, -Y-Z
-	middleEdges [12]TrioIndex
+	MiddleEdges [12]TrioIndex
 }
 
 type CubeKeyId struct {
-	growthCtxId int
-	cube        CubeOfTrioIndex
+	GrowthCtxId int
+	Cube        CubeOfTrioIndex
 }
 
 func (c CubeKeyId) GetGrowthCtxId() int {
-	return c.growthCtxId
+	return c.GrowthCtxId
 }
 
 func (c CubeKeyId) GetCube() CubeOfTrioIndex {
-	return c.cube
-}
-
-type CubeListBuilder struct {
-	growthCtx GrowthContext
-	allCubes  []CubeOfTrioIndex
+	return c.Cube
 }
 
 const (
@@ -68,163 +62,61 @@ func GetMiddleEdgeIndex(ud1 UnitDirection, ud2 UnitDirection) int {
 }
 
 // Fill all the indexes assuming the distance of c from origin used in div by three
-func createTrioCube(growthCtx GrowthContext, offset int, c Point) CubeOfTrioIndex {
+func (ppd *BasePointPackData) CreateTrioCube(growthCtx GrowthContext, offset int, c Point) CubeOfTrioIndex {
 	res := CubeOfTrioIndex{}
-	res.center = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c), offset)
+	res.Center = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c), offset)
 
-	res.centerFaces[PlusX] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(XFirst)), offset)
-	res.centerFaces[MinusX] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(XFirst)), offset)
-	res.centerFaces[PlusY] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(YFirst)), offset)
-	res.centerFaces[MinusY] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(YFirst)), offset)
-	res.centerFaces[PlusZ] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(ZFirst)), offset)
-	res.centerFaces[MinusZ] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(ZFirst)), offset)
+	res.CenterFaces[PlusX] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(XFirst)), offset)
+	res.CenterFaces[MinusX] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(XFirst)), offset)
+	res.CenterFaces[PlusY] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(YFirst)), offset)
+	res.CenterFaces[MinusY] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(YFirst)), offset)
+	res.CenterFaces[PlusZ] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(ZFirst)), offset)
+	res.CenterFaces[MinusZ] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(ZFirst)), offset)
 
-	res.middleEdges[GetMiddleEdgeIndex(PlusX, PlusY)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(XFirst).Add(YFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(PlusX, MinusY)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(XFirst).Sub(YFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(PlusX, PlusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(XFirst).Add(ZFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(PlusX, MinusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(XFirst).Sub(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(PlusX, PlusY)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(XFirst).Add(YFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(PlusX, MinusY)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(XFirst).Sub(YFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(PlusX, PlusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(XFirst).Add(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(PlusX, MinusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(XFirst).Sub(ZFirst)), offset)
 
-	res.middleEdges[GetMiddleEdgeIndex(MinusX, PlusY)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(XFirst).Add(YFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(MinusX, MinusY)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(YFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(MinusX, PlusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(XFirst).Add(ZFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(MinusX, MinusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(MinusX, PlusY)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(XFirst).Add(YFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(MinusX, MinusY)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(YFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(MinusX, PlusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(XFirst).Add(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(MinusX, MinusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(XFirst).Sub(ZFirst)), offset)
 
-	res.middleEdges[GetMiddleEdgeIndex(PlusY, PlusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(YFirst).Add(ZFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(PlusY, MinusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Add(YFirst).Sub(ZFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(MinusY, PlusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(YFirst).Add(ZFirst)), offset)
-	res.middleEdges[GetMiddleEdgeIndex(MinusY, MinusZ)] = growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(c.Sub(YFirst).Sub(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(PlusY, PlusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(YFirst).Add(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(PlusY, MinusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Add(YFirst).Sub(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(MinusY, PlusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(YFirst).Add(ZFirst)), offset)
+	res.MiddleEdges[GetMiddleEdgeIndex(MinusY, MinusZ)] = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c.Sub(YFirst).Sub(ZFirst)), offset)
 
 	return res
 }
 
 func (cube CubeOfTrioIndex) String() string {
-	return fmt.Sprintf("CK-%s-%s-%s-%s", cube.center.String(), cube.centerFaces[0].String(), cube.centerFaces[1].String(), cube.middleEdges[0].String())
+	return fmt.Sprintf("CK-%s-%s-%s-%s", cube.Center.String(), cube.CenterFaces[0].String(), cube.CenterFaces[1].String(), cube.MiddleEdges[0].String())
 }
 
 func (cube CubeOfTrioIndex) GetCenter() TrioIndex {
-	return cube.center
+	return cube.Center
 }
 
 func (cube CubeOfTrioIndex) GetCenterFaces() [6]TrioIndex {
-	return cube.centerFaces
+	return cube.CenterFaces
 }
 
 func (cube CubeOfTrioIndex) GetMiddleEdges() [12]TrioIndex {
-	return cube.middleEdges
+	return cube.MiddleEdges
 }
 
 func (cube CubeOfTrioIndex) GetCenterFaceTrio(ud UnitDirection) TrioIndex {
-	return cube.centerFaces[ud]
+	return cube.CenterFaces[ud]
 }
 
 func (cube CubeOfTrioIndex) GetMiddleEdgeTrio(ud1 UnitDirection, ud2 UnitDirection) TrioIndex {
-	return cube.middleEdges[GetMiddleEdgeIndex(ud1, ud2)]
+	return cube.MiddleEdges[GetMiddleEdgeIndex(ud1, ud2)]
 }
 
-/***************************************************************/
-// CubeListBuilder Functions
-/***************************************************************/
-
-func (ppd *PointPackData) calculateAllContextCubes() map[CubeKeyId]int {
-	res := make(map[CubeKeyId]int, TotalNumberOfCubes)
-	cubeIdx := 1
-	for _, growthCtx := range ppd.GetAllGrowthContexts() {
-		cl := CubeListBuilder{growthCtx, nil}
-		switch growthCtx.GetGrowthType() {
-		case 1:
-			cl.populate(1)
-		case 3:
-			cl.populate(6)
-		case 2:
-			cl.populate(1)
-		case 4:
-			cl.populate(4)
-		case 8:
-			cl.populate(8)
-		}
-		sort.Slice(cl.allCubes, func(i, j int) bool {
-			c1 := cl.allCubes[i]
-			c2 := cl.allCubes[j]
-			centerDiff := int(c1.center) - int(c2.center)
-			if centerDiff != 0 {
-				return centerDiff < 0
-			}
-			for cfIdx := 0; cfIdx < len(c1.centerFaces); cfIdx++ {
-				cfDiff := int(c1.centerFaces[cfIdx]) - int(c2.centerFaces[cfIdx])
-				if cfDiff != 0 {
-					return cfDiff < 0
-				}
-			}
-			for meIdx := 0; meIdx < len(c1.middleEdges); meIdx++ {
-				meDiff := int(c1.middleEdges[meIdx]) - int(c2.middleEdges[meIdx])
-				if meDiff != 0 {
-					return meDiff < 0
-				}
-			}
-			return false
-		})
-		for _, cube := range cl.allCubes {
-			key := CubeKeyId{growthCtx.GetId(), cube}
-			_, alreadyIn := res[key]
-			if !alreadyIn {
-				res[key] = cubeIdx
-				cubeIdx++
-			}
-		}
-	}
-	return res
-}
-
-func (cl *CubeListBuilder) populate(max CInt) {
-	allCubesMap := make(map[CubeOfTrioIndex]int)
-	// For center populate for all offsets
-	maxOffset := cl.growthCtx.GetGrowthType().GetMaxOffset()
-	for offset := 0; offset < maxOffset; offset++ {
-		cube := createTrioCube(cl.growthCtx, offset, Origin)
-		allCubesMap[cube]++
-	}
-	// Go through space
-	for x := -max; x <= max; x++ {
-		for y := -max; y <= max; y++ {
-			for z := -max; z <= max; z++ {
-				cube := createTrioCube(cl.growthCtx, 0, Point{x, y, z}.Mul(THREE))
-				allCubesMap[cube]++
-			}
-		}
-	}
-	cl.allCubes = make([]CubeOfTrioIndex, len(allCubesMap))
-	idx := 0
-	for c := range allCubesMap {
-		cl.allCubes[idx] = c
-		idx++
-	}
-}
-
-func (cl *CubeListBuilder) exists(offset int, c Point) bool {
-	toFind := createTrioCube(cl.growthCtx, offset, c)
-	for _, c := range cl.allCubes {
-		if c == toFind {
-			return true
-		}
-	}
-	return false
-}
-
-func (ppd *PointPackData) getCubeList(growthCtx GrowthContext) *CubeListBuilder {
-	ppd.checkCubesInitialized()
-	res := CubeListBuilder{}
-	res.growthCtx = growthCtx
-	res.allCubes = make([]CubeOfTrioIndex, 0, 100)
-	for cubeKey := range ppd.CubeIdsPerKey {
-		if cubeKey.growthCtxId == growthCtx.GetId() {
-			res.allCubes = append(res.allCubes, cubeKey.cube)
-		}
-	}
-	return &res
-}
-
-func (ppd *PointPackData) GetCubeById(cubeId int) CubeKeyId {
-	ppd.checkCubesInitialized()
+func (ppd *BasePointPackData) GetCubeById(cubeId int) CubeKeyId {
+	ppd.CheckCubesInitialized()
 	for cubeKey, id := range ppd.CubeIdsPerKey {
 		if id == cubeId {
 			return cubeKey
@@ -234,8 +126,8 @@ func (ppd *PointPackData) GetCubeById(cubeId int) CubeKeyId {
 	return CubeKeyId{-1, CubeOfTrioIndex{}}
 }
 
-func (ppd *PointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
-	ppd.checkCubesInitialized()
+func (ppd *BasePointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
+	ppd.CheckCubesInitialized()
 	id, ok := ppd.CubeIdsPerKey[cubeKey]
 	if !ok {
 		Log.Fatalf("trying to find cube %v which does not exists", cubeKey)

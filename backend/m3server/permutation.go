@@ -1,15 +1,16 @@
-package m3point
+package m3server
 
+import "github.com/freddy33/qsm-go/model/m3point"
 
 type TrioIndexPermBuilder struct {
 	size      int
 	colIdx    int
-	collector [][]TrioIndex
+	collector [][]m3point.TrioIndex
 }
 
-func samePermutation(p1, p2 []TrioIndex) bool {
+func samePermutation(p1, p2 []m3point.TrioIndex) bool {
 	if len(p1) != len(p2) {
-		Log.Fatalf("cannot test 2 permutation of different sizes %v %v", p1, p2)
+		m3point.Log.Fatalf("cannot test 2 permutation of different sizes %v %v", p1, p2)
 	}
 	permSize := len(p1)
 	// Index in p2 of first entry in p1
@@ -34,7 +35,7 @@ func samePermutation(p1, p2 []TrioIndex) bool {
 	return true
 }
 
-func (p *TrioIndexPermBuilder) fill(pos int, current []TrioIndex) {
+func (p *TrioIndexPermBuilder) fill(pos int, current []m3point.TrioIndex) {
 	if pos == p.size {
 		exists := false
 		for i := 0; i < p.colIdx; i++ {
@@ -51,10 +52,10 @@ func (p *TrioIndexPermBuilder) fill(pos int, current []TrioIndex) {
 	}
 	for i := 0; i < 4; i++ {
 		// non prime index
-		newIndex := TrioIndex(i)
+		newIndex := m3point.TrioIndex(i)
 		if pos%2 == 1 {
 			// prime index
-			newIndex = TrioIndex(i + 4)
+			newIndex = m3point.TrioIndex(i + 4)
 		}
 		usable := true
 		if pos-1 >= 0 {
@@ -76,7 +77,7 @@ func (p *TrioIndexPermBuilder) fill(pos int, current []TrioIndex) {
 			}
 		}
 		if usable {
-			perm := make([]TrioIndex, p.size)
+			perm := make([]m3point.TrioIndex, p.size)
 			copy(perm, current)
 			perm[pos] = newIndex
 			p.fill(pos+1, perm)

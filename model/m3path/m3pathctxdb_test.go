@@ -28,7 +28,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	m3util.SetToTestMode()
 	env := GetFullTestDb(m3util.PathTestEnv)
 	start := time.Now()
-	InitializeDBEnv(env)
+	InitializePathDBEnv(env)
 	endInit := time.Now()
 	Log.Infof("Init DB took %v", endInit.Sub(start))
 

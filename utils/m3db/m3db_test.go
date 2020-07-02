@@ -25,7 +25,7 @@ func TestDbConf(t *testing.T) {
 
 	testConfFile := filepath.Join(confDir, "dbconn1234.json")
 	dbTestFile := filepath.Join(confDir, "db-test.json")
-	CopyFile(dbTestFile, testConfFile)
+	m3util.CopyFile(dbTestFile, testConfFile)
 
 	defer silentDeleteFile(testConfFile)
 

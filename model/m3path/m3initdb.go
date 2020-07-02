@@ -2,6 +2,7 @@ package m3path
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3server"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
@@ -22,8 +23,8 @@ func init() {
 	m3db.AddTableDef(creatPathNodesTableDef())
 }
 
-func InitializeDBEnv(env *m3db.QsmDbEnvironment) {
-	m3point.InitializeDBEnv(env, true)
+func InitializePathDBEnv(env *m3db.QsmDbEnvironment) {
+	InitializePointDBEnv(env, true)
 	createTablesEnv(env)
 }
 
@@ -63,7 +64,7 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 		" growth_ctx_id smallint NOT NULL REFERENCES %s (id),"+
 		" growth_offset smallint NOT NULL,"+
 		" path_builders_id smallint NULL REFERENCES %s (id))",
-		m3point.GrowthContextsTable, m3point.PathBuildersTable)
+		m3server.GrowthContextsTable, m3server.PathBuildersTable)
 	res.Insert = "(growth_ctx_id, growth_offset, path_builders_id) values ($1,$2,NULL) returning id"
 	res.SelectAll = fmt.Sprintf("select id, growth_ctx_id, growth_offset, path_builders_id from %s", PathContextsTable)
 	res.ExpectedCount = -1
@@ -96,7 +97,7 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" connection_mask smallint NOT NULL DEFAULT 0,"+
 		" path_node1 bigint NULL REFERENCES %s (id), path_node2 bigint NULL REFERENCES %s (id), path_node3 bigint NULL REFERENCES %s (id),"+
 		" CONSTRAINT unique_point_per_path_ctx UNIQUE (path_ctx_id, point_id))",
-		PathContextsTable, m3point.PathBuildersTable, m3point.TrioDetailsTable, PointsTable,
+		PathContextsTable, m3server.PathBuildersTable, m3server.TrioDetailsTable, PointsTable,
 		PathNodesTable, PathNodesTable, PathNodesTable)
 	res.ErrorFilter = func(err error) bool {
 		return err.Error() == "pq: duplicate key value violates unique constraint \"unique_point_per_path_ctx\""
@@ -165,13 +166,13 @@ var dbMutex sync.Mutex
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
 func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	env := m3point.GetFullTestDb(envId)
+	env := m3server.GetFullTestDb(envId)
 	checkEnv(env)
 	return env
 }
 
 func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	env := m3point.GetCleanTempDb(envId)
+	env := m3server.GetCleanTempDb(envId)
 	checkEnv(env)
 	return env
 }

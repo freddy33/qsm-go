@@ -1,6 +1,7 @@
-package m3point
+package m3server
 
 import (
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
 )
 
@@ -28,18 +29,18 @@ func createGrowthContextsTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func (ppd *PointPackData) loadGrowthContexts() []GrowthContext {
+func (ppd *PointPackData) loadGrowthContexts() []m3point.GrowthContext {
 	env := ppd.Env
 
 	te, rows := env.SelectAllForLoad(GrowthContextsTable)
-	res := make([]GrowthContext, 0, te.TableDef.ExpectedCount)
+	res := make([]m3point.GrowthContext, 0, te.TableDef.ExpectedCount)
 
 	for rows.Next() {
-		growthCtx := BaseGrowthContext{}
-		growthCtx.env = env
-		err := rows.Scan(&growthCtx.id, &growthCtx.growthType, &growthCtx.growthIndex)
+		growthCtx := m3point.BaseGrowthContext{}
+		growthCtx.Env = env
+		err := rows.Scan(&growthCtx.Id, &growthCtx.GrowthType, &growthCtx.GrowthIndex)
 		if err != nil {
-			Log.Errorf("failed to load trio context line %d", len(res))
+			m3point.Log.Errorf("failed to load trio context line %d", len(res))
 		} else {
 			res = append(res, &growthCtx)
 		}
@@ -56,13 +57,13 @@ func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
 	}
 	if toFill {
 		growthContexts := ppd.calculateAllGrowthContexts()
-		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthContexts))
+		if m3point.Log.IsDebug() {
+			m3point.Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthContexts))
 		}
 		for _, growthCtx := range growthContexts {
 			err := te.Insert(growthCtx.GetId(), growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex())
 			if err != nil {
-				Log.Error(err)
+				m3point.Log.Error(err)
 			} else {
 				inserted++
 			}
@@ -70,3 +71,18 @@ func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
 	}
 	return inserted, nil
 }
+
+func (ppd *PointPackData) calculateAllGrowthContexts() []m3point.GrowthContext {
+	res := make([]m3point.GrowthContext, m3point.TotalNbContexts)
+	idx := 0
+	for _, ctxType := range m3point.GetAllContextTypes() {
+		nbIndexes := ctxType.GetNbIndexes()
+		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
+			growthCtx := m3point.BaseGrowthContext{Env: ppd.Env, Id: idx, GrowthType: ctxType, GrowthIndex: pIdx}
+			res[idx] = &growthCtx
+			idx++
+		}
+	}
+	return res
+}
+

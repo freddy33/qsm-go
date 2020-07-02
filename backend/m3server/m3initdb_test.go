@@ -1,6 +1,7 @@
-package m3point
+package m3server
 
 import (
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
@@ -18,14 +19,14 @@ const(
 
 func TestLoadOrCalculate(t *testing.T) {
 	m3db.Log.SetInfo()
-	Log.SetInfo()
+	m3point.Log.SetInfo()
 	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3util.PointLoadEnv)
-	ppd := GetPointPackData(env)
+	env := m3server.GetFullTestDb(m3util.PointLoadEnv)
+	ppd := m3point.GetPointPackData(env)
 
 	start := time.Now()
-	ppd.resetFlags()
+	ppd.ResetFlags()
 	ppd.AllConnections, ppd.AllConnectionsByVector = ppd.calculateConnectionDetails()
 	ppd.ConnectionsLoaded = true
 	ppd.AllTrioDetails = ppd.calculateAllTrioDetails()
@@ -37,7 +38,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	ppd.PathBuilders = ppd.calculateAllPathBuilders()
 	ppd.PathBuildersLoaded = true
 	calcTime := time.Now().Sub(start)
-	Log.Infof("Took %v to calculate", calcTime)
+	m3point.Log.Infof("Took %v to calculate", calcTime)
 
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
@@ -48,14 +49,14 @@ func TestLoadOrCalculate(t *testing.T) {
 
 	start = time.Now()
 	// force reload
-	InitializeDBEnv(env, true)
+	InitializePointDBEnv(env, true)
 	loadTime := time.Now().Sub(start)
-	Log.Infof("Took %v to load", loadTime)
+	m3point.Log.Infof("Took %v to load", loadTime)
 
-	Log.Infof("Diff calc-load = %v", calcTime - loadTime)
+	m3point.Log.Infof("Diff calc-load = %v", calcTime-loadTime)
 
 	// Don't forget to get ppd different after init
-	ppd = GetPointPackData(env)
+	ppd = m3point.GetPointPackData(env)
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
 	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
@@ -66,11 +67,11 @@ func TestLoadOrCalculate(t *testing.T) {
 
 func TestSaveAll(t *testing.T) {
 	m3db.Log.SetDebug()
-	Log.SetDebug()
+	m3point.Log.SetDebug()
 	m3util.SetToTestMode()
 
-	tempEnv := GetCleanTempDb(m3util.PointTempEnv)
-	ppd := GetPointPackData(tempEnv)
+	tempEnv := m3server.GetCleanTempDb(m3util.PointTempEnv)
+	ppd := m3point.GetPointPackData(tempEnv)
 
 	// ************ Connection Details
 

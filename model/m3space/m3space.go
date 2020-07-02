@@ -86,7 +86,7 @@ func (space *Space) GetEnv() *m3db.QsmDbEnvironment {
 	return space.env
 }
 
-func (space *Space) GetPointPackData() *m3point.PointPackData {
+func (space *Space) GetPointPackData() *m3point.BasePointPackData {
 	return m3point.GetPointPackData(space.GetEnv())
 }
 

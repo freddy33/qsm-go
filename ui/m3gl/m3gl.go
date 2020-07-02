@@ -311,7 +311,7 @@ func (world *DisplayWorld) SetMatrices() {
 }
 
 type TriangleFiller struct {
-	ppd            *m3point.PointPackData
+	ppd            *m3point.BasePointPackData
 	objMap         map[ObjectType]OpenGLDrawingElement
 	verticesOffset int32
 	bufferOffset   int

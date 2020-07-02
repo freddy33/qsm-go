@@ -58,6 +58,9 @@ message LastPathNodeBuilderMsg {
 message PointPackDataMsg {
     repeated ConnectionMsg all_connections = 1;
     repeated TrioMsg all_trios = 2;
+    repeated int32 valid_next_trio_ids = 6;
+    repeated int32 mod4_permutations_trio_ids = 7;
+    repeated int32 mod8_permutations_trio_ids = 8;
     repeated GrowthContextMsg all_growth_contexts = 3;
     repeated CubeOfTrioMsg all_cubes = 4;
     repeated RootPathNodeBuilderMsg all_path_node_builders = 5;

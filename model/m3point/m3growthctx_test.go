@@ -9,7 +9,8 @@ import (
 
 func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	m3util.SetToTestMode()
-	env := GetFullTestDb(m3util.PointTestEnv)
+
+	env := GetFullTestEnv(m3util.PointTestEnv)
 	ppd := GetPointPackData(env)
 	for _, ctxType := range GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
@@ -28,7 +29,7 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 		for y := min; y < max; y++ {
 			for z := min; z < max; z++ {
 				mainPoint := Point{x, y, z}.Mul(3)
-				connectingVectors := ppd.getBaseTrioDetails(growthCtx, mainPoint, 0).GetConnections()
+				connectingVectors := ppd.GetBaseTrioDetails(growthCtx, mainPoint, 0).GetConnections()
 				for _, conn := range connectingVectors {
 					cVec := conn.Vector
 
@@ -47,12 +48,12 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 					}
 					if nextMain != Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-						nextConnectingVectors := ppd.getBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
+						nextConnectingVectors := ppd.GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
 						for _, conn := range nextConnectingVectors {
 							nbp := conn.Vector
 							if nbp.X() == -cVec.X() {
 								assertValidConnDetails(t, ppd, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(mainPoint), 0),
+									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), 0),
 									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
@@ -71,12 +72,12 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 					}
 					if nextMain != Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-						nextConnectingVectors := ppd.getBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
+						nextConnectingVectors := ppd.GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
 						for _, conn := range nextConnectingVectors {
 							nbp := conn.Vector
 							if nbp.Y() == -cVec.Y() {
 								assertValidConnDetails(t, ppd, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(mainPoint), 0),
+									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), 0),
 									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
@@ -95,12 +96,12 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 					}
 					if nextMain != Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-						nextConnectingVectors := ppd.getBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
+						nextConnectingVectors := ppd.GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
 						for _, conn := range nextConnectingVectors {
 							nbp := conn.Vector
 							if nbp.Z() == -cVec.Z() {
 								assertValidConnDetails(t, ppd, mainPoint.Add(cVec), nextMain.Add(nbp), fmt.Sprint("Main Pos=", mainPoint,
-									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(growthCtx.GetBaseDivByThree(mainPoint), 0),
+									"next Pos=", nextMain, "trio index=", growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), 0),
 									"nextMainPoint base vector", cVec, "next base vector", nbp))
 							}
 						}
@@ -112,7 +113,7 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 
 }
 
-func assertValidConnDetails(t *testing.T, ppd *PointPackData, p1, p2 Point, msg string) {
+func assertValidConnDetails(t *testing.T, ppd *BasePointPackData, p1, p2 Point, msg string) {
 	connDetails1 := ppd.GetConnDetailsByPoints(p1, p2)
 	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
 	assert.Equal(t, MakeVector(p1, p2), connDetails1.Vector, msg)

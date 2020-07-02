@@ -1,18 +1,19 @@
-package m3point
+package m3server
 
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"log"
 )
 
-func GenerateTextFilesEnv(env *m3db.QsmDbEnvironment) {
-	InitializeDBEnv(env, true)
+func GenerateTextFilesEnv(env m3util.QsmEnvironment) {
+	InitializePointDBEnv(env.(*m3db.QsmDbEnvironment), false)
 	genDoc := m3util.GetGenDocDir()
 
-	ppd := GetPointPackData(env)
+	ppd, _ := GetPointPackData(env)
 	ppd.writeAllTrioDetailsTable(genDoc)
 	ppd.writeAllTrioPermutationsTable(genDoc)
 	ppd.writeTrioConnectionsTable(genDoc)
@@ -28,7 +29,7 @@ type Int2 struct {
 // A5 => All connections have a DS of 5
 // X135 => All DS present 1, 3 and 5
 // G13 => 1 and 3 are present but no DS 5 (The type we use)
-func GetTrioConnType(conns [6]Point) string {
+func GetTrioConnType(conns [6]m3point.Point) string {
 	has1 := false
 	has3 := false
 	has5 := false
@@ -71,7 +72,7 @@ func (ppd *PointPackData) GetTrioTransitionTableTxt() map[Int2][7]string {
 			conns := GetNonBaseConnections(tA, tB)
 			txtOut[0] = GetTrioConnType(conns)
 			for i, conn := range conns {
-				cd := ppd.getConnDetailsByVector(conn)
+				cd := ppd.GetConnDetailsByVector(conn)
 				// Total size 18
 				txtOut[i+1] = fmt.Sprintf("%v %s", conn, cd.String())
 			}
@@ -149,7 +150,7 @@ func (ppd *PointPackData) GetTrioTableCsv() [][]string {
 			columnNb++
 			csvOutput[lineNb][columnNb] = fmt.Sprintf("%d", bv[2])
 			columnNb++
-			csvOutput[lineNb][columnNb] = ppd.getConnDetailsByVector(bv).String()
+			csvOutput[lineNb][columnNb] = ppd.GetConnDetailsByVector(bv).String()
 		}
 	}
 	return csvOutput
@@ -201,9 +202,9 @@ func (ppd *PointPackData) writeAllTrioDetailsTable(dir string) {
 	csvWriter := csv.NewWriter(csvFile)
 	m3util.WriteAll(csvWriter, ppd.GetTrioTableCsv())
 	for _, td := range ppd.AllTrioDetails {
-		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v %s\n", td.id.String(), td.conns[0].Vector, td.conns[0].String()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[1].Vector, td.conns[1].String()))
-		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.conns[2].Vector, td.conns[2].String()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v %s\n", td.GetId().String(), td.Conns[0].Vector, td.Conns[0].String()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[1].Vector, td.Conns[1].String()))
+		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[2].Vector, td.Conns[2].String()))
 		m3util.WriteNextString(txtFile, "\n")
 	}
 }
@@ -226,17 +227,22 @@ func (ppd *PointPackData) writeAllTrioPermutationsTable(dir string) {
 	}
 }
 
+func (ppd *PointPackData) getAllConnDetailsByVector() map[m3point.Point]*m3point.ConnectionDetails {
+	ppd.CheckConnInitialized()
+	return ppd.AllConnectionsByVector
+}
+
 // Write all the connection details in text and CSV files
 func (ppd *PointPackData) writeAllConnectionDetails(dir string) {
-	txtFile := m3util.CreateFile(dir,"AllConnectionDetails.txt")
-	csvFile := m3util.CreateFile(dir,"AllConnectionDetails.csv")
+	txtFile := m3util.CreateFile(dir, "AllConnectionDetails.txt")
+	csvFile := m3util.CreateFile(dir, "AllConnectionDetails.csv")
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
 	allCons := ppd.getAllConnDetailsByVector()
-	nbConnDetails := ConnectionId(len(allCons) / 2)
+	nbConnDetails := m3point.ConnectionId(len(allCons) / 2)
 	csvWriter := csv.NewWriter(csvFile)
-	for cdNb := ConnectionId(1); cdNb <= nbConnDetails; cdNb++ {
+	for cdNb := m3point.ConnectionId(1); cdNb <= nbConnDetails; cdNb++ {
 		for _, v := range allCons {
 			if v.GetId() == cdNb {
 				ds := v.ConnDS
@@ -257,7 +263,7 @@ func (ppd *PointPackData) writeAllConnectionDetails(dir string) {
 					fmt.Sprintf("% d", ds),
 				})
 				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", v.String(), posVec, ds))
-				negCD := ppd.getConnDetailsByVector(negVec)
+				negCD := ppd.GetConnDetailsByVector(negVec)
 				m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v = %d\n", negCD.String(), negVec, ds))
 				break
 			}

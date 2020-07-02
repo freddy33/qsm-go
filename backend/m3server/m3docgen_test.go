@@ -1,4 +1,4 @@
-package m3point
+package m3server
 
 import (
 	"github.com/freddy33/qsm-go/utils/m3util"

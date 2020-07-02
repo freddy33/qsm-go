@@ -18,9 +18,6 @@ type ConnectionDetails struct {
 	ConnDS DInt
 }
 
-type ByConnVector []*ConnectionDetails
-type ByConnId []*ConnectionDetails
-
 /***************************************************************/
 // Global fields declaration
 /***************************************************************/
@@ -36,52 +33,6 @@ const (
 
 var NilConnectionId = ConnectionId(0)
 var EmptyConnDetails = ConnectionDetails{NilConnectionId, Origin, 0,}
-
-/***************************************************************/
-// ByConnVector functions
-/***************************************************************/
-
-func (cds ByConnVector) Len() int      { return len(cds) }
-func (cds ByConnVector) Swap(i, j int) { cds[i], cds[j] = cds[j], cds[i] }
-func (cds ByConnVector) Less(i, j int) bool {
-	cd1 := cds[i]
-	cd2 := cds[j]
-	dsDiff := cd1.ConnDS - cd2.ConnDS
-	if dsDiff == 0 {
-		// X < Y < Z
-		for c := 0; c < 3; c++ {
-			d := AbsDIntFromC(cd1.Vector[c]) - AbsDIntFromC(cd2.Vector[c])
-			if d != 0 {
-				return d > 0
-			}
-		}
-		// All abs value equal the first coord that is positive is less
-		for c := 0; c < 3; c++ {
-			d := cd1.Vector[c] - cd2.Vector[c]
-			if d != 0 {
-				return d > 0
-			}
-		}
-	}
-	return dsDiff < 0
-}
-
-func (cds ByConnId) Len() int      { return len(cds) }
-func (cds ByConnId) Swap(i, j int) { cds[i], cds[j] = cds[j], cds[i] }
-func (cds ByConnId) Less(i, j int) bool {
-	return IsLessConnId(cds[i], cds[j])
-}
-
-func IsLessConnId(cd1, cd2 *ConnectionDetails) bool {
-	absDiff := cd1.GetPosId() - cd2.GetPosId()
-	if absDiff < 0 {
-		return true
-	} else if absDiff > 0 {
-		return false
-	} else {
-		return cd1.Id > 0
-	}
-}
 
 /***************************************************************/
 // ConnectionId Functions
@@ -250,17 +201,17 @@ func (cd *ConnectionDetails) String() string {
 }
 
 /***************************************************************/
-// PointPackData Functions for ConnectionDetails
+// BasePointPackData Functions for ConnectionDetails
 /***************************************************************/
 
-func (ppd *PointPackData) GetMaxConnId() ConnectionId {
-	ppd.checkConnInitialized()
+func (ppd *BasePointPackData) GetMaxConnId() ConnectionId {
+	ppd.CheckConnInitialized()
 	// The pos conn Id of the last one
 	return ppd.AllConnections[len(ppd.AllConnections)-1].GetPosId()
 }
 
-func (ppd *PointPackData) GetConnDetailsById(id ConnectionId) *ConnectionDetails {
-	ppd.checkConnInitialized()
+func (ppd *BasePointPackData) GetConnDetailsById(id ConnectionId) *ConnectionDetails {
+	ppd.CheckConnInitialized()
 	if id > 0 {
 		return ppd.AllConnections[2*id-2]
 	} else {
@@ -268,17 +219,12 @@ func (ppd *PointPackData) GetConnDetailsById(id ConnectionId) *ConnectionDetails
 	}
 }
 
-func (ppd *PointPackData) GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails {
-	return ppd.getConnDetailsByVector(MakeVector(p1, p2))
+func (ppd *BasePointPackData) GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails {
+	return ppd.GetConnDetailsByVector(MakeVector(p1, p2))
 }
 
-func (ppd *PointPackData) getAllConnDetailsByVector() map[Point]*ConnectionDetails {
-	ppd.checkConnInitialized()
-	return ppd.AllConnectionsByVector
-}
-
-func (ppd *PointPackData) getConnDetailsByVector(vector Point) *ConnectionDetails {
-	ppd.checkConnInitialized()
+func (ppd *BasePointPackData) GetConnDetailsByVector(vector Point) *ConnectionDetails {
+	ppd.CheckConnInitialized()
 	cd, ok := ppd.AllConnectionsByVector[vector]
 	if !ok {
 		Log.Error("Vector", vector, "is not a known connection details")
