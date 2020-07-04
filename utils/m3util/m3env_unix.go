@@ -22,6 +22,7 @@ func RunQsm(id QsmEnvID, params ...string) {
 	for idx, p := range params {
 		args[idx+3] = p
 	}
+	Log.Infof("Running qsm command %v", args)
 	cmd := exec.Command("bash", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

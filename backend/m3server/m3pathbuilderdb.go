@@ -2,8 +2,8 @@ package m3server
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
 )
 
 const (
@@ -91,7 +91,7 @@ func (ppd *PointPackData) loadPathBuilders() []*m3point.RootPathNodeBuilder {
 			&connIds[2][0], &lastIntersTrIdx[2][0], &nextMainConnIds[2][0], &nextInterConnIds[2][0],
 			&connIds[2][1], &lastIntersTrIdx[2][1], &nextMainConnIds[2][1], &nextInterConnIds[2][1])
 		if err != nil {
-			m3point.Log.Errorf("failed to load path builder line %d", len(res))
+			Log.Errorf("failed to load path builder line %d", len(res))
 		} else {
 			pathBuilderCtx := m3point.PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(trioIndexId), CubeId: cubeId}
 			builder := m3point.RootPathNodeBuilder{}
@@ -125,8 +125,8 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 	}
 	if toFill {
 		builders := ppd.calculateAllPathBuilders()
-		if m3point.Log.IsDebug() {
-			m3point.Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
+		if Log.IsDebug() {
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
 		}
 		for cubeId, rootNode := range builders {
 			if cubeId == 0 {
@@ -162,7 +162,7 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 				interConnIds[2][0], lastInterPNs[2][0].TrIdx, lastInterPNs[2][0].NextMainConnId, lastInterPNs[2][0].NextInterConnId,
 				interConnIds[2][1], lastInterPNs[2][1].TrIdx, lastInterPNs[2][1].NextMainConnId, lastInterPNs[2][1].NextInterConnId)
 			if err != nil {
-				m3point.Log.Error(err)
+				Log.Error(err)
 			} else {
 				inserted++
 			}
@@ -270,4 +270,12 @@ func (ppd *PointPackData) Populate(rpnb *m3point.RootPathNodeBuilder) {
 		rpnb.PathLinks[i] = m3point.PathLinkBuilder{ConnId: cd.Id, PathNode: &ipnb}
 	}
 	rpnb.Verify()
+}
+
+func (ppd *PointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthContext, offset int, c m3point.Point) m3point.PathNodeBuilder {
+	ppd.CheckPathBuildersInitialized()
+	// TODO: Verify the key below stay local and is not staying in memory
+	key := m3point.CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: m3point.CreateTrioCube(ppd, growthCtx, offset, c)}
+	cubeId := ppd.GetCubeIdByKey(key)
+	return ppd.GetPathNodeBuilderById(cubeId)
 }

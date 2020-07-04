@@ -64,8 +64,8 @@ func createNewEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	return &env
 }
 
-func init() {
-	m3util.EnvironmentCreator = createNewEnv
+func SetEnvironmentCreator() {
+	m3util.SetEnvironmentCreator(createNewEnv)
 }
 
 func (env *QsmDbEnvironment) fillDbConf() {
@@ -102,6 +102,7 @@ func (env *QsmDbEnvironment) openDb() {
 
 func (env *QsmDbEnvironment) InternalClose() error {
 	envId := env.GetId()
+	Log.Infof("Closing DB environment %d", envId)
 	defer m3util.RemoveEnvFromMap(envId)
 	env.CleanAllData()
 	// clean table exec

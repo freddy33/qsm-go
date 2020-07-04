@@ -2,11 +2,11 @@ package playgl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/freddy33/qsm-go/ui/m3gl"
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"

@@ -1,8 +1,7 @@
 package m3server
 
 import (
-	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -19,11 +18,11 @@ const(
 
 func TestLoadOrCalculate(t *testing.T) {
 	m3db.Log.SetInfo()
-	m3point.Log.SetInfo()
+	Log.SetInfo()
 	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3util.PointLoadEnv)
-	ppd, _ := GetPointPackData(env)
+	env := getServerFullTestDb(m3util.PointLoadEnv)
+	ppd, _ := getServerPointPackData(env)
 
 	start := time.Now()
 	ppd.ResetFlags()
@@ -38,7 +37,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	ppd.PathBuilders = ppd.calculateAllPathBuilders()
 	ppd.PathBuildersLoaded = true
 	calcTime := time.Now().Sub(start)
-	m3point.Log.Infof("Took %v to calculate", calcTime)
+	Log.Infof("Took %v to calculate", calcTime)
 
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
@@ -51,12 +50,12 @@ func TestLoadOrCalculate(t *testing.T) {
 	// force reload
 	InitializePointDBEnv(env, true)
 	loadTime := time.Now().Sub(start)
-	m3point.Log.Infof("Took %v to load", loadTime)
+	Log.Infof("Took %v to load", loadTime)
 
-	m3point.Log.Infof("Diff calc-load = %v", calcTime-loadTime)
+	Log.Infof("Diff calc-load = %v", calcTime-loadTime)
 
 	// Don't forget to get ppd different after init
-	ppd, _ = GetPointPackData(env)
+	ppd, _ = getServerPointPackData(env)
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
 	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
@@ -67,11 +66,11 @@ func TestLoadOrCalculate(t *testing.T) {
 
 func TestSaveAll(t *testing.T) {
 	m3db.Log.SetDebug()
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	m3util.SetToTestMode()
 
 	tempEnv := GetCleanTempDb(m3util.PointTempEnv)
-	ppd, _ := GetPointPackData(tempEnv)
+	ppd, _ := getServerPointPackData(tempEnv)
 
 	// ************ Connection Details
 

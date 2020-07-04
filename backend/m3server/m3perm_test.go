@@ -17,7 +17,7 @@ func TestSamePermutation(t *testing.T) {
 }
 
 func TestPermBuilder(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	p := TrioIndexPermBuilder{4, 0, make([][]m3point.TrioIndex, 12)}
 	p.fill(0, make([]m3point.TrioIndex, p.size))
 	//fmt.Println(p.collector)

@@ -8,12 +8,12 @@ import (
 )
 
 func TestAllPathBuilders(t *testing.T) {
-	m3point.Log.SetAssert(true)
-	m3point.Log.SetDebug()
+	Log.SetAssert(true)
+	Log.SetDebug()
 	m3util.SetToTestMode()
 
-	env := m3point.GetFullTestEnv(m3util.PointTestEnv)
-	ppd := m3point.GetPointPackData(env)
+	env := getServerFullTestDb(m3util.PointTestEnv)
+	ppd, _ := getServerPointPackData(env)
 
 	assert.Equal(t, m3point.TotalNumberOfCubes+1, len(ppd.PathBuilders))
 	for _, ctxType := range m3point.GetAllContextTypes() {
@@ -110,8 +110,8 @@ func TestAllPathBuilders(t *testing.T) {
 								assert.Equal(t, lip.GetNearMainPoint(), nmp, "next path node failed points at %d for connId %s and pnb %s", i, cd.Id.String(), pnb.String())
 
 								// Make sure the way back get same trio
-								if m3point.Log.IsTrace() {
-									m3point.Log.Tracef("get back from %s %s %v", nextMainPB.String(), ppd.GetBaseTrioDetails(growthCtx, nmp, offset).String(), nmp)
+								if Log.IsTrace() {
+									Log.Tracef("get back from %s %s %v", nextMainPB.String(), GetBaseTrioDetails(growthCtx, nmp, offset).String(), nmp)
 								}
 								backIpnb, oLip := nextMainPB.GetNextPathNodeBuilder(nmp, olipnb.NextMainConnId.GetNegId(), offset)
 								assert.NotNil(t, backIpnb, "%s next root builder is nil", nextMainPB.String())

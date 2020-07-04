@@ -6,5 +6,5 @@ import (
 )
 
 func TestWriteAllTables(t *testing.T) {
-	GenerateTextFilesEnv(GetFullTestDb(m3util.PointTestEnv))
+	GenerateTextFilesEnv(getServerFullTestDb(m3util.PointTestEnv))
 }

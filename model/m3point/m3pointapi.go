@@ -12,7 +12,7 @@ type GrowthContext interface {
 	GetGrowthType() GrowthType
 	GetGrowthIndex() int
 	GetBaseDivByThree(mainPoint Point) uint64
-	GetBaseTrioIndex(ppd *BasePointPackData, divByThree uint64, offset int) TrioIndex
+	GetBaseTrioIndex(ppd PointPackDataIfc, divByThree uint64, offset int) TrioIndex
 }
 
 type PathNodeBuilder interface {

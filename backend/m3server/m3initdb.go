@@ -1,8 +1,7 @@
 package m3server
 
 import (
-	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"sync"
 )
@@ -15,13 +14,14 @@ var dbMutex sync.Mutex
 var cleanedDb [m3util.MaxNumberOfEnvironments]bool
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
-func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+func getServerFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if !m3util.TestMode {
-		Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
+		Log.Fatalf("Cannot use getServerFullTestDb in non test mode!")
 	}
 
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
+	m3db.SetEnvironmentCreator()
 
 	if testDbFilled[envId] {
 		return m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
@@ -37,9 +37,9 @@ func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 // Do not use this environment to load
 func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if !m3util.TestMode {
-		m3point.Log.Fatalf("Cannot use GetCleanTempDb in non test mode!")
+		Log.Fatalf("Cannot use GetCleanTempDb in non test mode!")
 	}
-
+	m3db.SetEnvironmentCreator()
 	env := m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
 
 	dbMutex.Lock()

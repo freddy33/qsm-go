@@ -15,7 +15,7 @@ func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-protobuf; messageType=backend.m3api.PointPackDataMsg")
 
 	env := GetEnvironment(r)
-	ppd, _ := GetPointPackData(env)
+	ppd, _ := getServerPointPackData(env)
 	msg := m3api.PointPackDataMsg{}
 
 	msg.AllConnections = make([]*m3api.ConnectionMsg, len(ppd.AllConnections))

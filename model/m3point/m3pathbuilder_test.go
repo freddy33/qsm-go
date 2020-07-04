@@ -10,8 +10,8 @@ func TestDisplayPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	env := GetFullTestEnv(m3util.PointTestEnv)
-	ppd := GetPointPackData(env)
+	env := getApiFullTestEnv(m3util.PointTestEnv)
+	ppd := getApiPointPackData(env)
 	assert.Equal(t, TotalNumberOfCubes+1, len(ppd.PathBuilders))
 	growthCtx := ppd.GetGrowthContextByTypeAndIndex(GrowthType(8), 0)
 	pnb := ppd.GetPathNodeBuilder(growthCtx, 0, Origin)

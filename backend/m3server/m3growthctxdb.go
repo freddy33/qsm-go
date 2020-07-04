@@ -1,8 +1,8 @@
 package m3server
 
 import (
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
 )
 
 const (
@@ -40,7 +40,7 @@ func (ppd *PointPackData) loadGrowthContexts() []m3point.GrowthContext {
 		growthCtx.Env = env
 		err := rows.Scan(&growthCtx.Id, &growthCtx.GrowthType, &growthCtx.GrowthIndex)
 		if err != nil {
-			m3point.Log.Errorf("failed to load trio context line %d", len(res))
+			Log.Errorf("failed to load trio context line %d", len(res))
 		} else {
 			res = append(res, &growthCtx)
 		}
@@ -57,13 +57,13 @@ func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
 	}
 	if toFill {
 		growthContexts := ppd.calculateAllGrowthContexts()
-		if m3point.Log.IsDebug() {
-			m3point.Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthContexts))
+		if Log.IsDebug() {
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthContexts))
 		}
 		for _, growthCtx := range growthContexts {
 			err := te.Insert(growthCtx.GetId(), growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex())
 			if err != nil {
-				m3point.Log.Error(err)
+				Log.Error(err)
 			} else {
 				inserted++
 			}

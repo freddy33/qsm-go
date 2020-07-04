@@ -62,7 +62,7 @@ func GetMiddleEdgeIndex(ud1 UnitDirection, ud2 UnitDirection) int {
 }
 
 // Fill all the indexes assuming the distance of c from origin used in div by three
-func (ppd *BasePointPackData) CreateTrioCube(growthCtx GrowthContext, offset int, c Point) CubeOfTrioIndex {
+func CreateTrioCube(ppd PointPackDataIfc, growthCtx GrowthContext, offset int, c Point) CubeOfTrioIndex {
 	res := CubeOfTrioIndex{}
 	res.Center = growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(c), offset)
 

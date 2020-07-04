@@ -39,10 +39,6 @@ type BaseGrowthContext struct {
 	GrowthIndex int
 }
 
-func (ppd *BasePointPackData) GetBaseTrioDetails(growthCtx GrowthContext, mainPoint Point, offset int) *TrioDetails {
-	return ppd.GetTrioDetails(growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), offset))
-}
-
 /***************************************************************/
 // GrowthType Functions
 /***************************************************************/
@@ -126,7 +122,7 @@ func (gowthCtx *BaseGrowthContext) GetBaseDivByThree(mainPoint Point) uint64 {
 	return uint64(AbsDIntFromC(mainPoint[0])/3 + AbsDIntFromC(mainPoint[1])/3 + AbsDIntFromC(mainPoint[2])/3)
 }
 
-func (gowthCtx *BaseGrowthContext) GetBaseTrioIndex(ppd *BasePointPackData, divByThree uint64, offset int) TrioIndex {
+func (gowthCtx *BaseGrowthContext) GetBaseTrioIndex(ppd PointPackDataIfc, divByThree uint64, offset int) TrioIndex {
 	ctxTrIdx := TrioIndex(gowthCtx.GrowthIndex)
 	if gowthCtx.GrowthType == 1 {
 		// Always same value
@@ -140,10 +136,10 @@ func (gowthCtx *BaseGrowthContext) GetBaseTrioIndex(ppd *BasePointPackData, divB
 		}
 		mod3 := int(((divByThree-1)/2 + uint64(offset)) % 3)
 		if gowthCtx.GrowthIndex < 4 {
-			return ppd.ValidNextTrio[3*gowthCtx.GrowthIndex+mod3][1]
+			return ppd.GetValidNextTrio()[3*gowthCtx.GrowthIndex+mod3][1]
 		}
 		count := 0
-		for _, validTrio := range ppd.ValidNextTrio {
+		for _, validTrio := range ppd.GetValidNextTrio() {
 			if validTrio[1] == ctxTrIdx {
 				if count == mod3 {
 					return validTrio[0]
@@ -157,15 +153,15 @@ func (gowthCtx *BaseGrowthContext) GetBaseTrioIndex(ppd *BasePointPackData, divB
 	divByThreeWithOffset := uint64(offset) + divByThree
 	switch gowthCtx.GrowthType {
 	case 2:
-		permutationMap := ppd.ValidNextTrio[gowthCtx.GrowthIndex]
+		permutationMap := ppd.GetValidNextTrio()[gowthCtx.GrowthIndex]
 		idx := int(m3util.PosMod2(divByThreeWithOffset))
 		return permutationMap[idx]
 	case 4:
-		permutationMap := ppd.AllMod4Permutations[gowthCtx.GrowthIndex]
+		permutationMap := ppd.GetAllMod4Permutations()[gowthCtx.GrowthIndex]
 		idx := int(m3util.PosMod4(divByThreeWithOffset))
 		return permutationMap[idx]
 	case 8:
-		permutationMap := ppd.AllMod8Permutations[gowthCtx.GrowthIndex]
+		permutationMap := ppd.GetAllMod8Permutations()[gowthCtx.GrowthIndex]
 		idx := int(m3util.PosMod8(divByThreeWithOffset))
 		return permutationMap[idx]
 	}

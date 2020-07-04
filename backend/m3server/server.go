@@ -3,7 +3,7 @@ package m3server
 import (
 	"context"
 	"fmt"
-	"github.com/freddy33/qsm-go/utils/m3db"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/gorilla/mux"
 	"log"
@@ -51,7 +51,7 @@ func SendResponse(w http.ResponseWriter, status int, format string, args ...inte
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	SendResponse(w, http.StatusOK, "REST APIs at /point-data\nUsing env id=%d", r.Context().Value(HttpEnvIdKey))
+	SendResponse(w, http.StatusOK, "REST APIs at /point-data\nUsing env id=%d\n", r.Context().Value(HttpEnvIdKey))
 }
 
 func drop(w http.ResponseWriter, r *http.Request) {
@@ -63,12 +63,13 @@ func drop(w http.ResponseWriter, r *http.Request) {
 
 func initialize(w http.ResponseWriter, r *http.Request) {
 	envId := GetEnvId(r)
-	env := GetFullTestDb(envId)
+	env := getServerFullTestDb(envId)
 	InitializePointDBEnv(env, true)
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
 }
 
 func MakeApp(envId m3util.QsmEnvID) *QsmApp {
+	m3db.SetEnvironmentCreator()
 	var env *m3db.QsmDbEnvironment
 	if envId == m3util.NoEnv {
 		env = m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment)

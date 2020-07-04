@@ -3,8 +3,8 @@ package m3server
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"log"
 )
@@ -13,7 +13,7 @@ func GenerateTextFilesEnv(env m3util.QsmEnvironment) {
 	InitializePointDBEnv(env.(*m3db.QsmDbEnvironment), false)
 	genDoc := m3util.GetGenDocDir()
 
-	ppd, _ := GetPointPackData(env)
+	ppd, _ := getServerPointPackData(env)
 	ppd.writeAllTrioDetailsTable(genDoc)
 	ppd.writeAllTrioPermutationsTable(genDoc)
 	ppd.writeTrioConnectionsTable(genDoc)

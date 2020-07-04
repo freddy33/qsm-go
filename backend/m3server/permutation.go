@@ -10,7 +10,7 @@ type TrioIndexPermBuilder struct {
 
 func samePermutation(p1, p2 []m3point.TrioIndex) bool {
 	if len(p1) != len(p2) {
-		m3point.Log.Fatalf("cannot test 2 permutation of different sizes %v %v", p1, p2)
+		Log.Fatalf("cannot test 2 permutation of different sizes %v %v", p1, p2)
 	}
 	permSize := len(p1)
 	// Index in p2 of first entry in p1

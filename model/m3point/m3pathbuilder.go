@@ -42,10 +42,10 @@ type PathLinkBuilder struct {
 	PathNode PathNodeBuilder
 }
 
-func (ppd *BasePointPackData) GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder {
-	ppd.checkPathBuildersInitialized()
+func (ppd *LoadedPointPackData) GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder {
+	ppd.CheckPathBuildersInitialized()
 	// TODO: Verify the key below stay local and is not staying in memory
-	key := CubeKeyId{growthCtx.GetId(), ppd.CreateTrioCube(growthCtx, offset, c)}
+	key := CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: CreateTrioCube(ppd, growthCtx, offset, c)}
 	cubeId := ppd.GetCubeIdByKey(key)
 	return ppd.GetPathNodeBuilderById(cubeId)
 }
@@ -76,13 +76,6 @@ func (pl *PathLinkBuilder) GetPathNodeBuilder() PathNodeBuilder {
 
 func (pnb *BasePathNodeBuilder) GetEnv() m3util.QsmEnvironment {
 	return pnb.Ctx.GrowthCtx.GetEnv()
-}
-
-type PointPackDataIfc interface {
-	m3util.QsmDataPack
-	GetTrioDetails(trIdx TrioIndex) *TrioDetails
-	GetConnDetailsById(id ConnectionId) *ConnectionDetails
-	GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder
 }
 
 func (pnb *BasePathNodeBuilder) getPointPackData() PointPackDataIfc {

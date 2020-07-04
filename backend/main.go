@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/m3server"
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"log"
 	"net/http"
@@ -39,7 +39,7 @@ func main() {
 	}
 	if runServer {
 		defer m3util.CloseAll()
-		app := m3server.MakeApp(m3util.NoEnv)
+		app := m3server.MakeApp(m3util.GetDefaultEnvId())
 		err := http.ListenAndServe(":"+port, app.Router) // set listen port
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)

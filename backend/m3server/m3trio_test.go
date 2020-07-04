@@ -9,7 +9,7 @@ import (
 )
 
 func TestPosMod2(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	assert.Equal(t, uint64(1), m3util.PosMod2(5))
 	assert.Equal(t, uint64(0), m3util.PosMod2(4))
 	assert.Equal(t, uint64(1), m3util.PosMod2(3))
@@ -19,7 +19,7 @@ func TestPosMod2(t *testing.T) {
 }
 
 func TestPosMod4(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	assert.Equal(t, uint64(1), m3util.PosMod4(5))
 	assert.Equal(t, uint64(0), m3util.PosMod4(4))
 	assert.Equal(t, uint64(3), m3util.PosMod4(3))
@@ -29,7 +29,7 @@ func TestPosMod4(t *testing.T) {
 }
 
 func TestPosMod8(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	assert.Equal(t, uint64(1), m3util.PosMod8(9))
 	assert.Equal(t, uint64(0), m3util.PosMod8(8))
 	assert.Equal(t, uint64(7), m3util.PosMod8(7))
@@ -45,15 +45,15 @@ func TestPosMod8(t *testing.T) {
 func getPointTestData() *PointPackData {
 	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3util.PointTestEnv)
+	env := getServerFullTestDb(m3util.PointTestEnv)
 	InitializePointDBEnv(env, false)
-	ppd, _ := GetPointPackData(env)
+	ppd, _ := getServerPointPackData(env)
 	return ppd
 }
 
 func TestAllTrioDetails(t *testing.T) {
-	m3point.Log.SetInfo()
-	m3point.Log.SetAssert(true)
+	Log.SetInfo()
+	Log.SetAssert(true)
 
 	ppd := getPointTestData()
 
@@ -79,14 +79,14 @@ func TestAllTrioDetails(t *testing.T) {
 			assert.NotNil(t, td.GetPlusZConn(), "trio %d = %s did not find conn", i, td.String())
 			assert.NotNil(t, td.GetMinusZConn(), "trio %d = %s did not find conn", i, td.String())
 			// all find connection without assertion are good
-			m3point.Log.SetAssert(false)
+			Log.SetAssert(false)
 			assert.NotNil(t, td.GetPlusXConn(), "trio %d = %s did not find conn", i, td.String())
 			assert.NotNil(t, td.GetMinusXConn(), "trio %d = %s did not find conn", i, td.String())
 			assert.NotNil(t, td.GetPlusYConn(), "trio %d = %s did not find conn", i, td.String())
 			assert.NotNil(t, td.GetMinusYConn(), "trio %d = %s did not find conn", i, td.String())
 			assert.NotNil(t, td.GetPlusZConn(), "trio %d = %s did not find conn", i, td.String())
 			assert.NotNil(t, td.GetMinusZConn(), "trio %d = %s did not find conn", i, td.String())
-			m3point.Log.SetAssert(true)
+			Log.SetAssert(true)
 		}
 	}
 
@@ -99,7 +99,7 @@ func TestAllTrioDetails(t *testing.T) {
 }
 
 func TestTrioDetailsPerDSIndex(t *testing.T) {
-	m3point.Log.SetInfo()
+	Log.SetInfo()
 
 	ppd := getPointTestData()
 
@@ -202,7 +202,7 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 	assert.False(t, td0.HasConnection(6))
 	assert.True(t, td0.HasConnection(-9))
 	assert.False(t, td0.HasConnection(9))
-	m3point.Log.IgnoreNextError()
+	Log.IgnoreNextError()
 	failedOc := td0.OtherConnectionsFrom(-4)
 	assert.Equal(t, (*m3point.ConnectionDetails)(nil), failedOc[0])
 	assert.Equal(t, (*m3point.ConnectionDetails)(nil), failedOc[1])
@@ -223,7 +223,7 @@ func TestTrioDetailsConnectionsMethods(t *testing.T) {
 }
 
 func TestInitialTrioConnectingVectors(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	assert.Equal(t, allBaseTrio[0][0], m3point.Point{1, 1, 0})
 	assert.Equal(t, allBaseTrio[0][1], m3point.Point{-1, 0, -1})
 	assert.Equal(t, allBaseTrio[0][1], allBaseTrio[0][0].RotPlusX().RotPlusY().RotPlusY())
@@ -236,7 +236,7 @@ func TestInitialTrioConnectingVectors(t *testing.T) {
 }
 
 func TestAllBaseTrio(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	for i, tr := range allBaseTrio {
 		assert.Equal(t, m3point.CInt(0), tr[0][2], "Failed on trio %d", i)
 		assert.Equal(t, m3point.CInt(0), tr[1][1], "Failed on trio %d", i)
@@ -259,7 +259,7 @@ func TestAllBaseTrio(t *testing.T) {
 }
 
 func TestAllFull5Trio(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	idxMap := createAll8IndexMap()
 	// All trio with prime (neg of all vec) will have a full 5 connection length
 	for i := 0; i < 4; i++ {

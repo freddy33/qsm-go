@@ -18,15 +18,16 @@ curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
 . "$curDir/functions.sh"
 
 test_util() {
-    cd ${rootDir}/utils && go test ./m3db/
+    cd ${rootDir}/utils && go test ./m3util/
 }
 
 test_model() {
-    cd ${rootDir}/model && go test ./m3point/ ./m3path/ ./m3space/
+    cd ${rootDir}/model && go test ./m3point/
+    #./m3path/ ./m3space/
 }
 
 test_backend() {
-    cd ${rootDir}/backend && go test ./m3server/
+    cd ${rootDir}/backend && go test ./m3db/ ./m3server/
 }
 
 test_ui() {
@@ -57,7 +58,9 @@ case "$pack" in
     test_${pack}
     ;;
     all)
-    test_util && test_model && test_backend && test_ui
+    # test_util &&
+    test_model && test_backend
+    # && test_ui
     ;;
     *)
     usage

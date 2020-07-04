@@ -1,7 +1,8 @@
-package m3point
+package m3server
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -10,9 +11,9 @@ import (
 func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	m3util.SetToTestMode()
 
-	env := GetFullTestEnv(m3util.PointTestEnv)
-	ppd := GetPointPackData(env)
-	for _, ctxType := range GetAllContextTypes() {
+	env := getServerFullTestDb(m3util.PointTestEnv)
+	ppd, _ := getServerPointPackData(env)
+	for _, ctxType := range m3point.GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			runConnectionDetailsCheck(t, ppd.GetGrowthContextByTypeAndIndex(ctxType, pIdx))
@@ -20,35 +21,40 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	}
 }
 
-func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
-	ppd := GetPointPackData(growthCtx.GetEnv())
+func GetBaseTrioDetails(growthCtx m3point.GrowthContext, mainPoint m3point.Point, offset int) *m3point.TrioDetails {
+	ppd := growthCtx.GetEnv().GetData(m3util.PointIdx).(m3point.PointPackDataIfc)
+	return ppd.GetTrioDetails(growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), offset))
+}
+
+func runConnectionDetailsCheck(t *testing.T, growthCtx m3point.GrowthContext) {
+	ppd, _ := getServerPointPackData(growthCtx.GetEnv())
 	// For all trioIndex rotations, any 2 close nextMainPoint points there should be a connection details
-	min := CInt(-5)
-	max := CInt(5)
+	min := m3point.CInt(-5)
+	max := m3point.CInt(5)
 	for x := min; x < max; x++ {
 		for y := min; y < max; y++ {
 			for z := min; z < max; z++ {
-				mainPoint := Point{x, y, z}.Mul(3)
-				connectingVectors := ppd.GetBaseTrioDetails(growthCtx, mainPoint, 0).GetConnections()
+				mainPoint := m3point.Point{x, y, z}.Mul(3)
+				connectingVectors := GetBaseTrioDetails(growthCtx, mainPoint, 0).GetConnections()
 				for _, conn := range connectingVectors {
 					cVec := conn.Vector
 
 					assertValidConnDetails(t, ppd, mainPoint, mainPoint.Add(cVec), fmt.Sprint("Main Pos", mainPoint, "base vector", cVec))
 
-					nextMain := Origin
+					nextMain := m3point.Origin
 					switch cVec.X() {
 					case 0:
 						// Nothing out
 					case 1:
-						nextMain = mainPoint.Add(XFirst)
+						nextMain = mainPoint.Add(m3point.XFirst)
 					case -1:
-						nextMain = mainPoint.Sub(XFirst)
+						nextMain = mainPoint.Sub(m3point.XFirst)
 					default:
 						assert.Fail(t, "There should not be a connecting vector with x value %d", cVec.X())
 					}
-					if nextMain != Origin {
+					if nextMain != m3point.Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on X() )
-						nextConnectingVectors := ppd.GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
+						nextConnectingVectors := GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
 						for _, conn := range nextConnectingVectors {
 							nbp := conn.Vector
 							if nbp.X() == -cVec.X() {
@@ -59,20 +65,20 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 						}
 					}
 
-					nextMain = Origin
+					nextMain = m3point.Origin
 					switch cVec.Y() {
 					case 0:
 						// Nothing out
 					case 1:
-						nextMain = mainPoint.Add(YFirst)
+						nextMain = mainPoint.Add(m3point.YFirst)
 					case -1:
-						nextMain = mainPoint.Sub(YFirst)
+						nextMain = mainPoint.Sub(m3point.YFirst)
 					default:
 						assert.Fail(t, "There should not be a connecting vector with y value %d", cVec.Y())
 					}
-					if nextMain != Origin {
+					if nextMain != m3point.Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on Y() )
-						nextConnectingVectors := ppd.GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
+						nextConnectingVectors := GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
 						for _, conn := range nextConnectingVectors {
 							nbp := conn.Vector
 							if nbp.Y() == -cVec.Y() {
@@ -83,20 +89,20 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 						}
 					}
 
-					nextMain = Origin
+					nextMain = m3point.Origin
 					switch cVec.Z() {
 					case 0:
 						// Nothing out
 					case 1:
-						nextMain = mainPoint.Add(ZFirst)
+						nextMain = mainPoint.Add(m3point.ZFirst)
 					case -1:
-						nextMain = mainPoint.Sub(ZFirst)
+						nextMain = mainPoint.Sub(m3point.ZFirst)
 					default:
 						assert.Fail(t, "There should not be a connecting vector with Z value %d", cVec.Z())
 					}
-					if nextMain != Origin {
+					if nextMain != m3point.Origin {
 						// Find the connecting vector on the other side ( the opposite 1 or -1 on Z() )
-						nextConnectingVectors := ppd.GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
+						nextConnectingVectors := GetBaseTrioDetails(growthCtx, nextMain, 0).GetConnections()
 						for _, conn := range nextConnectingVectors {
 							nbp := conn.Vector
 							if nbp.Z() == -cVec.Z() {
@@ -113,12 +119,12 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx GrowthContext) {
 
 }
 
-func assertValidConnDetails(t *testing.T, ppd *BasePointPackData, p1, p2 Point, msg string) {
+func assertValidConnDetails(t *testing.T, ppd *PointPackData, p1, p2 m3point.Point, msg string) {
 	connDetails1 := ppd.GetConnDetailsByPoints(p1, p2)
-	assert.NotEqual(t, EmptyConnDetails, connDetails1, msg)
-	assert.Equal(t, MakeVector(p1, p2), connDetails1.Vector, msg)
+	assert.NotEqual(t, m3point.EmptyConnDetails, connDetails1, msg)
+	assert.Equal(t, m3point.MakeVector(p1, p2), connDetails1.Vector, msg)
 
 	connDetails2 := ppd.GetConnDetailsByPoints(p2, p1)
-	assert.NotEqual(t, EmptyConnDetails, connDetails2, msg)
-	assert.Equal(t, MakeVector(p2, p1), connDetails2.Vector, msg)
+	assert.NotEqual(t, m3point.EmptyConnDetails, connDetails2, msg)
+	assert.Equal(t, m3point.MakeVector(p2, p1), connDetails2.Vector, msg)
 }

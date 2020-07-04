@@ -26,6 +26,10 @@ runServer() {
     sleep 1
 }
 
+runBackend() {
+    cd ${rootDir}/backend && ${go_exe} build && ./backend $@
+}
+
 commandName=$1
 
 case "$commandName" in
@@ -35,6 +39,10 @@ case "$commandName" in
     ;;
     play)
     cd ${rootDir}/ui && ${go_exe} build && ./ui $@
+    ;;
+    backend)
+    shift
+    runBackend server $@
     ;;
     server)
     runServer $@

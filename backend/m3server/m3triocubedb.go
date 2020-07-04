@@ -2,8 +2,8 @@ package m3server
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"sort"
 )
 
@@ -80,7 +80,7 @@ func (ppd *PointPackData) loadContextCubes() map[m3point.CubeKeyId]int {
 			&cube.MiddleEdges[4], &cube.MiddleEdges[5], &cube.MiddleEdges[6], &cube.MiddleEdges[7],
 			&cube.MiddleEdges[8], &cube.MiddleEdges[9], &cube.MiddleEdges[10], &cube.MiddleEdges[11])
 		if err != nil {
-			m3point.Log.Errorf("failed to load trio context line %d due to %v", loaded, err)
+			Log.Errorf("failed to load trio context line %d due to %v", loaded, err)
 		} else {
 			key := m3point.CubeKeyId{GrowthCtxId: growthCtxId, Cube: cube}
 			res[key] = cubeId
@@ -97,8 +97,8 @@ func (ppd *PointPackData) saveAllContextCubes() (int, error) {
 	}
 	if toFill {
 		cubeKeys := ppd.calculateAllContextCubes()
-		if m3point.Log.IsDebug() {
-			m3point.Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(cubeKeys))
+		if Log.IsDebug() {
+			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(cubeKeys))
 		}
 		for cubeKey, cubeId := range cubeKeys {
 			cube := cubeKey.Cube
@@ -108,7 +108,7 @@ func (ppd *PointPackData) saveAllContextCubes() (int, error) {
 				cube.MiddleEdges[4], cube.MiddleEdges[5], cube.MiddleEdges[6], cube.MiddleEdges[7],
 				cube.MiddleEdges[8], cube.MiddleEdges[9], cube.MiddleEdges[10], cube.MiddleEdges[11])
 			if err != nil {
-				m3point.Log.Error(err)
+				Log.Error(err)
 			} else {
 				inserted++
 			}
@@ -176,14 +176,14 @@ func (cl *CubeListBuilder) populate(max m3point.CInt) {
 	// For center populate for all offsets
 	maxOffset := cl.growthCtx.GetGrowthType().GetMaxOffset()
 	for offset := 0; offset < maxOffset; offset++ {
-		cube := cl.ppd.CreateTrioCube(cl.growthCtx, offset, Origin)
+		cube := m3point.CreateTrioCube(cl.ppd, cl.growthCtx, offset, Origin)
 		allCubesMap[cube]++
 	}
 	// Go through space
 	for x := -max; x <= max; x++ {
 		for y := -max; y <= max; y++ {
 			for z := -max; z <= max; z++ {
-				cube := cl.ppd.CreateTrioCube(cl.growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
+				cube := m3point.CreateTrioCube(cl.ppd, cl.growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
 				allCubesMap[cube]++
 			}
 		}
@@ -197,7 +197,7 @@ func (cl *CubeListBuilder) populate(max m3point.CInt) {
 }
 
 func (cl *CubeListBuilder) exists(offset int, c m3point.Point) bool {
-	toFind := cl.ppd.CreateTrioCube(cl.growthCtx, offset, c)
+	toFind := m3point.CreateTrioCube(cl.ppd, cl.growthCtx, offset, c)
 	for _, c := range cl.allCubes {
 		if c == toFind {
 			return true

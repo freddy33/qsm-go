@@ -8,10 +8,10 @@ import (
 )
 
 func TestConnectionDetails(t *testing.T) {
-	m3point.Log.SetDebug()
+	Log.SetDebug()
 	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3util.PointTestEnv)
+	env := getServerFullTestDb(m3util.PointTestEnv)
 	conns, connsByVector := loadConnectionDetails(env)
 
 	assert.Equal(t, 50, len(conns))
@@ -46,5 +46,5 @@ func TestConnectionDetails(t *testing.T) {
 			}
 		}
 	}
-	m3point.Log.Debug("ConnId usage:", countConnId)
+	Log.Debug("ConnId usage:", countConnId)
 }

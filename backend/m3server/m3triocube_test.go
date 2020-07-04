@@ -7,8 +7,8 @@ import (
 )
 
 func TestTrioCubeMaps(t *testing.T) {
-	m3point.Log.SetInfo()
-	m3point.Log.SetAssert(true)
+	Log.SetInfo()
+	Log.SetAssert(true)
 
 	ppd := getPointTestData()
 
@@ -16,6 +16,7 @@ func TestTrioCubeMaps(t *testing.T) {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			growthCtx := ppd.GetGrowthContextByTypeAndIndex(ctxType, pIdx)
+			Log.Debugf("Running test for %s", growthCtx.String())
 			max, cubes := ppd.findNbCubes(growthCtx)
 			// Test way above
 			nbCubesBig := ppd.distinctCubes(growthCtx, max*3)
@@ -24,7 +25,9 @@ func TestTrioCubeMaps(t *testing.T) {
 			assert.Equal(t, len(cubes), len(cl.allCubes), "failed test big for %s for max=%d", growthCtx.String(), max)
 			maxOffset := ctxType.GetMaxOffset()
 			for offset := 0; offset < maxOffset; offset++ {
-				assertWithOffset(t, cl, max+1, offset)
+				if !assertWithOffset(t, cl, max+1, offset) {
+					return
+				}
 			}
 		}
 	}
@@ -37,7 +40,7 @@ func (ppd *PointPackData) findNbCubes(growthCtx m3point.GrowthContext) (m3point.
 	for ; max < 30; max++ {
 		newCubes = ppd.distinctCubes(growthCtx, max)
 		if nbCubes == len(newCubes) {
-			m3point.Log.Debugf("Found max for %s = %d at %d", growthCtx.String(), nbCubes, max-1)
+			Log.Debugf("Found max for %s = %d at %d", growthCtx.String(), nbCubes, max-1)
 			break
 		}
 		nbCubes = len(newCubes)
@@ -49,13 +52,13 @@ func (ppd *PointPackData) distinctCubes(growthCtx m3point.GrowthContext, max m3p
 	allCubes := make(map[m3point.CubeOfTrioIndex]int)
 	maxOffset := growthCtx.GetGrowthType().GetMaxOffset()
 	for offset := 0; offset < maxOffset; offset++ {
-		cube := ppd.CreateTrioCube(growthCtx, offset, m3point.Origin)
+		cube := m3point.CreateTrioCube(ppd, growthCtx, offset, m3point.Origin)
 		allCubes[cube]++
 	}
 	for x := -max; x <= max; x++ {
 		for y := -max; y <= max; y++ {
 			for z := -max; z <= max; z++ {
-				cube := ppd.CreateTrioCube(growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
+				cube := m3point.CreateTrioCube(ppd, growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
 				allCubes[cube]++
 			}
 		}
@@ -63,14 +66,19 @@ func (ppd *PointPackData) distinctCubes(growthCtx m3point.GrowthContext, max m3p
 	return allCubes
 }
 
-func assertWithOffset(t *testing.T, cl *CubeListBuilder, max m3point.CInt, offset int) {
+func assertWithOffset(t *testing.T, cl *CubeListBuilder, max m3point.CInt, offset int) bool {
 	for x := -max; x <= max; x++ {
 		for y := -max; y <= max; y++ {
 			for z := -max; z <= max; z++ {
 				mp := m3point.Point{x, y, z}.Mul(m3point.THREE)
-				assert.True(t, cl.exists(offset, mp), "did not find cube for %s at %d and %v", cl.growthCtx.String(), offset, mp)
+				cubeExists := cl.exists(offset, mp)
+				assert.True(t, cubeExists, "did not find cube for %s at %d and %v", cl.growthCtx.String(), offset, mp)
+				if !cubeExists {
+					return false
+				}
 			}
 		}
 	}
+	return true
 }
 

@@ -50,7 +50,11 @@ type QsmEnvironment interface {
 	InternalClose() error
 }
 
-var EnvironmentCreator func(envId QsmEnvID) QsmEnvironment
+var newEnvFunc func(envId QsmEnvID) QsmEnvironment
+
+func SetEnvironmentCreator(newEnv func(envId QsmEnvID) QsmEnvironment) {
+	newEnvFunc = newEnv
+}
 
 type BaseQsmEnvironment struct {
 	Id   QsmEnvID
@@ -106,9 +110,6 @@ func ReadEnvId(sourceInfo string, envIdStr string) QsmEnvID {
 }
 
 func GetDefaultEnvId() QsmEnvID {
-	if TestMode {
-		Log.Fatalf("Cannot use not set pointEnv in test mode!")
-	}
 	envId := MainEnv
 	envIdFromOs := os.Getenv(QsmEnvNumberKey)
 	if envIdFromOs != "" {
@@ -132,7 +133,7 @@ func GetEnvironment(envId QsmEnvID) QsmEnvironment {
 		defer createEnvMutex.Unlock()
 		env, ok = environments[envId]
 		if !ok {
-			env = EnvironmentCreator(envId)
+			env = newEnvFunc(envId)
 			environments[envId] = env
 		}
 	}

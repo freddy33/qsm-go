@@ -2,9 +2,9 @@ package m3gl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
@@ -229,7 +229,7 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
-	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	ppd := m3point.getApiPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	triangleFiller.drawNodes()
@@ -241,21 +241,21 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 }
 
 func (world *DisplayWorld) RedrawAxesElementsMap() {
-	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	ppd := m3point.getApiPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawNodesElementsMap() {
-	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	ppd := m3point.getApiPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawNodes()
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawConnectionsElementsMap() {
-	ppd := m3point.GetPointPackData(world.WorldSpace.GetEnv())
+	ppd := m3point.getApiPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawConnections()
 	world.DrawingElementsMap = triangleFiller.objMap

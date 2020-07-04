@@ -1,8 +1,8 @@
 package m3server
 
 import (
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3db"
 	"github.com/freddy33/qsm-go/utils/m3util"
 )
 
@@ -11,7 +11,7 @@ type PointPackData struct {
 	Env *m3db.QsmDbEnvironment
 }
 
-func GetPointPackData(env m3util.QsmEnvironment) (*PointPackData, bool) {
+func getServerPointPackData(env m3util.QsmEnvironment) (*PointPackData, bool) {
 	newData := env.GetData(m3util.PointIdx) == nil
 	if newData {
 		ppd := new(PointPackData)
@@ -24,7 +24,7 @@ func GetPointPackData(env m3util.QsmEnvironment) (*PointPackData, bool) {
 }
 
 func InitializePointDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
-	ppd, newData := GetPointPackData(env)
+	ppd, newData := getServerPointPackData(env)
 	if forced {
 		ppd.ResetFlags()
 	} else if !newData {
@@ -35,6 +35,18 @@ func InitializePointDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
 	ppd.initGrowthContexts()
 	ppd.initContextCubes()
 	ppd.initPathBuilders()
+}
+
+func (ppd *PointPackData) GetValidNextTrio() [12][2]m3point.TrioIndex {
+	return validNextTrio
+}
+
+func (ppd *PointPackData) GetAllMod4Permutations() [12][4]m3point.TrioIndex {
+	return AllMod4Permutations
+}
+
+func (ppd *PointPackData) GetAllMod8Permutations() [12][8]m3point.TrioIndex {
+	return AllMod8Permutations
 }
 
 func (ppd *PointPackData) initConnections() {
@@ -78,7 +90,7 @@ func (ppd *PointPackData) initPathBuilders() {
 }
 
 func FillDbEnv(env *m3db.QsmDbEnvironment) {
-	ppd, _ := GetPointPackData(env)
+	ppd, _ := getServerPointPackData(env)
 
 	n, err := ppd.saveAllConnectionDetails()
 	if err != nil {
