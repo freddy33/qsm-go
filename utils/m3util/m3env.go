@@ -147,6 +147,7 @@ func RemoveEnvFromMap(envId QsmEnvID) {
 }
 
 func CloseAll() {
+	Log.Infof("Closing %d environment(s)", len(environments))
 	toClose := make([]QsmEnvironment, 0, len(environments))
 	for _, env := range environments {
 		if env != nil {
@@ -161,4 +162,3 @@ func CloseAll() {
 		}
 	}
 }
-

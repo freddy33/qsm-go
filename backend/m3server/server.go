@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"sync"
 )
 
 const (
@@ -15,8 +16,10 @@ const (
 )
 
 type QsmApp struct {
-	Router *mux.Router
-	Env    *m3db.QsmDbEnvironment
+	HttpServerDone *sync.WaitGroup
+	Server         *http.Server
+	Router         *mux.Router
+	Env            *m3db.QsmDbEnvironment
 }
 
 func (app *QsmApp) AddHandler(path string, handleFunc func(http.ResponseWriter, *http.Request)) {

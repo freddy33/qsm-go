@@ -69,7 +69,7 @@ func CheckServerUp() bool {
 	return true
 }
 
-func getApiFullTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
+func getFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	if !m3util.TestMode {
 		Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
 	}
