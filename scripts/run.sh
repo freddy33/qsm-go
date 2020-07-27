@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage() {
-    echo "Usage qsm run [build, filldb, gentxt, play, perf]"
+    echo "Usage qsm run [tidy, build, filldb, gentxt, play, perf]"
     exit 1
 }
 
@@ -20,6 +20,12 @@ fi
 commandName=$1
 
 case "$commandName" in
+    tidy)
+    for m in m3util model backend client; do
+        echo "INFO: Tyding go.mod of $m"
+        cd ${rootDir}/${m} && ${go_exe} mod tidy
+    done
+    ;;
     build)
     cd ${rootDir}/backend && ${go_exe} build && \
     cd ${rootDir}/ui && ${go_exe} build
