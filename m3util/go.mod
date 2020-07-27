@@ -1,4 +1,4 @@
-module github.com/freddy33/qsm-go/utils
+module github.com/freddy33/qsm-go/m3util
 
 require (
 	github.com/lib/pq v1.3.0
