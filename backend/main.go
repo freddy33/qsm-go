@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/m3server"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 	"log"
 	"net/http"
 	"os"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"

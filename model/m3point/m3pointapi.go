@@ -2,7 +2,7 @@ package m3point
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 )
 
 type GrowthContext interface {

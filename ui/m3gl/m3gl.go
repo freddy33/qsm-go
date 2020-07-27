@@ -5,7 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
 	"math"

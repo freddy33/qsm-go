@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/freddy33/qsm-go/ui/playgl"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 )
 
 func main() {

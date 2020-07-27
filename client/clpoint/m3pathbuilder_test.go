@@ -3,7 +3,7 @@ package clpoint
 import (
 	"github.com/freddy33/qsm-go/client"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

@@ -1,6 +1,6 @@
 package client
 
-import "github.com/freddy33/qsm-go/utils/m3util"
+import "github.com/freddy33/qsm-go/m3util"
 
 var Log = m3util.NewLogger("m3api", m3util.INFO)
 

@@ -2,7 +2,7 @@ package client
 
 import (
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 )
 
 func GetApiPointPackData(env m3util.QsmEnvironment) *m3point.LoadedPointPackData {

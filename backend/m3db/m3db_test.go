@@ -1,7 +1,7 @@
 package m3db
 
 import (
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"os"

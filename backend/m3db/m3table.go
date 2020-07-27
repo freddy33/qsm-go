@@ -3,7 +3,7 @@ package m3db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/freddy33/qsm-go/utils/m3util"
+	"github.com/freddy33/qsm-go/m3util"
 )
 
 type TableDefinition struct {
