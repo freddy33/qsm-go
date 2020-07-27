@@ -61,16 +61,6 @@ type LoadedPointPackData struct {
 	AllMod8Permutations [12][8]TrioIndex
 }
 
-func getApiPointPackData(env m3util.QsmEnvironment) *LoadedPointPackData {
-	if env.GetData(m3util.PointIdx) == nil {
-		ppd := new(LoadedPointPackData)
-		ppd.EnvId = env.GetId()
-		env.SetData(m3util.PointIdx, ppd)
-		// do not return ppd but always the pointer in Env data array
-	}
-	return env.GetData(m3util.PointIdx).(*LoadedPointPackData)
-}
-
 func (ppd *BasePointPackData) GetEnvId() m3util.QsmEnvID {
 	if ppd == nil {
 		return m3util.NoEnv

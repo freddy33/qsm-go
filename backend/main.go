@@ -93,11 +93,13 @@ func main() {
 			runServer = true
 			didSomething = true
 		case "gentxt":
-			m3server.GenerateTextFilesEnv(m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment))
+			m3server.GenerateTextFilesEnv(m3db.GetEnvironment(m3util.GetDefaultEnvId()))
 			didSomething = true
 		case "filldb":
-			m3server.FillDbEnv(m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment))
+			m3server.FillDbEnv(m3db.GetEnvironment(m3util.GetDefaultEnvId()))
 			didSomething = true
+		case "-env":
+			m3util.SetDefaultEnvId(m3util.ReadEnvId("backend main", others[i+1]))
 		case "-port":
 			port = others[i+1]
 			hasPortParam = true

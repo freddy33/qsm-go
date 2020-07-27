@@ -21,7 +21,7 @@ func CopyFile(src, dest string) {
 	ExitOnError(err)
 }
 
-func RunQsm(id QsmEnvID, params ...string) {
+func osQsmCmd(id QsmEnvID, params ...string) {
 	rootDir := GetGitRootDir()
 	command := fmt.Sprintf("%s -env %s", WslPath(filepath.Join(rootDir, "qsm")), id.String())
 	for _, p := range params {

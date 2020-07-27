@@ -44,8 +44,7 @@ func TestDbConf(t *testing.T) {
 
 func TestEnvCreationAndDestroy(t *testing.T) {
 	Log.SetDebug()
-	SetEnvironmentCreator()
-	env := m3util.GetEnvironment(m3util.DbTempEnv).(*QsmDbEnvironment)
+	env := GetEnvironment(m3util.DbTempEnv)
 	if env == nil {
 		assert.NotNil(t, env, "could not create environment %d", m3util.DbTempEnv)
 		return

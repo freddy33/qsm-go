@@ -21,17 +21,16 @@ func getServerFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
-	m3db.SetEnvironmentCreator()
 
 	if testDbFilled[envId] {
-		return m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
+		return m3db.GetEnvironment(envId)
 	}
 
 	m3util.RunQsm(envId, "run", "filldb")
 
 	testDbFilled[envId] = true
 
-	return m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
+	return m3db.GetEnvironment(envId)
 }
 
 // Do not use this environment to load
@@ -39,8 +38,7 @@ func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if !m3util.TestMode {
 		Log.Fatalf("Cannot use GetCleanTempDb in non test mode!")
 	}
-	m3db.SetEnvironmentCreator()
-	env := m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
+	env := m3db.GetEnvironment(envId)
 
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
@@ -51,7 +49,7 @@ func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 
 	env.Destroy()
 
-	env = m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
+	env = m3db.GetEnvironment(envId)
 	cleanedDb[envId] = true
 
 	return env

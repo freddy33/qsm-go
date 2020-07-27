@@ -47,7 +47,7 @@ func (env *QsmDbEnvironment) GetDbConf() DbConnDetails {
 	return env.dbDetails
 }
 
-func createNewEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
+func createNewDbEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	env := QsmDbEnvironment{}
 	env.Id = envId
 	env.tableExecs = make(map[string]*TableExec)
@@ -64,8 +64,8 @@ func createNewEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	return &env
 }
 
-func SetEnvironmentCreator() {
-	m3util.SetEnvironmentCreator(createNewEnv)
+func GetEnvironment(envId m3util.QsmEnvID) *QsmDbEnvironment {
+	return m3util.GetEnvironmentWithCreator(envId, createNewDbEnv).(*QsmDbEnvironment)
 }
 
 func (env *QsmDbEnvironment) fillDbConf() {

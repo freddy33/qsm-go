@@ -50,12 +50,6 @@ type QsmEnvironment interface {
 	InternalClose() error
 }
 
-var newEnvFunc func(envId QsmEnvID) QsmEnvironment
-
-func SetEnvironmentCreator(newEnv func(envId QsmEnvID) QsmEnvironment) {
-	newEnvFunc = newEnv
-}
-
 type BaseQsmEnvironment struct {
 	Id   QsmEnvID
 	data [MaxDataEntry]QsmDataPack
@@ -119,21 +113,18 @@ func GetDefaultEnvId() QsmEnvID {
 	return envId
 }
 
-func GetDefaultEnvironment() QsmEnvironment {
-	if TestMode {
-		Log.Fatalf("Cannot use default environment in test mode!")
-	}
-	return GetEnvironment(GetDefaultEnvId())
+func SetDefaultEnvId(envId QsmEnvID) {
+	ExitOnError(os.Setenv(QsmEnvNumberKey, envId.String()))
 }
 
-func GetEnvironment(envId QsmEnvID) QsmEnvironment {
+func GetEnvironmentWithCreator(envId QsmEnvID, createEnvFunc func(envId QsmEnvID) QsmEnvironment) QsmEnvironment {
 	env, ok := environments[envId]
 	if !ok {
 		createEnvMutex.Lock()
 		defer createEnvMutex.Unlock()
 		env, ok = environments[envId]
 		if !ok {
-			env = newEnvFunc(envId)
+			env = createEnvFunc(envId)
 			environments[envId] = env
 		}
 	}
@@ -161,4 +152,12 @@ func CloseAll() {
 			Log.Errorf("Error while closing environment %d", id)
 		}
 	}
+}
+
+func RunQsm(id QsmEnvID, params ...string) {
+	osQsmCmd(id, params...)
+}
+
+func StartQsmBackend(id QsmEnvID, params ...string) *os.Process {
+	return osStartBackend(id, params...)
 }

@@ -2,7 +2,7 @@ package playgl
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/client"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
@@ -52,7 +52,7 @@ func Play() {
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
 	max := int64(9 * m3point.THREE)
-	env := m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment)
+	env := client.GetEnvironment(m3util.GetDefaultEnvId())
 	m3path.InitializePathDBEnv(env)
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()

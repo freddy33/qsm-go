@@ -1,4 +1,4 @@
-package m3api
+package client
 
 import "github.com/freddy33/qsm-go/utils/m3util"
 
@@ -13,13 +13,13 @@ func (env *QsmApiEnvironment) InternalClose() error {
 	return nil
 }
 
-func createNewEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
+func createNewApiEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	env := QsmApiEnvironment{}
 	env.Id = envId
 
 	return &env
 }
 
-func SetEnvironmentCreator() {
-	m3util.SetEnvironmentCreator(createNewEnv)
+func GetEnvironment(envId m3util.QsmEnvID) *QsmApiEnvironment {
+	return m3util.GetEnvironmentWithCreator(envId, createNewApiEnv).(*QsmApiEnvironment)
 }

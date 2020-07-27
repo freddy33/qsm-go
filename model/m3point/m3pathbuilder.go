@@ -59,7 +59,7 @@ func (ppd *BasePointPackData) GetPathNodeBuilderById(cubeId int) PathNodeBuilder
 /***************************************************************/
 
 func (pl *PathLinkBuilder) dumpInfo() string {
-	return fmt.Sprintf("%s %s", pl.ConnId.String(), pl.PathNode.dumpInfo())
+	return fmt.Sprintf("%s %s", pl.ConnId.String(), pl.PathNode.DumpInfo())
 }
 
 func (pl *PathLinkBuilder) GetConnectionId() ConnectionId {
@@ -98,7 +98,7 @@ func (rpnb *RootPathNodeBuilder) String() string {
 	return fmt.Sprintf("RNB-%s-%s", rpnb.Ctx.String(), rpnb.TrIdx.String())
 }
 
-func (rpnb *RootPathNodeBuilder) dumpInfo() string {
+func (rpnb *RootPathNodeBuilder) DumpInfo() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\n%s", rpnb.String()))
 	for i, pl := range rpnb.PathLinks {
@@ -159,7 +159,7 @@ func (ipnb *IntermediatePathNodeBuilder) String() string {
 	return fmt.Sprintf("INB-%s-%s", ipnb.Ctx.String(), ipnb.TrIdx.String())
 }
 
-func (ipnb *IntermediatePathNodeBuilder) dumpInfo() string {
+func (ipnb *IntermediatePathNodeBuilder) DumpInfo() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("INB-%s", ipnb.TrIdx.String()))
 	for i, pl := range ipnb.PathLinks {
@@ -204,7 +204,7 @@ func (lipnb *LastPathNodeBuilder) String() string {
 	return fmt.Sprintf("LINB-%s-%s", lipnb.Ctx.String(), lipnb.TrIdx.String())
 }
 
-func (lipnb *LastPathNodeBuilder) dumpInfo() string {
+func (lipnb *LastPathNodeBuilder) DumpInfo() string {
 	return fmt.Sprintf("LINB-%s %s %s", lipnb.TrIdx.String(), lipnb.NextMainConnId, lipnb.NextInterConnId)
 }
 
@@ -222,7 +222,7 @@ func (lipnb *LastPathNodeBuilder) GetNextPathNodeBuilder(from Point, connId Conn
 	if Log.DoAssert() {
 		oNextMainPoint := from.Add(ppd.GetConnDetailsById(lipnb.NextMainConnId).Vector)
 		if nextMainPoint != oNextMainPoint {
-			Log.Fatalf("last inter main path node %s (%s) does give a main point using %v and %s", lipnb.String(), lipnb.dumpInfo(), from, lipnb.NextMainConnId)
+			Log.Fatalf("last inter main path node %s (%s) does give a main point using %v and %s", lipnb.String(), lipnb.DumpInfo(), from, lipnb.NextMainConnId)
 		}
 	}
 	nextMainPnb := ppd.GetPathNodeBuilder(lipnb.Ctx.GrowthCtx, offset, nextMainPoint)
@@ -232,7 +232,7 @@ func (lipnb *LastPathNodeBuilder) GetNextPathNodeBuilder(from Point, connId Conn
 		nextInterPnbBack, oInterPoint := nextMainPnb.GetNextPathNodeBuilder(nextMainPoint, lipnb.NextMainConnId.GetNegId(), offset)
 		if Log.DoAssert() {
 			if from != oInterPoint {
-				Log.Fatalf("back calculation on last inter path node %s (%s) failed %v != %v", lipnb.String(), lipnb.dumpInfo(), from, oInterPoint)
+				Log.Fatalf("back calculation on last inter path node %s (%s) failed %v != %v", lipnb.String(), lipnb.DumpInfo(), from, oInterPoint)
 			}
 		}
 		return nextInterPnbBack.GetNextPathNodeBuilder(from, connId, offset)

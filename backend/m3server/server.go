@@ -41,7 +41,7 @@ func GetEnvId(r *http.Request) m3util.QsmEnvID {
 }
 
 func GetEnvironment(r *http.Request) *m3db.QsmDbEnvironment {
-	return m3util.GetEnvironment(GetEnvId(r)).(*m3db.QsmDbEnvironment)
+	return m3db.GetEnvironment(GetEnvId(r))
 }
 
 func SendResponse(w http.ResponseWriter, status int, format string, args ...interface{}) {
@@ -72,14 +72,10 @@ func initialize(w http.ResponseWriter, r *http.Request) {
 }
 
 func MakeApp(envId m3util.QsmEnvID) *QsmApp {
-	m3db.SetEnvironmentCreator()
-	var env *m3db.QsmDbEnvironment
 	if envId == m3util.NoEnv {
-		env = m3util.GetDefaultEnvironment().(*m3db.QsmDbEnvironment)
-		envId = env.GetId()
-	} else {
-		env = m3util.GetEnvironment(envId).(*m3db.QsmDbEnvironment)
+		envId = m3util.GetDefaultEnvId()
 	}
+	env := m3db.GetEnvironment(envId)
 	InitializePointDBEnv(env, false)
 
 	r := mux.NewRouter()

@@ -26,6 +26,11 @@ test_model() {
     #./m3path/ ./m3space/
 }
 
+test_client() {
+    cd ${rootDir}/client && go test ./clpoint/
+    #./m3path/ ./m3space/
+}
+
 test_backend() {
     cd ${rootDir}/backend && go test ./m3db/ ./m3server/
 }
@@ -54,7 +59,7 @@ test_perf() {
 }
 
 case "$pack" in
-    util|model|ui|backend|perf)
+    util*|model|client|ui|backend|perf)
     test_${pack}
     ;;
     all)

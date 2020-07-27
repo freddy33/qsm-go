@@ -21,7 +21,7 @@ type PathNodeBuilder interface {
 	GetCubeId() int
 	GetTrioIndex() TrioIndex
 	GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point)
-	dumpInfo() string
+	DumpInfo() string
 	Verify()
 }
 
