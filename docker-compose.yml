@@ -4,6 +4,8 @@ services:
     build: .
     container_name: qsm
     environment:
+      PGHOST:
+      PGUSER:
       PGPASSWORD:
     depends_on:
       - db
