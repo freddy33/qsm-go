@@ -1,0 +1,20 @@
+version: '3.1'
+services:
+  qsm:
+    build: .
+    container_name: qsm
+    environment:
+      PGPASSWORD:
+    depends_on:
+      - db
+
+  db:
+    container_name: postgres
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_DB: qsm
+      POSTGRES_USER: qsm
+      POSTGRES_PASSWORD: qsm
