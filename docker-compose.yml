@@ -1,22 +1,25 @@
 version: '3.1'
 services:
-  qsm:
-    build: .
-    container_name: qsm
-    environment:
-      PGHOST:
-      PGUSER:
-      PGPASSWORD:
-    depends_on:
-      - db
+#  qsm:
+#    build: .
+#    container_name: qsm
+#    environment:
+#      PGHOST:
 
   db:
     container_name: postgres
-    image: postgres
+    image: postgres:12.3
     restart: always
-    ports:
-      - 5432:5432
     environment:
       POSTGRES_DB: qsm
       POSTGRES_USER: qsm
       POSTGRES_PASSWORD: qsm
+    ports:
+      - 5432:5432
+
+  adminer:
+    container_name: adminer
+    image: adminer:4.7
+    restart: always
+    ports:
+      - 8081:8080
