@@ -3,7 +3,7 @@ services:
   job-filldb:
     build:
       context: .
-      dockerfile: ./kintohub/jobs/filldb.Dockerfile
+      dockerfile: job-filldb.Dockerfile
     container_name: qsm
     environment:
       DB_HOST: postgres

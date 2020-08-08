@@ -1,9 +1,7 @@
 FROM golang:1.13 as BUILDER
 WORKDIR /app
 COPY . .
-RUN ls -a
 WORKDIR /app/backend
-RUN ls -a
 RUN go mod download
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o main
 
