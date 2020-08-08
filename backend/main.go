@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/backend/m3server"
-	"github.com/freddy33/qsm-go/m3util"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +11,12 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	config "github.com/freddy33/qsm-go/backend/conf"
+
+	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/backend/m3server"
+	"github.com/freddy33/qsm-go/m3util"
 )
 
 var runningApp *m3server.QsmApp
@@ -81,6 +84,8 @@ func killServer() {
 }
 
 func main() {
+	config.LoadConfig()
+
 	others := m3util.ReadVerbose()
 	didSomething := false
 	runServer := false
@@ -96,7 +101,9 @@ func main() {
 			m3server.GenerateTextFilesEnv(m3db.GetEnvironment(m3util.GetDefaultEnvId()))
 			didSomething = true
 		case "filldb":
-			m3server.FillDbEnv(m3db.GetEnvironment(m3util.GetDefaultEnvId()))
+			envID := m3util.GetDefaultEnvId()
+			env := m3db.GetEnvironment(envID)
+			m3server.FillDbEnv(env)
 			didSomething = true
 		case "-env":
 			m3util.SetDefaultEnvId(m3util.ReadEnvId("backend main", others[i+1]))

@@ -1,10 +1,18 @@
 version: '3.1'
 services:
-#  qsm:
-#    build: .
-#    container_name: qsm
-#    environment:
-#      PGHOST:
+  job-filldb:
+    build:
+      context: .
+      dockerfile: ./kintohub/jobs/filldb.Dockerfile
+    container_name: qsm
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: qsm
+      DB_PASSWORD: qsm
+      DB_NAME: qsm
+    depends_on:
+      - db
 
   db:
     container_name: postgres

@@ -2,13 +2,13 @@ package m3db
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
+	"sync"
+
+	config "github.com/freddy33/qsm-go/backend/conf"
+
 	"github.com/freddy33/qsm-go/m3util"
 	_ "github.com/lib/pq"
-	"io/ioutil"
-	"log"
-	"sync"
 )
 
 var Log = m3util.NewLogger("m3db", m3util.INFO)
@@ -52,8 +52,6 @@ func createNewDbEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	env.Id = envId
 	env.tableExecs = make(map[string]*TableExec)
 
-	m3util.RunQsm(envId, "db", "check")
-
 	env.fillDbConf()
 	env.openDb()
 
@@ -69,15 +67,14 @@ func GetEnvironment(envId m3util.QsmEnvID) *QsmDbEnvironment {
 }
 
 func (env *QsmDbEnvironment) fillDbConf() {
-	connJsonFile := fmt.Sprintf("%s/dbconn%d.json", m3util.GetConfDir(), env.GetId())
-	confData, err := ioutil.ReadFile(connJsonFile)
-	if err != nil {
-		log.Fatalf("failed opening DB conf file %s due to %v", connJsonFile, err)
+	env.dbDetails = DbConnDetails{
+		Host:     config.DbHost,
+		Port:     config.DbPort,
+		User:     config.DbUser,
+		Password: config.DbPassword,
+		DbName:   config.DbName,
 	}
-	err = json.Unmarshal(confData, &env.dbDetails)
-	if err != nil {
-		log.Fatalf("failed parsing DB conf file %s due to %v", connJsonFile, err)
-	}
+
 	if Log.IsDebug() {
 		Log.Debugf("DB conf for environment %d is user=%s dbName=%s", env.GetId(), env.dbDetails.User, env.dbDetails.DbName)
 	}
