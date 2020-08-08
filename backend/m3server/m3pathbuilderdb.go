@@ -202,7 +202,7 @@ func (ppd *PointPackData) Populate(rpnb *m3point.RootPathNodeBuilder) {
 			nmp := ud.GetFirstPoint()
 			nextTrIdx := cube.GetCenterFaceTrio(ud)
 			nextTd := ppd.GetTrioDetails(nextTrIdx)
-			backConn := nextTd.GetOppositeConn(ud)
+			backConn := ud.GetOpposite().FindConnection(nextTd)
 			nextMains[j].Lip = nmp.Add(backConn.Vector)
 			nextMains[j].BackConn = backConn
 			lipnb := m3point.LastPathNodeBuilder{}
@@ -240,7 +240,7 @@ func (ppd *PointPackData) Populate(rpnb *m3point.RootPathNodeBuilder) {
 				} else {
 					nextInterTrIdx := cube.GetMiddleEdgeTrio(nm.Ud, backUd)
 					nextInterTd := ppd.GetTrioDetails(nextInterTrIdx)
-					nextInterBackConn := nextInterTd.GetOppositeConn(backUd)
+					nextInterBackConn := backUd.GetOpposite().FindConnection(nextInterTd)
 					nextInterNearMainPoint := nm.Ud.GetFirstPoint().Add(backUd.GetFirstPoint()).Add(nextInterBackConn.Vector)
 					lipToOtherConn := ppd.GetConnDetailsByPoints(nm.Lip, nextInterNearMainPoint)
 					nm.Lipnb.NextInterConnId = lipToOtherConn.GetId()

@@ -32,7 +32,7 @@ const (
 )
 
 var NilConnectionId = ConnectionId(0)
-var EmptyConnDetails = ConnectionDetails{NilConnectionId, Origin, 0,}
+var EmptyConnDetails = ConnectionDetails{Id: NilConnectionId, Vector: Origin}
 
 /***************************************************************/
 // ConnectionId Functions
@@ -69,9 +69,24 @@ func (connId ConnectionId) String() string {
 // UnitDirection Functions
 /***************************************************************/
 
-var NegXFirst = XFirst.Neg()
-var NegYFirst = YFirst.Neg()
-var NegZFirst = ZFirst.Neg()
+func (ud UnitDirection) String() string {
+	switch ud {
+	case PlusX:
+		return "+X"
+	case MinusX:
+		return "-X"
+	case PlusY:
+		return "+Y"
+	case MinusY:
+		return "-Y"
+	case PlusZ:
+		return "+Z"
+	case MinusZ:
+		return "-Z"
+	}
+	Log.Fatalf("Impossible! Did not find %d unit direction", ud)
+	return "U0"
+}
 
 func (ud UnitDirection) GetOpposite() UnitDirection {
 	switch ud {
@@ -97,18 +112,59 @@ func (ud UnitDirection) GetFirstPoint() Point {
 	case PlusX:
 		return XFirst
 	case MinusX:
-		return NegXFirst
+		return XFirst.Neg()
 	case PlusY:
 		return YFirst
 	case MinusY:
-		return NegYFirst
+		return YFirst.Neg()
 	case PlusZ:
 		return ZFirst
 	case MinusZ:
-		return NegZFirst
+		return ZFirst.Neg()
 	}
 	Log.Fatalf("Impossible! Did not find %d unit direction", ud)
 	return Origin
+}
+
+/**
+Out of the 3 connections of the trio details, find the connection that will bring closer to the unit direction.
+*/
+func (ud UnitDirection) FindConnection(td *TrioDetails) *ConnectionDetails {
+	if !td.IsBaseTrio() {
+		Log.Fatalf("cannot look for %s conn on non base trio %s", ud.String(), td.String())
+		return nil
+	}
+	var axisNumber int
+	var axisValue CInt
+	switch ud {
+	case PlusX:
+		axisNumber = 0
+		axisValue = 1
+	case MinusX:
+		axisNumber = 0
+		axisValue = -1
+	case PlusY:
+		axisNumber = 1
+		axisValue = 1
+	case MinusY:
+		axisNumber = 1
+		axisValue = -1
+	case PlusZ:
+		axisNumber = 2
+		axisValue = 1
+	case MinusZ:
+		axisNumber = 2
+		axisValue = -1
+	}
+	for _, c := range td.Conns {
+		for a, v := range c.Vector {
+			if a == axisNumber && v == axisValue {
+				return c
+			}
+		}
+	}
+	Log.Fatalf("Impossible! Did not find %s unit direction in %s", ud.String(), td.String())
+	return nil
 }
 
 /***************************************************************/

@@ -2,8 +2,8 @@ package m3server
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -71,22 +71,10 @@ func TestAllTrioDetails(t *testing.T) {
 			for _, c := range cds {
 				assert.True(t, c.IsBaseConnection(), "found non base connection %s in %d = %s", c.String(), i, td.String())
 			}
-			// all find connection with assertion are good
-			assert.NotNil(t, td.GetPlusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetMinusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetPlusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetMinusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetPlusZConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetMinusZConn(), "trio %d = %s did not find conn", i, td.String())
-			// all find connection without assertion are good
-			Log.SetAssert(false)
-			assert.NotNil(t, td.GetPlusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetMinusXConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetPlusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetMinusYConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetPlusZConn(), "trio %d = %s did not find conn", i, td.String())
-			assert.NotNil(t, td.GetMinusZConn(), "trio %d = %s did not find conn", i, td.String())
-			Log.SetAssert(true)
+			for ud := m3point.PlusX; ud < 6; ud++ {
+				assert.NotNil(t, ud.FindConnection(td), "trio %d = %s did not find conn for ud=%s", i, td.String(), ud.String())
+				assert.NotNil(t, ud.GetOpposite().FindConnection(td), "trio %d = %s did not find conn for opposite of ud=%s", i, td.String(), ud.String())
+			}
 		}
 	}
 
