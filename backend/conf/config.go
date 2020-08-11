@@ -5,24 +5,30 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 var (
-	DbHost     string
-	DbPort     int
-	DbUser     string
-	DbPassword string
-	DbName     string
+	DBHost     string
+	DBPort     int
+	DBUser     string
+	DBPassword string
+	DBName     string
+
+	ServerPort string
 )
 
-func LoadConfig() {
-	godotenv.Load()
-	DbHost = getCompulsoryEnv("DB_HOST")
-	DbPort = getCompulsoryEnvInt("DB_PORT")
-	DbUser = getCompulsoryEnv("DB_USER")
-	DbPassword = getCompulsoryEnv("DB_PASSWORD")
-	DbName = getCompulsoryEnv("DB_NAME")
+func LoadDBConfig() {
+	DBHost = getCompulsoryEnv("DB_HOST")
+	DBPort = getCompulsoryEnvInt("DB_PORT")
+	DBUser = getCompulsoryEnv("DB_USER")
+	DBPassword = getCompulsoryEnv("DB_PASSWORD")
+	DBName = getCompulsoryEnv("DB_NAME")
+}
+
+func LoadServerConfig() {
+	LoadDBConfig()
+	ServerPort = getCompulsoryEnv("SERVER_PORT")
 }
 
 func getCompulsoryEnv(key string) string {

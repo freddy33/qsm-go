@@ -84,13 +84,9 @@ func killServer() {
 }
 
 func main() {
-	config.LoadConfig()
-
 	others := m3util.ReadVerbose()
 	didSomething := false
 	runServer := false
-	port := "8063"
-	hasPortParam := false
 	for i, o := range others {
 		switch o {
 		case "server":
@@ -101,20 +97,15 @@ func main() {
 			m3server.GenerateTextFilesEnv(m3db.GetEnvironment(m3util.GetDefaultEnvId()))
 			didSomething = true
 		case "filldb":
+			config.LoadDBConfig()
 			envID := m3util.GetDefaultEnvId()
 			env := m3db.GetEnvironment(envID)
 			m3server.FillDbEnv(env)
 			didSomething = true
 		case "-env":
 			m3util.SetDefaultEnvId(m3util.ReadEnvId("backend main", others[i+1]))
-		case "-port":
-			port = others[i+1]
-			hasPortParam = true
 		case "-test":
 			m3util.SetToTestMode()
-			if !hasPortParam {
-				port = "8877"
-			}
 		}
 	}
 	if !didSomething {
@@ -122,8 +113,9 @@ func main() {
 		os.Exit(1)
 	}
 	if runServer {
+		config.LoadServerConfig()
 		go listenSignals()
-		createAppAndListen(port)
+		createAppAndListen(config.ServerPort)
 		fmt.Println("Exiting main")
 	}
 }

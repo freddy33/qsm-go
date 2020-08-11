@@ -68,11 +68,11 @@ func GetEnvironment(envId m3util.QsmEnvID) *QsmDbEnvironment {
 
 func (env *QsmDbEnvironment) fillDbConf() {
 	env.dbDetails = DbConnDetails{
-		Host:     config.DbHost,
-		Port:     config.DbPort,
-		User:     config.DbUser,
-		Password: config.DbPassword,
-		DbName:   config.DbName,
+		Host:     config.DBHost,
+		Port:     config.DBPort,
+		User:     config.DBUser,
+		Password: config.DBPassword,
+		DbName:   config.DBName,
 	}
 
 	if Log.IsDebug() {
