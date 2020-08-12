@@ -13,7 +13,7 @@ services:
       DB_NAME: qsm
       SERVER_PORT: 8063
     ports:
-    - 8063:8063
+      - 8063:8063
 
   job-filldb:
     container_name: job-filldb
@@ -29,7 +29,7 @@ services:
 
   postgres:
     container_name: postgres
-    image: postgres:12.3
+    image:  fredsimon-docker.jfrog.io/postgres:12.3
     restart: always
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
