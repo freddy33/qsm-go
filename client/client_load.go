@@ -2,9 +2,9 @@ package client
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
@@ -17,7 +17,7 @@ const (
 	prodPort    = "8063"
 	testPort    = "8877"
 	rootUrl     = "http://localhost:" + prodPort + "/"
-	testRootUrl = "http://localhost:" + testPort + "/"
+	testRootUrl = "https://qsmgo-92a1656-5f154.eu1.kinto.io/"
 )
 
 func GetRootUrl() string {
@@ -70,29 +70,37 @@ func CheckServerUp() bool {
 	return true
 }
 
+var doTestInit = false
+
 func GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	if !m3util.TestMode {
 		m3point.Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
 	}
 	if !CheckServerUp() {
-		m3util.StartQsmBackend(envId, "-test", "-port", testPort)
-		time.Sleep(500 * time.Millisecond)
+		Log.Fatalf("Test backend server down!")
+		//m3util.StartQsmBackend(envId, "-test", "-port", testPort)
+		//time.Sleep(500 * time.Millisecond)
 	}
-	body := ExecGetReq(envId, "/test-init")
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		m3point.Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
-		return nil
+
+	if doTestInit {
+		// Equivalent of calling filldb job
+		body := ExecGetReq(envId, "/test-init")
+		defer m3util.CloseBody(body)
+		b, err := ioutil.ReadAll(body)
+		if err != nil {
+			m3point.Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
+			return nil
+		}
+		response := string(b)
+		substr := fmt.Sprintf("env id %d was initialized", envId)
+		if strings.Contains(response, substr) {
+			m3point.Log.Debugf("All good on home response %q", response)
+		} else {
+			m3point.Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
+			return nil
+		}
 	}
-	response := string(b)
-	substr := fmt.Sprintf("env id %d was initialized", envId)
-	if strings.Contains(response, substr) {
-		m3point.Log.Debugf("All good on home response %q", response)
-	} else {
-		m3point.Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
-		return nil
-	}
+
 	env := GetEnvironment(envId)
 	InitializeEnv(env)
 	return env

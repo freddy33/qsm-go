@@ -16,25 +16,11 @@ jobs:
           go-version: 1.13
         id: go
 
-      - name: Set up *nix dependencies
-        run: |
-          sudo apt-get install postgresql libasound2-dev libglew-dev libgles2-mesa-dev libalut-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
-          export PATH=/usr/lib/postgresql/10/bin:$PATH
-
       - name: Check out code into the Go module directory
         uses: actions/checkout@v1
 
-      - name: Get Go dependencies
+      - name: Test QSM Client
         run: |
+          cd client
           export GOPROXY="https://fredsimon.artifactoryonline.com/artifactory/api/go/go"
-          go mod download
-          go get -v -t -d ./...
-
-      - name: Build
-        run: go build -v .
-
-      - name: Start and clean PostgreSQL
-        run: ./qsm db check && ./qsm db dropAll
-
-      - name: Run All Tests
-        run: ./qsm test all
+          go test ./clpoint/
