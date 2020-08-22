@@ -14,7 +14,6 @@ services:
       SERVER_PORT: 8063
     ports:
       - 8063:8063
-    restart: on-failure
     depends_on:
       - postgres
 
@@ -29,7 +28,6 @@ services:
       DB_USER: qsm
       DB_PASSWORD: qsm
       DB_NAME: qsm
-    restart: on-failure
     depends_on:
       - postgres
 

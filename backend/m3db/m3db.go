@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+	"time"
 
 	config "github.com/freddy33/qsm-go/backend/conf"
-
 	"github.com/freddy33/qsm-go/m3util"
 	_ "github.com/lib/pq"
 )
@@ -127,13 +127,25 @@ func (env *QsmDbEnvironment) Destroy() {
 }
 
 func (env *QsmDbEnvironment) Ping() bool {
-	err := env.GetConnection().Ping()
-	if err != nil {
-		Log.Errorf("failed to ping %d on DB %s due to %v", env.GetId(), env.dbDetails.DbName, err)
-		return false
+	maxRetryCount := 5
+	currentRetryCount := 1
+	retryInterval := 5 * time.Second
+
+	for {
+		err := env.GetConnection().Ping()
+		if err == nil {
+			Log.Debugf("ping for environment %d successful", env.GetId())
+			return true
+		}
+
+		if currentRetryCount > maxRetryCount {
+			Log.Errorf("failed to ping env %d on DB %s: %v", env.GetId(), env.dbDetails.DbName, err)
+			return false
+		}
+
+		time.Sleep(retryInterval)
+		Log.Warnf("retry(%d/%d): ping env %d on DB %s", currentRetryCount, maxRetryCount, env.GetId(), env.dbDetails.DbName)
+		currentRetryCount += 1
 	}
-	if Log.IsDebug() {
-		Log.Debugf("ping for environment %d successful", env.GetId())
-	}
-	return true
+
 }
