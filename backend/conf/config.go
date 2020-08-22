@@ -1,14 +1,11 @@
-package config
+package conf
 
 import (
-	"fmt"
-	"os"
-	"strconv"
-
+	"github.com/freddy33/qsm-go/m3util"
 	_ "github.com/joho/godotenv/autoload"
 )
 
-var (
+type Config struct {
 	DBHost     string
 	DBPort     int
 	DBUser     string
@@ -16,37 +13,24 @@ var (
 	DBName     string
 
 	ServerPort string
-)
-
-func LoadDBConfig() {
-	DBHost = getCompulsoryEnv("DB_HOST")
-	DBPort = getCompulsoryEnvInt("DB_PORT")
-	DBUser = getCompulsoryEnv("DB_USER")
-	DBPassword = getCompulsoryEnv("DB_PASSWORD")
-	DBName = getCompulsoryEnv("DB_NAME")
 }
 
-func LoadServerConfig() {
-	LoadDBConfig()
-	ServerPort = getCompulsoryEnv("SERVER_PORT")
-}
-
-func getCompulsoryEnv(key string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		message := fmt.Sprintf("missing %s", key)
-		panic(message)
+func NewDBConfig() Config {
+	config := Config{
+		DBHost:     m3util.GetCompulsoryEnv("DB_HOST"),
+		DBPort:     m3util.GetCompulsoryEnvInt("DB_PORT"),
+		DBUser:     m3util.GetCompulsoryEnv("DB_USER"),
+		DBPassword: m3util.GetCompulsoryEnv("DB_PASSWORD"),
+		DBName:     m3util.GetCompulsoryEnv("DB_NAME"),
 	}
 
-	return value
+	return config
 }
 
-func getCompulsoryEnvInt(key string) int {
-	valueString := getCompulsoryEnv(key)
-	valueInt, err := strconv.Atoi(valueString)
-	if err != nil {
-		panic("error parsing %s to int")
+func NewServerConfig() Config {
+	config := Config{
+		ServerPort: m3util.GetCompulsoryEnv("SERVER_PORT"),
 	}
 
-	return valueInt
+	return config
 }

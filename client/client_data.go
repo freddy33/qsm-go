@@ -1,11 +1,11 @@
 package client
 
 import (
-	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3point"
 )
 
-func GetApiPointPackData(env m3util.QsmEnvironment) *m3point.LoadedPointPackData {
+func (c *Client) GetApiPointPackData(env m3util.QsmEnvironment) *m3point.LoadedPointPackData {
 	if env.GetData(m3util.PointIdx) == nil {
 		ppd := new(m3point.LoadedPointPackData)
 		ppd.EnvId = env.GetId()

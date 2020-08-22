@@ -2,61 +2,57 @@ package client
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/m3util"
-	"github.com/freddy33/qsm-go/model/m3api"
-	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/freddy33/qsm-go/client/config"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/golang/protobuf/proto"
 )
 
-const (
-	prodPort    = "8063"
-	testPort    = "8877"
-	rootUrl     = "http://localhost:" + prodPort + "/"
-	testRootUrl = "https://qsmgo-92a1656-5f154.eu1.kinto.io/"
-)
-
-func GetRootUrl() string {
-	if m3util.TestMode {
-		return testRootUrl
-	} else {
-		return rootUrl
-	}
+type Client struct {
+	BackendRootURL string
 }
 
-func ExecGetReq(envId m3util.QsmEnvID, uri string) io.ReadCloser {
-	url := GetRootUrl()
-	client := http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, url+uri, nil)
+func NewClient(config config.Config) *Client {
+	client := Client{
+		BackendRootURL: config.BackendRootURL,
+	}
+
+	return &client
+}
+
+func (c *Client) ExecGetReq(envId m3util.QsmEnvID, uri string) io.ReadCloser {
+	client := http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, c.BackendRootURL+uri, nil)
 	if err != nil {
-		m3point.Log.Errorf("Could not request for REST API end point %q due to: %s", url, err.Error())
+		m3point.Log.Errorf("Could not request for REST API end point %q due to: %s", c.BackendRootURL, err.Error())
 		return nil
 	}
 	if req == nil {
-		m3point.Log.Errorf("Got a nil request for REST API end point %q", url)
+		m3point.Log.Errorf("Got a nil request for REST API end point %q", c.BackendRootURL)
 		return nil
 	}
-	if envId != m3util.NoEnv {
-		req.Header.Add("QsmEnvId", envId.String())
-	}
+
 	resp, err := client.Do(req)
 	if err != nil {
-		m3point.Log.Errorf("Could not retrieve data from REST API end point %q due to: %s", url, err.Error())
+		m3point.Log.Errorf("Could not retrieve data from REST API end point %q due to: %s", c.BackendRootURL, err.Error())
 		return nil
 	}
 	if resp == nil {
-		m3point.Log.Errorf("Got a nil response from REST API end point %q", url)
+		m3point.Log.Errorf("Got a nil response from REST API end point %q", c.BackendRootURL)
 		return nil
 	}
 	return resp.Body
 }
 
-func CheckServerUp() bool {
-	body := ExecGetReq(m3util.NoEnv, "")
+func (c *Client) CheckServerUp() bool {
+	body := c.ExecGetReq(m3util.NoEnv, "")
 	if body == nil {
 		return false
 	}
@@ -72,11 +68,12 @@ func CheckServerUp() bool {
 
 var doTestInit = false
 
-func GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
+func (c *Client) GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	if !m3util.TestMode {
 		m3point.Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
 	}
-	if !CheckServerUp() {
+
+	if !c.CheckServerUp() {
 		Log.Fatalf("Test backend server down!")
 		//m3util.StartQsmBackend(envId, "-test", "-port", testPort)
 		//time.Sleep(500 * time.Millisecond)
@@ -84,7 +81,7 @@ func GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 
 	if doTestInit {
 		// Equivalent of calling filldb job
-		body := ExecGetReq(envId, "/test-init")
+		body := c.ExecGetReq(envId, "/test-init")
 		defer m3util.CloseBody(body)
 		b, err := ioutil.ReadAll(body)
 		if err != nil {
@@ -102,11 +99,11 @@ func GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	}
 
 	env := GetEnvironment(envId)
-	InitializeEnv(env)
+	c.InitializeEnv(env)
 	return env
 }
 
-func InitializeEnv(env m3util.QsmEnvironment) {
+func (c *Client) InitializeEnv(env m3util.QsmEnvironment) {
 	var ppd *m3point.LoadedPointPackData
 	ppdIfc := env.GetData(m3util.PointIdx)
 	if ppdIfc != nil {
@@ -125,7 +122,7 @@ func InitializeEnv(env m3util.QsmEnvironment) {
 		m3point.Log.Fatalf("Something wrong above")
 		return
 	}
-	body := ExecGetReq(env.GetId(), "point-data")
+	body := c.ExecGetReq(env.GetId(), "point-data")
 	defer m3util.CloseBody(body)
 	b, err := ioutil.ReadAll(body)
 	if err != nil {

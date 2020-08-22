@@ -1,16 +1,21 @@
 package clpoint
 
 import (
+	"testing"
+
 	"github.com/freddy33/qsm-go/client"
+	"github.com/freddy33/qsm-go/client/config"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestDisplayPathBuilders(t *testing.T) {
 	m3point.Log.SetAssert(true)
 	m3util.SetToTestMode()
+
+	config := config.NewConfig()
+	client := client.NewClient(config)
 
 	env := client.GetFullApiTestEnv(m3util.GetDefaultEnvId())
 	ppd := client.GetApiPointPackData(env)

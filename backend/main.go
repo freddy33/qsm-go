@@ -97,7 +97,6 @@ func main() {
 			m3server.GenerateTextFilesEnv(m3db.GetEnvironment(m3util.GetDefaultEnvId()))
 			didSomething = true
 		case "filldb":
-			config.LoadDBConfig()
 			envID := m3util.GetDefaultEnvId()
 			env := m3db.GetEnvironment(envID)
 			m3server.FillDbEnv(env)
@@ -113,8 +112,8 @@ func main() {
 		os.Exit(1)
 	}
 	if runServer {
-		config.LoadServerConfig()
 		go listenSignals()
+		config := config.NewServerConfig()
 		createAppAndListen(config.ServerPort)
 		fmt.Println("Exiting main")
 	}

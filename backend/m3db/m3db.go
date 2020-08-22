@@ -39,6 +39,20 @@ type QsmDbEnvironment struct {
 	tableExecs       map[string]*TableExec
 }
 
+func NewQsmDbEnvironment(config config.Config) *QsmDbEnvironment {
+	env := QsmDbEnvironment{
+		dbDetails: DbConnDetails{
+			Host:     config.DBHost,
+			Port:     config.DBPort,
+			User:     config.DBUser,
+			Password: config.DBPassword,
+			DbName:   config.DBName,
+		},
+	}
+
+	return &env
+}
+
 func (env *QsmDbEnvironment) GetConnection() *sql.DB {
 	return env.db
 }
@@ -48,36 +62,23 @@ func (env *QsmDbEnvironment) GetDbConf() DbConnDetails {
 }
 
 func createNewDbEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
-	env := QsmDbEnvironment{}
+	config := config.NewDBConfig()
+	env := NewQsmDbEnvironment(config)
+
 	env.Id = envId
 	env.tableExecs = make(map[string]*TableExec)
 
-	env.fillDbConf()
 	env.openDb()
 
 	if !env.Ping() {
 		Log.Fatalf("Could not ping DB %d", envId)
 	}
 
-	return &env
+	return env
 }
 
 func GetEnvironment(envId m3util.QsmEnvID) *QsmDbEnvironment {
 	return m3util.GetEnvironmentWithCreator(envId, createNewDbEnv).(*QsmDbEnvironment)
-}
-
-func (env *QsmDbEnvironment) fillDbConf() {
-	env.dbDetails = DbConnDetails{
-		Host:     config.DBHost,
-		Port:     config.DBPort,
-		User:     config.DBUser,
-		Password: config.DBPassword,
-		DbName:   config.DBName,
-	}
-
-	if Log.IsDebug() {
-		Log.Debugf("DB conf for environment %d is user=%s dbName=%s", env.GetId(), env.dbDetails.User, env.dbDetails.DbName)
-	}
 }
 
 func (env *QsmDbEnvironment) openDb() {
