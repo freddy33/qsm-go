@@ -2,13 +2,13 @@ package m3db
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
+	"sync"
+	"time"
+
+	config "github.com/freddy33/qsm-go/backend/conf"
 	"github.com/freddy33/qsm-go/m3util"
 	_ "github.com/lib/pq"
-	"io/ioutil"
-	"log"
-	"sync"
 )
 
 var Log = m3util.NewLogger("m3db", m3util.INFO)
@@ -39,6 +39,20 @@ type QsmDbEnvironment struct {
 	tableExecs       map[string]*TableExec
 }
 
+func NewQsmDbEnvironment(config config.Config) *QsmDbEnvironment {
+	env := QsmDbEnvironment{
+		dbDetails: DbConnDetails{
+			Host:     config.DBHost,
+			Port:     config.DBPort,
+			User:     config.DBUser,
+			Password: config.DBPassword,
+			DbName:   config.DBName,
+		},
+	}
+
+	return &env
+}
+
 func (env *QsmDbEnvironment) GetConnection() *sql.DB {
 	return env.db
 }
@@ -48,39 +62,23 @@ func (env *QsmDbEnvironment) GetDbConf() DbConnDetails {
 }
 
 func createNewDbEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
-	env := QsmDbEnvironment{}
+	config := config.NewDBConfig()
+	env := NewQsmDbEnvironment(config)
+
 	env.Id = envId
 	env.tableExecs = make(map[string]*TableExec)
 
-	m3util.RunQsm(envId, "db", "check")
-
-	env.fillDbConf()
 	env.openDb()
 
 	if !env.Ping() {
 		Log.Fatalf("Could not ping DB %d", envId)
 	}
 
-	return &env
+	return env
 }
 
 func GetEnvironment(envId m3util.QsmEnvID) *QsmDbEnvironment {
 	return m3util.GetEnvironmentWithCreator(envId, createNewDbEnv).(*QsmDbEnvironment)
-}
-
-func (env *QsmDbEnvironment) fillDbConf() {
-	connJsonFile := fmt.Sprintf("%s/dbconn%d.json", m3util.GetConfDir(), env.GetId())
-	confData, err := ioutil.ReadFile(connJsonFile)
-	if err != nil {
-		log.Fatalf("failed opening DB conf file %s due to %v", connJsonFile, err)
-	}
-	err = json.Unmarshal(confData, &env.dbDetails)
-	if err != nil {
-		log.Fatalf("failed parsing DB conf file %s due to %v", connJsonFile, err)
-	}
-	if Log.IsDebug() {
-		Log.Debugf("DB conf for environment %d is user=%s dbName=%s", env.GetId(), env.dbDetails.User, env.dbDetails.DbName)
-	}
 }
 
 func (env *QsmDbEnvironment) openDb() {
@@ -130,13 +128,25 @@ func (env *QsmDbEnvironment) Destroy() {
 }
 
 func (env *QsmDbEnvironment) Ping() bool {
-	err := env.GetConnection().Ping()
-	if err != nil {
-		Log.Errorf("failed to ping %d on DB %s due to %v", env.GetId(), env.dbDetails.DbName, err)
-		return false
+	maxRetryCount := 5
+	currentRetryCount := 1
+	retryInterval := 5 * time.Second
+
+	for {
+		err := env.GetConnection().Ping()
+		if err == nil {
+			Log.Debugf("ping for environment %d successful", env.GetId())
+			return true
+		}
+
+		if currentRetryCount > maxRetryCount {
+			Log.Errorf("failed to ping env %d on DB %s: %v", env.GetId(), env.dbDetails.DbName, err)
+			return false
+		}
+
+		time.Sleep(retryInterval)
+		Log.Warnf("retry(%d/%d): ping env %d on DB %s", currentRetryCount, maxRetryCount, env.GetId(), env.dbDetails.DbName)
+		currentRetryCount += 1
 	}
-	if Log.IsDebug() {
-		Log.Debugf("ping for environment %d successful", env.GetId())
-	}
-	return true
+
 }

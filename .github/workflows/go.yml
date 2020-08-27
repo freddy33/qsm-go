@@ -1,40 +1,42 @@
 name: Go
+
 on:
   push:
-    branches:
-      - master
+    branches: [ prod ]
+  pull_request:
+    branches: [ prod ]
+
+env:
+  GOPROXY: https://fredsimon.artifactoryonline.com/artifactory/api/go/go
+
 jobs:
-
-  build:
-    name: Build
+  qsm:
+    name: QSM
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
-
-      - name: Set up Go 1.13
-        uses: actions/setup-go@v1
+      - name: Set up Go 1.13 or above
+        uses: actions/setup-go@v2
         with:
-          go-version: 1.13
+          go-version: ^1.13
         id: go
 
-      - name: Set up *nix dependencies
-        run: |
-          sudo apt-get install postgresql libasound2-dev libglew-dev libgles2-mesa-dev libalut-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
-          export PATH=/usr/lib/postgresql/10/bin:$PATH
-
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
-      - name: Get Go dependencies
-        run: |
-          export GOPROXY="https://fredsimon.artifactoryonline.com/artifactory/api/go/go"
-          go mod download
-          go get -v -t -d ./...
+      - name: Get dependencies
+        run: go mod download
 
       - name: Build
         run: go build -v .
 
-      - name: Start and clean PostgreSQL
-        run: ./qsm db check && ./qsm db dropAll
+      - name: Test backend
+        run: go test -v ./m3db
 
-      - name: Run All Tests
-        run: ./qsm test all
+      - name: Test client with Kinto
+        run: go test -v ./clpoint
+        working-directory: client
+        env:
+          BACKEND_ROOT_URL: "https://qsmgo-92a1656-5f154.eu1.kinto.io/"

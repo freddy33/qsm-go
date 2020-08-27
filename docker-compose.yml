@@ -1,0 +1,52 @@
+version: '3.1'
+services:
+  backend:
+    container_name: backend
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: qsm
+      DB_PASSWORD: qsm
+      DB_NAME: qsm
+      SERVER_PORT: 8063
+    ports:
+      - 8063:8063
+    depends_on:
+      - postgres
+
+  job-filldb:
+    container_name: job-filldb
+    build:
+      context: .
+      dockerfile: job-filldb.Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: qsm
+      DB_PASSWORD: qsm
+      DB_NAME: qsm
+    depends_on:
+      - postgres
+
+  postgres:
+    container_name: postgres
+    image:  fredsimon-docker.jfrog.io/postgres:12.3
+    restart: always
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: qsm
+      POSTGRES_USER: qsm
+      POSTGRES_PASSWORD: qsm
+    ports:
+      - 5432:5432
+
+  adminer:
+    container_name: adminer
+    image: adminer:4.7
+    restart: always
+    ports:
+      - 8081:8080

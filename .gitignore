@@ -15,3 +15,5 @@
 build/
 
 backend/conf/dbconn*.json
+.env
+postgres-data

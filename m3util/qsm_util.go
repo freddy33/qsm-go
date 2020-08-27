@@ -35,25 +35,7 @@ func AbsPath(dir string) string {
 func GetGitRootDir() string {
 	absPath := AbsPath(".")
 	p := absPath
-	// Check first if we are below the checkout dir
-	if b, p := DirExists(p, "qsm-go"); b {
-		if b, _ = DirExists(p, ".git"); b {
-			return p
-		} else {
-			Log.Fatalf("found qsm-go sub folder at %s which not a git checkout", p)
-			return ""
-		}
-	}
-	for {
-		if p == "." || p == "/" {
-			Log.Fatalf("did not find path with git under %s", absPath)
-			return ""
-		}
-		if b, _ := DirExists(p, ".git"); b {
-			return p
-		}
-		p = filepath.Dir(p)
-	}
+	return p
 }
 
 func getOrCreateBuildSubDir(subPath string) string {
@@ -153,4 +135,3 @@ func PosMod4(i uint64) uint64 {
 func PosMod8(i uint64) uint64 {
 	return i & 0x0000000000000007
 }
-

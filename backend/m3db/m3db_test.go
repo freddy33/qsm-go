@@ -1,55 +1,28 @@
 package m3db
 
 import (
-	"github.com/freddy33/qsm-go/m3util"
+	"testing"
+
+	config "github.com/freddy33/qsm-go/backend/conf"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
 )
 
-// TODO: test creation of DB tables
-
-func silentDeleteFile(path string) {
-	err := os.Remove(path)
-	if err != nil {
-		Log.Warnf("could not delete file %s due to %v", path, err)
-	}
-}
-
 func TestDbConf(t *testing.T) {
-	confDir := m3util.GetConfDir()
-	assert.True(t, strings.HasSuffix(confDir, "conf"), "conf dir %s does end with conf", confDir)
-
-	testConfFile := filepath.Join(confDir, "dbconn1234.json")
-	dbTestFile := filepath.Join(confDir, "db-test.json")
-	m3util.CopyFile(dbTestFile, testConfFile)
-
-	defer silentDeleteFile(testConfFile)
-
-	testConfEnv := m3util.QsmEnvID(1234)
-	env := new(QsmDbEnvironment)
-	env.Id = testConfEnv
-
-	env.fillDbConf()
-	connDetails := env.GetDbConf()
-	assert.Equal(t, "hostTest", connDetails.Host, "fails reading %v", connDetails)
-	assert.Equal(t, 1234, connDetails.Port, "fails reading %v", connDetails)
-	assert.Equal(t, "userTest", connDetails.User, "fails reading %v", connDetails)
-	assert.Equal(t, "passwordTest", connDetails.Password, "fails reading %v", connDetails)
-	assert.Equal(t, "dbNameTest", connDetails.DbName, "fails reading %v", connDetails)
-}
-
-func TestEnvCreationAndDestroy(t *testing.T) {
-	Log.SetDebug()
-	env := GetEnvironment(m3util.DbTempEnv)
-	if env == nil {
-		assert.NotNil(t, env, "could not create environment %d", m3util.DbTempEnv)
-		return
+	config := config.Config{
+		DBHost:     "test-host",
+		DBPort:     1234,
+		DBUser:     "test-user",
+		DBPassword: "test-password",
+		DBName:     "test-db",
 	}
-	defer env.Destroy()
-	err := env.GetConnection().Ping()
-	assert.True(t, err == nil, "Got ping error %v", err)
+
+	env := NewQsmDbEnvironment(config)
+
+	connDetails := env.GetDbConf()
+	assert.Equal(t, config.DBHost, connDetails.Host)
+	assert.Equal(t, config.DBPort, connDetails.Port)
+	assert.Equal(t, config.DBUser, connDetails.User)
+	assert.Equal(t, config.DBPassword, connDetails.Password)
+	assert.Equal(t, config.DBName, connDetails.DbName)
 }

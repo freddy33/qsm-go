@@ -161,3 +161,23 @@ func RunQsm(id QsmEnvID, params ...string) {
 func StartQsmBackend(id QsmEnvID, params ...string) *os.Process {
 	return osStartBackend(id, params...)
 }
+
+func GetCompulsoryEnv(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		message := fmt.Sprintf("missing %s", key)
+		panic(message)
+	}
+
+	return value
+}
+
+func GetCompulsoryEnvInt(key string) int {
+	valueString := GetCompulsoryEnv(key)
+	valueInt, err := strconv.Atoi(valueString)
+	if err != nil {
+		panic("error parsing %s to int")
+	}
+
+	return valueInt
+}
