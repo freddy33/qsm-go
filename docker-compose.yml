@@ -46,7 +46,7 @@ services:
 
   adminer:
     container_name: adminer
-    image: adminer:4.7
+    image: fredsimon-docker.jfrog.io/adminer:4.7
     restart: always
     ports:
       - 8081:8080

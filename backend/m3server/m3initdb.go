@@ -11,8 +11,9 @@ import (
 /***************************************************************/
 
 var dbMutex sync.Mutex
-var cleanedDb [m3util.MaxNumberOfEnvironments]bool
-var testDbFilled [m3util.MaxNumberOfEnvironments]bool
+
+//var cleanedDb [m3util.MaxNumberOfEnvironments]bool
+//var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
 func getServerFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if !m3util.TestMode {
@@ -22,13 +23,13 @@ func getServerFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
-	if testDbFilled[envId] {
-		return m3db.GetEnvironment(envId)
-	}
+	//if testDbFilled[envId] {
+	//	return m3db.GetEnvironment(envId)
+	//}
 
-	m3util.RunQsm(envId, "run", "filldb")
+	//m3util.RunQsm(envId, "run", "filldb")
 
-	testDbFilled[envId] = true
+	//testDbFilled[envId] = true
 
 	return m3db.GetEnvironment(envId)
 }
@@ -43,14 +44,14 @@ func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
-	if cleanedDb[envId] {
-		return env
-	}
-
-	env.Destroy()
-
-	env = m3db.GetEnvironment(envId)
-	cleanedDb[envId] = true
+	//if cleanedDb[envId] {
+	//	return env
+	//}
+	//
+	//env.Destroy()
+	//
+	//env = m3db.GetEnvironment(envId)
+	//cleanedDb[envId] = true
 
 	return env
 }

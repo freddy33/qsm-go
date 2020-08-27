@@ -2,9 +2,9 @@ package m3server
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/golang/protobuf/proto"
 	"net/http"
 )
@@ -12,6 +12,8 @@ import (
 var Log = m3util.NewLogger("m3server", m3util.INFO)
 
 func retrievePointData(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive retrievePointData")
+
 	w.Header().Set("Content-Type", "application/x-protobuf; messageType=backend.m3api.PointPackDataMsg")
 
 	env := GetEnvironment(r)
