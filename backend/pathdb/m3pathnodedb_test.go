@@ -2,6 +2,7 @@ package pathdb
 
 import (
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -17,7 +18,7 @@ func TestPathNodeDbConnMask(t *testing.T) {
 
 	assert.True(t, pn.IsNew())
 	assert.False(t, pn.IsInPool())
-	for i := 0; i < NbConnections; i++ {
+	for i := 0; i < m3path.NbConnections; i++ {
 		assert.Equal(t, ConnectionNotSet, pn.getConnectionState(i))
 	}
 

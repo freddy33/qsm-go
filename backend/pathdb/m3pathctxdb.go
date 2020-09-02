@@ -212,7 +212,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 	nbFrom := 0
 	nbBlocked := 0
 	pnb := on.PathBuilder()
-	for i := 0; i < NbConnections; i++ {
+	for i := 0; i < m3path.NbConnections; i++ {
 		switch on.getConnectionState(i) {
 		case ConnectionNext:
 			Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)

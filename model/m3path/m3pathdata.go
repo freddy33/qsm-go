@@ -8,6 +8,7 @@ import (
 type PathPackDataIfc interface {
 	m3util.QsmDataPack
 	GetPathCtx(id int) PathContext
+	GetPathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) PathContext
 }
 
 type PathPackData struct {
@@ -43,6 +44,11 @@ func (ppd *PathPackData) GetEnvId() m3util.QsmEnvID {
 	return ppd.EnvId
 }
 
+func (ppd *PathPackData) GetPathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) PathContext {
+	// TODO: Missing the center of-course
+	return ppd.AllCenterContexts[growthCtx.GetGrowthType()][offset]
+}
+
 func (ppd *PathPackData) GetPathCtx(id int) PathContext {
 	pathCtx, ok := ppd.pathCtxMap[id]
 	if ok {
@@ -55,3 +61,5 @@ func (ppd *PathPackData) GetPathCtx(id int) PathContext {
 func (ppd *PathPackData) AddPathCtx(pathCtx PathContext) {
 	ppd.pathCtxMap[pathCtx.GetId()] = pathCtx
 }
+
+

@@ -45,4 +45,4 @@ type PathNode interface {
 	GetTrioDetails() *m3point.TrioDetails
 }
 
-
+const NbConnections = 3

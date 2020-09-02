@@ -21,6 +21,8 @@ type PointData interface {
 
 type PointPackDataIfc interface {
 	m3util.QsmDataPack
+	GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails
+	GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext
 	GetTrioDetails(trIdx TrioIndex) *TrioDetails
 	GetConnDetailsById(id ConnectionId) *ConnectionDetails
 	GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder
