@@ -1,4 +1,4 @@
-package m3server
+package pointdb
 
 import (
 	"github.com/freddy33/qsm-go/model/m3point"

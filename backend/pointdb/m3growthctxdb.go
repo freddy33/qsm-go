@@ -1,4 +1,4 @@
-package m3server
+package pointdb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
@@ -20,7 +20,7 @@ func createGrowthContextsTableDef() *m3db.TableDefinition {
 		" ctx_type smallint," +
 		" ctx_index smallint, UNIQUE (ctx_type, ctx_index) )"
 	res.Insert = "(id, ctx_type, ctx_index) values ($1,$2,$3)"
-	res.SelectAll = "select id, ctx_type, ctx_index from growth_contexts"
+	res.SelectAll = "select id, ctx_type, ctx_index from %s"
 	res.ExpectedCount = 52
 	return &res
 }
@@ -58,7 +58,7 @@ func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
 	if toFill {
 		growthContexts := ppd.calculateAllGrowthContexts()
 		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(growthContexts))
+			Log.Debugf("Populating table %s with %d elements", te.GetFullTableName(), len(growthContexts))
 		}
 		for _, growthCtx := range growthContexts {
 			err := te.Insert(growthCtx.GetId(), growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex())

@@ -1,8 +1,8 @@
-package m3server
+package pointdb
 
 import (
-	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -11,7 +11,7 @@ func TestConnectionDetails(t *testing.T) {
 	Log.SetDebug()
 	m3util.SetToTestMode()
 
-	env := getServerFullTestDb(m3util.PointTestEnv)
+	env := GetServerFullTestDb(m3util.PointTestEnv)
 	conns, connsByVector := loadConnectionDetails(env)
 
 	assert.Equal(t, 50, len(conns))

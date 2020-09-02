@@ -1,9 +1,9 @@
-package m3server
+package pointdb
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -11,8 +11,8 @@ import (
 func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	m3util.SetToTestMode()
 
-	env := getServerFullTestDb(m3util.PointTestEnv)
-	ppd, _ := getServerPointPackData(env)
+	env := GetServerFullTestDb(m3util.PointTestEnv)
+	ppd, _ := GetServerPointPackData(env)
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
@@ -27,7 +27,7 @@ func GetBaseTrioDetails(growthCtx m3point.GrowthContext, mainPoint m3point.Point
 }
 
 func runConnectionDetailsCheck(t *testing.T, growthCtx m3point.GrowthContext) {
-	ppd, _ := getServerPointPackData(growthCtx.GetEnv())
+	ppd, _ := GetServerPointPackData(growthCtx.GetEnv())
 	// For all trioIndex rotations, any 2 close nextMainPoint points there should be a connection details
 	min := m3point.CInt(-5)
 	max := m3point.CInt(5)

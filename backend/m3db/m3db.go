@@ -34,6 +34,8 @@ func (qsmError QsmError) Error() string {
 type QsmDbEnvironment struct {
 	m3util.BaseQsmEnvironment
 	dbDetails        DbConnDetails
+	schemaName       string
+	schemaChecked    bool
 	db               *sql.DB
 	createTableMutex sync.Mutex
 	tableExecs       map[string]*TableExec
@@ -61,11 +63,16 @@ func (env *QsmDbEnvironment) GetDbConf() DbConnDetails {
 	return env.dbDetails
 }
 
+func (env *QsmDbEnvironment) GetSchemaName() string {
+	return env.schemaName
+}
+
 func createNewDbEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
-	config := config.NewDBConfig()
-	env := NewQsmDbEnvironment(config)
+	dbConf := config.NewDBConfig()
+	env := NewQsmDbEnvironment(dbConf)
 
 	env.Id = envId
+	env.schemaName = "qsm" + envId.String()
 	env.tableExecs = make(map[string]*TableExec)
 
 	env.openDb()
@@ -119,12 +126,82 @@ func (env *QsmDbEnvironment) InternalClose() error {
 	return nil
 }
 
+func (env *QsmDbEnvironment) CheckSchema() error {
+	if env.schemaChecked {
+		return nil
+	}
+
+	// Check and create schema if needed
+	dbName := env.dbDetails.DbName
+	schemaName := env.schemaName
+
+	db := env.GetConnection()
+	if db == nil {
+		return MakeQsmErrorf("Got a nil connection for %s", dbName)
+	}
+
+	if Log.IsDebug() {
+		Log.Debugf("Creating schema %s", schemaName)
+	}
+	createQuery := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)
+	_, err := db.Exec(createQuery)
+	if err != nil {
+		Log.Errorf("could not create schema %s using '%s' due to error %v", schemaName, createQuery, err)
+		return err
+	}
+	err = env.setSearchPath()
+	if err != nil {
+		return err
+	}
+	if Log.IsDebug() {
+		Log.Debugf("Schema %s created", schemaName)
+	}
+	env.schemaChecked = true
+	return nil
+}
+
+func (env *QsmDbEnvironment) setSearchPath() error {
+	_, err := env.db.Exec("SET search_path='" + env.schemaName + "'")
+	if err != nil {
+		Log.Errorf("could not set the search path for schema %s due to error %v", env.schemaName, err)
+		return err
+	}
+	return nil
+}
+
+func (env *QsmDbEnvironment) dropSchema() {
+	// Check and create schema if needed
+	dbName := env.dbDetails.DbName
+	schemaName := env.schemaName
+
+	db := env.GetConnection()
+	if db == nil {
+		Log.Errorf("Got a nil connection for %s while trying to drop schema", dbName)
+		return
+	}
+
+	// Set recheck right on
+	env.schemaChecked = false
+
+	if Log.IsDebug() {
+		Log.Debugf("Dropping schema %s", schemaName)
+	}
+	dropQuery := fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName)
+	_, err := db.Exec(dropQuery)
+	if err != nil {
+		Log.Errorf("could not drop schema %s using '%s' due to error %v", schemaName, dropQuery, err)
+	}
+	if Log.IsDebug() {
+		Log.Debugf("Schema %s dropped", schemaName)
+	}
+}
+
 func (env *QsmDbEnvironment) Destroy() {
+	env.dropSchema()
 	err := env.InternalClose()
 	if err != nil {
 		Log.Error(err)
 	}
-	m3util.RunQsm(env.GetId(), "db", "drop")
 }
 
 func (env *QsmDbEnvironment) Ping() bool {

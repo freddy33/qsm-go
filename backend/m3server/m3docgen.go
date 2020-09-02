@@ -4,20 +4,21 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"log"
 )
 
 func GenerateTextFilesEnv(env m3util.QsmEnvironment) {
-	InitializePointDBEnv(env.(*m3db.QsmDbEnvironment), false)
+	pointdb.InitializePointDBEnv(env.(*m3db.QsmDbEnvironment), false)
 	genDoc := m3util.GetGenDocDir()
 
-	ppd, _ := getServerPointPackData(env)
-	ppd.writeAllTrioDetailsTable(genDoc)
-	ppd.writeAllTrioPermutationsTable(genDoc)
-	ppd.writeTrioConnectionsTable(genDoc)
-	ppd.writeAllConnectionDetails(genDoc)
+	ppd, _ := pointdb.GetServerPointPackData(env)
+	writeAllTrioDetailsTable(genDoc, ppd)
+	writeAllTrioPermutationsTable(genDoc, ppd)
+	writeTrioConnectionsTable(genDoc, ppd)
+	writeAllConnectionDetails(genDoc, ppd)
 }
 
 type Int2 struct {
@@ -64,12 +65,13 @@ func GetTrioConnType(conns [6]m3point.Point) string {
 	return "WRONG"
 }
 
-func (ppd *PointPackData) GetTrioTransitionTableTxt() map[Int2][7]string {
+func GetTrioTransitionTableTxt(ppd *pointdb.PointPackData) map[Int2][7]string {
+	allBaseTrio := pointdb.GetAllBaseTrio()
 	result := make(map[Int2][7]string, 8*8)
 	for a, tA := range allBaseTrio {
 		for b, tB := range allBaseTrio {
 			txtOut := [7]string{}
-			conns := GetNonBaseConnections(tA, tB)
+			conns := pointdb.GetNonBaseConnections(tA, tB)
 			txtOut[0] = GetTrioConnType(conns)
 			for i, conn := range conns {
 				cd := ppd.GetConnDetailsByVector(conn)
@@ -83,6 +85,7 @@ func (ppd *PointPackData) GetTrioTransitionTableTxt() map[Int2][7]string {
 }
 
 func GetTrioTransitionTableCsv() [][]string {
+	allBaseTrio := pointdb.GetAllBaseTrio()
 	csvOutput := make([][]string, 8*8)
 	for a, tA := range allBaseTrio {
 		for b, tB := range allBaseTrio {
@@ -100,7 +103,7 @@ func GetTrioTransitionTableCsv() [][]string {
 				csvOutput[lineNb][columnNb] = ""
 			}
 
-			conns := GetNonBaseConnections(tA, tB)
+			conns := pointdb.GetNonBaseConnections(tA, tB)
 			for _, conn := range conns {
 				ds := conn.DistanceSquared()
 
@@ -125,9 +128,10 @@ func GetTrioTransitionTableCsv() [][]string {
 	return csvOutput
 }
 
-func (ppd *PointPackData) GetTrioTableCsv() [][]string {
+func GetTrioTableCsv(ppd *pointdb.PointPackData) [][]string {
 	nbColumns := 5
 	nbRowsPerTrio := 4
+	allBaseTrio := pointdb.GetAllBaseTrio()
 	csvOutput := make([][]string, len(allBaseTrio)*nbColumns)
 	for a, trio := range allBaseTrio {
 		lineNb := a * nbRowsPerTrio
@@ -157,9 +161,9 @@ func (ppd *PointPackData) GetTrioTableCsv() [][]string {
 }
 
 // Write all the 8x8 connections possible for all trio in text and CSV files, and classify the connections size DS
-func (ppd *PointPackData) writeTrioConnectionsTable(dir string) {
-	txtFile := m3util.CreateFile(dir,"TrioConnectionsTable.txt")
-	csvFile := m3util.CreateFile(dir,"TrioConnectionsTable.csv")
+func writeTrioConnectionsTable(dir string, ppd *pointdb.PointPackData) {
+	txtFile := m3util.CreateFile(dir, "TrioConnectionsTable.txt")
+	csvFile := m3util.CreateFile(dir, "TrioConnectionsTable.csv")
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
@@ -167,7 +171,7 @@ func (ppd *PointPackData) writeTrioConnectionsTable(dir string) {
 	m3util.WriteAll(csvWriter, GetTrioTransitionTableCsv())
 	csvWriter.Flush()
 
-	txtOutputs := ppd.GetTrioTransitionTableTxt()
+	txtOutputs := GetTrioTransitionTableTxt(ppd)
 	for a := 0; a < 8; a++ {
 		for b := 0; b < 8; b++ {
 			out := txtOutputs[Int2{a, b}]
@@ -193,14 +197,14 @@ func (ppd *PointPackData) writeTrioConnectionsTable(dir string) {
 	}
 }
 
-func (ppd *PointPackData) writeAllTrioDetailsTable(dir string) {
+func writeAllTrioDetailsTable(dir string, ppd *pointdb.PointPackData) {
 	txtFile := m3util.CreateFile(dir, "AllTrioTable.txt")
-	csvFile := m3util.CreateFile(dir,"AllTrioTable.csv")
+	csvFile := m3util.CreateFile(dir, "AllTrioTable.csv")
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
 	csvWriter := csv.NewWriter(csvFile)
-	m3util.WriteAll(csvWriter, ppd.GetTrioTableCsv())
+	m3util.WriteAll(csvWriter, GetTrioTableCsv(ppd))
 	for _, td := range ppd.AllTrioDetails {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%s: %v %s\n", td.GetId().String(), td.Conns[0].Vector, td.Conns[0].String()))
 		m3util.WriteNextString(txtFile, fmt.Sprintf("      %v %s\n", td.Conns[1].Vector, td.Conns[1].String()))
@@ -209,37 +213,32 @@ func (ppd *PointPackData) writeAllTrioDetailsTable(dir string) {
 	}
 }
 
-func (ppd *PointPackData) writeAllTrioPermutationsTable(dir string) {
-	txtFile := m3util.CreateFile(dir,"AllTrioPermTable.txt")
+func writeAllTrioPermutationsTable(dir string, ppd *pointdb.PointPackData) {
+	txtFile := m3util.CreateFile(dir, "AllTrioPermTable.txt")
 	defer m3util.CloseFile(txtFile)
 
 	m3util.WriteNextString(txtFile, "Valid next trio Index permutation 2\n")
-	for i, perm := range validNextTrio {
+	for i, perm := range ppd.GetValidNextTrio() {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}
 	m3util.WriteNextString(txtFile, "\nAll trio Index permutation 4\n")
-	for i, perm := range AllMod4Permutations {
+	for i, perm := range ppd.GetAllMod4Permutations() {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}
 	m3util.WriteNextString(txtFile, "\nAll trio Index permutation 8\n")
-	for i, perm := range AllMod8Permutations {
+	for i, perm := range ppd.GetAllMod8Permutations() {
 		m3util.WriteNextString(txtFile, fmt.Sprintf("%2d: %v\n", i, perm))
 	}
 }
 
-func (ppd *PointPackData) getAllConnDetailsByVector() map[m3point.Point]*m3point.ConnectionDetails {
-	ppd.CheckConnInitialized()
-	return ppd.AllConnectionsByVector
-}
-
 // Write all the connection details in text and CSV files
-func (ppd *PointPackData) writeAllConnectionDetails(dir string) {
+func writeAllConnectionDetails(dir string, ppd *pointdb.PointPackData) {
 	txtFile := m3util.CreateFile(dir, "AllConnectionDetails.txt")
 	csvFile := m3util.CreateFile(dir, "AllConnectionDetails.csv")
 	defer m3util.CloseFile(txtFile)
 	defer m3util.CloseFile(csvFile)
 
-	allCons := ppd.getAllConnDetailsByVector()
+	allCons := ppd.GetAllConnDetailsByVector()
 	nbConnDetails := m3point.ConnectionId(len(allCons) / 2)
 	csvWriter := csv.NewWriter(csvFile)
 	for cdNb := m3point.ConnectionId(1); cdNb <= nbConnDetails; cdNb++ {
@@ -270,4 +269,3 @@ func (ppd *PointPackData) writeAllConnectionDetails(dir string) {
 		}
 	}
 }
-

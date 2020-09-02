@@ -1,8 +1,8 @@
-package m3server
+package pointdb
 
 import (
-	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -12,8 +12,8 @@ func TestAllPathBuilders(t *testing.T) {
 	Log.SetDebug()
 	m3util.SetToTestMode()
 
-	env := getServerFullTestDb(m3util.PointTestEnv)
-	ppd, _ := getServerPointPackData(env)
+	env := GetServerFullTestDb(m3util.PointTestEnv)
+	ppd, _ := GetServerPointPackData(env)
 
 	assert.Equal(t, m3point.TotalNumberOfCubes+1, len(ppd.PathBuilders))
 	for _, ctxType := range m3point.GetAllContextTypes() {
@@ -61,10 +61,10 @@ func TestAllPathBuilders(t *testing.T) {
 						assert.Equal(t, validNextTrio[pIdx][idx], trioIdx, "wrong trio index for %s", pnb.String())
 					case 4:
 						idx := int(m3util.PosMod4(div + uint64(offset)))
-						assert.Equal(t, AllMod4Permutations[pIdx][idx], trioIdx, "wrong trio index for %s", pnb.String())
+						assert.Equal(t, allMod4Permutations[pIdx][idx], trioIdx, "wrong trio index for %s", pnb.String())
 					case 8:
 						idx := int(m3util.PosMod8(div + uint64(offset)))
-						assert.Equal(t, AllMod8Permutations[pIdx][idx], trioIdx, "wrong trio index for %s", pnb.String())
+						assert.Equal(t, allMod8Permutations[pIdx][idx], trioIdx, "wrong trio index for %s", pnb.String())
 					}
 					td := ppd.GetTrioDetails(trioIdx)
 					assert.NotNil(t, td, "did not find trio index %s for path builder %s", trioIdx.String(), pnb.String())

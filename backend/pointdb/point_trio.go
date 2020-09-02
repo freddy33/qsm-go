@@ -1,10 +1,13 @@
-package m3server
+package pointdb
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"sort"
 )
+
+var Log = m3util.NewLogger("pointdb", m3util.INFO)
 
 // trio of connection vectors from any m3point.Point using connections only.
 // This type is used to calculate the TrioDetails and ignored after.
@@ -23,8 +26,8 @@ var allBaseTrio [8]trio
 
 // TODO: Use the arrays in BasePointPackData
 var validNextTrio [12][2]m3point.TrioIndex
-var AllMod4Permutations [12][4]m3point.TrioIndex
-var AllMod8Permutations [12][8]m3point.TrioIndex
+var allMod4Permutations [12][4]m3point.TrioIndex
+var allMod8Permutations [12][8]m3point.TrioIndex
 
 // Dummy trace counter for debugging recursive methods
 var _traceCounter = 0
@@ -86,9 +89,9 @@ func initValidTrios() {
 func initMod4Permutations() {
 	p := TrioIndexPermBuilder{4, 0, make([][]m3point.TrioIndex, 12)}
 	p.fill(0, make([]m3point.TrioIndex, p.size))
-	for pIdx := 0; pIdx < len(AllMod4Permutations); pIdx++ {
+	for pIdx := 0; pIdx < len(allMod4Permutations); pIdx++ {
 		for i := 0; i < 4; i++ {
-			AllMod4Permutations[pIdx][i] = p.collector[pIdx][i]
+			allMod4Permutations[pIdx][i] = p.collector[pIdx][i]
 		}
 	}
 }
@@ -99,11 +102,15 @@ func initMod8Permutations() {
 	first := make([]m3point.TrioIndex, p.size)
 	first[0] = m3point.TrioIndex(0)
 	p.fill(1, first)
-	for pIdx := 0; pIdx < len(AllMod8Permutations); pIdx++ {
+	for pIdx := 0; pIdx < len(allMod8Permutations); pIdx++ {
 		for i := 0; i < 8; i++ {
-			AllMod8Permutations[pIdx][i] = p.collector[pIdx][i]
+			allMod8Permutations[pIdx][i] = p.collector[pIdx][i]
 		}
 	}
+}
+
+func GetAllBaseTrio() [8]trio {
+	return allBaseTrio
 }
 
 /***************************************************************/
@@ -694,7 +701,7 @@ func (ppd *PointPackData) saveAllTrioDetails() (int, error) {
 	if toFill {
 		trios := ppd.calculateAllTrioDetails()
 		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(trios))
+			Log.Debugf("Populating table %s with %d elements", te.GetFullTableName(), len(trios))
 		}
 		for _, td := range trios {
 			err := te.Insert(td.Id, td.Conns[0].Id, td.Conns[1].Id, td.Conns[2].Id)

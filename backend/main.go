@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"log"
 	"net/http"
 	"os"
@@ -99,7 +100,7 @@ func main() {
 		case "filldb":
 			envID := m3util.GetDefaultEnvId()
 			env := m3db.GetEnvironment(envID)
-			m3server.FillDbEnv(env)
+			pointdb.FillDbEnv(env)
 			didSomething = true
 		case "-env":
 			m3util.SetDefaultEnvId(m3util.ReadEnvId("backend main", others[i+1]))

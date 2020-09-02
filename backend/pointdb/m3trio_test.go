@@ -1,4 +1,4 @@
-package m3server
+package pointdb
 
 import (
 	"fmt"
@@ -45,9 +45,9 @@ func TestPosMod8(t *testing.T) {
 func getPointTestData() *PointPackData {
 	m3util.SetToTestMode()
 
-	env := getServerFullTestDb(m3util.PointTestEnv)
+	env := GetServerFullTestDb(m3util.PointTestEnv)
 	InitializePointDBEnv(env, false)
-	ppd, _ := getServerPointPackData(env)
+	ppd, _ := GetServerPointPackData(env)
 	return ppd
 }
 
@@ -278,7 +278,7 @@ func TestAllValidTrio(t *testing.T) {
 func TestAllMod4Permutations(t *testing.T) {
 	initMod4Permutations()
 	idxMap := createAll8IndexMap()
-	for i, permutMap := range AllMod4Permutations {
+	for i, permutMap := range allMod4Permutations {
 		for j := 0; j < 4; j++ {
 			startIdx := permutMap[j]
 			endIdx := permutMap[(j+1)%4]
@@ -290,7 +290,7 @@ func TestAllMod4Permutations(t *testing.T) {
 }
 
 func TestAllMod8Permutations(t *testing.T) {
-	for i, permutMap := range AllMod8Permutations {
+	for i, permutMap := range allMod8Permutations {
 		idxMap := createAll8IndexMap()
 		for j := 0; j < 8; j++ {
 			startIdx := permutMap[j]

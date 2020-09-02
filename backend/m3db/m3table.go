@@ -7,12 +7,13 @@ import (
 )
 
 type TableDefinition struct {
-	Name          string
-	DdlColumns    string
-	Insert        string
-	SelectAll     string
-	Queries       []string
-	ExpectedCount int
+	Name           string
+	DdlColumns     string
+	DdlColumnsRefs []string
+	Insert         string
+	SelectAll      string
+	Queries        []string
+	ExpectedCount  int
 
 	ErrorFilter func(err error) bool
 }
@@ -46,10 +47,10 @@ func (env *QsmDbEnvironment) SelectAllForLoad(tableName string) (*TableExec, *sq
 		return nil, nil
 	}
 	if te.WasCreated() {
-		Log.Fatalf("could not load since table %s was just created", te.GetTableName())
+		Log.Fatalf("could not load since table %s was just created", te.GetFullTableName())
 		return nil, nil
 	}
-	rows, err := te.GetConnection().Query(te.TableDef.SelectAll)
+	rows, err := te.GetConnection().Query(fmt.Sprintf(te.TableDef.SelectAll, te.GetFullTableName()))
 	if err != nil {
 		Log.Fatalf("could not load due to error while select all %v", err)
 		return nil, nil
@@ -67,13 +68,13 @@ func (env *QsmDbEnvironment) GetForSaveAll(tableName string) (*TableExec, int, b
 	} else {
 		Log.Debugf("%s table was already created. Checking number of rows.", tableName)
 		var nbRows int
-		count, err := env.GetConnection().Query(fmt.Sprintf("select count(*) from %s", te.TableDef.Name))
+		count, err := env.GetConnection().Query(fmt.Sprintf("select count(*) from %s", te.GetFullTableName()))
 		if err != nil {
 			Log.Error(err)
 			return te, 0, false, err
 		}
 		if !count.Next() {
-			err = MakeQsmErrorf("counting rows of table %s returned no results", te.TableDef.Name)
+			err = MakeQsmErrorf("counting rows of table %s returned no results", te.GetFullTableName())
 			Log.Error(err)
 			return te, 0, false, err
 		}
@@ -94,7 +95,7 @@ func (env *QsmDbEnvironment) GetForSaveAll(tableName string) (*TableExec, int, b
 }
 
 type QsmWrongCount struct {
-	tableName string
+	tableName        string
 	actual, expected int
 }
 
@@ -132,14 +133,19 @@ func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec,
 		tableExec.env = env
 	}
 
-	err := tableExec.initForTable(tableName)
+	err := env.CheckSchema()
+	if err != nil {
+		Log.Error(err)
+		return nil, err
+	}
+	err = tableExec.initForTable(tableName)
 	if err != nil {
 		Log.Error(err)
 		return nil, err
 	}
 	err = tableExec.fillStmt()
 	if err != nil {
-		Log.Error(err)
+		Log.Fatal(err)
 		return nil, err
 	}
 
@@ -147,7 +153,7 @@ func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec,
 	if nbQueries > 0 {
 		tableExec.QueriesStmt = make([]*sql.Stmt, nbQueries)
 		for i, query := range tableExec.TableDef.Queries {
-			err = tableExec.fillQuery(i, query)
+			err = tableExec.fillQuery(i, fmt.Sprintf(query, tableExec.GetFullTableName()))
 			if err != nil {
 				Log.Error(err)
 				return nil, err
@@ -158,8 +164,8 @@ func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec,
 	return tableExec, nil
 }
 
-func (te *TableExec) GetTableName() string {
-	return te.tableName
+func (te *TableExec) GetFullTableName() string {
+	return te.env.GetSchemaName() + "." + te.tableName
 }
 
 func (te *TableExec) WasCreated() bool {
@@ -183,10 +189,10 @@ func (te *TableExec) Close() error {
 
 func (te *TableExec) fillStmt() error {
 	db := te.env.GetConnection()
-	query := fmt.Sprintf("insert into %s "+te.TableDef.Insert, te.TableDef.Name)
+	query := fmt.Sprintf("insert into %s "+te.TableDef.Insert, te.GetFullTableName())
 	stmt, err := db.Prepare(query)
 	if err != nil {
-		Log.Errorf("for table %s preparing insert query with '%s' got error %v", te.tableName, query, err)
+		Log.Fatalf("for table %s preparing insert query with '%s' got error %v", te.tableName, query, err)
 		return err
 	}
 	te.InsertStmt = stmt
@@ -309,30 +315,32 @@ func (te *TableExec) initForTable(tableName string) error {
 		return MakeQsmErrorf("Got a nil connection for %d", te.env.GetId())
 	}
 
-	resCheck := db.QueryRow("select 1 from information_schema.tables where table_schema='public' and table_name=$1", tableName)
+	schemaName := te.env.GetSchemaName()
+	resCheck := db.QueryRow("select 1 from information_schema.tables where table_schema=$1 and table_name=$2", schemaName, tableName)
 	var one int
 	err := resCheck.Scan(&one)
 
+	fullTableName := te.GetFullTableName()
 	var toCreate bool
 	if err == nil {
 		if one != 1 {
-			Log.Errorf("checking for table existence of %s in %s returned %d instead of 1", tableName, te.env.dbDetails.DbName, one)
+			Log.Errorf("checking for table existence of %s in %s returned %d instead of 1", fullTableName, te.env.dbDetails.DbName, one)
 		} else {
-			Log.Debugf("Table %s exists in %s", tableName, te.env.dbDetails.DbName)
+			Log.Debugf("Table %s exists in %s", fullTableName, te.env.dbDetails.DbName)
 		}
 		toCreate = false
 	} else {
 		if err == sql.ErrNoRows {
 			toCreate = true
 		} else {
-			Log.Errorf("could not check if table %s exists due to error %v", tableName, err)
+			Log.Errorf("could not check if table %s exists due to error %v", fullTableName, err)
 			return err
 		}
 	}
 
 	if !toCreate {
 		if Log.IsDebug() {
-			Log.Debugf("Table %s already exists", tableName)
+			Log.Debugf("Table %s already exists", fullTableName)
 		}
 		te.created = false
 		te.checked = true
@@ -340,16 +348,27 @@ func (te *TableExec) initForTable(tableName string) error {
 	}
 
 	if Log.IsDebug() {
-		Log.Debugf("Creating table %s", tableName)
+		Log.Debugf("Creating table %s", fullTableName)
 	}
-	createQuery := fmt.Sprintf("create table %s "+te.TableDef.DdlColumns, tableName)
+	var createQuery string
+	nbRefs := len(te.TableDef.DdlColumnsRefs)
+	if nbRefs > 0 {
+		params := make([]interface{}, nbRefs+1)
+		params[0] = fullTableName
+		for i, r := range te.TableDef.DdlColumnsRefs {
+			params[i+1] = te.env.GetSchemaName() + "." + r
+		}
+		createQuery = fmt.Sprintf("create table %s "+te.TableDef.DdlColumns, params...)
+	} else {
+		createQuery = fmt.Sprintf("create table %s "+te.TableDef.DdlColumns, fullTableName)
+	}
 	_, err = db.Exec(createQuery)
 	if err != nil {
-		Log.Errorf("could not create table %s using '%s' due to error %v", tableName, createQuery, err)
+		Log.Errorf("could not create table %s using '%s' due to error %v", fullTableName, createQuery, err)
 		return err
 	}
 	if Log.IsDebug() {
-		Log.Debugf("Table %s created", tableName)
+		Log.Debugf("Table %s created", fullTableName)
 	}
 	te.created = true
 	te.checked = true

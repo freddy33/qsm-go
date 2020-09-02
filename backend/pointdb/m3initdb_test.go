@@ -1,4 +1,4 @@
-package m3server
+package pointdb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
@@ -21,8 +21,8 @@ func TestLoadOrCalculate(t *testing.T) {
 	Log.SetInfo()
 	m3util.SetToTestMode()
 
-	env := getServerFullTestDb(m3util.PointLoadEnv)
-	ppd, _ := getServerPointPackData(env)
+	env := GetServerFullTestDb(m3util.PointLoadEnv)
+	ppd, _ := GetServerPointPackData(env)
 
 	start := time.Now()
 	ppd.ResetFlags()
@@ -55,7 +55,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	Log.Infof("Diff calc-load = %v", calcTime-loadTime)
 
 	// Don't forget to get ppd different after init
-	ppd, _ = getServerPointPackData(env)
+	ppd, _ = GetServerPointPackData(env)
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
 	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
@@ -70,7 +70,7 @@ func TestSaveAll(t *testing.T) {
 	m3util.SetToTestMode()
 
 	tempEnv := GetCleanTempDb(m3util.PointTempEnv)
-	ppd, _ := getServerPointPackData(tempEnv)
+	ppd, _ := GetServerPointPackData(tempEnv)
 
 	// ************ Connection Details
 

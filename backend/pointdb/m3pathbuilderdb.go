@@ -1,7 +1,6 @@
-package m3server
+package pointdb
 
 import (
-	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
 )
@@ -17,16 +16,17 @@ func init() {
 func createPathBuilderContextTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = PathBuildersTable
-	res.DdlColumns = fmt.Sprintf("(id smallint PRIMARY KEY REFERENCES %s (id),"+
-		" ctx_id smallint NOT NULL REFERENCES %s (id),"+
-		" root smallint NOT NULL REFERENCES %s (id),"+
-		" inter1 smallint NOT NULL REFERENCES %s (id), inter2 smallint NOT NULL REFERENCES %s (id), inter3 smallint NOT NULL REFERENCES %s (id),"+
-		" conn11 smallint NOT NULL REFERENCES %s (id), last_inter11 smallint NOT NULL REFERENCES %s (id), next_main_conn11 smallint NOT NULL REFERENCES %s (id), next_inter_conn11 smallint NOT NULL REFERENCES %s (id),"+
-		" conn12 smallint NOT NULL REFERENCES %s (id), last_inter12 smallint NOT NULL REFERENCES %s (id), next_main_conn12 smallint NOT NULL REFERENCES %s (id), next_inter_conn12 smallint NOT NULL REFERENCES %s (id),"+
-		" conn21 smallint NOT NULL REFERENCES %s (id), last_inter21 smallint NOT NULL REFERENCES %s (id), next_main_conn21 smallint NOT NULL REFERENCES %s (id), next_inter_conn21 smallint NOT NULL REFERENCES %s (id),"+
-		" conn22 smallint NOT NULL REFERENCES %s (id), last_inter22 smallint NOT NULL REFERENCES %s (id), next_main_conn22 smallint NOT NULL REFERENCES %s (id), next_inter_conn22 smallint NOT NULL REFERENCES %s (id),"+
-		" conn31 smallint NOT NULL REFERENCES %s (id), last_inter31 smallint NOT NULL REFERENCES %s (id), next_main_conn31 smallint NOT NULL REFERENCES %s (id), next_inter_conn31 smallint NOT NULL REFERENCES %s (id),"+
-		" conn32 smallint NOT NULL REFERENCES %s (id), last_inter32 smallint NOT NULL REFERENCES %s (id), next_main_conn32 smallint NOT NULL REFERENCES %s (id), next_inter_conn32 smallint NOT NULL REFERENCES %s (id))",
+	res.DdlColumns = "(id smallint PRIMARY KEY REFERENCES %s (id)," +
+		" ctx_id smallint NOT NULL REFERENCES %s (id)," +
+		" root smallint NOT NULL REFERENCES %s (id)," +
+		" inter1 smallint NOT NULL REFERENCES %s (id), inter2 smallint NOT NULL REFERENCES %s (id), inter3 smallint NOT NULL REFERENCES %s (id)," +
+		" conn11 smallint NOT NULL REFERENCES %s (id), last_inter11 smallint NOT NULL REFERENCES %s (id), next_main_conn11 smallint NOT NULL REFERENCES %s (id), next_inter_conn11 smallint NOT NULL REFERENCES %s (id)," +
+		" conn12 smallint NOT NULL REFERENCES %s (id), last_inter12 smallint NOT NULL REFERENCES %s (id), next_main_conn12 smallint NOT NULL REFERENCES %s (id), next_inter_conn12 smallint NOT NULL REFERENCES %s (id)," +
+		" conn21 smallint NOT NULL REFERENCES %s (id), last_inter21 smallint NOT NULL REFERENCES %s (id), next_main_conn21 smallint NOT NULL REFERENCES %s (id), next_inter_conn21 smallint NOT NULL REFERENCES %s (id)," +
+		" conn22 smallint NOT NULL REFERENCES %s (id), last_inter22 smallint NOT NULL REFERENCES %s (id), next_main_conn22 smallint NOT NULL REFERENCES %s (id), next_inter_conn22 smallint NOT NULL REFERENCES %s (id)," +
+		" conn31 smallint NOT NULL REFERENCES %s (id), last_inter31 smallint NOT NULL REFERENCES %s (id), next_main_conn31 smallint NOT NULL REFERENCES %s (id), next_inter_conn31 smallint NOT NULL REFERENCES %s (id)," +
+		" conn32 smallint NOT NULL REFERENCES %s (id), last_inter32 smallint NOT NULL REFERENCES %s (id), next_main_conn32 smallint NOT NULL REFERENCES %s (id), next_inter_conn32 smallint NOT NULL REFERENCES %s (id))"
+	res.DdlColumnsRefs = []string{
 		TrioCubesTable,
 		GrowthContextsTable,
 		TrioDetailsTable,
@@ -36,7 +36,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable,
 		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable,
 		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable,
-		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable)
+		ConnectionDetailsTable, TrioDetailsTable, ConnectionDetailsTable, ConnectionDetailsTable}
 	res.Insert = "(id, ctx_id, root," +
 		" inter1, inter2, inter3, " +
 		" conn11, last_inter11, next_main_conn11, next_inter_conn11," +
@@ -53,15 +53,15 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 		" $19,$20,$21,$22," +
 		" $23,$24,$25,$26," +
 		" $27,$28,$29,$30)"
-	res.SelectAll = fmt.Sprintf("select id, ctx_id, root,"+
-		" inter1, inter2, inter3, "+
-		" conn11, last_inter11, next_main_conn11, next_inter_conn11,"+
-		" conn12, last_inter12, next_main_conn12, next_inter_conn12,"+
-		" conn21, last_inter21, next_main_conn21, next_inter_conn21,"+
-		" conn22, last_inter22, next_main_conn22, next_inter_conn22,"+
-		" conn31, last_inter31, next_main_conn31, next_inter_conn31,"+
-		" conn32, last_inter32, next_main_conn32, next_inter_conn32"+
-		" from %s", PathBuildersTable)
+	res.SelectAll = "select id, ctx_id, root," +
+		" inter1, inter2, inter3, " +
+		" conn11, last_inter11, next_main_conn11, next_inter_conn11," +
+		" conn12, last_inter12, next_main_conn12, next_inter_conn12," +
+		" conn21, last_inter21, next_main_conn21, next_inter_conn21," +
+		" conn22, last_inter22, next_main_conn22, next_inter_conn22," +
+		" conn31, last_inter31, next_main_conn31, next_inter_conn31," +
+		" conn32, last_inter32, next_main_conn32, next_inter_conn32" +
+		" from %s"
 	res.ExpectedCount = m3point.TotalNumberOfCubes
 	return &res
 }
@@ -126,7 +126,7 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 	if toFill {
 		builders := ppd.calculateAllPathBuilders()
 		if Log.IsDebug() {
-			Log.Debugf("Populating table %s with %d elements", te.TableDef.Name, len(builders)-1)
+			Log.Debugf("Populating table %s with %d elements", te.GetFullTableName(), len(builders)-1)
 		}
 		for cubeId, rootNode := range builders {
 			if cubeId == 0 {
@@ -162,7 +162,7 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 				interConnIds[2][0], lastInterPNs[2][0].TrIdx, lastInterPNs[2][0].NextMainConnId, lastInterPNs[2][0].NextInterConnId,
 				interConnIds[2][1], lastInterPNs[2][1].TrIdx, lastInterPNs[2][1].NextMainConnId, lastInterPNs[2][1].NextInterConnId)
 			if err != nil {
-				Log.Error(err)
+				Log.Fatal(err)
 			} else {
 				inserted++
 			}

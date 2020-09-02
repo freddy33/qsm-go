@@ -33,16 +33,17 @@ services:
 
   postgres:
     container_name: postgres
-    image:  fredsimon-docker.jfrog.io/postgres:12.3
+    image: fredsimon-docker.jfrog.io/postgres:12.3
     restart: always
-    volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+    tmpfs:
+      - /var/lib/postgresql/data
     environment:
       POSTGRES_DB: qsm
       POSTGRES_USER: qsm
       POSTGRES_PASSWORD: qsm
     ports:
-      - 5432:5432
+      - 5432:5432/tcp
+    command: -c fsync=off -c max_connections=200 -c full_page_writes=off
 
   adminer:
     container_name: adminer

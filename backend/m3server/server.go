@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/gorilla/mux"
 	"log"
@@ -66,8 +67,8 @@ func drop(w http.ResponseWriter, r *http.Request) {
 
 func initialize(w http.ResponseWriter, r *http.Request) {
 	envId := GetEnvId(r)
-	env := getServerFullTestDb(envId)
-	InitializePointDBEnv(env, true)
+	env := pointdb.GetServerFullTestDb(envId)
+	pointdb.InitializePointDBEnv(env, true)
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
 }
 
@@ -76,7 +77,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 		envId = m3util.GetDefaultEnvId()
 	}
 	env := m3db.GetEnvironment(envId)
-	InitializePointDBEnv(env, false)
+	pointdb.InitializePointDBEnv(env, false)
 
 	r := mux.NewRouter()
 	app := &QsmApp{Router: r, Env: env}
