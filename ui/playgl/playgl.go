@@ -3,11 +3,10 @@ package playgl
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/client"
-	"github.com/freddy33/qsm-go/model/m3path"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/freddy33/qsm-go/ui/m3gl"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
@@ -53,7 +52,6 @@ func Play() {
 	// ******************************************************************
 	max := int64(9 * m3point.THREE)
 	env := client.GetEnvironment(m3util.GetDefaultEnvId())
-	m3path.InitializePathDBEnv(env)
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()
 	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)
