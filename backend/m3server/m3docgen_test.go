@@ -7,5 +7,6 @@ import (
 )
 
 func TestWriteAllTables(t *testing.T) {
+	m3util.SetToTestMode()
 	GenerateTextFilesEnv(pointdb.GetServerFullTestDb(m3util.PointTestEnv))
 }
