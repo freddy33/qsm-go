@@ -38,6 +38,7 @@ func (c *Client) ExecGetReq(envId m3util.QsmEnvID, uri string) io.ReadCloser {
 		m3point.Log.Errorf("Got a nil request for REST API end point %q", c.BackendRootURL)
 		return nil
 	}
+	req.Header.Add(m3api.HttpEnvIdKey, envId.String())
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -66,7 +67,7 @@ func (c *Client) CheckServerUp() bool {
 	return true
 }
 
-var doTestInit = false
+var doTestInit = true
 
 func (c *Client) GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	if !m3util.TestMode {
@@ -75,8 +76,6 @@ func (c *Client) GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment 
 
 	if !c.CheckServerUp() {
 		Log.Fatalf("Test backend server down!")
-		//m3util.StartQsmBackend(envId, "-test", "-port", testPort)
-		//time.Sleep(500 * time.Millisecond)
 	}
 
 	if doTestInit {

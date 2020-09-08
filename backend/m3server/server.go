@@ -6,14 +6,11 @@ import (
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"sync"
-)
-
-const (
-	HttpEnvIdKey = "QsmEnvId"
 )
 
 type QsmApp struct {
@@ -26,19 +23,19 @@ type QsmApp struct {
 func (app *QsmApp) AddHandler(path string, handleFunc func(http.ResponseWriter, *http.Request)) {
 	app.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		envId := app.Env.GetId()
-		fromHeader := r.Header.Get(HttpEnvIdKey)
+		fromHeader := r.Header.Get(m3api.HttpEnvIdKey)
 		if fromHeader == "" {
-			r.Header.Add(HttpEnvIdKey, app.Env.GetEnvNumber())
+			r.Header.Add(m3api.HttpEnvIdKey, app.Env.GetEnvNumber())
 		} else {
-			envId = m3util.ReadEnvId(fmt.Sprintf("header var %q", HttpEnvIdKey), fromHeader)
+			envId = m3util.ReadEnvId(fmt.Sprintf("header var %q", m3api.HttpEnvIdKey), fromHeader)
 		}
-		ctx := context.WithValue(r.Context(), HttpEnvIdKey, envId)
+		ctx := context.WithValue(r.Context(), m3api.HttpEnvIdKey, envId)
 		handleFunc(w, r.WithContext(ctx))
 	})
 }
 
 func GetEnvId(r *http.Request) m3util.QsmEnvID {
-	return r.Context().Value(HttpEnvIdKey).(m3util.QsmEnvID)
+	return r.Context().Value(m3api.HttpEnvIdKey).(m3util.QsmEnvID)
 }
 
 func GetEnvironment(r *http.Request) *m3db.QsmDbEnvironment {
@@ -55,7 +52,7 @@ func SendResponse(w http.ResponseWriter, status int, format string, args ...inte
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	SendResponse(w, http.StatusOK, "REST APIs at /point-data\nUsing env id=%d\n", r.Context().Value(HttpEnvIdKey))
+	SendResponse(w, http.StatusOK, "REST APIs at /point-data\nUsing env id=%d\n", r.Context().Value(m3api.HttpEnvIdKey))
 }
 
 func drop(w http.ResponseWriter, r *http.Request) {

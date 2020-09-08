@@ -10,4 +10,4 @@ RUN GOPROXY="https://fredsimon.jfrog.io/fredsimon/api/go/go" GOOS=linux GOARCH=a
 FROM fredsimon-docker.jfrog.io/alpine:3.12
 WORKDIR /app
 COPY --from=BUILDER /app/backend/main main
-ENTRYPOINT ["./main", "server"]
+ENTRYPOINT ["./main", "server", "-test"]
