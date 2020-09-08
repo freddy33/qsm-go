@@ -104,17 +104,17 @@ func (c *Client) GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment 
 }
 
 func (c *Client) InitializeEnv(env m3util.QsmEnvironment) {
-	var ppd *m3point.LoadedPointPackData
+	var ppd *LoadedPointPackData
 	ppdIfc := env.GetData(m3util.PointIdx)
 	if ppdIfc != nil {
-		ppd = ppdIfc.(*m3point.LoadedPointPackData)
+		ppd = ppdIfc.(*LoadedPointPackData)
 		if ppd.PathBuildersLoaded {
 			m3point.Log.Debugf("Env %d already loaded", env.GetId())
 			return
 		}
 	}
 	if ppdIfc == nil {
-		ppd = new(m3point.LoadedPointPackData)
+		ppd = new(LoadedPointPackData)
 		ppd.EnvId = env.GetId()
 		env.SetData(m3util.PointIdx, ppd)
 	}
@@ -230,7 +230,7 @@ func (c *Client) InitializeEnv(env m3util.QsmEnvironment) {
 	m3point.Log.Debugf("loaded %d path builders", len(ppd.PathBuilders))
 }
 
-func convertToInterPathBuilders(ppd *m3point.LoadedPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
+func convertToInterPathBuilders(ppd *LoadedPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
 	res := [3]m3point.PathLinkBuilder{}
 	interNodeBuilders := pnd.GetInterNodeBuilders()
 	for idx, cd := range tr.Conns {
@@ -242,7 +242,7 @@ func convertToInterPathBuilders(ppd *m3point.LoadedPointPackData, growthCtxByCub
 	return res
 }
 
-func convertToInterPathBuilder(ppd *m3point.LoadedPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.IntermediatePathNodeBuilderMsg) *m3point.IntermediatePathNodeBuilder {
+func convertToInterPathBuilder(ppd *LoadedPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.IntermediatePathNodeBuilderMsg) *m3point.IntermediatePathNodeBuilder {
 	cubeId := int(pnd.GetCubeId())
 	trIdx := m3point.TrioIndex(pnd.GetTrioId())
 	return &m3point.IntermediatePathNodeBuilder{
@@ -263,7 +263,7 @@ func convertToInterPathBuilder(ppd *m3point.LoadedPointPackData, growthCtxByCube
 	}
 }
 
-func convertToLastPathBuilder(ppd *m3point.LoadedPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.LastPathNodeBuilderMsg) *m3point.LastPathNodeBuilder {
+func convertToLastPathBuilder(ppd *LoadedPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.LastPathNodeBuilderMsg) *m3point.LastPathNodeBuilder {
 	cubeId := int(pnd.GetCubeId())
 	trIdx := m3point.TrioIndex(pnd.GetTrioId())
 	return &m3point.LastPathNodeBuilder{

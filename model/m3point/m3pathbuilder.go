@@ -42,14 +42,6 @@ type PathLinkBuilder struct {
 	PathNode PathNodeBuilder
 }
 
-func (ppd *LoadedPointPackData) GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder {
-	ppd.CheckPathBuildersInitialized()
-	// TODO: Verify the key below stay local and is not staying in memory
-	key := CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: CreateTrioCube(ppd, growthCtx, offset, c)}
-	cubeId := ppd.GetCubeIdByKey(key)
-	return ppd.GetPathNodeBuilderById(cubeId)
-}
-
 func (ppd *BasePointPackData) GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
 	return ppd.PathBuilders[cubeId]
 }

@@ -60,6 +60,16 @@ func (ppd *PathPackData) GetPathCtx(id int) PathContext {
 
 func (ppd *PathPackData) AddPathCtx(pathCtx PathContext) {
 	ppd.pathCtxMap[pathCtx.GetId()] = pathCtx
+	if len(ppd.AllCenterContexts[pathCtx.GetGrowthType()]) == 0 {
+		nbIndexes := pathCtx.GetGrowthType().GetNbIndexes()
+		ppd.AllCenterContexts[pathCtx.GetGrowthType()] = make([]PathContext, nbIndexes)
+		for i := 0; i < nbIndexes; i++ {
+			ppd.AllCenterContexts[pathCtx.GetGrowthType()][i] = nil
+		}
+	}
+	if ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] == nil {
+		ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] = pathCtx
+	}
 }
 
 

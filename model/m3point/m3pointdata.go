@@ -56,13 +56,6 @@ type BasePointPackData struct {
 	PathBuildersLoaded bool
 }
 
-type LoadedPointPackData struct {
-	BasePointPackData
-	ValidNextTrio       [12][2]TrioIndex
-	AllMod4Permutations [12][4]TrioIndex
-	AllMod8Permutations [12][8]TrioIndex
-}
-
 func (ppd *BasePointPackData) GetEnvId() m3util.QsmEnvID {
 	if ppd == nil {
 		return m3util.NoEnv
@@ -108,14 +101,3 @@ func (ppd *BasePointPackData) CheckPathBuildersInitialized() {
 	}
 }
 
-func (ppd *LoadedPointPackData) GetValidNextTrio() [12][2]TrioIndex {
-	return ppd.ValidNextTrio
-}
-
-func (ppd *LoadedPointPackData) GetAllMod4Permutations() [12][4]TrioIndex {
-	return ppd.AllMod4Permutations
-}
-
-func (ppd *LoadedPointPackData) GetAllMod8Permutations() [12][8]TrioIndex {
-	return ppd.AllMod8Permutations
-}
