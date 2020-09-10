@@ -100,7 +100,7 @@ func (space *Space) CreateEvent(ctxType m3point.GrowthType, idx int, offset int,
 	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
 	space.lastIdCounter++
 	ppd := space.GetPointPackData()
-	ctx := m3path.GetPathPackData(space.env).GetPathCtxFromAttributes(ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset)
+	ctx := space.GetPathPackData().CreatePathCtxFromAttributes(ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset, p)
 	e := Event{pnm.id, space, pnm,nil, space.CurrentTime, k, ctx}
 	space.events[pnm.id] = &e
 	ctx.InitRootNode(p)

@@ -11,7 +11,7 @@ const (
 )
 
 type CubeListBuilder struct {
-	ppd       *PointPackData
+	ppd       *ServerPointPackData
 	growthCtx m3point.GrowthContext
 	allCubes  []m3point.CubeOfTrioIndex
 }
@@ -62,10 +62,10 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 }
 
 /***************************************************************/
-// PointPackData Functions for Cubes Load and Save
+// ServerPointPackData Functions for Cubes Load and Save
 /***************************************************************/
 
-func (ppd *PointPackData) loadContextCubes() map[m3point.CubeKeyId]int {
+func (ppd *ServerPointPackData) loadContextCubes() map[m3point.CubeKeyId]int {
 	te, rows := ppd.Env.SelectAllForLoad(TrioCubesTable)
 	res := make(map[m3point.CubeKeyId]int, te.TableDef.ExpectedCount)
 
@@ -90,7 +90,7 @@ func (ppd *PointPackData) loadContextCubes() map[m3point.CubeKeyId]int {
 	return res
 }
 
-func (ppd *PointPackData) saveAllContextCubes() (int, error) {
+func (ppd *ServerPointPackData) saveAllContextCubes() (int, error) {
 	te, inserted, toFill, err := ppd.Env.GetForSaveAll(TrioCubesTable)
 	if err != nil {
 		return 0, err
@@ -121,7 +121,7 @@ func (ppd *PointPackData) saveAllContextCubes() (int, error) {
 // CubeListBuilder Functions
 /***************************************************************/
 
-func (ppd *PointPackData) calculateAllContextCubes() map[m3point.CubeKeyId]int {
+func (ppd *ServerPointPackData) calculateAllContextCubes() map[m3point.CubeKeyId]int {
 	res := make(map[m3point.CubeKeyId]int, m3point.TotalNumberOfCubes)
 	cubeIdx := 1
 	for _, growthCtx := range ppd.GetAllGrowthContexts() {
@@ -206,7 +206,7 @@ func (cl *CubeListBuilder) exists(offset int, c m3point.Point) bool {
 	return false
 }
 
-func (ppd *PointPackData) getCubeList(growthCtx m3point.GrowthContext) *CubeListBuilder {
+func (ppd *ServerPointPackData) getCubeList(growthCtx m3point.GrowthContext) *CubeListBuilder {
 	ppd.CheckCubesInitialized()
 	res := CubeListBuilder{ppd: ppd, growthCtx: growthCtx, allCubes: make([]m3point.CubeOfTrioIndex, 0, 100)}
 	for cubeKey := range ppd.CubeIdsPerKey {

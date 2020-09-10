@@ -2,26 +2,8 @@ package pointdb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 )
-
-type PointPackData struct {
-	m3point.BasePointPackData
-	Env *m3db.QsmDbEnvironment
-}
-
-func GetServerPointPackData(env m3util.QsmEnvironment) (*PointPackData, bool) {
-	newData := env.GetData(m3util.PointIdx) == nil
-	if newData {
-		ppd := new(PointPackData)
-		ppd.EnvId = env.GetId()
-		ppd.Env = env.(*m3db.QsmDbEnvironment)
-		env.SetData(m3util.PointIdx, ppd)
-		// do not return ppd but always the pointer in env data array
-	}
-	return env.GetData(m3util.PointIdx).(*PointPackData), newData
-}
 
 func InitializePointDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
 	ppd, newData := GetServerPointPackData(env)
@@ -37,24 +19,19 @@ func InitializePointDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
 	ppd.initPathBuilders()
 }
 
-func (ppd *PointPackData) GetValidNextTrio() [12][2]m3point.TrioIndex {
+func (ppd *ServerPointPackData) GetValidNextTrio() [12][2]m3point.TrioIndex {
 	return validNextTrio
 }
 
-func (ppd *PointPackData) GetAllMod4Permutations() [12][4]m3point.TrioIndex {
+func (ppd *ServerPointPackData) GetAllMod4Permutations() [12][4]m3point.TrioIndex {
 	return allMod4Permutations
 }
 
-func (ppd *PointPackData) GetAllMod8Permutations() [12][8]m3point.TrioIndex {
+func (ppd *ServerPointPackData) GetAllMod8Permutations() [12][8]m3point.TrioIndex {
 	return allMod8Permutations
 }
 
-func (ppd *PointPackData) GetAllConnDetailsByVector() map[m3point.Point]*m3point.ConnectionDetails {
-	ppd.CheckConnInitialized()
-	return ppd.AllConnectionsByVector
-}
-
-func (ppd *PointPackData) initConnections() {
+func (ppd *ServerPointPackData) initConnections() {
 	if !ppd.ConnectionsLoaded {
 		ppd.AllConnections, ppd.AllConnectionsByVector = loadConnectionDetails(ppd.Env)
 		ppd.ConnectionsLoaded = true
@@ -62,7 +39,7 @@ func (ppd *PointPackData) initConnections() {
 	}
 }
 
-func (ppd *PointPackData) initTrioDetails() {
+func (ppd *ServerPointPackData) initTrioDetails() {
 	if !ppd.TrioDetailsLoaded {
 		ppd.AllTrioDetails = ppd.loadTrioDetails()
 		ppd.TrioDetailsLoaded = true
@@ -70,7 +47,7 @@ func (ppd *PointPackData) initTrioDetails() {
 	}
 }
 
-func (ppd *PointPackData) initGrowthContexts() {
+func (ppd *ServerPointPackData) initGrowthContexts() {
 	if !ppd.GrowthContextsLoaded {
 		ppd.AllGrowthContexts = ppd.loadGrowthContexts()
 		ppd.GrowthContextsLoaded = true
@@ -78,7 +55,7 @@ func (ppd *PointPackData) initGrowthContexts() {
 	}
 }
 
-func (ppd *PointPackData) initContextCubes() {
+func (ppd *ServerPointPackData) initContextCubes() {
 	if !ppd.CubesLoaded {
 		ppd.CubeIdsPerKey = ppd.loadContextCubes()
 		ppd.CubesLoaded = true
@@ -86,7 +63,7 @@ func (ppd *PointPackData) initContextCubes() {
 	}
 }
 
-func (ppd *PointPackData) initPathBuilders() {
+func (ppd *ServerPointPackData) initPathBuilders() {
 	if !ppd.PathBuildersLoaded {
 		ppd.PathBuilders = ppd.loadPathBuilders()
 		ppd.PathBuildersLoaded = true

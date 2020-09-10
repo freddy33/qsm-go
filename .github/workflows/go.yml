@@ -60,6 +60,7 @@ jobs:
       - name: Test backend packages
         run: go test -v ./m3db ./pointdb ./pathdb ./m3server
 
-      - name: Test client with Kinto
-        run: go test -v ./clpoint ./clpath
-        working-directory: client
+# TODO: Make sure to update kinto before running this
+#      - name: Test client with Kinto
+#        run: go test -v ./clpoint ./clpath
+#        working-directory: client

@@ -315,7 +315,7 @@ func (t trio) getMinusZVector() m3point.Point {
 // Calculate Connections and trio Functions
 /***************************************************************/
 
-func (ppd *PointPackData) calculateConnectionDetails() ([]*m3point.ConnectionDetails, map[m3point.Point]*m3point.ConnectionDetails) {
+func (ppd *ServerPointPackData) calculateConnectionDetails() ([]*m3point.ConnectionDetails, map[m3point.Point]*m3point.ConnectionDetails) {
 	connMap := make(map[m3point.Point]*m3point.ConnectionDetails)
 	// Going through all trio and all combination of trio, to aggregate connection details
 	for _, tr := range allBaseTrio {
@@ -395,7 +395,7 @@ func addConnDetail(connMap *map[m3point.Point]*m3point.ConnectionDetails, connVe
 	}
 }
 
-func (ppd *PointPackData) calculateAllTrioDetails() TrioDetailList {
+func (ppd *ServerPointPackData) calculateAllTrioDetails() TrioDetailList {
 	res := TrioDetailList(make([]*m3point.TrioDetails, 0, 200))
 	// All base trio first
 	for i, tr := range allBaseTrio {
@@ -437,7 +437,7 @@ func (ppd *PointPackData) calculateAllTrioDetails() TrioDetailList {
 	return res
 }
 
-func (ppd *PointPackData) makeTrioDetails(points ...m3point.Point) *m3point.TrioDetails {
+func (ppd *ServerPointPackData) makeTrioDetails(points ...m3point.Point) *m3point.TrioDetails {
 	// All m3point.Points should be a connection details
 	cds := make([]*m3point.ConnectionDetails, 3)
 	for i, p := range points {
@@ -472,7 +472,7 @@ func MakeVector(p1, p2 m3point.Point) m3point.Point {
 }
 
 // Return the new trio out of Origin + tA (with next tB or tB/tC)
-func (ppd *PointPackData) getNextTriosDetails(tA, tB, tC trio) []*m3point.TrioDetails {
+func (ppd *ServerPointPackData) getNextTriosDetails(tA, tB, tC trio) []*m3point.TrioDetails {
 	// 0 z=0 for first element, x connector, y connector
 	// 1 y=0 for first element, x connector, z connector
 	// 2 x=0 for first element, y connector, z connector
@@ -671,7 +671,7 @@ func (l TrioDetailList) Less(i, j int) bool {
 // trio Details Load and Save
 /***************************************************************/
 
-func (ppd *PointPackData) loadTrioDetails() TrioDetailList {
+func (ppd *ServerPointPackData) loadTrioDetails() TrioDetailList {
 	te, rows := ppd.Env.SelectAllForLoad(TrioDetailsTable)
 
 	res := TrioDetailList(make([]*m3point.TrioDetails, 0, te.TableDef.ExpectedCount))
@@ -692,7 +692,7 @@ func (ppd *PointPackData) loadTrioDetails() TrioDetailList {
 	return res
 }
 
-func (ppd *PointPackData) saveAllTrioDetails() (int, error) {
+func (ppd *ServerPointPackData) saveAllTrioDetails() (int, error) {
 	te, inserted, toFill, err := ppd.Env.GetForSaveAll(TrioDetailsTable)
 	if te == nil {
 		return 0, err

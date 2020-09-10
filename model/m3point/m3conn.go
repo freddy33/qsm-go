@@ -288,3 +288,8 @@ func (ppd *BasePointPackData) GetConnDetailsByVector(vector Point) *ConnectionDe
 	}
 	return cd
 }
+
+func (ppd *BasePointPackData) GetAllConnDetailsByVector() map[Point]*ConnectionDetails {
+	ppd.CheckConnInitialized()
+	return ppd.AllConnectionsByVector
+}

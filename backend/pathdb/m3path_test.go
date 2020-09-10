@@ -14,7 +14,7 @@ import (
 var allTestContextsMutex sync.Mutex
 
 func getAllTestContexts(env m3util.QsmEnvironment) map[m3point.GrowthType][]m3path.PathContext {
-	pathData := m3path.GetPathPackData(env)
+	pathData := GetServerPathPackData(env).(*ServerPathPackData)
 	if pathData.AllCenterContextsLoaded {
 		return pathData.AllCenterContexts
 	}
@@ -27,7 +27,7 @@ func getAllTestContexts(env m3util.QsmEnvironment) map[m3point.GrowthType][]m3pa
 	}
 
 	pointdb.InitializePointDBEnv(env.(*m3db.QsmDbEnvironment), false)
-	pointData, _ := pointdb.GetServerPointPackData(env)
+	pointData := pointdb.GetPointPackData(env)
 
 	idx := 0
 	for _, growthCtx := range pointData.GetAllGrowthContexts() {
@@ -70,7 +70,7 @@ func TestFirstPathContextFilling(t *testing.T) {
 
 func fillPathContext(t *testing.T, pathCtx m3path.PathContext, until int) {
 	growthCtx := pathCtx.GetGrowthCtx()
-	ppd, _ := pointdb.GetServerPointPackData(growthCtx.GetEnv())
+	ppd := pointdb.GetPointPackData(growthCtx.GetEnv())
 	trIdx := growthCtx.GetBaseTrioIndex(ppd, 0, pathCtx.GetGrowthOffset())
 	assert.NotEqual(t, m3point.NilTrioIndex, trIdx)
 

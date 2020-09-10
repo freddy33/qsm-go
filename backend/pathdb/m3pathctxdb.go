@@ -12,7 +12,7 @@ import (
 
 type PathContextDb struct {
 	env       *m3db.QsmDbEnvironment
-	ppd       *pointdb.PointPackData
+	ppd       m3point.PointPackDataIfc
 	pathNodes *m3db.TableExec
 	points    *m3db.TableExec
 
@@ -24,10 +24,18 @@ type PathContextDb struct {
 	openNodeBuilder *OpenNodeBuilder
 }
 
+func (ppd *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
+	pathContext := MakePathContextDBFromGrowthContext(ppd.Env, growthCtx, offset)
+	if center == m3point.Origin {
+		ppd.addCenterPathContext(pathContext)
+	}
+	return pathContext
+}
+
 func MakePathContextDBFromGrowthContext(env m3util.QsmEnvironment, growthCtx m3point.GrowthContext, offset int) m3path.PathContext {
 	pathCtx := PathContextDb{}
 	pathCtx.env = env.(*m3db.QsmDbEnvironment)
-	pathCtx.ppd, _ = pointdb.GetServerPointPackData(env)
+	pathCtx.ppd = pointdb.GetPointPackData(env)
 	pathCtx.growthCtx = growthCtx
 	pathCtx.growthOffset = offset
 	pathCtx.rootNode = nil
@@ -39,7 +47,8 @@ func MakePathContextDBFromGrowthContext(env m3util.QsmEnvironment, growthCtx m3p
 		return nil
 	}
 
-	m3path.GetPathPackData(env).AddPathCtx(&pathCtx)
+	ppd := GetServerPathPackData(env)
+	ppd.AddPathCtx(&pathCtx)
 	return &pathCtx
 }
 

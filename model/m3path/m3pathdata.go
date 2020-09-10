@@ -7,50 +7,26 @@ import (
 
 type PathPackDataIfc interface {
 	m3util.QsmDataPack
+	AddPathCtx(pathCtx PathContext)
 	GetPathCtx(id int) PathContext
-	GetPathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) PathContext
+	CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) PathContext
 }
 
-type PathPackData struct {
+type BasePathPackData struct {
 	EnvId m3util.QsmEnvID
 
-	pathCtxMap    map[int]PathContext
-
-	// All PathContexts centered at origin with growth type + offset
-	AllCenterContexts       map[m3point.GrowthType][]PathContext
-	AllCenterContextsLoaded bool
+	PathCtxMap map[int]PathContext
 }
 
-func makePathPackData(env m3util.QsmEnvironment) *PathPackData {
-	res := new(PathPackData)
-	res.EnvId = env.GetId()
-	res.pathCtxMap = make(map[int]PathContext, 2^8)
-	res.AllCenterContexts = make(map[m3point.GrowthType][]PathContext)
-	res.AllCenterContextsLoaded = false
-	return res
-}
-
-func GetPathPackData(env m3util.QsmEnvironment) *PathPackData {
-	if env.GetData(m3util.PathIdx) == nil {
-		env.SetData(m3util.PathIdx, makePathPackData(env))
-	}
-	return env.GetData(m3util.PathIdx).(*PathPackData)
-}
-
-func (ppd *PathPackData) GetEnvId() m3util.QsmEnvID {
+func (ppd *BasePathPackData) GetEnvId() m3util.QsmEnvID {
 	if ppd == nil {
 		return m3util.NoEnv
 	}
 	return ppd.EnvId
 }
 
-func (ppd *PathPackData) GetPathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) PathContext {
-	// TODO: Missing the center of-course
-	return ppd.AllCenterContexts[growthCtx.GetGrowthType()][offset]
-}
-
-func (ppd *PathPackData) GetPathCtx(id int) PathContext {
-	pathCtx, ok := ppd.pathCtxMap[id]
+func (ppd *BasePathPackData) GetPathCtx(id int) PathContext {
+	pathCtx, ok := ppd.PathCtxMap[id]
 	if ok {
 		return pathCtx
 	}
@@ -58,18 +34,8 @@ func (ppd *PathPackData) GetPathCtx(id int) PathContext {
 	return nil
 }
 
-func (ppd *PathPackData) AddPathCtx(pathCtx PathContext) {
-	ppd.pathCtxMap[pathCtx.GetId()] = pathCtx
-	if len(ppd.AllCenterContexts[pathCtx.GetGrowthType()]) == 0 {
-		nbIndexes := pathCtx.GetGrowthType().GetNbIndexes()
-		ppd.AllCenterContexts[pathCtx.GetGrowthType()] = make([]PathContext, nbIndexes)
-		for i := 0; i < nbIndexes; i++ {
-			ppd.AllCenterContexts[pathCtx.GetGrowthType()][i] = nil
-		}
-	}
-	if ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] == nil {
-		ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] = pathCtx
-	}
+func (ppd *BasePathPackData) AddPathCtx(pathCtx PathContext) {
+	ppd.PathCtxMap[pathCtx.GetId()] = pathCtx
 }
 
 

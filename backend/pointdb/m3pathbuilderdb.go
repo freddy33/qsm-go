@@ -70,7 +70,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func (ppd *PointPackData) loadPathBuilders() []*m3point.RootPathNodeBuilder {
+func (ppd *ServerPointPackData) loadPathBuilders() []*m3point.RootPathNodeBuilder {
 	_, rows := ppd.Env.SelectAllForLoad(PathBuildersTable)
 	res := make([]*m3point.RootPathNodeBuilder, m3point.TotalNumberOfCubes+1)
 
@@ -118,7 +118,7 @@ func (ppd *PointPackData) loadPathBuilders() []*m3point.RootPathNodeBuilder {
 	return res
 }
 
-func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
+func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
 	te, inserted, toFill, err := ppd.Env.GetForSaveAll(PathBuildersTable)
 	if err != nil {
 		return 0, err
@@ -171,7 +171,7 @@ func (ppd *PointPackData) saveAllPathBuilders() (int, error) {
 	return inserted, nil
 }
 
-func (ppd *PointPackData) calculateAllPathBuilders() []*m3point.RootPathNodeBuilder {
+func (ppd *ServerPointPackData) calculateAllPathBuilders() []*m3point.RootPathNodeBuilder {
 	ppd.CheckCubesInitialized()
 	res := make([]*m3point.RootPathNodeBuilder, m3point.TotalNumberOfCubes+1)
 	res[0] = nil
@@ -184,7 +184,7 @@ func (ppd *PointPackData) calculateAllPathBuilders() []*m3point.RootPathNodeBuil
 	return res
 }
 
-func (ppd *PointPackData) Populate(rpnb *m3point.RootPathNodeBuilder) {
+func (ppd *ServerPointPackData) Populate(rpnb *m3point.RootPathNodeBuilder) {
 	growthCtx := rpnb.Ctx.GrowthCtx
 	cubeKey := ppd.GetCubeById(rpnb.Ctx.CubeId)
 	cube := cubeKey.Cube
@@ -272,7 +272,7 @@ func (ppd *PointPackData) Populate(rpnb *m3point.RootPathNodeBuilder) {
 	rpnb.Verify()
 }
 
-func (ppd *PointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthContext, offset int, c m3point.Point) m3point.PathNodeBuilder {
+func (ppd *ServerPointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthContext, offset int, c m3point.Point) m3point.PathNodeBuilder {
 	ppd.CheckPathBuildersInitialized()
 	// TODO: Verify the key below stay local and is not staying in memory
 	key := m3point.CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: m3point.CreateTrioCube(ppd, growthCtx, offset, c)}

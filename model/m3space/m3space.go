@@ -3,6 +3,7 @@ package m3space
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"sync"
 )
@@ -87,6 +88,10 @@ func (space *Space) GetEnv() m3util.QsmEnvironment {
 
 func (space *Space) GetPointPackData() m3point.PointPackDataIfc {
 	return space.GetEnv().GetData(m3util.PointIdx).(m3point.PointPackDataIfc)
+}
+
+func (space *Space) GetPathPackData() m3path.PathPackDataIfc {
+	return space.GetEnv().GetData(m3util.PathIdx).(m3path.PathPackDataIfc)
 }
 
 func (space *Space) GetCurrentTime() DistAndTime {

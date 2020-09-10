@@ -47,7 +47,7 @@ type PathNodeDb struct {
 
 	// In most cases this is already filled
 	pathCtxId int
-	// TODO: Create a map in PathPackData for this
+	// TODO: Create a map in ServerPathPackData for this
 	pathCtx *PathContextDb
 
 	// Just Ids will fill this only

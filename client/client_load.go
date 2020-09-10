@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,45 +16,59 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-type Client struct {
+type ClientConnection struct {
 	BackendRootURL string
+	EnvId          m3util.QsmEnvID
 }
 
-func NewClient(config config.Config) *Client {
-	client := Client{
-		BackendRootURL: config.BackendRootURL,
+func NewClient(config config.Config, envId m3util.QsmEnvID) *ClientConnection {
+	result := new(ClientConnection)
+	result.BackendRootURL = config.BackendRootURL
+	result.EnvId = envId
+	result.validate()
+	return result
+}
+
+func (cl *ClientConnection) validate() {
+	if cl.EnvId < 1 {
+		Log.Fatalf("Invalid client env id " + cl.EnvId.String() + " for root URL: " + cl.BackendRootURL)
 	}
-
-	return &client
+	if len(cl.BackendRootURL) < 4 {
+		Log.Fatalf("Invalid client root URL: " + cl.BackendRootURL)
+	}
+	if !strings.HasSuffix(cl.BackendRootURL, "/") {
+		cl.BackendRootURL = cl.BackendRootURL + "/"
+	}
 }
 
-func (c *Client) ExecGetReq(envId m3util.QsmEnvID, uri string) io.ReadCloser {
+func (cl *ClientConnection) ExecGetReq(uri string) io.ReadCloser {
+	uri = strings.TrimPrefix(uri, "/")
 	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, c.BackendRootURL+uri, nil)
+	req, err := http.NewRequest(http.MethodGet, cl.BackendRootURL+uri, nil)
 	if err != nil {
-		m3point.Log.Errorf("Could not request for REST API end point %q due to: %s", c.BackendRootURL, err.Error())
+		m3point.Log.Errorf("Could not request for REST API end point %q due to: %s", cl.BackendRootURL, err.Error())
 		return nil
 	}
 	if req == nil {
-		m3point.Log.Errorf("Got a nil request for REST API end point %q", c.BackendRootURL)
+		m3point.Log.Errorf("Got a nil request for REST API end point %q", cl.BackendRootURL)
 		return nil
 	}
-	req.Header.Add(m3api.HttpEnvIdKey, envId.String())
+	req.Header.Add(m3api.HttpEnvIdKey, cl.EnvId.String())
 
 	resp, err := client.Do(req)
 	if err != nil {
-		m3point.Log.Errorf("Could not retrieve data from REST API end point %q due to: %s", c.BackendRootURL, err.Error())
+		m3point.Log.Errorf("Could not retrieve data from REST API end point %q due to: %s", cl.BackendRootURL, err.Error())
 		return nil
 	}
 	if resp == nil {
-		m3point.Log.Errorf("Got a nil response from REST API end point %q", c.BackendRootURL)
+		m3point.Log.Errorf("Got a nil response from REST API end point %q", cl.BackendRootURL)
 		return nil
 	}
 	return resp.Body
 }
 
-func (c *Client) CheckServerUp() bool {
-	body := c.ExecGetReq(m3util.NoEnv, "")
+func (cl *ClientConnection) CheckServerUp() bool {
+	body := cl.ExecGetReq("")
 	if body == nil {
 		return false
 	}
@@ -69,18 +84,18 @@ func (c *Client) CheckServerUp() bool {
 
 var doTestInit = true
 
-func (c *Client) GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
+func (cl *ClientConnection) GetFullApiTestEnv() m3util.QsmEnvironment {
 	if !m3util.TestMode {
 		m3point.Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
 	}
 
-	if !c.CheckServerUp() {
+	if !cl.CheckServerUp() {
 		Log.Fatalf("Test backend server down!")
 	}
 
 	if doTestInit {
 		// Equivalent of calling filldb job
-		body := c.ExecGetReq(envId, "/test-init")
+		body := cl.ExecGetReq("test-init")
 		defer m3util.CloseBody(body)
 		b, err := ioutil.ReadAll(body)
 		if err != nil {
@@ -88,7 +103,7 @@ func (c *Client) GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment 
 			return nil
 		}
 		response := string(b)
-		substr := fmt.Sprintf("env id %d was initialized", envId)
+		substr := fmt.Sprintf("env id %d was initialized", cl.EnvId)
 		if strings.Contains(response, substr) {
 			m3point.Log.Debugf("All good on home response %q", response)
 		} else {
@@ -97,23 +112,23 @@ func (c *Client) GetFullApiTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment 
 		}
 	}
 
-	env := GetEnvironment(envId)
-	c.InitializeEnv(env)
+	env := GetEnvironment(cl.EnvId)
+	cl.InitializeEnv(env)
 	return env
 }
 
-func (c *Client) InitializeEnv(env m3util.QsmEnvironment) {
-	var ppd *LoadedPointPackData
+func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
+	var ppd *ClientPointPackData
 	ppdIfc := env.GetData(m3util.PointIdx)
 	if ppdIfc != nil {
-		ppd = ppdIfc.(*LoadedPointPackData)
+		ppd = ppdIfc.(*ClientPointPackData)
 		if ppd.PathBuildersLoaded {
 			m3point.Log.Debugf("Env %d already loaded", env.GetId())
 			return
 		}
 	}
 	if ppdIfc == nil {
-		ppd = new(LoadedPointPackData)
+		ppd = new(ClientPointPackData)
 		ppd.EnvId = env.GetId()
 		env.SetData(m3util.PointIdx, ppd)
 	}
@@ -121,7 +136,7 @@ func (c *Client) InitializeEnv(env m3util.QsmEnvironment) {
 		m3point.Log.Fatalf("Something wrong above")
 		return
 	}
-	body := c.ExecGetReq(env.GetId(), "point-data")
+	body := cl.ExecGetReq("point-data")
 	defer m3util.CloseBody(body)
 	b, err := ioutil.ReadAll(body)
 	if err != nil {
@@ -229,7 +244,7 @@ func (c *Client) InitializeEnv(env m3util.QsmEnvironment) {
 	m3point.Log.Debugf("loaded %d path builders", len(ppd.PathBuilders))
 }
 
-func convertToInterPathBuilders(ppd *LoadedPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
+func convertToInterPathBuilders(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
 	res := [3]m3point.PathLinkBuilder{}
 	interNodeBuilders := pnd.GetInterNodeBuilders()
 	for idx, cd := range tr.Conns {
@@ -241,7 +256,7 @@ func convertToInterPathBuilders(ppd *LoadedPointPackData, growthCtxByCubeId map[
 	return res
 }
 
-func convertToInterPathBuilder(ppd *LoadedPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.IntermediatePathNodeBuilderMsg) *m3point.IntermediatePathNodeBuilder {
+func convertToInterPathBuilder(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.IntermediatePathNodeBuilderMsg) *m3point.IntermediatePathNodeBuilder {
 	cubeId := int(pnd.GetCubeId())
 	trIdx := m3point.TrioIndex(pnd.GetTrioId())
 	return &m3point.IntermediatePathNodeBuilder{
@@ -262,7 +277,7 @@ func convertToInterPathBuilder(ppd *LoadedPointPackData, growthCtxByCubeId map[i
 	}
 }
 
-func convertToLastPathBuilder(ppd *LoadedPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.LastPathNodeBuilderMsg) *m3point.LastPathNodeBuilder {
+func convertToLastPathBuilder(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.LastPathNodeBuilderMsg) *m3point.LastPathNodeBuilder {
 	cubeId := int(pnd.GetCubeId())
 	trIdx := m3point.TrioIndex(pnd.GetTrioId())
 	return &m3point.LastPathNodeBuilder{
@@ -294,4 +309,22 @@ func get12TrioIndex(s []int32) [12]m3point.TrioIndex {
 		res[idx] = m3point.TrioIndex(i)
 	}
 	return res
+}
+
+func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
+	uri := "create-path-ctx"
+	body := ppd.clConn.ExecGetReq(uri)
+	defer m3util.CloseBody(body)
+	b, err := ioutil.ReadAll(body)
+	if err != nil {
+		m3point.Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
+		return nil
+	}
+	pMsg := &m3api.PathContextMsg{}
+	err = proto.Unmarshal(b, pMsg)
+	if err != nil {
+		m3point.Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
+		return nil
+	}
+	return nil
 }

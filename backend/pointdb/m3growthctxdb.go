@@ -29,7 +29,7 @@ func createGrowthContextsTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func (ppd *PointPackData) loadGrowthContexts() []m3point.GrowthContext {
+func (ppd *ServerPointPackData) loadGrowthContexts() []m3point.GrowthContext {
 	env := ppd.Env
 
 	te, rows := env.SelectAllForLoad(GrowthContextsTable)
@@ -48,7 +48,7 @@ func (ppd *PointPackData) loadGrowthContexts() []m3point.GrowthContext {
 	return res
 }
 
-func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
+func (ppd *ServerPointPackData) saveAllGrowthContexts() (int, error) {
 	env := ppd.Env
 
 	te, inserted, toFill, err := env.GetForSaveAll(GrowthContextsTable)
@@ -72,7 +72,7 @@ func (ppd *PointPackData) saveAllGrowthContexts() (int, error) {
 	return inserted, nil
 }
 
-func (ppd *PointPackData) calculateAllGrowthContexts() []m3point.GrowthContext {
+func (ppd *ServerPointPackData) calculateAllGrowthContexts() []m3point.GrowthContext {
 	res := make([]m3point.GrowthContext, m3point.TotalNbContexts)
 	idx := 0
 	for _, ctxType := range m3point.GetAllContextTypes() {

@@ -33,7 +33,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	endInit := time.Now()
 	Log.Infof("Init DB took %v", endInit.Sub(start))
 
-	ppd, _ := pointdb.GetServerPointPackData(env)
+	ppd := pointdb.GetPointPackData(env)
 
 	growthCtx := ppd.GetGrowthContextById(40)
 	assert.NotNil(t, growthCtx)

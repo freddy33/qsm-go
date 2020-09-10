@@ -49,24 +49,25 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	m3point.Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	config := config.NewConfig()
-	client := client.NewClient(config)
+	clientConfig := config.NewConfig()
+	clientConnection := client.NewClient(clientConfig, m3util.PathTestEnv)
 
-	env := client.GetFullApiTestEnv(m3util.PathTestEnv)
-	ppd := m3path.GetPathPackData(env)
+	env := clientConnection.GetFullApiTestEnv()
+	pointData := clientConnection.GetClientPointPackData(env)
+	pathData := clientConnection.GetClientPathPackData(env)
 
-	allCtx := ppd.AllCenterContexts
 	for r := 0; r < N; r++ {
-		for _, ctx := range allCtx[pType] {
-			start := time.Now()
-			pathCtx := ppd.GetPathCtxFromAttributes(ctx.GetGrowthCtx(), ctx.GetGrowthOffset())
-			runPathContext(pathCtx, until)
-			t := time.Since(start)
-			LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
-			if single {
-				break
-			}
-		}
+		//		for _, ctx := range allCtx[pType] {
+		start := time.Now()
+		growthCtx := pointData.GetGrowthContextByTypeAndIndex(pType, 0)
+		pathCtx := pathData.CreatePathCtxFromAttributes(growthCtx, 0, m3point.Origin)
+		runPathContext(pathCtx, until)
+		t := time.Since(start)
+		LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
+		//			if single {
+		//				break
+		//			}
+		//		}
 	}
 }
 
@@ -102,4 +103,3 @@ func verifyDistance(pathCtx m3path.PathContext, d int) {
 		return false
 	}, 1)
 }
-

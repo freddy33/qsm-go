@@ -4,31 +4,27 @@ import (
 	"github.com/freddy33/qsm-go/m3util"
 )
 
-type PointData interface {
-	GetEnvId() m3util.QsmEnvID
-	GetMaxConnId() ConnectionId
-	GetConnDetailsById(id ConnectionId) *ConnectionDetails
-	GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails
-	GetGrowthContextById(id int) GrowthContext
-	GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext
-	GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder
-	GetPathNodeBuilderById(cubeId int) PathNodeBuilder
-	GetTrioDetails(trIdx TrioIndex) *TrioDetails
-	GetTrioTableCsv() [][]string
-	GetCubeById(cubeId int) CubeKeyId
-	GetCubeIdByKey(cubeKey CubeKeyId) int
-}
-
 type PointPackDataIfc interface {
 	m3util.QsmDataPack
 	GetConnDetailsByPoints(p1, p2 Point) *ConnectionDetails
+	GetConnDetailsByVector(vector Point) *ConnectionDetails
 	GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext
+	GetAllTrioDetails() []*TrioDetails
 	GetTrioDetails(trIdx TrioIndex) *TrioDetails
+	GetAllConnDetailsByVector() map[Point]*ConnectionDetails
 	GetConnDetailsById(id ConnectionId) *ConnectionDetails
 	GetPathNodeBuilder(growthCtx GrowthContext, offset int, c Point) PathNodeBuilder
 	GetValidNextTrio() [12][2]TrioIndex
 	GetAllMod4Permutations() [12][4]TrioIndex
 	GetAllMod8Permutations() [12][8]TrioIndex
+
+	GetNbPathBuilders() int
+	GetMaxConnId() ConnectionId
+	GetAllGrowthContexts() []GrowthContext
+	GetGrowthContextById(id int) GrowthContext
+	GetPathNodeBuilderById(cubeId int) PathNodeBuilder
+	GetCubeById(cubeId int) CubeKeyId
+	GetCubeIdByKey(cubeKey CubeKeyId) int
 }
 
 type BasePointPackData struct {
@@ -99,5 +95,10 @@ func (ppd *BasePointPackData) CheckPathBuildersInitialized() {
 	if !ppd.PathBuildersLoaded {
 		Log.Fatalf("Path Builders should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}
+}
+
+func (ppd *BasePointPackData) GetNbPathBuilders() int {
+	ppd.CheckPathBuildersInitialized()
+	return len(ppd.PathBuilders)
 }
 

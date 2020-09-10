@@ -42,13 +42,12 @@ func TestPosMod8(t *testing.T) {
 	assert.Equal(t, uint64(0), m3util.PosMod8(0))
 }
 
-func getPointTestData() *PointPackData {
+func getPointTestData() m3point.PointPackDataIfc {
 	m3util.SetToTestMode()
 
 	env := GetServerFullTestDb(m3util.PointTestEnv)
 	InitializePointDBEnv(env, false)
-	ppd, _ := GetServerPointPackData(env)
-	return ppd
+	return GetPointPackData(env)
 }
 
 func TestAllTrioDetails(t *testing.T) {
@@ -57,8 +56,9 @@ func TestAllTrioDetails(t *testing.T) {
 
 	ppd := getPointTestData()
 
-	assert.Equal(t, 200, len(ppd.AllTrioDetails))
-	for i, td := range ppd.AllTrioDetails {
+	allTrioDetails := ppd.GetAllTrioDetails()
+	assert.Equal(t, 200, len(allTrioDetails))
+	for i, td := range allTrioDetails {
 		// All vec should have conn details
 		cds := td.GetConnections()
 		// Conn ID increase always
@@ -79,9 +79,9 @@ func TestAllTrioDetails(t *testing.T) {
 	}
 
 	// Check that All trio is ordered correctly
-	for i, tr := range ppd.AllTrioDetails {
+	for i, tr := range allTrioDetails {
 		if i > 0 {
-			assert.True(t, ppd.AllTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, ppd.AllTrioDetails[i-1], i, tr)
+			assert.True(t, allTrioDetails[i-1].GetDSIndex() <= tr.GetDSIndex(), "Wrong order for trios %d = %v and %d = %v", i-1, allTrioDetails[i-1], i, tr)
 		}
 	}
 }
@@ -94,8 +94,9 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	// array of vec DS are in the possible list only: [2,2,2] [1,2,3], [2,3,3], [2,5,5]
 	PossibleDSArray := [m3point.NbTrioDsIndex][3]m3point.DInt{{2, 2, 2}, {1, 1, 2}, {1, 2, 3}, {1, 2, 5}, {2, 3, 3}, {2, 3, 5}, {2, 5, 5}}
 
-	indexInPossDS := make([]int, len(ppd.AllTrioDetails))
-	for i, td := range ppd.AllTrioDetails {
+	allTrioDetails := ppd.GetAllTrioDetails()
+	indexInPossDS := make([]int, len(allTrioDetails))
+	for i, td := range allTrioDetails {
 		cds := td.Conns
 		dsArray := [3]m3point.DInt{cds[0].ConnDS, cds[1].ConnDS, cds[2].ConnDS}
 		found := false
@@ -112,9 +113,9 @@ func TestTrioDetailsPerDSIndex(t *testing.T) {
 	// Check that All trio is ordered correctly
 	countPerIndex := [m3point.NbTrioDsIndex]int{}
 	countPerIndexPerFirstConnPosId := [m3point.NbTrioDsIndex][10]int{}
-	for i, td := range ppd.AllTrioDetails {
+	for i, td := range allTrioDetails {
 		if i > 0 {
-			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, ppd.AllTrioDetails[i-1], i, td)
+			assert.True(t, indexInPossDS[i-1] <= indexInPossDS[i], "Wrong order for trios %d = %v and %d = %v", i-1, allTrioDetails[i-1], i, td)
 		}
 		dsIndex := td.GetDSIndex()
 		countPerIndex[dsIndex]++

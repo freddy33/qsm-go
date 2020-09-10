@@ -80,7 +80,7 @@ func TestSpaceAllPyramids(t *testing.T) {
 	m3space.LogRun.SetWarn()
 
 	env := getSpaceTestEnv()
-	ppd, _ := pointdb.GetServerPointPackData(env)
+	ppd := pointdb.GetPointPackData(env)
 
 	ctxs := [4]m3point.GrowthType{8, 8, 8, 8}
 
@@ -125,7 +125,7 @@ func TestSpaceRunPySize4(t *testing.T) {
 	m3space.LogStat.SetInfo()
 
 	env := getSpaceTestEnv()
-	ppd, _ := pointdb.GetServerPointPackData(env)
+	ppd := pointdb.GetPointPackData(env)
 	growthTypes := [4]m3point.GrowthType{2, 2, 2, 2}
 	indexes := [4]int{0, 0, 0, 0}
 	offsets := [4]int{0, 0, 0, 3}
@@ -164,7 +164,7 @@ func TestSpaceRunPySize2(t *testing.T) {
 
 func runSpaceTest(pSize m3point.CInt) {
 	env := getSpaceTestEnv()
-	ppd, _ := pointdb.GetServerPointPackData(env)
+	ppd := pointdb.GetPointPackData(env)
 	growthTypes := [4]m3point.GrowthType{8, 8, 8, 8}
 	indexes := [4]int{0, 4, 8, 10}
 	offsets := [4]int{0, 0, 0, 4}

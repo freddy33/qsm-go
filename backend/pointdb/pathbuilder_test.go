@@ -13,9 +13,9 @@ func TestAllPathBuilders(t *testing.T) {
 	m3util.SetToTestMode()
 
 	env := GetServerFullTestDb(m3util.PointTestEnv)
-	ppd, _ := GetServerPointPackData(env)
+	ppd := GetPointPackData(env)
 
-	assert.Equal(t, m3point.TotalNumberOfCubes+1, len(ppd.PathBuilders))
+	assert.Equal(t, m3point.TotalNumberOfCubes+1, ppd.GetNbPathBuilders())
 	for _, ctxType := range m3point.GetAllContextTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
