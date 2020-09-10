@@ -26,6 +26,7 @@ type PathContextDb struct {
 
 func (ppd *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
 	pathContext := MakePathContextDBFromGrowthContext(ppd.Env, growthCtx, offset)
+	// TODO: Make the init root node here!
 	if center == m3point.Origin {
 		ppd.addCenterPathContext(pathContext)
 	}

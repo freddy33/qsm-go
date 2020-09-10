@@ -25,7 +25,7 @@ func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	for idx, conn := range ppd.AllConnections {
 		msg.AllConnections[idx] = &m3api.ConnectionMsg{
 			ConnId: int32(conn.GetId()),
-			Vector: &m3api.PointMsg{X: int32(conn.Vector.X()), Y: int32(conn.Vector.Y()), Z: int32(conn.Vector.Z())},
+			Vector: m3api.PointToPointMsg(conn.Vector),
 			Ds:     int64(conn.ConnDS),
 		}
 	}

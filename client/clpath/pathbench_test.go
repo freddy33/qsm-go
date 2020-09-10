@@ -12,6 +12,8 @@ import (
 )
 
 var LogDataTest = m3util.NewDataLogger("DATA", m3util.DEBUG)
+var Log = m3util.NewLogger("clpath", m3util.INFO)
+
 
 const (
 	BenchNbRound = 51
@@ -45,8 +47,8 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	LogDataTest.SetInfo()
 	client.Log.SetWarn()
 	client.Log.SetAssert(true)
-	m3point.Log.SetWarn()
-	m3point.Log.SetAssert(true)
+	Log.SetWarn()
+	Log.SetAssert(true)
 	m3util.SetToTestMode()
 
 	clientConfig := config.NewConfig()

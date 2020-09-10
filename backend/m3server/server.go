@@ -20,8 +20,8 @@ type QsmApp struct {
 	Env            *m3db.QsmDbEnvironment
 }
 
-func (app *QsmApp) AddHandler(path string, handleFunc func(http.ResponseWriter, *http.Request)) {
-	app.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+func (app *QsmApp) AddHandler(path string, handleFunc func(http.ResponseWriter, *http.Request)) *mux.Route {
+	return app.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		envId := app.Env.GetId()
 		fromHeader := r.Header.Get(m3api.HttpEnvIdKey)
 		if fromHeader == "" {
@@ -52,7 +52,7 @@ func SendResponse(w http.ResponseWriter, status int, format string, args ...inte
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	SendResponse(w, http.StatusOK, "REST APIs at /point-data\nUsing env id=%d\n", r.Context().Value(m3api.HttpEnvIdKey))
+	SendResponse(w, http.StatusOK, "Using env id=%d\nMethod=%s\n", r.Context().Value(m3api.HttpEnvIdKey), r.Method)
 }
 
 func drop(w http.ResponseWriter, r *http.Request) {
@@ -79,9 +79,10 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	r := mux.NewRouter()
 	app := &QsmApp{Router: r, Env: env}
 	app.AddHandler("/", home)
-	app.AddHandler("/point-data", retrievePointData)
-	app.AddHandler("/test-init", initialize)
-	app.AddHandler("/test-drop", drop)
+	app.AddHandler("/point-data", retrievePointData).Methods("GET")
+	app.AddHandler("/test-init", initialize).Methods("POST")
+	app.AddHandler("/test-drop", drop).Methods("DELETE")
+	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
 
 	return app
 }

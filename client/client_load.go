@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"io"
@@ -41,34 +42,53 @@ func (cl *ClientConnection) validate() {
 	}
 }
 
-func (cl *ClientConnection) ExecGetReq(uri string) io.ReadCloser {
+func (cl *ClientConnection) ExecReq(method string, uri string, m proto.Message) io.ReadCloser {
 	uri = strings.TrimPrefix(uri, "/")
 	client := http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, cl.BackendRootURL+uri, nil)
+	var body io.Reader
+	if m != nil {
+		b, err := proto.Marshal(m)
+		if err != nil {
+			Log.Errorf("Failed marshalling message in %s:%s for REST API end point %q due to: %s",
+				method, uri,
+				cl.BackendRootURL, err.Error())
+			return nil
+		}
+		body = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(method, cl.BackendRootURL+uri, body)
 	if err != nil {
-		m3point.Log.Errorf("Could not request for REST API end point %q due to: %s", cl.BackendRootURL, err.Error())
+		Log.Errorf("Could not request %s:%s for REST API end point %q due to: %s",
+			method, uri,
+			cl.BackendRootURL, err.Error())
 		return nil
 	}
 	if req == nil {
-		m3point.Log.Errorf("Got a nil request for REST API end point %q", cl.BackendRootURL)
+		Log.Errorf("Got a nil request %s:%s for REST API end point %q",
+			method, uri,
+			cl.BackendRootURL)
 		return nil
 	}
 	req.Header.Add(m3api.HttpEnvIdKey, cl.EnvId.String())
 
 	resp, err := client.Do(req)
 	if err != nil {
-		m3point.Log.Errorf("Could not retrieve data from REST API end point %q due to: %s", cl.BackendRootURL, err.Error())
+		Log.Errorf("Could not retrieve data from REST API %s:%s end point %q due to: %s",
+			method, uri,
+			cl.BackendRootURL, err.Error())
 		return nil
 	}
 	if resp == nil {
-		m3point.Log.Errorf("Got a nil response from REST API end point %q", cl.BackendRootURL)
+		Log.Errorf("Got a nil response from REST API %s:%s end point %q",
+			method, uri,
+			cl.BackendRootURL)
 		return nil
 	}
 	return resp.Body
 }
 
 func (cl *ClientConnection) CheckServerUp() bool {
-	body := cl.ExecGetReq("")
+	body := cl.ExecReq(http.MethodGet, "", nil)
 	if body == nil {
 		return false
 	}
@@ -78,7 +98,7 @@ func (cl *ClientConnection) CheckServerUp() bool {
 		return true
 	}
 	response := string(bytes)
-	m3point.Log.Debugf("All good on home response %q", response)
+	Log.Debugf("All good on home response %q", response)
 	return true
 }
 
@@ -86,7 +106,7 @@ var doTestInit = true
 
 func (cl *ClientConnection) GetFullApiTestEnv() m3util.QsmEnvironment {
 	if !m3util.TestMode {
-		m3point.Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
+		Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
 	}
 
 	if !cl.CheckServerUp() {
@@ -95,19 +115,19 @@ func (cl *ClientConnection) GetFullApiTestEnv() m3util.QsmEnvironment {
 
 	if doTestInit {
 		// Equivalent of calling filldb job
-		body := cl.ExecGetReq("test-init")
+		body := cl.ExecReq(http.MethodPost, "test-init", nil)
 		defer m3util.CloseBody(body)
 		b, err := ioutil.ReadAll(body)
 		if err != nil {
-			m3point.Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
+			Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
 			return nil
 		}
 		response := string(b)
 		substr := fmt.Sprintf("env id %d was initialized", cl.EnvId)
 		if strings.Contains(response, substr) {
-			m3point.Log.Debugf("All good on home response %q", response)
+			Log.Debugf("All good on home response %q", response)
 		} else {
-			m3point.Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
+			Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
 			return nil
 		}
 	}
@@ -123,7 +143,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 	if ppdIfc != nil {
 		ppd = ppdIfc.(*ClientPointPackData)
 		if ppd.PathBuildersLoaded {
-			m3point.Log.Debugf("Env %d already loaded", env.GetId())
+			Log.Debugf("Env %d already loaded", env.GetId())
 			return
 		}
 	}
@@ -133,20 +153,20 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 		env.SetData(m3util.PointIdx, ppd)
 	}
 	if ppd == nil {
-		m3point.Log.Fatalf("Something wrong above")
+		Log.Fatalf("Something wrong above")
 		return
 	}
-	body := cl.ExecGetReq("point-data")
+	body := cl.ExecReq(http.MethodGet, "point-data", nil)
 	defer m3util.CloseBody(body)
 	b, err := ioutil.ReadAll(body)
 	if err != nil {
-		m3point.Log.Fatalf("Could not read body from REST API end point %q due to %s", "point-data", err.Error())
+		Log.Fatalf("Could not read body from REST API end point %q due to %s", "point-data", err.Error())
 		return
 	}
 	pMsg := &m3api.PointPackDataMsg{}
 	err = proto.Unmarshal(b, pMsg)
 	if err != nil {
-		m3point.Log.Fatalf("Could not marshall body from REST API end point %q due to %s", "point-data", err.Error())
+		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", "point-data", err.Error())
 		return
 	}
 
@@ -164,7 +184,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 		ppd.AllConnectionsByVector[point] = cd
 	}
 	ppd.ConnectionsLoaded = true
-	m3point.Log.Debugf("loaded %d connections", len(ppd.AllConnections))
+	Log.Debugf("loaded %d connections", len(ppd.AllConnections))
 
 	ppd.AllTrioDetails = make([]*m3point.TrioDetails, len(pMsg.AllTrios))
 	for idx, tr := range pMsg.AllTrios {
@@ -176,7 +196,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 		}
 	}
 	ppd.TrioDetailsLoaded = true
-	m3point.Log.Debugf("loaded %d trios", len(ppd.AllTrioDetails))
+	Log.Debugf("loaded %d trios", len(ppd.AllTrioDetails))
 
 	for i := 0; i < 12; i++ {
 		ppd.ValidNextTrio[i][0] = m3point.TrioIndex(pMsg.ValidNextTrioIds[i*2])
@@ -188,7 +208,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 			ppd.AllMod8Permutations[i][k] = m3point.TrioIndex(pMsg.Mod8PermutationsTrioIds[i*8+k])
 		}
 	}
-	m3point.Log.Debugf("loaded all valid next and permutation trios")
+	Log.Debugf("loaded all valid next and permutation trios")
 
 	ppd.AllGrowthContexts = make([]m3point.GrowthContext, len(pMsg.AllGrowthContexts))
 	for idx, gc := range pMsg.AllGrowthContexts {
@@ -200,7 +220,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 		}
 	}
 	ppd.GrowthContextsLoaded = true
-	m3point.Log.Debugf("loaded %d growth context", len(ppd.AllGrowthContexts))
+	Log.Debugf("loaded %d growth context", len(ppd.AllGrowthContexts))
 
 	ppd.CubeIdsPerKey = make(map[m3point.CubeKeyId]int, len(pMsg.AllCubes))
 	growthCtxByCubeId := make(map[int]int, len(pMsg.AllCubes))
@@ -221,7 +241,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 		}
 	}
 	ppd.CubesLoaded = true
-	m3point.Log.Debugf("loaded %d cubes", len(ppd.CubeIdsPerKey))
+	Log.Debugf("loaded %d cubes", len(ppd.CubeIdsPerKey))
 
 	ppd.PathBuilders = make([]*m3point.RootPathNodeBuilder, len(pMsg.AllPathNodeBuilders))
 	for idx, pnd := range pMsg.AllPathNodeBuilders {
@@ -241,7 +261,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 		}
 	}
 	ppd.PathBuildersLoaded = true
-	m3point.Log.Debugf("loaded %d path builders", len(ppd.PathBuilders))
+	Log.Debugf("loaded %d path builders", len(ppd.PathBuilders))
 }
 
 func convertToInterPathBuilders(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
@@ -292,7 +312,7 @@ func convertToLastPathBuilder(ppd *ClientPointPackData, growthCtxByCubeId map[in
 
 func get6TrioIndex(s []int32) [6]m3point.TrioIndex {
 	if len(s) != 6 {
-		m3point.Log.Fatalf("cannot convert slice of size %d to 6", len(s))
+		Log.Fatalf("cannot convert slice of size %d to 6", len(s))
 	}
 	res := [6]m3point.TrioIndex{}
 	for idx, i := range s {
@@ -302,7 +322,7 @@ func get6TrioIndex(s []int32) [6]m3point.TrioIndex {
 }
 func get12TrioIndex(s []int32) [12]m3point.TrioIndex {
 	if len(s) != 12 {
-		m3point.Log.Fatalf("cannot convert slice of size %d to 12", len(s))
+		Log.Fatalf("cannot convert slice of size %d to 12", len(s))
 	}
 	res := [12]m3point.TrioIndex{}
 	for idx, i := range s {
@@ -313,17 +333,22 @@ func get12TrioIndex(s []int32) [12]m3point.TrioIndex {
 
 func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
 	uri := "create-path-ctx"
-	body := ppd.clConn.ExecGetReq(uri)
+	reqMsg := &m3api.PathContextMsg{
+		GrowthContextId: int32(growthCtx.GetId()),
+		GrowthOffset:    int32(offset),
+		Center:          m3api.PointToPointMsg(center),
+	}
+	body := ppd.clConn.ExecReq(http.MethodPut, uri, reqMsg)
 	defer m3util.CloseBody(body)
 	b, err := ioutil.ReadAll(body)
 	if err != nil {
-		m3point.Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
+		Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
 		return nil
 	}
 	pMsg := &m3api.PathContextMsg{}
 	err = proto.Unmarshal(b, pMsg)
 	if err != nil {
-		m3point.Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
+		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
 		return nil
 	}
 	return nil

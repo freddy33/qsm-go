@@ -2,7 +2,7 @@ package client
 
 import "github.com/freddy33/qsm-go/m3util"
 
-var Log = m3util.NewLogger("m3api", m3util.INFO)
+var Log = m3util.NewLogger("client", m3util.INFO)
 
 type QsmApiEnvironment struct {
 	m3util.BaseQsmEnvironment

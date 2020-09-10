@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var Log = m3util.NewLogger("clpoint", m3util.INFO)
+
 func TestDisplayPathBuilders(t *testing.T) {
-	m3point.Log.SetAssert(true)
+	Log.SetAssert(true)
 	m3util.SetToTestMode()
 
 	clientConfig := config.NewConfig()
@@ -25,5 +27,5 @@ func TestDisplayPathBuilders(t *testing.T) {
 	assert.NotNil(t, pnb, "did not find builder for %s", growthCtx.String())
 	rpnb, tok := pnb.(*m3point.RootPathNodeBuilder)
 	assert.True(t, tok, "%s is not a root builder", pnb.String())
-	m3point.Log.Debug(rpnb.DumpInfo())
+	Log.Debug(rpnb.DumpInfo())
 }
