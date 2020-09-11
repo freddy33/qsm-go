@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/freddy33/qsm-go/client"
-	"github.com/freddy33/qsm-go/client/config"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
@@ -16,11 +15,8 @@ func TestDisplayPathBuilders(t *testing.T) {
 	Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	clientConfig := config.NewConfig()
-	cl := client.NewClient(clientConfig, m3util.PointTestEnv)
-
-	env := cl.GetFullApiTestEnv()
-	ppd := cl.GetClientPointPackData(env)
+	env := client.GetFullApiTestEnv(m3util.PointTestEnv)
+	ppd := client.GetClientPointPackData(env)
 	assert.Equal(t, m3point.TotalNumberOfCubes+1, len(ppd.PathBuilders))
 	growthCtx := ppd.GetGrowthContextByTypeAndIndex(m3point.GrowthType(8), 0)
 	pnb := ppd.GetPathNodeBuilder(growthCtx, 0, m3point.Origin)

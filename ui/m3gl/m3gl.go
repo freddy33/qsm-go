@@ -93,7 +93,7 @@ func (world *DisplayWorld) initialized(space *m3space.Space, glfwTime float64) {
 	world.Max = 0
 	world.WorldSpace = space
 	clientConfig := config.NewConfig()
-	world.clientConn = client.NewClient(clientConfig, space.GetEnv().GetId())
+	world.clientConn = client.newClientConnection(clientConfig, space.GetEnv().GetId())
 	world.Filter = SpaceDrawingFilter{false, false, uint8(0xFF), 0, space}
 	world.Elements = make([]SpaceDrawingElement, 0, 500)
 	world.NbVertices = 0

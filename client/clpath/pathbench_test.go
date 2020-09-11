@@ -2,7 +2,6 @@ package clpath
 
 import (
 	"github.com/freddy33/qsm-go/client"
-	"github.com/freddy33/qsm-go/client/config"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
@@ -51,12 +50,9 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	clientConfig := config.NewConfig()
-	clientConnection := client.NewClient(clientConfig, m3util.PathTestEnv)
-
-	env := clientConnection.GetFullApiTestEnv()
-	pointData := clientConnection.GetClientPointPackData(env)
-	pathData := clientConnection.GetClientPathPackData(env)
+	env := client.GetFullApiTestEnv(m3util.PathTestEnv)
+	pointData := client.GetClientPointPackData(env)
+	pathData := client.GetClientPathPackData(env)
 
 	for r := 0; r < N; r++ {
 		//		for _, ctx := range allCtx[pType] {

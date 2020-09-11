@@ -16,8 +16,7 @@ message PathNodeMsg {
     int32 path_ctx_id = 2;
     PointMsg point = 3;
     int64 d = 4;
-    int32 path_builder_id = 5;
-    int32 trio_id = 6;
-    uint32 connection_mask = 7;
-    repeated int64 linked_path_node_ids = 8;
+    int32 trio_id = 5;
+    uint32 connection_mask = 6;
+    repeated int64 linked_path_node_ids = 7;
 }

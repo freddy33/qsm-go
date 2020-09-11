@@ -14,18 +14,18 @@ func TestPathNodeDbConnMask(t *testing.T) {
 
 	pn := getNewPathNodeDb()
 	assert.Equal(t, NewPathNode, pn.state)
-	assert.Equal(t, uint16(ConnectionNotSet), pn.connectionMask)
+	assert.Equal(t, uint16(m3path.ConnectionNotSet), pn.connectionMask)
 
 	assert.True(t, pn.IsNew())
 	assert.False(t, pn.IsInPool())
 	for i := 0; i < m3path.NbConnections; i++ {
-		assert.Equal(t, ConnectionNotSet, pn.getConnectionState(i))
+		assert.Equal(t, m3path.ConnectionNotSet, pn.getConnectionState(i))
 	}
 
-	pn.setConnectionState(1, ConnectionFrom)
-	assert.Equal(t, ConnectionNotSet, pn.getConnectionState(0))
-	assert.Equal(t, ConnectionFrom, pn.getConnectionState(1))
-	assert.Equal(t, ConnectionNotSet, pn.getConnectionState(2))
+	pn.setConnectionState(1, m3path.ConnectionFrom)
+	assert.Equal(t, m3path.ConnectionNotSet, pn.getConnectionState(0))
+	assert.Equal(t, m3path.ConnectionFrom, pn.getConnectionState(1))
+	assert.Equal(t, m3path.ConnectionNotSet, pn.getConnectionState(2))
 
 	pn.release()
 	assert.False(t, pn.IsNew())

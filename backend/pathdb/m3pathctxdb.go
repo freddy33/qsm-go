@@ -208,7 +208,7 @@ func (pathCtx *PathContextDb) createConnection(currentD int, fromNode *PathNodeD
 		fromNode.setDeadEnd(connIdx)
 	} else {
 		// Link the destination node to this link
-		fromNode.setConnectionState(connIdx, ConnectionNext)
+		fromNode.setConnectionState(connIdx, m3path.ConnectionNext)
 		if nextPathNode.id <= 0 {
 			fromNode.linkNodeIds[connIdx] = NextLinkIdNotAssigned
 		} else {
@@ -224,13 +224,13 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 	pnb := on.PathBuilder()
 	for i := 0; i < m3path.NbConnections; i++ {
 		switch on.getConnectionState(i) {
-		case ConnectionNext:
+		case m3path.ConnectionNext:
 			Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)
-		case ConnectionFrom:
+		case m3path.ConnectionFrom:
 			nbFrom++
-		case ConnectionBlocked:
+		case m3path.ConnectionBlocked:
 			nbBlocked++
-		case ConnectionNotSet:
+		case m3path.ConnectionNotSet:
 			cd := td.GetConnections()[i]
 			center := pathCtx.rootNode.P()
 			npnb, np := pnb.GetNextPathNodeBuilder(on.P().Sub(center), cd.GetId(), pathCtx.GetGrowthOffset())

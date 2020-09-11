@@ -3,44 +3,17 @@ package client
 import (
 	"bytes"
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
+	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/freddy33/qsm-go/client/config"
-	"github.com/freddy33/qsm-go/m3util"
-	"github.com/freddy33/qsm-go/model/m3api"
-	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/golang/protobuf/proto"
 )
-
-type ClientConnection struct {
-	BackendRootURL string
-	EnvId          m3util.QsmEnvID
-}
-
-func NewClient(config config.Config, envId m3util.QsmEnvID) *ClientConnection {
-	result := new(ClientConnection)
-	result.BackendRootURL = config.BackendRootURL
-	result.EnvId = envId
-	result.validate()
-	return result
-}
-
-func (cl *ClientConnection) validate() {
-	if cl.EnvId < 1 {
-		Log.Fatalf("Invalid client env id " + cl.EnvId.String() + " for root URL: " + cl.BackendRootURL)
-	}
-	if len(cl.BackendRootURL) < 4 {
-		Log.Fatalf("Invalid client root URL: " + cl.BackendRootURL)
-	}
-	if !strings.HasSuffix(cl.BackendRootURL, "/") {
-		cl.BackendRootURL = cl.BackendRootURL + "/"
-	}
-}
 
 func (cl *ClientConnection) ExecReq(method string, uri string, m proto.Message) io.ReadCloser {
 	uri = strings.TrimPrefix(uri, "/")
@@ -93,51 +66,49 @@ func (cl *ClientConnection) CheckServerUp() bool {
 		return false
 	}
 	defer m3util.CloseBody(body)
-	bytes, err := ioutil.ReadAll(body)
+	b, err := ioutil.ReadAll(body)
 	if err != nil {
 		return true
 	}
-	response := string(bytes)
+	response := string(b)
 	Log.Debugf("All good on home response %q", response)
 	return true
 }
 
-var doTestInit = true
-
-func (cl *ClientConnection) GetFullApiTestEnv() m3util.QsmEnvironment {
+func GetFullApiTestEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
 	if !m3util.TestMode {
 		Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
 	}
+
+	env := GetEnvironment(envId)
+	cl := env.clConn
 
 	if !cl.CheckServerUp() {
 		Log.Fatalf("Test backend server down!")
 	}
 
-	if doTestInit {
-		// Equivalent of calling filldb job
-		body := cl.ExecReq(http.MethodPost, "test-init", nil)
-		defer m3util.CloseBody(body)
-		b, err := ioutil.ReadAll(body)
-		if err != nil {
-			Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
-			return nil
-		}
-		response := string(b)
-		substr := fmt.Sprintf("env id %d was initialized", cl.EnvId)
-		if strings.Contains(response, substr) {
-			Log.Debugf("All good on home response %q", response)
-		} else {
-			Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
-			return nil
-		}
+	// Equivalent of calling filldb job
+	body := cl.ExecReq(http.MethodPost, "test-init", nil)
+	defer m3util.CloseBody(body)
+	b, err := ioutil.ReadAll(body)
+	if err != nil {
+		Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
+		return nil
+	}
+	response := string(b)
+	substr := fmt.Sprintf("env id %d was initialized", cl.EnvId)
+	if strings.Contains(response, substr) {
+		Log.Debugf("All good on home response %q", response)
+	} else {
+		Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
+		return nil
 	}
 
-	env := GetEnvironment(cl.EnvId)
-	cl.InitializeEnv(env)
+	env.initialize()
 	return env
 }
 
-func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
+func (env *QsmApiEnvironment) initialize() {
 	var ppd *ClientPointPackData
 	ppdIfc := env.GetData(m3util.PointIdx)
 	if ppdIfc != nil {
@@ -156,7 +127,7 @@ func (cl *ClientConnection) InitializeEnv(env m3util.QsmEnvironment) {
 		Log.Fatalf("Something wrong above")
 		return
 	}
-	body := cl.ExecReq(http.MethodGet, "point-data", nil)
+	body := env.clConn.ExecReq(http.MethodGet, "point-data", nil)
 	defer m3util.CloseBody(body)
 	b, err := ioutil.ReadAll(body)
 	if err != nil {
@@ -338,7 +309,7 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 		GrowthOffset:    int32(offset),
 		Center:          m3api.PointToPointMsg(center),
 	}
-	body := ppd.clConn.ExecReq(http.MethodPut, uri, reqMsg)
+	body := ppd.env.clConn.ExecReq(http.MethodPut, uri, reqMsg)
 	defer m3util.CloseBody(body)
 	b, err := ioutil.ReadAll(body)
 	if err != nil {
@@ -351,5 +322,15 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
 		return nil
 	}
-	return nil
+	pathCtx := new(PathContextCl)
+	pathCtx.id = int(pMsg.GetPathCtxId())
+	pathCtx.env = ppd.env
+	pointData := GetClientPointPackData(ppd.env)
+	pathCtx.pointData = pointData
+	pathCtx.growthCtx = pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId()))
+	pathCtx.growthOffset = int(pMsg.GetGrowthOffset())
+	pathCtx.rootNode = nil
+	return pathCtx
 }
+
+
