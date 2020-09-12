@@ -107,3 +107,26 @@ func (hnm *PointHashPathNodeMap) Range(f func(point m3point.Point, pn PathNode) 
 		return f(point, value.(PathNode))
 	}, nbProc)
 }
+
+func CalculatePredictedSize(d int, currentLen int) int {
+	if d == 0 {
+		return 3
+	}
+	if d == 1 {
+		return 6
+	}
+	// from sphere area growth of d to d+1 the ratio should be 1 + 2/d + 1/d^2
+	origLen := float64(currentLen)
+	df := float64(d)
+	predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
+	if d <= 16 {
+		predictedRatio = predictedRatio * 1.11
+	} else if d <= 32 {
+		predictedRatio = predictedRatio * 1.04
+	} else {
+		predictedRatio = predictedRatio * 1.02
+	}
+	predictedLen := origLen * predictedRatio
+	return int(predictedLen)
+}
+

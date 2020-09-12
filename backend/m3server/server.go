@@ -83,6 +83,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/test-init", initialize).Methods("POST")
 	app.AddHandler("/test-drop", drop).Methods("DELETE")
 	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
+	app.AddHandler("/init-root-node", initRootNode).Methods("PUT")
 
 	return app
 }

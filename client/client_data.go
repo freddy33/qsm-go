@@ -3,13 +3,16 @@ package client
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/golang/protobuf/proto"
+	"io/ioutil"
 )
 
 type ClientPointPackData struct {
 	m3point.BasePointPackData
-	env *QsmApiEnvironment
+	env                 *QsmApiEnvironment
 	ValidNextTrio       [12][2]m3point.TrioIndex
 	AllMod4Permutations [12][4]m3point.TrioIndex
 	AllMod8Permutations [12][8]m3point.TrioIndex
@@ -29,6 +32,10 @@ type PathContextCl struct {
 	growthOffset int
 
 	rootNode *PathNodeCl
+	pathNodeMap m3path.PathNodeMap
+	pathNodes map[int64]*PathNodeCl
+
+	latestD int
 }
 
 type PathNodeCl struct {
@@ -38,7 +45,7 @@ type PathNodeCl struct {
 	point          m3point.Point
 	trioDetails    *m3point.TrioDetails
 	connectionMask uint16
-	linkNodes      [m3path.NbConnections]*PathNodeCl
+	linkNodes      [m3path.NbConnections]int64
 }
 
 /***************************************************************/
@@ -120,16 +127,47 @@ func (pathCtx *PathContextCl) GetGrowthIndex() int {
 }
 
 func (pathCtx *PathContextCl) GetPathNodeMap() m3path.PathNodeMap {
-	Log.Fatalf("in NEW path context %s never call GetPathNodeMap", pathCtx.String())
-	return nil
+	return pathCtx.pathNodeMap
 }
 
 func (pathCtx *PathContextCl) CountAllPathNodes() int {
-	panic("implement me")
+	return len(pathCtx.pathNodes)
 }
 
 func (pathCtx *PathContextCl) InitRootNode(center m3point.Point) {
-	panic("implement me")
+	uri := "init-root-node"
+	reqMsg := &m3api.PathContextMsg{
+		PathCtxId:       int32(pathCtx.GetId()),
+		GrowthContextId: int32(pathCtx.GetGrowthCtx().GetId()),
+		GrowthOffset:    int32(pathCtx.GetGrowthOffset()),
+		Center:          m3api.PointToPointMsg(center),
+	}
+	body := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg)
+	defer m3util.CloseBody(body)
+	b, err := ioutil.ReadAll(body)
+	if err != nil {
+		Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
+		return
+	}
+	pMsg := new(m3api.PathNodeMsg)
+	err = proto.Unmarshal(b, pMsg)
+	if err != nil {
+		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
+		return
+	}
+	pn := new(PathNodeCl)
+	pn.id = pMsg.GetPathNodeId()
+	pn.pathCtx = pathCtx
+	pn.d = int(pMsg.D)
+	pn.point = m3api.PointMsgToPoint(pMsg.GetPoint())
+	pn.trioDetails = pathCtx.pointData.GetTrioDetails(m3point.TrioIndex(pMsg.GetTrioId()))
+	pn.connectionMask = uint16(pMsg.GetConnectionMask())
+	for i, lnId := range pMsg.GetLinkedPathNodeIds() {
+		pn.linkNodes[i] = lnId
+	}
+	pathCtx.rootNode = pn
+	pathCtx.pathNodeMap.AddPathNode(pn)
+	pathCtx.pathNodes[pn.id] = pn
 }
 
 func (pathCtx *PathContextCl) GetRootPathNode() m3path.PathNode {
@@ -137,11 +175,17 @@ func (pathCtx *PathContextCl) GetRootPathNode() m3path.PathNode {
 }
 
 func (pathCtx *PathContextCl) GetNumberOfOpenNodes() int {
-	panic("implement me")
+	return len(pathCtx.GetAllOpenPathNodes())
 }
 
 func (pathCtx *PathContextCl) GetAllOpenPathNodes() []m3path.PathNode {
-	panic("implement me")
+	res := make([]m3path.PathNode, 0, 100)
+	for _, pn := range pathCtx.pathNodes {
+		if pn.IsLatest() {
+			res = append(res, pn)
+		}
+	}
+	return res
 }
 
 func (pathCtx *PathContextCl) MoveToNextNodes() {
@@ -149,11 +193,11 @@ func (pathCtx *PathContextCl) MoveToNextNodes() {
 }
 
 func (pathCtx *PathContextCl) PredictedNextOpenNodesLen() int {
-	panic("implement me")
+	return m3path.CalculatePredictedSize(pathCtx.latestD, pathCtx.GetNumberOfOpenNodes())
 }
 
 func (pathCtx *PathContextCl) DumpInfo() string {
-	panic("implement me")
+	return pathCtx.String()
 }
 
 /***************************************************************/
@@ -161,53 +205,62 @@ func (pathCtx *PathContextCl) DumpInfo() string {
 /***************************************************************/
 
 func (pn *PathNodeCl) String() string {
-	panic("implement me")
+	return fmt.Sprintf("PNCL%d-%d-%d-%d-%v", pn.id, pn.pathCtx.id, pn.d, pn.trioDetails.GetId(), pn.point)
 }
 
 func (pn *PathNodeCl) GetId() int64 {
-	panic("implement me")
+	return pn.id
 }
 
 func (pn *PathNodeCl) GetPathContext() m3path.PathContext {
-	panic("implement me")
+	return pn.pathCtx
 }
 
 func (pn *PathNodeCl) IsRoot() bool {
-	panic("implement me")
+	return pn.d == 0
 }
 
 func (pn *PathNodeCl) IsLatest() bool {
-	panic("implement me")
+	return pn.pathCtx.latestD == pn.d
 }
 
 func (pn *PathNodeCl) P() m3point.Point {
-	panic("implement me")
+	return pn.point
 }
 
 func (pn *PathNodeCl) D() int {
-	panic("implement me")
+	return pn.d
 }
 
 func (pn *PathNodeCl) GetTrioIndex() m3point.TrioIndex {
-	panic("implement me")
+	return pn.trioDetails.GetId()
+}
+
+func (pn *PathNodeCl) getConnectionState(connIdx int) m3path.ConnectionState {
+	return m3path.GetConnectionState(pn.connectionMask, connIdx)
 }
 
 func (pn *PathNodeCl) HasOpenConnections() bool {
-	panic("implement me")
+	for i := 0; i < m3path.NbConnections; i++ {
+		if pn.getConnectionState(i) == m3path.ConnectionNotSet {
+			return true
+		}
+	}
+	return false
 }
 
 func (pn *PathNodeCl) IsFrom(connIdx int) bool {
-	panic("implement me")
+	return pn.getConnectionState(connIdx) == m3path.ConnectionFrom
 }
 
 func (pn *PathNodeCl) IsNext(connIdx int) bool {
-	panic("implement me")
+	return pn.getConnectionState(connIdx) == m3path.ConnectionNext
 }
 
 func (pn *PathNodeCl) IsDeadEnd(connIdx int) bool {
-	panic("implement me")
+	return pn.getConnectionState(connIdx) == m3path.ConnectionBlocked
 }
 
 func (pn *PathNodeCl) GetTrioDetails() *m3point.TrioDetails {
-	panic("implement me")
+	return pn.trioDetails
 }

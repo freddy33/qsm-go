@@ -316,7 +316,7 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 		Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
 		return nil
 	}
-	pMsg := &m3api.PathContextMsg{}
+	pMsg := new(m3api.PathContextMsg)
 	err = proto.Unmarshal(b, pMsg)
 	if err != nil {
 		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
@@ -330,6 +330,8 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 	pathCtx.growthCtx = pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId()))
 	pathCtx.growthOffset = int(pMsg.GetGrowthOffset())
 	pathCtx.rootNode = nil
+	pathCtx.pathNodeMap = m3path.MakeHashPathNodeMap(100)
+	pathCtx.pathNodes = make(map[int64]*PathNodeCl, 100)
 	return pathCtx
 }
 

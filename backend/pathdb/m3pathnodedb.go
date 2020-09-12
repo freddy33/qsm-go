@@ -119,6 +119,10 @@ func (pn *PathNodeDb) IsInPool() bool {
 	return pn.id == InPoolId
 }
 
+func (pn *PathNodeDb) GetConnectionMask() uint16 {
+	return pn.connectionMask
+}
+
 func (pn *PathNodeDb) getConnectionState(connIdx int) m3path.ConnectionState {
 	return m3path.GetConnectionState(pn.connectionMask, connIdx)
 }
@@ -179,6 +183,10 @@ func (pn *PathNodeDb) setPathIdsFromDbData(pathNodeIds [m3path.NbConnections]sql
 			pn.linkNodeIds[i] = DeadEndId
 		}
 	}
+}
+
+func (pn *PathNodeDb) GetConnsDataForMsg() []int64 {
+	return pn.linkNodeIds[:]
 }
 
 func (pn *PathNodeDb) getConnsDataForDb() [m3path.NbConnections]sql.NullInt64 {

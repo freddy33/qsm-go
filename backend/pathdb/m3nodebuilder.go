@@ -64,29 +64,7 @@ func (onb *OpenNodeBuilder) openNodesSize() int {
 }
 
 func (onb *OpenNodeBuilder) nextOpenNodesLen() int {
-	return calculatePredictedSize(onb.d, onb.openNodesMap.Size())
-}
-
-func calculatePredictedSize(d int, currentLen int) int {
-	if d == 0 {
-		return 3
-	}
-	if d == 1 {
-		return 6
-	}
-	// from sphere area growth of d to d+1 the ratio should be 1 + 2/d + 1/d^2
-	origLen := float64(currentLen)
-	df := float64(d)
-	predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
-	if d <= 16 {
-		predictedRatio = predictedRatio * 1.11
-	} else if d <= 32 {
-		predictedRatio = predictedRatio * 1.04
-	} else {
-		predictedRatio = predictedRatio * 1.02
-	}
-	predictedLen := origLen * predictedRatio
-	return int(predictedLen)
+	return m3path.CalculatePredictedSize(onb.d, onb.openNodesMap.Size())
 }
 
 func (onb *OpenNodeBuilder) clear() {

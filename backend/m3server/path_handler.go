@@ -28,8 +28,8 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 	}
 	env := GetEnvironment(r)
 	pointData := pointdb.GetPointPackData(env)
-	ppd := pathdb.GetServerPathPackData(env)
-	newPathCtx := ppd.CreatePathCtxFromAttributes(
+	pathData := pathdb.GetServerPathPackData(env)
+	newPathCtx := pathData.CreatePathCtxFromAttributes(
 		pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId())),
 		int(pMsg.GetGrowthOffset()),
 		m3api.PointMsgToPoint(pMsg.Center))
@@ -48,6 +48,112 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 		Log.Warnf("Failed to marshal PathContextMsg due to: %q", err.Error())
 		w.WriteHeader(500)
 		_, err = fmt.Fprintf(w, "Failed to marshal PathContextMsg due to:\n%s\n", err.Error())
+		if err != nil {
+			Log.Errorf("failed to send error message to response due to %q", err.Error())
+		}
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		Log.Errorf("failed to send data to response due to %q", err.Error())
+	}
+}
+
+func initRootNode(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive initRootNode")
+
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		Log.Errorf("receive wrong message in initRootNode: %s", err.Error())
+		SendResponse(w, http.StatusBadRequest, "req body could not be read")
+		return
+	}
+	pMsg := &m3api.PathContextMsg{}
+	err = proto.Unmarshal(b, pMsg)
+	if err != nil {
+		Log.Errorf("Could not parse body in initRootNode: %s", err.Error())
+		SendResponse(w, http.StatusBadRequest, "req body could not be parsed")
+		return
+	}
+	env := GetEnvironment(r)
+	pathData := pathdb.GetServerPathPackData(env)
+
+	pathCtx := pathData.GetPathCtx(int(pMsg.GetPathCtxId()))
+	if pathCtx == nil {
+		Log.Errorf("Could not find path context with ID: %d", pMsg.GetPathCtxId())
+		SendResponse(w, http.StatusBadRequest, "path context id %d does not exists", pMsg.GetPathCtxId())
+		return
+	}
+
+	pathCtx.InitRootNode(m3api.PointMsgToPoint(pMsg.GetCenter()))
+
+	pn := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
+	resMsg := m3api.PathNodeMsg{
+		PathNodeId:        pn.GetId(),
+		PathCtxId:         int32(pn.GetPathContext().GetId()),
+		Point:             m3api.PointToPointMsg(pn.P()),
+		D:                 int64(pn.D()),
+		TrioId:            int32(pn.GetTrioIndex()),
+		ConnectionMask:    uint32(pn.GetConnectionMask()),
+		LinkedPathNodeIds: pn.GetConnsDataForMsg(),
+	}
+	data, err := proto.Marshal(&resMsg)
+	if err != nil {
+		Log.Warnf("Failed to marshal PathNodeMsg due to: %q", err.Error())
+		w.WriteHeader(500)
+		_, err = fmt.Fprintf(w, "Failed to marshal PathNodeMsg due to:\n%s\n", err.Error())
+		if err != nil {
+			Log.Errorf("failed to send error message to response due to %q", err.Error())
+		}
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		Log.Errorf("failed to send data to response due to %q", err.Error())
+	}
+}
+
+func moveToNextNode(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive moveToNextNode")
+
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		Log.Errorf("receive wrong message in moveToNextNode: %s", err.Error())
+		SendResponse(w, http.StatusBadRequest, "req body could not be read")
+		return
+	}
+	pMsg := &m3api.PathContextMsg{}
+	err = proto.Unmarshal(b, pMsg)
+	if err != nil {
+		Log.Errorf("Could not parse body in moveToNextNode: %s", err.Error())
+		SendResponse(w, http.StatusBadRequest, "req body could not be parsed")
+		return
+	}
+	env := GetEnvironment(r)
+	pathData := pathdb.GetServerPathPackData(env)
+
+	pathCtx := pathData.GetPathCtx(int(pMsg.GetPathCtxId()))
+	if pathCtx == nil {
+		Log.Errorf("Could not path context with ID: %d", pMsg.GetPathCtxId())
+		SendResponse(w, http.StatusBadRequest, "path context id %d does not exists", pMsg.GetPathCtxId())
+		return
+	}
+
+	pathCtx.InitRootNode(m3api.PointMsgToPoint(pMsg.GetCenter()))
+
+	pn := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
+	resMsg := m3api.PathNodeMsg{
+		PathNodeId:        pn.GetId(),
+		PathCtxId:         int32(pn.GetPathContext().GetId()),
+		Point:             m3api.PointToPointMsg(pn.P()),
+		D:                 int64(pn.D()),
+		TrioId:            int32(pn.GetTrioIndex()),
+		ConnectionMask:    uint32(pn.GetConnectionMask()),
+		LinkedPathNodeIds: pn.GetConnsDataForMsg(),
+	}
+	data, err := proto.Marshal(&resMsg)
+	if err != nil {
+		Log.Warnf("Failed to marshal PathNodeMsg due to: %q", err.Error())
+		w.WriteHeader(500)
+		_, err = fmt.Fprintf(w, "Failed to marshal PathNodeMsg due to:\n%s\n", err.Error())
 		if err != nil {
 			Log.Errorf("failed to send error message to response due to %q", err.Error())
 		}
