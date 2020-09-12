@@ -31,8 +31,14 @@ body {
 .vis {
   /* margin: 0px; */
   position: fixed;
-  top: 0;
+  top: 0px;
   right: 0;
   bottom: 0;
   left: 0;
+}
+
+.control {
+  position: fixed;
+  top: 10px;
+  left: 10px;
 }
