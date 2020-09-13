@@ -20,3 +20,7 @@ message PathNodeMsg {
     uint32 connection_mask = 6;
     repeated int64 linked_path_node_ids = 7;
 }
+
+message NextMoveRespMsg {
+    repeated PathNodeMsg path_nodes = 1;
+}
