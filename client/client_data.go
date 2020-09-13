@@ -189,7 +189,43 @@ func (pathCtx *PathContextCl) GetAllOpenPathNodes() []m3path.PathNode {
 }
 
 func (pathCtx *PathContextCl) MoveToNextNodes() {
-	panic("implement me")
+	uri := "next-nodes"
+	reqMsg := &m3api.PathContextMsg{
+		PathCtxId:       int32(pathCtx.GetId()),
+		GrowthContextId: int32(pathCtx.GetGrowthCtx().GetId()),
+		GrowthOffset:    int32(pathCtx.GetGrowthOffset()),
+		Center:          m3api.PointToPointMsg(pathCtx.rootNode.point),
+	}
+	body := pathCtx.env.clConn.ExecReq("POST", uri, reqMsg)
+	defer m3util.CloseBody(body)
+	b, err := ioutil.ReadAll(body)
+	if err != nil {
+		Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
+		return
+	}
+	pListMsg := new(m3api.NextMoveRespMsg)
+	err = proto.Unmarshal(b, pListMsg)
+	if err != nil {
+		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
+		return
+	}
+	pathNodes := pListMsg.GetPathNodes()
+	Log.Infof("Received back %d path nodes back on move to next", len(pathNodes))
+	for _, pMsg := range pathNodes {
+		pn := new(PathNodeCl)
+		pn.id = pMsg.GetPathNodeId()
+		pn.pathCtx = pathCtx
+		pn.d = int(pMsg.D)
+		pn.point = m3api.PointMsgToPoint(pMsg.GetPoint())
+		pn.trioDetails = pathCtx.pointData.GetTrioDetails(m3point.TrioIndex(pMsg.GetTrioId()))
+		pn.connectionMask = uint16(pMsg.GetConnectionMask())
+		for i, lnId := range pMsg.GetLinkedPathNodeIds() {
+			pn.linkNodes[i] = lnId
+		}
+		pathCtx.pathNodeMap.AddPathNode(pn)
+		pathCtx.pathNodes[pn.id] = pn
+	}
+	pathCtx.latestD++
 }
 
 func (pathCtx *PathContextCl) PredictedNextOpenNodesLen() int {

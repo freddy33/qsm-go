@@ -132,28 +132,35 @@ func moveToNextNode(w http.ResponseWriter, r *http.Request) {
 
 	pathCtx := pathData.GetPathCtx(int(pMsg.GetPathCtxId()))
 	if pathCtx == nil {
-		Log.Errorf("Could not path context with ID: %d", pMsg.GetPathCtxId())
+		Log.Errorf("Could not find path context with ID: %d", pMsg.GetPathCtxId())
 		SendResponse(w, http.StatusBadRequest, "path context id %d does not exists", pMsg.GetPathCtxId())
 		return
 	}
 
-	pathCtx.InitRootNode(m3api.PointMsgToPoint(pMsg.GetCenter()))
+	pathCtx.MoveToNextNodes()
 
-	pn := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
-	resMsg := m3api.PathNodeMsg{
-		PathNodeId:        pn.GetId(),
-		PathCtxId:         int32(pn.GetPathContext().GetId()),
-		Point:             m3api.PointToPointMsg(pn.P()),
-		D:                 int64(pn.D()),
-		TrioId:            int32(pn.GetTrioIndex()),
-		ConnectionMask:    uint32(pn.GetConnectionMask()),
-		LinkedPathNodeIds: pn.GetConnsDataForMsg(),
+	resMsg := m3api.NextMoveRespMsg{}
+	openPathNodes := pathCtx.GetAllOpenPathNodes()
+	Log.Infof("Sending back %d path nodes back on move to next", len(openPathNodes))
+	resMsg.PathNodes = make([]*m3api.PathNodeMsg, len(openPathNodes))
+	for i, pni := range openPathNodes {
+		pn := pni.(*pathdb.PathNodeDb)
+		resMsg.PathNodes[i] = &m3api.PathNodeMsg{
+			PathNodeId:        pn.GetId(),
+			PathCtxId:         int32(pn.GetPathContext().GetId()),
+			Point:             m3api.PointToPointMsg(pn.P()),
+			D:                 int64(pn.D()),
+			TrioId:            int32(pn.GetTrioIndex()),
+			ConnectionMask:    uint32(pn.GetConnectionMask()),
+			LinkedPathNodeIds: pn.GetConnsDataForMsg(),
+		}
 	}
+
 	data, err := proto.Marshal(&resMsg)
 	if err != nil {
-		Log.Warnf("Failed to marshal PathNodeMsg due to: %q", err.Error())
+		Log.Warnf("Failed to marshal NextMoveRespMsg due to: %q", err.Error())
 		w.WriteHeader(500)
-		_, err = fmt.Fprintf(w, "Failed to marshal PathNodeMsg due to:\n%s\n", err.Error())
+		_, err = fmt.Fprintf(w, "Failed to marshal NextMoveRespMsg due to:\n%s\n", err.Error())
 		if err != nil {
 			Log.Errorf("failed to send error message to response due to %q", err.Error())
 		}
