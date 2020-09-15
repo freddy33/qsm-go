@@ -52,6 +52,8 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 			Log.Errorf("failed to send error message to response due to %q", err.Error())
 		}
 	}
+
+	w.Header().Set("Content-Type", "application/x-protobuf; messageType=model.m3api.PathContextMsg")
 	_, err = w.Write(data)
 	if err != nil {
 		Log.Errorf("failed to send data to response due to %q", err.Error())
@@ -105,6 +107,7 @@ func initRootNode(w http.ResponseWriter, r *http.Request) {
 			Log.Errorf("failed to send error message to response due to %q", err.Error())
 		}
 	}
+	w.Header().Set("Content-Type", "application/x-protobuf; messageType=model.m3api.PathNodeMsg")
 	_, err = w.Write(data)
 	if err != nil {
 		Log.Errorf("failed to send data to response due to %q", err.Error())
@@ -165,6 +168,7 @@ func moveToNextNode(w http.ResponseWriter, r *http.Request) {
 			Log.Errorf("failed to send error message to response due to %q", err.Error())
 		}
 	}
+	w.Header().Set("Content-Type", "application/x-protobuf; messageType=model.m3api.NextMoveRespMsg")
 	_, err = w.Write(data)
 	if err != nil {
 		Log.Errorf("failed to send data to response due to %q", err.Error())

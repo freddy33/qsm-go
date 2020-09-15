@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -69,6 +71,69 @@ func initialize(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
 }
 
+func logLevel(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive logLevel")
+
+	values := r.URL.Query()
+	if len(values) == 0 {
+		SendResponse(w, http.StatusBadRequest, "Please provide a new level for packages as query parameter!")
+		return
+	}
+	for packName, listLevels := range values {
+		if len(listLevels) != 1 {
+			SendResponse(w, http.StatusBadRequest, "Please provide a specific level for package name %q in your query parameter!", packName)
+			return
+		}
+		foundLevel := m3util.LogLevel(-1)
+		newLevel := strings.ToUpper(listLevels[0])
+		for _, lv := range m3util.GetAllLogLevels() {
+			if m3util.GetLevelName(lv) == newLevel {
+				foundLevel = lv
+				break
+			}
+		}
+		if foundLevel < 0 {
+			intVal, err := strconv.Atoi(newLevel)
+			if err != nil {
+				SendResponse(w, http.StatusBadRequest, "The level provided %q for package name %q is not valid.", newLevel, packName)
+				return
+			}
+			for _, lv := range m3util.GetAllLogLevels() {
+				if intVal == int(lv) {
+					foundLevel = lv
+					break
+				}
+			}
+		}
+		if foundLevel < 0 {
+			SendResponse(w, http.StatusBadRequest, "The level provided %q for package name %q is not valid.", newLevel, packName)
+			return
+		}
+		if packName == "all" {
+			m3util.SetLogLevelForAll(foundLevel)
+		} else if packName == "services" {
+			m3util.SetLoggerLevel("pointdb", foundLevel)
+			m3util.SetLoggerLevel("pathdb", foundLevel)
+			m3util.SetLoggerLevel("spacedb", foundLevel)
+		} else if packName == "space" {
+			m3util.SetLoggerLevel("m3space", foundLevel)
+			m3util.SetLoggerLevel("spacedb", foundLevel)
+		} else if packName == "path" {
+			m3util.SetLoggerLevel("m3path", foundLevel)
+			m3util.SetLoggerLevel("pathdb", foundLevel)
+		} else if packName == "point" {
+			m3util.SetLoggerLevel("m3point", foundLevel)
+			m3util.SetLoggerLevel("pointdb", foundLevel)
+		} else {
+			m3util.SetLoggerLevel(packName, foundLevel)
+		}
+	}
+
+	// TODO: Send in response the log levels updated
+	response := "Updated Log Levels"
+	SendResponse(w, http.StatusOK, response)
+}
+
 func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	if envId == m3util.NoEnv {
 		envId = m3util.GetDefaultEnvId()
@@ -79,6 +144,8 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	r := mux.NewRouter()
 	app := &QsmApp{Router: r, Env: env}
 	app.AddHandler("/", home)
+	// TODO: MAke also a getter to list current log level
+	app.AddHandler("/log", logLevel).Methods("POST")
 	app.AddHandler("/point-data", retrievePointData).Methods("GET")
 	app.AddHandler("/test-init", initialize).Methods("POST")
 	app.AddHandler("/test-drop", drop).Methods("DELETE")

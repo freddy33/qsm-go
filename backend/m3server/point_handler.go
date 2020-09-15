@@ -15,7 +15,7 @@ var Log = m3util.NewLogger("m3server", m3util.INFO)
 func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive retrievePointData")
 
-	w.Header().Set("Content-Type", "application/x-protobuf; messageType=backend.m3api.PointPackDataMsg")
+	w.Header().Set("Content-Type", "application/x-protobuf; messageType=model.m3api.PointPackDataMsg")
 
 	env := GetEnvironment(r)
 	ppd, _ := pointdb.GetServerPointPackData(env)

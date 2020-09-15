@@ -16,7 +16,7 @@ import (
 
 func (cl *ClientConnection) ExecReq(method string, uri string, m proto.Message) io.ReadCloser {
 	uri = strings.TrimPrefix(uri, "/")
-	client := http.Client{Timeout: 10 * time.Second}
+	client := http.Client{Timeout: 20 * time.Second}
 	var body io.Reader
 	if m != nil {
 		b, err := proto.Marshal(m)
