@@ -1,13 +1,11 @@
 package m3gl
 
 import (
-	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/model/m3path"
+	"github.com/freddy33/qsm-go/client"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
-	"github.com/freddy33/qsm-go/m3util"
 	"github.com/stretchr/testify/assert"
-	"sync"
 	"testing"
 )
 
@@ -16,23 +14,14 @@ type ExpectedSpaceState struct {
 	newNodes  int
 }
 
-var envMutex sync.Mutex
-
-func getGlTestEnv() *m3db.QsmDbEnvironment {
-	envMutex.Lock()
-	defer envMutex.Unlock()
-	m3util.SetToTestMode()
-	glEnv := m3path.GetFullTestDb(m3util.GlTestEnv)
-	m3point.InitializeDBEnv(glEnv, true)
-	return glEnv
+func getGlTestEnv() m3util.QsmEnvironment {
+	return client.GetInitializedApiEnv(m3util.GlTestEnv)
 }
 
 func TestSingleRedEvent(t *testing.T) {
 	Log.SetDebug()
 	m3space.Log.SetDebug()
 	m3util.SetToTestMode()
-
-	m3path.GetFullTestDb(m3util.GlTestEnv)
 
 	world := MakeWorld(getGlTestEnv(), 3*9, 0.0)
 

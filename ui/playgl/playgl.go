@@ -51,7 +51,7 @@ func Play() {
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
 	max := int64(9 * m3point.THREE)
-	env := client.GetEnvironment(m3util.GetDefaultEnvId())
+	env := client.GetInitializedApiEnv(m3util.GetDefaultEnvId())
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
 	//world.WorldSpace.CreateSingleEventCenter()
 	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)

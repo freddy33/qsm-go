@@ -53,24 +53,10 @@ type PathNodeCl struct {
 /***************************************************************/
 
 func GetClientPointPackData(env m3util.QsmEnvironment) *ClientPointPackData {
-	if env.GetData(m3util.PointIdx) == nil {
-		ppd := new(ClientPointPackData)
-		ppd.EnvId = env.GetId()
-		ppd.env = env.(*QsmApiEnvironment)
-		env.SetData(m3util.PointIdx, ppd)
-		// do not return ppd but always the pointer in Env data array
-	}
 	return env.GetData(m3util.PointIdx).(*ClientPointPackData)
 }
 
 func GetClientPathPackData(env m3util.QsmEnvironment) *ClientPathPackData {
-	if env.GetData(m3util.PathIdx) == nil {
-		ppd := new(ClientPathPackData)
-		ppd.EnvId = env.GetId()
-		env.SetData(m3util.PathIdx, ppd)
-		ppd.env = env.(*QsmApiEnvironment)
-		// do not return ppd but always the pointer in Env data array
-	}
 	return env.GetData(m3util.PathIdx).(*ClientPathPackData)
 }
 

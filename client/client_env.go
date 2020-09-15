@@ -1,8 +1,11 @@
 package client
 
 import (
+	"fmt"
 	"github.com/freddy33/qsm-go/client/config"
 	"github.com/freddy33/qsm-go/m3util"
+	"io/ioutil"
+	"net/http"
 	"strings"
 )
 
@@ -53,6 +56,38 @@ func createNewApiEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	return &env
 }
 
-func GetEnvironment(envId m3util.QsmEnvID) *QsmApiEnvironment {
+func getEnvironment(envId m3util.QsmEnvID) *QsmApiEnvironment {
 	return m3util.GetEnvironmentWithCreator(envId, createNewApiEnv).(*QsmApiEnvironment)
+}
+
+func GetInitializedApiEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
+	env := getEnvironment(envId)
+	cl := env.clConn
+
+	if !cl.CheckServerUp() {
+		Log.Fatalf("Test backend server down!")
+	}
+
+	if m3util.TestMode {
+		// Equivalent of calling filldb job
+		body := cl.ExecReq(http.MethodPost, "test-init", nil)
+		defer m3util.CloseBody(body)
+		b, err := ioutil.ReadAll(body)
+		if err != nil {
+			Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
+			return nil
+		}
+		response := string(b)
+		substr := fmt.Sprintf("env id %d was initialized", cl.EnvId)
+		if strings.Contains(response, substr) {
+			Log.Debugf("All good on home response %q", response)
+		} else {
+			Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
+			return nil
+		}
+	}
+
+	env.initializePointData()
+	env.initializePathData()
+	return env
 }

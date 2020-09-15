@@ -36,7 +36,7 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 
 	resMsg := m3api.PathContextMsg{
 		PathCtxId:       int32(newPathCtx.GetId()),
-		GrowthContextId: int32(newPathCtx.GetId()),
+		GrowthContextId: int32(newPathCtx.GetGrowthCtx().GetId()),
 		GrowthOffset:    int32(newPathCtx.GetGrowthOffset()),
 		// TODO: Uncomment the one line below once init node done
 		//Center: m3api.PointToPointMsg(newPathCtx.GetRootPathNode().P()),

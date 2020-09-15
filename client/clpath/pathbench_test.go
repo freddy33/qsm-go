@@ -50,7 +50,7 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	env := client.GetFullApiTestEnv(m3util.PathTestEnv)
+	env := client.GetInitializedApiEnv(m3util.PathTestEnv)
 	pointData := client.GetClientPointPackData(env)
 	pathData := client.GetClientPathPackData(env)
 

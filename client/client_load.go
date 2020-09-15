@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
@@ -75,55 +74,40 @@ func (cl *ClientConnection) CheckServerUp() bool {
 	return true
 }
 
-func GetFullApiTestEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
-	if !m3util.TestMode {
-		Log.Fatalf("Cannot use GetFullTestDb in non test mode!")
-	}
-
-	env := GetEnvironment(envId)
-	cl := env.clConn
-
-	if !cl.CheckServerUp() {
-		Log.Fatalf("Test backend server down!")
-	}
-
-	// Equivalent of calling filldb job
-	body := cl.ExecReq(http.MethodPost, "test-init", nil)
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		Log.Errorf("Could not read body from REST API end point %q due to %s", "test-init", err.Error())
-		return nil
-	}
-	response := string(b)
-	substr := fmt.Sprintf("env id %d was initialized", cl.EnvId)
-	if strings.Contains(response, substr) {
-		Log.Debugf("All good on home response %q", response)
+func (env *QsmApiEnvironment) initializePathData() {
+	var pathData *ClientPathPackData
+	ppdIfc := env.GetData(m3util.PathIdx)
+	if ppdIfc == nil {
+		pathData = new(ClientPathPackData)
+		pathData.EnvId = env.GetId()
+		pathData.env = env
+		env.SetData(m3util.PathIdx, pathData)
 	} else {
-		Log.Errorf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
-		return nil
+		pathData = ppdIfc.(*ClientPathPackData)
+		if pathData.env != env {
+			Log.Fatalf("Something wrong with env setup")
+		}
 	}
-
-	env.initialize()
-	return env
 }
 
-func (env *QsmApiEnvironment) initialize() {
-	var ppd *ClientPointPackData
+func (env *QsmApiEnvironment) initializePointData() {
+	var pointData *ClientPointPackData
 	ppdIfc := env.GetData(m3util.PointIdx)
 	if ppdIfc != nil {
-		ppd = ppdIfc.(*ClientPointPackData)
-		if ppd.PathBuildersLoaded {
+		pointData = ppdIfc.(*ClientPointPackData)
+		if pointData.PathBuildersLoaded {
 			Log.Debugf("Env %d already loaded", env.GetId())
 			return
 		}
 	}
 	if ppdIfc == nil {
-		ppd = new(ClientPointPackData)
-		ppd.EnvId = env.GetId()
-		env.SetData(m3util.PointIdx, ppd)
+		pointData = new(ClientPointPackData)
+		pointData.EnvId = env.GetId()
+		pointData.env = env
+		env.SetData(m3util.PointIdx, pointData)
 	}
-	if ppd == nil {
+
+	if pointData == nil {
 		Log.Fatalf("Something wrong above")
 		return
 	}
@@ -141,8 +125,8 @@ func (env *QsmApiEnvironment) initialize() {
 		return
 	}
 
-	ppd.AllConnections = make([]*m3point.ConnectionDetails, len(pMsg.AllConnections))
-	ppd.AllConnectionsByVector = make(map[m3point.Point]*m3point.ConnectionDetails, len(pMsg.AllConnections))
+	pointData.AllConnections = make([]*m3point.ConnectionDetails, len(pMsg.AllConnections))
+	pointData.AllConnectionsByVector = make(map[m3point.Point]*m3point.ConnectionDetails, len(pMsg.AllConnections))
 	for idx, c := range pMsg.AllConnections {
 		vector := c.GetVector()
 		point := m3point.Point{m3point.CInt(vector.GetX()), m3point.CInt(vector.GetY()), m3point.CInt(vector.GetZ())}
@@ -151,49 +135,49 @@ func (env *QsmApiEnvironment) initialize() {
 			Vector: point,
 			ConnDS: m3point.DInt(c.GetDs()),
 		}
-		ppd.AllConnections[idx] = cd
-		ppd.AllConnectionsByVector[point] = cd
+		pointData.AllConnections[idx] = cd
+		pointData.AllConnectionsByVector[point] = cd
 	}
-	ppd.ConnectionsLoaded = true
-	Log.Debugf("loaded %d connections", len(ppd.AllConnections))
+	pointData.ConnectionsLoaded = true
+	Log.Debugf("loaded %d connections", len(pointData.AllConnections))
 
-	ppd.AllTrioDetails = make([]*m3point.TrioDetails, len(pMsg.AllTrios))
+	pointData.AllTrioDetails = make([]*m3point.TrioDetails, len(pMsg.AllTrios))
 	for idx, tr := range pMsg.AllTrios {
-		ppd.AllTrioDetails[idx] = &m3point.TrioDetails{
+		pointData.AllTrioDetails[idx] = &m3point.TrioDetails{
 			Id: m3point.TrioIndex(tr.GetTrioId()),
-			Conns: [3]*m3point.ConnectionDetails{ppd.GetConnDetailsById(m3point.ConnectionId(tr.ConnIds[0])),
-				ppd.GetConnDetailsById(m3point.ConnectionId(tr.ConnIds[1])),
-				ppd.GetConnDetailsById(m3point.ConnectionId(tr.ConnIds[2]))},
+			Conns: [3]*m3point.ConnectionDetails{pointData.GetConnDetailsById(m3point.ConnectionId(tr.ConnIds[0])),
+				pointData.GetConnDetailsById(m3point.ConnectionId(tr.ConnIds[1])),
+				pointData.GetConnDetailsById(m3point.ConnectionId(tr.ConnIds[2]))},
 		}
 	}
-	ppd.TrioDetailsLoaded = true
-	Log.Debugf("loaded %d trios", len(ppd.AllTrioDetails))
+	pointData.TrioDetailsLoaded = true
+	Log.Debugf("loaded %d trios", len(pointData.AllTrioDetails))
 
 	for i := 0; i < 12; i++ {
-		ppd.ValidNextTrio[i][0] = m3point.TrioIndex(pMsg.ValidNextTrioIds[i*2])
-		ppd.ValidNextTrio[i][1] = m3point.TrioIndex(pMsg.ValidNextTrioIds[i*2+1])
+		pointData.ValidNextTrio[i][0] = m3point.TrioIndex(pMsg.ValidNextTrioIds[i*2])
+		pointData.ValidNextTrio[i][1] = m3point.TrioIndex(pMsg.ValidNextTrioIds[i*2+1])
 		for k := 0; k < 4; k++ {
-			ppd.AllMod4Permutations[i][k] = m3point.TrioIndex(pMsg.Mod4PermutationsTrioIds[i*4+k])
+			pointData.AllMod4Permutations[i][k] = m3point.TrioIndex(pMsg.Mod4PermutationsTrioIds[i*4+k])
 		}
 		for k := 0; k < 8; k++ {
-			ppd.AllMod8Permutations[i][k] = m3point.TrioIndex(pMsg.Mod8PermutationsTrioIds[i*8+k])
+			pointData.AllMod8Permutations[i][k] = m3point.TrioIndex(pMsg.Mod8PermutationsTrioIds[i*8+k])
 		}
 	}
 	Log.Debugf("loaded all valid next and permutation trios")
 
-	ppd.AllGrowthContexts = make([]m3point.GrowthContext, len(pMsg.AllGrowthContexts))
+	pointData.AllGrowthContexts = make([]m3point.GrowthContext, len(pMsg.AllGrowthContexts))
 	for idx, gc := range pMsg.AllGrowthContexts {
-		ppd.AllGrowthContexts[idx] = &m3point.BaseGrowthContext{
+		pointData.AllGrowthContexts[idx] = &m3point.BaseGrowthContext{
 			Env:         env,
 			Id:          int(gc.GetGrowthContextId()),
 			GrowthType:  m3point.GrowthType(gc.GetGrowthType()),
 			GrowthIndex: int(gc.GetGrowthIndex()),
 		}
 	}
-	ppd.GrowthContextsLoaded = true
-	Log.Debugf("loaded %d growth context", len(ppd.AllGrowthContexts))
+	pointData.GrowthContextsLoaded = true
+	Log.Debugf("loaded %d growth context", len(pointData.AllGrowthContexts))
 
-	ppd.CubeIdsPerKey = make(map[m3point.CubeKeyId]int, len(pMsg.AllCubes))
+	pointData.CubeIdsPerKey = make(map[m3point.CubeKeyId]int, len(pMsg.AllCubes))
 	growthCtxByCubeId := make(map[int]int, len(pMsg.AllCubes))
 	for id, cube := range pMsg.AllCubes {
 		// Do not load dummy cube
@@ -207,14 +191,14 @@ func (env *QsmApiEnvironment) initialize() {
 				},
 			}
 			cubeId := int(cube.GetCubeId())
-			ppd.CubeIdsPerKey[key] = cubeId
+			pointData.CubeIdsPerKey[key] = cubeId
 			growthCtxByCubeId[cubeId] = key.GetGrowthCtxId()
 		}
 	}
-	ppd.CubesLoaded = true
-	Log.Debugf("loaded %d cubes", len(ppd.CubeIdsPerKey))
+	pointData.CubesLoaded = true
+	Log.Debugf("loaded %d cubes", len(pointData.CubeIdsPerKey))
 
-	ppd.PathBuilders = make([]*m3point.RootPathNodeBuilder, len(pMsg.AllPathNodeBuilders))
+	pointData.PathBuilders = make([]*m3point.RootPathNodeBuilder, len(pMsg.AllPathNodeBuilders))
 	for idx, pnd := range pMsg.AllPathNodeBuilders {
 		if idx == 0 {
 			// Dummy cube and path loader
@@ -222,17 +206,17 @@ func (env *QsmApiEnvironment) initialize() {
 		}
 		cubeId := int(pnd.GetCubeId())
 		trIdx := m3point.TrioIndex(pnd.GetTrioId())
-		tr := ppd.GetTrioDetails(trIdx)
-		ppd.PathBuilders[idx] = &m3point.RootPathNodeBuilder{
+		tr := pointData.GetTrioDetails(trIdx)
+		pointData.PathBuilders[idx] = &m3point.RootPathNodeBuilder{
 			BasePathNodeBuilder: m3point.BasePathNodeBuilder{Ctx: &m3point.PathBuilderContext{
-				GrowthCtx: ppd.GetGrowthContextById(growthCtxByCubeId[cubeId]),
+				GrowthCtx: pointData.GetGrowthContextById(growthCtxByCubeId[cubeId]),
 				CubeId:    cubeId},
 				TrIdx: trIdx},
-			PathLinks: convertToInterPathBuilders(ppd, growthCtxByCubeId, tr, pnd),
+			PathLinks: convertToInterPathBuilders(pointData, growthCtxByCubeId, tr, pnd),
 		}
 	}
-	ppd.PathBuildersLoaded = true
-	Log.Debugf("loaded %d path builders", len(ppd.PathBuilders))
+	pointData.PathBuildersLoaded = true
+	Log.Debugf("loaded %d path builders", len(pointData.PathBuilders))
 }
 
 func convertToInterPathBuilders(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
@@ -334,5 +318,3 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 	pathCtx.pathNodes = make(map[int64]*PathNodeCl, 100)
 	return pathCtx
 }
-
-

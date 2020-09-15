@@ -3,7 +3,6 @@ package m3gl
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/client"
-	"github.com/freddy33/qsm-go/client/config"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
@@ -40,7 +39,6 @@ const (
 type DisplayWorld struct {
 	Max        m3point.CInt
 	WorldSpace *m3space.Space
-	clientConn *client.ClientConnection
 	Filter     SpaceDrawingFilter
 	Elements   []SpaceDrawingElement
 
@@ -92,8 +90,6 @@ func MakeWorld(env m3util.QsmEnvironment, Max int64, glfwTime float64) DisplayWo
 func (world *DisplayWorld) initialized(space *m3space.Space, glfwTime float64) {
 	world.Max = 0
 	world.WorldSpace = space
-	clientConfig := config.NewConfig()
-	world.clientConn = client.newClientConnection(clientConfig, space.GetEnv().GetId())
 	world.Filter = SpaceDrawingFilter{false, false, uint8(0xFF), 0, space}
 	world.Elements = make([]SpaceDrawingElement, 0, 500)
 	world.NbVertices = 0
@@ -233,7 +229,7 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
-	ppd := world.clientConn.GetClientPointPackData(world.WorldSpace.GetEnv())
+	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	triangleFiller.drawNodes()
@@ -245,21 +241,21 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 }
 
 func (world *DisplayWorld) RedrawAxesElementsMap() {
-	ppd := world.clientConn.GetClientPointPackData(world.WorldSpace.GetEnv())
+	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawNodesElementsMap() {
-	ppd := world.clientConn.GetClientPointPackData(world.WorldSpace.GetEnv())
+	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawNodes()
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawConnectionsElementsMap() {
-	ppd := world.clientConn.GetClientPointPackData(world.WorldSpace.GetEnv())
+	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
 	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawConnections()
 	world.DrawingElementsMap = triangleFiller.objMap
