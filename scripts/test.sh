@@ -23,12 +23,12 @@ test_model() {
 }
 
 test_client() {
-  cd ${rootDir}/client && go test ./clpoint/
+  cd ${rootDir}/client && go test ./clpoint/ ./clpath/ ./clspace/
   #./m3path/ ./m3space/
 }
 
 test_backend() {
-  cd ${rootDir}/backend && go test ./m3db/ ./m3server/
+  cd ${rootDir}/backend && go test ./m3db/ ./pointdb/ ./pathdb/ ./spacedb/ ./m3server/
 }
 
 test_ui() {
@@ -59,7 +59,7 @@ model | client | ui | backend | perf)
   test_${pack}
   ;;
 all)
-  test_model && test_backend && test_client
+  test_model && test_backend && test_client && test_ui
   ;;
 *)
   usage

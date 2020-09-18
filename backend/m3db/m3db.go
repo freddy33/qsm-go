@@ -13,22 +13,17 @@ import (
 
 var Log = m3util.NewLogger("m3db", m3util.INFO)
 
+const (
+	maxRetryCount = 5
+	retryInterval = 5 * time.Second
+)
+
 type DbConnDetails struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	User     string `json:"user"`
 	Password string `json:"password"`
 	DbName   string `json:"dbName"`
-}
-
-type QsmError string
-
-func MakeQsmErrorf(format string, args ...interface{}) QsmError {
-	return QsmError(fmt.Sprintf(format, args...))
-}
-
-func (qsmError QsmError) Error() string {
-	return string(qsmError)
 }
 
 type QsmDbEnvironment struct {
@@ -137,7 +132,7 @@ func (env *QsmDbEnvironment) CheckSchema() error {
 
 	db := env.GetConnection()
 	if db == nil {
-		return MakeQsmErrorf("Got a nil connection for %s", dbName)
+		return m3util.MakeQsmErrorf("Got a nil connection for %s", dbName)
 	}
 
 	if Log.IsDebug() {
@@ -146,8 +141,7 @@ func (env *QsmDbEnvironment) CheckSchema() error {
 	createQuery := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)
 	_, err := db.Exec(createQuery)
 	if err != nil {
-		Log.Errorf("could not create schema %s using '%s' due to error %v", schemaName, createQuery, err)
-		return err
+		return m3util.MakeWrapQsmErrorf(err, "could not create schema %s using '%s' due to error %v", schemaName, createQuery, err)
 	}
 	err = env.setSearchPath()
 	if err != nil {
@@ -163,8 +157,7 @@ func (env *QsmDbEnvironment) CheckSchema() error {
 func (env *QsmDbEnvironment) setSearchPath() error {
 	_, err := env.db.Exec("SET search_path='" + env.schemaName + "'")
 	if err != nil {
-		Log.Errorf("could not set the search path for schema %s due to error %v", env.schemaName, err)
-		return err
+		return m3util.MakeWrapQsmErrorf(err, "could not set the search path for schema %s due to error %v", env.schemaName, err)
 	}
 	return nil
 }
@@ -205,10 +198,7 @@ func (env *QsmDbEnvironment) Destroy() {
 }
 
 func (env *QsmDbEnvironment) Ping() bool {
-	maxRetryCount := 5
 	currentRetryCount := 1
-	retryInterval := 5 * time.Second
-
 	for {
 		err := env.GetConnection().Ping()
 		if err == nil {

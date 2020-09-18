@@ -3,7 +3,7 @@ package pathdb
 import (
 	"database/sql"
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"sync"
@@ -243,9 +243,9 @@ func (pn *PathNodeDb) getConnsDataForDb() [m3path.NbConnections]sql.NullInt64 {
 func (pn *PathNodeDb) syncInDb() error {
 	switch pn.state {
 	case InPoolNode:
-		return m3db.MakeQsmErrorf("trying to save path node from Pool!")
+		return m3util.MakeQsmErrorf("trying to save path node from Pool!")
 	case InConflictNode:
-		return m3db.MakeQsmErrorf("trying to save path node %s that is in conflict! Use the other one.", pn.String())
+		return m3util.MakeQsmErrorf("trying to save path node %q that is in conflict! Use the other one.", pn.String())
 	case NewPathNode:
 		// Fetch Ids of next path nodes already synced in DB
 		for i := 0; i < m3path.NbConnections; i++ {
@@ -256,20 +256,20 @@ func (pn *PathNodeDb) syncInDb() error {
 		}
 		if pn.pointId <= 0 {
 			if pn.point == nil {
-				return m3db.MakeQsmErrorf("cannot sync in DB path node %s with no point info", pn.String())
+				return m3util.MakeQsmErrorf("cannot sync in DB path node %s with no point info", pn.String())
 			}
 			pn.pointId = getOrCreatePointTe(pn.PathCtx().pointsTe(), *pn.point)
 			if pn.pointId <= 0 {
-				return m3db.MakeQsmErrorf("cannot sync in DB path node %s while point insertion %v failed", pn.String(), *pn.point)
+				return m3util.MakeQsmErrorf("cannot sync in DB path node %s while point insertion %v failed", pn.String(), *pn.point)
 			}
 		}
-		err, filtered := pn.insertInDb()
+		filtered, err := pn.insertInDb()
 		if err != nil {
 			if filtered {
 				pn.state = InConflictNode
 				return nil
 			} else {
-				return m3db.MakeQsmErrorf("Could not save path node %s due to '%s'", pn.String(), err.Error())
+				return m3util.MakeWrapQsmErrorf(err, "Could not save path node %q due to %v", pn.String(), err)
 			}
 		} else {
 			pn.state = SyncInDbPathNode
@@ -278,7 +278,7 @@ func (pn *PathNodeDb) syncInDb() error {
 	case SyncInDbPathNode:
 		// Already sync all good
 		if pn.id <= 0 {
-			return m3db.MakeQsmErrorf("Path node %s supposed to be DB synced but id=%d", pn.String(), pn.id)
+			return m3util.MakeQsmErrorf("Path node %s supposed to be DB synced but id=%d", pn.String(), pn.id)
 		}
 		return nil
 	case ModifiedNode:
@@ -291,12 +291,12 @@ func (pn *PathNodeDb) syncInDb() error {
 		}
 		return pn.updateInDb()
 	}
-	return m3db.MakeQsmErrorf("Path node %s has unknown state=%d", pn.String(), pn.state)
+	return m3util.MakeQsmErrorf("Path node %s has unknown state=%d", pn.String(), pn.state)
 }
 
-func (pn *PathNodeDb) insertInDb() (error, bool) {
+func (pn *PathNodeDb) insertInDb() (bool, error) {
 	if pn.pointId < 0 {
-		return m3db.MakeQsmErrorf("cannot insert in DB %s since the point was not inserted", pn.String()), false
+		return false, m3util.MakeQsmErrorf("cannot insert in DB %s since the point was not inserted", pn.String())
 	}
 	te := pn.pathCtx.pathNodesTe()
 	pathNodeIds := pn.getConnsDataForDb()
@@ -306,8 +306,9 @@ func (pn *PathNodeDb) insertInDb() (error, bool) {
 		pathNodeIds[0], pathNodeIds[1], pathNodeIds[2])
 	if err == nil {
 		pn.state = SyncInDbPathNode
+		return false, nil
 	}
-	return err, te.IsFiltered(err)
+	return te.IsFiltered(err), m3util.MakeWrapQsmErrorf(err, "insert in DB %s failed with %v", pn.String(), err)
 }
 
 func (pn *PathNodeDb) updateInDb() error {
@@ -319,7 +320,7 @@ func (pn *PathNodeDb) updateInDb() error {
 		return err
 	}
 	if updatedRows != 1 {
-		return m3db.MakeQsmErrorf("updating path node id %d did not return 1 row but %d in %s", pn.id, updatedRows, pn.String())
+		return m3util.MakeQsmErrorf("updating path node id %d did not return 1 row but %d in %s", pn.id, updatedRows, pn.String())
 	}
 	pn.state = SyncInDbPathNode
 	return nil

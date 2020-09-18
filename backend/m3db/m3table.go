@@ -74,7 +74,7 @@ func (env *QsmDbEnvironment) GetForSaveAll(tableName string) (*TableExec, int, b
 			return te, 0, false, err
 		}
 		if !count.Next() {
-			err = MakeQsmErrorf("counting rows of table %s returned no results", te.GetFullTableName())
+			err = m3util.MakeQsmErrorf("counting rows of table %s returned no results", te.GetFullTableName())
 			Log.Error(err)
 			return te, 0, false, err
 		}
@@ -217,21 +217,20 @@ func (te *TableExec) IsFiltered(err error) bool {
 func (te *TableExec) Insert(args ...interface{}) error {
 	res, err := te.InsertStmt.Exec(args...)
 	if err != nil {
-		Log.Errorf("executing insert for table %s with args %v got error %v", te.tableName, args, err)
-		return err
+		return m3util.MakeWrapQsmErrorf(err, "executing insert for table %s with args %v got error %v", te.tableName, args, err)
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		if !te.IsFiltered(err) {
-			Log.Errorf("after insert on table %s with args %v extracting rows received error '%s'", te.tableName, args, err.Error())
+		if te.IsFiltered(err) {
+			return err
 		}
-		return err
+		return m3util.MakeWrapQsmErrorf(err, "after insert on table %s with args %v extracting rows received error %v", te.tableName, args, err)
 	}
 	if Log.IsTrace() {
 		Log.Tracef("table %s inserted %v got %d response", te.tableName, args, rows)
 	}
 	if rows != int64(1) {
-		err = MakeQsmErrorf("insert query on table %s should have receive one result, and got %d", te.tableName, rows)
+		err = m3util.MakeQsmErrorf("insert query on table %s should have receive one result, and got %d", te.tableName, rows)
 		if !te.IsFiltered(err) {
 			Log.Error(err)
 		}
@@ -245,10 +244,10 @@ func (te *TableExec) InsertReturnId(args ...interface{}) (int64, error) {
 	var id int64
 	err := row.Scan(&id)
 	if err != nil {
-		if !te.IsFiltered(err) {
-			Log.Errorf("inserting on table %s using query row with args %v got error '%s'", te.tableName, args, err.Error())
+		if te.IsFiltered(err) {
+			return -1, err
 		}
-		return -1, err
+		return -1, m3util.MakeWrapQsmErrorf(err, "inserting on table %s using query row with args %v got error %v", te.tableName, args, err)
 	}
 	if Log.IsTrace() {
 		Log.Tracef("table %s inserted %v got id %d", te.tableName, args, id)
@@ -259,13 +258,11 @@ func (te *TableExec) InsertReturnId(args ...interface{}) (int64, error) {
 func (te *TableExec) Update(queryId int, args ...interface{}) (int, error) {
 	res, err := te.QueriesStmt[queryId].Exec(args...)
 	if err != nil {
-		Log.Errorf("executing update for table %s for query %d with args %v got error '%s'", te.tableName, queryId, args, err.Error())
-		return 0, err
+		return 0, m3util.MakeWrapQsmErrorf(err, "executing update for table %s for query %d with args %v got error '%s'", te.tableName, queryId, args, err.Error())
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		Log.Errorf("after update on table %s for query %d with args %v extracting rows received error %v", te.tableName, queryId, args, err)
-		return 0, err
+		return 0, m3util.MakeWrapQsmErrorf(err, "after update on table %s for query %d with args %v extracting rows received error %v", te.tableName, queryId, args, err)
 	}
 	if Log.IsTrace() {
 		Log.Tracef("updated table %s with query %d and args %v got %d response", te.tableName, queryId, args, rows)
@@ -276,8 +273,7 @@ func (te *TableExec) Update(queryId int, args ...interface{}) (int, error) {
 func (te *TableExec) Query(queryId int, args ...interface{}) (*sql.Rows, error) {
 	rows, err := te.QueriesStmt[queryId].Query(args...)
 	if err != nil {
-		Log.Errorf("executing query %d for table %s with args %v got error %v", queryId, te.tableName, args, err)
-		return nil, err
+		return nil, m3util.MakeWrapQsmErrorf(err, "executing query %d for table %s with args %v got error %v", queryId, te.tableName, args, err)
 	}
 	if Log.IsTrace() {
 		Log.Tracef("query %d on table %s with args %v got response", queryId, te.tableName, args)
@@ -307,12 +303,12 @@ func (te *TableExec) initForTable(tableName string) error {
 	var ok bool
 	te.TableDef, ok = tableDefinitions[tableName]
 	if !ok {
-		return MakeQsmErrorf("Table definition for %s does not exists", tableName)
+		return m3util.MakeQsmErrorf("Table definition for %s does not exists", tableName)
 	}
 
 	db := te.env.GetConnection()
 	if db == nil {
-		return MakeQsmErrorf("Got a nil connection for %d", te.env.GetId())
+		return m3util.MakeQsmErrorf("Got a nil connection for %d", te.env.GetId())
 	}
 
 	schemaName := te.env.GetSchemaName()
@@ -324,7 +320,7 @@ func (te *TableExec) initForTable(tableName string) error {
 	var toCreate bool
 	if err == nil {
 		if one != 1 {
-			Log.Errorf("checking for table existence of %s in %s returned %d instead of 1", fullTableName, te.env.dbDetails.DbName, one)
+			return m3util.MakeQsmErrorf("checking for table existence of %s in %s returned %d instead of 1", fullTableName, te.env.dbDetails.DbName, one)
 		} else {
 			Log.Debugf("Table %s exists in %s", fullTableName, te.env.dbDetails.DbName)
 		}
@@ -333,8 +329,7 @@ func (te *TableExec) initForTable(tableName string) error {
 		if err == sql.ErrNoRows {
 			toCreate = true
 		} else {
-			Log.Errorf("could not check if table %s exists due to error %v", fullTableName, err)
-			return err
+			return m3util.MakeWrapQsmErrorf(err, "could not check if table %s exists due to error %v", fullTableName, err)
 		}
 	}
 
@@ -364,8 +359,7 @@ func (te *TableExec) initForTable(tableName string) error {
 	}
 	_, err = db.Exec(createQuery)
 	if err != nil {
-		Log.Errorf("could not create table %s using '%s' due to error %v", fullTableName, createQuery, err)
-		return err
+		return m3util.MakeWrapQsmErrorf(err, "could not create table %s using '%s' due to error %v", fullTableName, createQuery, err)
 	}
 	if Log.IsDebug() {
 		Log.Debugf("Table %s created", fullTableName)

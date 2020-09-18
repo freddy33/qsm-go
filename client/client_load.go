@@ -11,65 +11,63 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 )
 
-func (cl *ClientConnection) ExecReq(method string, uri string, m proto.Message) io.ReadCloser {
+const(
+	ExecOK     = "OK"
+	ExecFailed = "FAIL"
+)
+
+func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Message, respMsg proto.Message) (string, error) {
 	uri = strings.TrimPrefix(uri, "/")
-	client := http.Client{Timeout: 20 * time.Second}
-	var body io.Reader
-	if m != nil {
-		b, err := proto.Marshal(m)
+
+	var reqBody io.Reader
+	if reqMsg != nil {
+		b, err := proto.Marshal(reqMsg)
 		if err != nil {
-			Log.Errorf("Failed marshalling message in %s:%s for REST API end point %q due to: %s",
-				method, uri,
-				cl.BackendRootURL, err.Error())
-			return nil
+			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Failed marshalling message in %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
 		}
-		body = bytes.NewReader(b)
+		reqBody = bytes.NewReader(b)
 	}
-	req, err := http.NewRequest(method, cl.BackendRootURL+uri, body)
+	req, err := http.NewRequest(method, cl.backendRootURL+uri, reqBody)
 	if err != nil {
-		Log.Errorf("Could not request %s:%s for REST API end point %q due to: %s",
-			method, uri,
-			cl.BackendRootURL, err.Error())
-		return nil
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not request %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
 	}
 	if req == nil {
-		Log.Errorf("Got a nil request %s:%s for REST API end point %q",
-			method, uri,
-			cl.BackendRootURL)
-		return nil
+		return ExecFailed, m3util.MakeQsmErrorf("Got a nil request %s:%s for REST API end point %q", method, uri, cl.backendRootURL)
 	}
-	req.Header.Add(m3api.HttpEnvIdKey, cl.EnvId.String())
+	req.Header.Add(m3api.HttpEnvIdKey, cl.envId.String())
 
-	resp, err := client.Do(req)
+	resp, err := cl.httpClient.Do(req)
 	if err != nil {
-		Log.Errorf("Could not retrieve data from REST API %s:%s end point %q due to: %s",
-			method, uri,
-			cl.BackendRootURL, err.Error())
-		return nil
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not retrieve data from REST API %s:%s end point %q due to: %v", method, uri, cl.backendRootURL, err)
 	}
 	if resp == nil {
-		Log.Errorf("Got a nil response from REST API %s:%s end point %q",
-			method, uri,
-			cl.BackendRootURL)
-		return nil
+		return ExecFailed, m3util.MakeQsmErrorf("Got a nil response from REST API %s:%s end point %q", method, uri, cl.backendRootURL)
 	}
-	return resp.Body
+	respBody := resp.Body
+	defer m3util.CloseBody(respBody)
+	respBytes, err := ioutil.ReadAll(respBody)
+	if err != nil {
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not read body from REST API end point %q due to %v", uri, err)
+	}
+	if respMsg != nil {
+		// TODO: Verify content type and resp object type match
+		err = proto.Unmarshal(respBytes, respMsg)
+		if err != nil {
+			return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not unmarshal from REST API end point %q due to %v", uri, err)
+		}
+		return ExecOK, nil
+	}
+	return string(respBytes), nil
 }
 
 func (cl *ClientConnection) CheckServerUp() bool {
-	body := cl.ExecReq(http.MethodGet, "", nil)
-	if body == nil {
+	response, err := cl.ExecReq(http.MethodGet, "", nil, nil)
+	if err != nil {
+		Log.Error(err)
 		return false
 	}
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		return true
-	}
-	response := string(b)
 	Log.Debugf("All good on home response %q", response)
 	return true
 }
@@ -111,17 +109,10 @@ func (env *QsmApiEnvironment) initializePointData() {
 		Log.Fatalf("Something wrong above")
 		return
 	}
-	body := env.clConn.ExecReq(http.MethodGet, "point-data", nil)
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		Log.Fatalf("Could not read body from REST API end point %q due to %s", "point-data", err.Error())
-		return
-	}
 	pMsg := &m3api.PointPackDataMsg{}
-	err = proto.Unmarshal(b, pMsg)
+	_, err := env.clConn.ExecReq(http.MethodGet, "point-data", nil, pMsg)
 	if err != nil {
-		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", "point-data", err.Error())
+		Log.Fatal(err)
 		return
 	}
 
@@ -275,6 +266,7 @@ func get6TrioIndex(s []int32) [6]m3point.TrioIndex {
 	}
 	return res
 }
+
 func get12TrioIndex(s []int32) [12]m3point.TrioIndex {
 	if len(s) != 12 {
 		Log.Fatalf("cannot convert slice of size %d to 12", len(s))
@@ -293,19 +285,13 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 		GrowthOffset:    int32(offset),
 		Center:          m3api.PointToPointMsg(center),
 	}
-	body := ppd.env.clConn.ExecReq(http.MethodPut, uri, reqMsg)
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
-		return nil
-	}
 	pMsg := new(m3api.PathContextMsg)
-	err = proto.Unmarshal(b, pMsg)
+	_, err := ppd.env.clConn.ExecReq(http.MethodPut, uri, reqMsg, pMsg)
 	if err != nil {
-		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
+		Log.Fatal(err)
 		return nil
 	}
+
 	pathCtx := new(PathContextCl)
 	pathCtx.id = int(pMsg.GetPathCtxId())
 	pathCtx.env = ppd.env

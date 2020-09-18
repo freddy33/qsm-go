@@ -2,6 +2,7 @@ package pointdb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 )
 
@@ -138,8 +139,7 @@ func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
 			for i, pl := range rootNode.PathLinks {
 				ipn, ok := pl.PathNode.(*m3point.IntermediatePathNodeBuilder)
 				if !ok {
-					err = m3db.MakeQsmErrorf("trying to convert path node to intermediate failed for %v", pl)
-					return 0, err
+					return 0, m3util.MakeQsmErrorf("trying to convert path node to intermediate failed for %v", pl)
 				}
 				interPNs[i] = ipn
 				for j := 0; j < 2; j++ {
@@ -147,8 +147,7 @@ func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
 					interConnIds[i][j] = ipl.ConnId
 					lipn, ok := ipl.PathNode.(*m3point.LastPathNodeBuilder)
 					if !ok {
-						err = m3db.MakeQsmErrorf("trying to convert path node to last intermediate failed for %v", ipl)
-						return 0, err
+						return 0, m3util.MakeQsmErrorf("trying to convert path node to last intermediate failed for %v", ipl)
 					}
 					lastInterPNs[i][j] = lipn
 				}

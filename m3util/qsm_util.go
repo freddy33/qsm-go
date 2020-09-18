@@ -2,6 +2,7 @@ package m3util
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -9,6 +10,11 @@ import (
 )
 
 var Log = NewLogger("m3util", INFO)
+
+type QsmError struct {
+	msg string
+	cause error
+}
 
 func DirExists(dir string, subPath string) (bool, string) {
 	p := filepath.Join(dir, subPath)
@@ -135,3 +141,30 @@ func PosMod4(i uint64) uint64 {
 func PosMod8(i uint64) uint64 {
 	return i & 0x0000000000000007
 }
+
+/***************************************************************/
+// QsmError Functions
+/***************************************************************/
+
+func MakeQsmErrorf(format string, args ...interface{}) error {
+	return &QsmError{
+		msg:   fmt.Sprintf(format, args...),
+		cause: nil,
+	}
+}
+
+func MakeWrapQsmErrorf(err error, format string, args ...interface{}) error {
+	return &QsmError{
+		msg:   fmt.Sprintf(format, args...),
+		cause: err,
+	}
+}
+
+func (qsmError *QsmError) Error() string {
+	return qsmError.msg
+}
+
+func (qsmError *QsmError) Unwrap() error {
+	return qsmError.cause
+}
+

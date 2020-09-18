@@ -12,23 +12,23 @@ import (
 func getPointEnv(env *m3db.QsmDbEnvironment, pointId int64) (*m3point.Point, error) {
 	te, err := env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
-		return nil, m3db.MakeQsmErrorf("could not get points table exec due to '%s'", err.Error())
+		return nil, m3util.MakeWrapQsmErrorf(err, "could not get points table exec due to %v", err)
 	}
 	rows, err := te.Query(SelectPointPerId, pointId)
 	if err != nil {
-		return nil, m3db.MakeQsmErrorf("could not select point %d from points table exec due to '%s'", pointId, err.Error())
+		return nil, m3util.MakeWrapQsmErrorf(err, "could not select point %d from points table exec due to %v", pointId, err)
 	}
 	defer te.CloseRows(rows)
 	if rows.Next() {
 		res := m3point.Point{}
 		err = rows.Scan(&res[0], &res[1], &res[2])
 		if err != nil {
-			return nil, m3db.MakeQsmErrorf("could not read row of %s for %d due to '%s'", PointsTable, pointId, err.Error())
+			return nil, m3util.MakeWrapQsmErrorf(err, "could not read row of %s for %d due to %v", PointsTable, pointId, err)
 		} else {
 			return &res, nil
 		}
 	}
-	return nil, m3db.MakeQsmErrorf("point id %d does not exists!", pointId)
+	return nil, m3util.MakeQsmErrorf("point id %d does not exists!", pointId)
 }
 
 func getOrCreatePointEnv(env *m3db.QsmDbEnvironment, p m3point.Point) int64 {
