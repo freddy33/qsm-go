@@ -17,11 +17,7 @@ func TestDisplayPathBuilders(t *testing.T) {
 
 	env := client.GetInitializedApiEnv(m3util.PointTestEnv)
 	ppd := client.GetClientPointPackData(env)
-	assert.Equal(t, m3point.TotalNumberOfCubes+1, len(ppd.PathBuilders))
+	assert.Equal(t, m3point.TotalNbContexts, len(ppd.AllGrowthContexts))
 	growthCtx := ppd.GetGrowthContextByTypeAndIndex(m3point.GrowthType(8), 0)
-	pnb := ppd.GetPathNodeBuilder(growthCtx, 0, m3point.Origin)
-	assert.NotNil(t, pnb, "did not find builder for %s", growthCtx.String())
-	rpnb, tok := pnb.(*m3point.RootPathNodeBuilder)
-	assert.True(t, tok, "%s is not a root builder", pnb.String())
-	Log.Debug(rpnb.DumpInfo())
+	assert.NotNil(t, growthCtx)
 }

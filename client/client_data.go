@@ -74,14 +74,6 @@ func (ppd *ClientPointPackData) GetAllMod8Permutations() [12][8]m3point.TrioInde
 	return ppd.AllMod8Permutations
 }
 
-func (ppd *ClientPointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthContext, offset int, c m3point.Point) m3point.PathNodeBuilder {
-	ppd.CheckPathBuildersInitialized()
-	// TODO: Verify the key below stay local and is not staying in memory
-	key := m3point.CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: m3point.CreateTrioCube(ppd, growthCtx, offset, c)}
-	cubeId := ppd.GetCubeIdByKey(key)
-	return ppd.GetPathNodeBuilderById(cubeId)
-}
-
 /***************************************************************/
 // PathContextCl Functions
 /***************************************************************/

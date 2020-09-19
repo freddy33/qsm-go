@@ -5,7 +5,6 @@ import (
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
-	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/golang/protobuf/proto"
 	"net/http"
 )
@@ -70,41 +69,6 @@ func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	}
 	Log.Debug("sending all growth context", len(msg.AllGrowthContexts))
 
-	msg.AllCubes = make([]*m3api.CubeOfTrioMsg, len(ppd.CubeIdsPerKey)+1)
-	// Dummy 0 cube
-	msg.AllCubes[0] = &m3api.CubeOfTrioMsg{CubeId: int32(0)}
-	for cubeKey, id := range ppd.CubeIdsPerKey {
-		cubeOfTrio := cubeKey.GetCube()
-		centerFaces := cubeOfTrio.GetCenterFaces()
-		middleEdges := cubeOfTrio.GetMiddleEdges()
-		msg.AllCubes[id] = &m3api.CubeOfTrioMsg{
-			CubeId:             int32(id),
-			GrowthContextId:    int32(cubeKey.GetGrowthCtxId()),
-			CenterTrioId:       int32(cubeOfTrio.GetCenter()),
-			CenterFacesTrioIds: convertToInt32Slice(centerFaces[:]),
-			MiddleEdgesTrioIds: convertToInt32Slice(middleEdges[:]),
-		}
-	}
-	Log.Debug("sending all cubes", len(msg.AllCubes))
-
-	msg.AllPathNodeBuilders = make([]*m3api.RootPathNodeBuilderMsg, len(ppd.PathBuilders))
-	for idx, pb := range ppd.PathBuilders {
-		if idx == 0 {
-			// Dummy 0 cube Id
-			msg.AllPathNodeBuilders[idx] = &m3api.RootPathNodeBuilderMsg{
-				CubeId: int32(0),
-				TrioId: int32(m3point.NilTrioIndex),
-			}
-		} else {
-			msg.AllPathNodeBuilders[idx] = &m3api.RootPathNodeBuilderMsg{
-				CubeId:            int32(pb.GetCubeId()),
-				TrioId:            int32(pb.GetTrioIndex()),
-				InterNodeBuilders: convertToInterMsg(pb.GetPathLinks()),
-			}
-		}
-	}
-	Log.Debug("sending all root path builders", len(msg.AllPathNodeBuilders))
-
 	data, err := proto.Marshal(&msg)
 	if err != nil {
 		Log.Warnf("Failed to marshal Point Package Data due to: %q", err.Error())
@@ -118,39 +82,4 @@ func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		Log.Errorf("failed to send data to response due to %q", err.Error())
 	}
-}
-
-func convertToInt32Slice(trIds []m3point.TrioIndex) []int32 {
-	res := make([]int32, len(trIds))
-	for idx, tr := range trIds {
-		res[idx] = int32(tr)
-	}
-	return res
-}
-
-func convertToLastMsg(pnb pointdb.PathNodeBuilder) *m3api.LastPathNodeBuilderMsg {
-	lpnb := pnb.(*pointdb.LastPathNodeBuilder)
-	return &m3api.LastPathNodeBuilderMsg{
-		CubeId:          int32(lpnb.GetCubeId()),
-		TrioId:          int32(lpnb.GetTrioIndex()),
-		NextMainConnId:  int32(lpnb.GetNextMainConnId()),
-		NextInterConnId: int32(lpnb.GetNextInterConnId()),
-	}
-}
-
-func convertToInterMsg(pls []pointdb.PathLinkBuilder) []*m3api.IntermediatePathNodeBuilderMsg {
-	res := make([]*m3api.IntermediatePathNodeBuilderMsg, len(pls))
-	for idx, pl := range pls {
-		pnb := pl.GetPathNodeBuilder().(*pointdb.IntermediatePathNodeBuilder)
-		nextPls := pnb.GetPathLinks()
-		res[idx] = &m3api.IntermediatePathNodeBuilderMsg{
-			CubeId:           int32(pnb.GetCubeId()),
-			TrioId:           int32(pnb.GetTrioIndex()),
-			Link1ConnId:      int32(nextPls[0].GetConnectionId()),
-			LastNodeBuilder1: convertToLastMsg(nextPls[0].GetPathNodeBuilder()),
-			Link2ConnId:      int32(nextPls[1].GetConnectionId()),
-			LastNodeBuilder2: convertToLastMsg(nextPls[1].GetPathNodeBuilder()),
-		}
-	}
-	return res
 }

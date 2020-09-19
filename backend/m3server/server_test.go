@@ -2,7 +2,6 @@ package m3server
 
 import (
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/golang/protobuf/proto"
@@ -57,8 +56,6 @@ func TestReadPointData(t *testing.T) {
 	assert.Equal(t, 50, len(pMsg.AllConnections))
 	assert.Equal(t, 200, len(pMsg.AllTrios))
 	assert.Equal(t, 52, len(pMsg.AllGrowthContexts))
-	assert.Equal(t, pointdb.TotalNumberOfCubes+1, len(pMsg.AllCubes))
-	assert.Equal(t, pointdb.TotalNumberOfCubes+1, len(pMsg.AllPathNodeBuilders))
 }
 
 func TestLogLevelSetter(t *testing.T) {

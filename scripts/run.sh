@@ -31,10 +31,10 @@ case "$commandName" in
     cd ${rootDir}/ui && ${go_exe} build
     ;;
     play)
-    cd ${rootDir}/ui && ${go_exe} build && ./ui $@
+    cd ${rootDir}/ui && ${go_exe} build && ./ui "$@"
     ;;
     gentxt|*filldb|perf)
-    cd ${rootDir}/backend && ${go_exe} build && ./backend $@
+    cd ${rootDir}/backend && ${go_exe} build && ./backend "$@"
     ;;
     *)
     echo "ERROR: Run command $commandName unknown"

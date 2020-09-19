@@ -93,7 +93,7 @@ func (env *QsmApiEnvironment) initializePointData() {
 	ppdIfc := env.GetData(m3util.PointIdx)
 	if ppdIfc != nil {
 		pointData = ppdIfc.(*ClientPointPackData)
-		if pointData.PathBuildersLoaded {
+		if pointData.GrowthContextsLoaded {
 			Log.Debugf("Env %d already loaded", env.GetId())
 			return
 		}
@@ -167,115 +167,6 @@ func (env *QsmApiEnvironment) initializePointData() {
 	}
 	pointData.GrowthContextsLoaded = true
 	Log.Debugf("loaded %d growth context", len(pointData.AllGrowthContexts))
-
-	pointData.CubeIdsPerKey = make(map[m3point.CubeKeyId]int, len(pMsg.AllCubes))
-	growthCtxByCubeId := make(map[int]int, len(pMsg.AllCubes))
-	for id, cube := range pMsg.AllCubes {
-		// Do not load dummy cube
-		if id != 0 {
-			key := m3point.CubeKeyId{
-				GrowthCtxId: int(cube.GetGrowthContextId()),
-				Cube: m3point.CubeOfTrioIndex{
-					Center:      m3point.TrioIndex(cube.GetCenterTrioId()),
-					CenterFaces: get6TrioIndex(cube.GetCenterFacesTrioIds()),
-					MiddleEdges: get12TrioIndex(cube.GetMiddleEdgesTrioIds()),
-				},
-			}
-			cubeId := int(cube.GetCubeId())
-			pointData.CubeIdsPerKey[key] = cubeId
-			growthCtxByCubeId[cubeId] = key.GetGrowthCtxId()
-		}
-	}
-	pointData.CubesLoaded = true
-	Log.Debugf("loaded %d cubes", len(pointData.CubeIdsPerKey))
-
-	pointData.PathBuilders = make([]*m3point.RootPathNodeBuilder, len(pMsg.AllPathNodeBuilders))
-	for idx, pnd := range pMsg.AllPathNodeBuilders {
-		if idx == 0 {
-			// Dummy cube and path loader
-			continue
-		}
-		cubeId := int(pnd.GetCubeId())
-		trIdx := m3point.TrioIndex(pnd.GetTrioId())
-		tr := pointData.GetTrioDetails(trIdx)
-		pointData.PathBuilders[idx] = &m3point.RootPathNodeBuilder{
-			BasePathNodeBuilder: m3point.BasePathNodeBuilder{Ctx: &m3point.PathBuilderContext{
-				GrowthCtx: pointData.GetGrowthContextById(growthCtxByCubeId[cubeId]),
-				CubeId:    cubeId},
-				TrIdx: trIdx},
-			PathLinks: convertToInterPathBuilders(pointData, growthCtxByCubeId, tr, pnd),
-		}
-	}
-	pointData.PathBuildersLoaded = true
-	Log.Debugf("loaded %d path builders", len(pointData.PathBuilders))
-}
-
-func convertToInterPathBuilders(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
-	res := [3]m3point.PathLinkBuilder{}
-	interNodeBuilders := pnd.GetInterNodeBuilders()
-	for idx, cd := range tr.Conns {
-		res[idx] = m3point.PathLinkBuilder{
-			ConnId:   cd.Id,
-			PathNode: convertToInterPathBuilder(ppd, growthCtxByCubeId, interNodeBuilders[idx]),
-		}
-	}
-	return res
-}
-
-func convertToInterPathBuilder(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.IntermediatePathNodeBuilderMsg) *m3point.IntermediatePathNodeBuilder {
-	cubeId := int(pnd.GetCubeId())
-	trIdx := m3point.TrioIndex(pnd.GetTrioId())
-	return &m3point.IntermediatePathNodeBuilder{
-		BasePathNodeBuilder: m3point.BasePathNodeBuilder{Ctx: &m3point.PathBuilderContext{
-			GrowthCtx: ppd.GetGrowthContextById(growthCtxByCubeId[cubeId]),
-			CubeId:    cubeId},
-			TrIdx: trIdx},
-		PathLinks: [2]m3point.PathLinkBuilder{
-			{
-				ConnId:   m3point.ConnectionId(pnd.Link1ConnId),
-				PathNode: convertToLastPathBuilder(ppd, growthCtxByCubeId, pnd.LastNodeBuilder1),
-			},
-			{
-				ConnId:   m3point.ConnectionId(pnd.Link2ConnId),
-				PathNode: convertToLastPathBuilder(ppd, growthCtxByCubeId, pnd.LastNodeBuilder2),
-			},
-		},
-	}
-}
-
-func convertToLastPathBuilder(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.LastPathNodeBuilderMsg) *m3point.LastPathNodeBuilder {
-	cubeId := int(pnd.GetCubeId())
-	trIdx := m3point.TrioIndex(pnd.GetTrioId())
-	return &m3point.LastPathNodeBuilder{
-		BasePathNodeBuilder: m3point.BasePathNodeBuilder{Ctx: &m3point.PathBuilderContext{
-			GrowthCtx: ppd.GetGrowthContextById(growthCtxByCubeId[cubeId]),
-			CubeId:    cubeId},
-			TrIdx: trIdx},
-		NextMainConnId:  m3point.ConnectionId(pnd.NextMainConnId),
-		NextInterConnId: m3point.ConnectionId(pnd.NextInterConnId),
-	}
-}
-
-func get6TrioIndex(s []int32) [6]m3point.TrioIndex {
-	if len(s) != 6 {
-		Log.Fatalf("cannot convert slice of size %d to 6", len(s))
-	}
-	res := [6]m3point.TrioIndex{}
-	for idx, i := range s {
-		res[idx] = m3point.TrioIndex(i)
-	}
-	return res
-}
-
-func get12TrioIndex(s []int32) [12]m3point.TrioIndex {
-	if len(s) != 12 {
-		Log.Fatalf("cannot convert slice of size %d to 12", len(s))
-	}
-	res := [12]m3point.TrioIndex{}
-	for idx, i := range s {
-		res[idx] = m3point.TrioIndex(i)
-	}
-	return res
 }
 
 func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
