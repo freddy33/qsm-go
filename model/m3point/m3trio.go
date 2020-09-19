@@ -165,18 +165,4 @@ func (td *TrioDetails) GetDSIndex() int {
 	return -1
 }
 
-/***************************************************************/
-// PointPackData Functions for GetTrioDetails
-/***************************************************************/
-
-func (ppd *BasePointPackData) GetAllTrioDetails() []*TrioDetails {
-	ppd.checkTrioInitialized()
-	return ppd.AllTrioDetails
-}
-
-func (ppd *BasePointPackData) GetTrioDetails(trIdx TrioIndex) *TrioDetails {
-	ppd.checkTrioInitialized()
-	return ppd.AllTrioDetails[trIdx]
-}
-
 

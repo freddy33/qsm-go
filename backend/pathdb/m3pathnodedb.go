@@ -3,6 +3,7 @@ package pathdb
 import (
 	"database/sql"
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
@@ -51,7 +52,7 @@ type PathNodeDb struct {
 	point *m3point.Point
 
 	// This is dynamically loaded on demand from PointPackData
-	pathBuilder m3point.PathNodeBuilder
+	pathBuilder pointdb.PathNodeBuilder
 	trioDetails *m3point.TrioDetails
 
 	// This is populated during creation and should not be used for non new node
@@ -393,14 +394,14 @@ func (pn *PathNodeDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
 	pn.trioDetails = trioDetails
 }
 
-func (pn *PathNodeDb) PathBuilder() m3point.PathNodeBuilder {
+func (pn *PathNodeDb) PathBuilder() pointdb.PathNodeBuilder {
 	if pn.pathBuilder == nil {
 		pn.pathBuilder = pn.PathCtx().ppd.GetPathNodeBuilderById(pn.pathBuilderId)
 	}
 	return pn.pathBuilder
 }
 
-func (pn *PathNodeDb) SetPathBuilder(pathBuilder m3point.PathNodeBuilder) {
+func (pn *PathNodeDb) SetPathBuilder(pathBuilder pointdb.PathNodeBuilder) {
 	pn.pathBuilderId = pathBuilder.GetCubeId()
 	pn.pathBuilder = pathBuilder
 }

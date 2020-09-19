@@ -43,12 +43,7 @@ type BaseGrowthContext struct {
 // GrowthType Functions
 /***************************************************************/
 
-func (ppd *BasePointPackData) GetAllGrowthContexts() []GrowthContext {
-	ppd.checkGrowthContextsInitialized()
-	return ppd.AllGrowthContexts
-}
-
-func GetAllContextTypes() [5]GrowthType {
+func GetAllGrowthTypes() [5]GrowthType {
 	return allGrowthTypes
 }
 
@@ -78,22 +73,6 @@ func (t GrowthType) GetMaxOffset() int {
 /***************************************************************/
 // BaseGrowthContext Functions
 /***************************************************************/
-
-func (ppd *BasePointPackData) GetGrowthContextById(id int) GrowthContext {
-	ppd.checkGrowthContextsInitialized()
-	return ppd.AllGrowthContexts[id]
-}
-
-func (ppd *BasePointPackData) GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext {
-	ppd.checkGrowthContextsInitialized()
-	for _, growthCtx := range ppd.AllGrowthContexts {
-		if growthCtx.GetGrowthType() == growthType && growthCtx.GetGrowthIndex() == index {
-			return growthCtx
-		}
-	}
-	Log.Fatalf("could not find trio Context for %d %d", growthType, index)
-	return nil
-}
 
 func (gowthCtx *BaseGrowthContext) String() string {
 	return fmt.Sprintf("GrowthCtx%d-%d-Idx%02d", gowthCtx.Id, gowthCtx.GrowthType, gowthCtx.GrowthIndex)

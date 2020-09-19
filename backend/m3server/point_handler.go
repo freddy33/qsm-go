@@ -128,8 +128,8 @@ func convertToInt32Slice(trIds []m3point.TrioIndex) []int32 {
 	return res
 }
 
-func convertToLastMsg(pnb m3point.PathNodeBuilder) *m3api.LastPathNodeBuilderMsg {
-	lpnb := pnb.(*m3point.LastPathNodeBuilder)
+func convertToLastMsg(pnb pointdb.PathNodeBuilder) *m3api.LastPathNodeBuilderMsg {
+	lpnb := pnb.(*pointdb.LastPathNodeBuilder)
 	return &m3api.LastPathNodeBuilderMsg{
 		CubeId:          int32(lpnb.GetCubeId()),
 		TrioId:          int32(lpnb.GetTrioIndex()),
@@ -138,10 +138,10 @@ func convertToLastMsg(pnb m3point.PathNodeBuilder) *m3api.LastPathNodeBuilderMsg
 	}
 }
 
-func convertToInterMsg(pls []m3point.PathLinkBuilder) []*m3api.IntermediatePathNodeBuilderMsg {
+func convertToInterMsg(pls []pointdb.PathLinkBuilder) []*m3api.IntermediatePathNodeBuilderMsg {
 	res := make([]*m3api.IntermediatePathNodeBuilderMsg, len(pls))
 	for idx, pl := range pls {
-		pnb := pl.GetPathNodeBuilder().(*m3point.IntermediatePathNodeBuilder)
+		pnb := pl.GetPathNodeBuilder().(*pointdb.IntermediatePathNodeBuilder)
 		nextPls := pnb.GetPathLinks()
 		res[idx] = &m3api.IntermediatePathNodeBuilderMsg{
 			CubeId:           int32(pnb.GetCubeId()),

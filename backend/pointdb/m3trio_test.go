@@ -42,7 +42,7 @@ func TestPosMod8(t *testing.T) {
 	assert.Equal(t, uint64(0), m3util.PosMod8(0))
 }
 
-func getPointTestData() m3point.PointPackDataIfc {
+func getPointTestData() ServerPointPackDataIfc {
 	m3util.SetToTestMode()
 
 	env := GetServerFullTestDb(m3util.PointTestEnv)

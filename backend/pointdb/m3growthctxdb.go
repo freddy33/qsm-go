@@ -75,7 +75,7 @@ func (ppd *ServerPointPackData) saveAllGrowthContexts() (int, error) {
 func (ppd *ServerPointPackData) calculateAllGrowthContexts() []m3point.GrowthContext {
 	res := make([]m3point.GrowthContext, m3point.TotalNbContexts)
 	idx := 0
-	for _, ctxType := range m3point.GetAllContextTypes() {
+	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			growthCtx := m3point.BaseGrowthContext{Env: ppd.Env, Id: idx, GrowthType: ctxType, GrowthIndex: pIdx}

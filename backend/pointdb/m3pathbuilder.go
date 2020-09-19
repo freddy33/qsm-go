@@ -1,14 +1,25 @@
-package m3point
+package pointdb
 
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3point"
 	"strings"
 )
 
+type PathNodeBuilder interface {
+	fmt.Stringer
+	GetEnv() m3util.QsmEnvironment
+	GetCubeId() int
+	GetTrioIndex() m3point.TrioIndex
+	GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point)
+	DumpInfo() string
+	Verify()
+}
+
 // The Ctx for each main point start point that gives in the global map the root path node builder
 type PathBuilderContext struct {
-	GrowthCtx GrowthContext
+	GrowthCtx m3point.GrowthContext
 	CubeId    int
 }
 
@@ -18,7 +29,7 @@ func (ctx *PathBuilderContext) String() string {
 
 type BasePathNodeBuilder struct {
 	Ctx   *PathBuilderContext
-	TrIdx TrioIndex
+	TrIdx m3point.TrioIndex
 }
 
 type RootPathNodeBuilder struct {
@@ -33,17 +44,13 @@ type IntermediatePathNodeBuilder struct {
 
 type LastPathNodeBuilder struct {
 	BasePathNodeBuilder
-	NextMainConnId  ConnectionId
-	NextInterConnId ConnectionId
+	NextMainConnId  m3point.ConnectionId
+	NextInterConnId m3point.ConnectionId
 }
 
 type PathLinkBuilder struct {
-	ConnId   ConnectionId
+	ConnId   m3point.ConnectionId
 	PathNode PathNodeBuilder
-}
-
-func (ppd *BasePointPackData) GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
-	return ppd.PathBuilders[cubeId]
 }
 
 /***************************************************************/
@@ -54,7 +61,7 @@ func (pl *PathLinkBuilder) dumpInfo() string {
 	return fmt.Sprintf("%s %s", pl.ConnId.String(), pl.PathNode.DumpInfo())
 }
 
-func (pl *PathLinkBuilder) GetConnectionId() ConnectionId {
+func (pl *PathLinkBuilder) GetConnectionId() m3point.ConnectionId {
 	return pl.ConnId
 }
 
@@ -70,15 +77,15 @@ func (pnb *BasePathNodeBuilder) GetEnv() m3util.QsmEnvironment {
 	return pnb.Ctx.GrowthCtx.GetEnv()
 }
 
-func (pnb *BasePathNodeBuilder) getPointPackData() PointPackDataIfc {
-	return pnb.Ctx.GrowthCtx.GetEnv().GetData(m3util.PointIdx).(PointPackDataIfc)
+func (pnb *BasePathNodeBuilder) getPointPackData() ServerPointPackDataIfc {
+	return pnb.Ctx.GrowthCtx.GetEnv().GetData(m3util.PointIdx).(ServerPointPackDataIfc)
 }
 
 func (pnb *BasePathNodeBuilder) GetCubeId() int {
 	return pnb.Ctx.CubeId
 }
 
-func (pnb *BasePathNodeBuilder) GetTrioIndex() TrioIndex {
+func (pnb *BasePathNodeBuilder) GetTrioIndex() m3point.TrioIndex {
 	return pnb.TrIdx
 }
 
@@ -104,7 +111,7 @@ func (rpnb *RootPathNodeBuilder) GetPathLinks() []PathLinkBuilder {
 	return rpnb.PathLinks[:]
 }
 
-func (rpnb *RootPathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
+func (rpnb *RootPathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point) {
 	for _, plb := range rpnb.PathLinks {
 		if plb.ConnId == connId {
 			return plb.PathNode, from.Add(rpnb.getPointPackData().GetConnDetailsById(connId).Vector)
@@ -137,9 +144,9 @@ func (rpnb *RootPathNodeBuilder) Verify() {
 }
 
 type NextMainPathNode struct {
-	Ud       UnitDirection
-	Lip      Point
-	BackConn *ConnectionDetails
+	Ud       m3point.UnitDirection
+	Lip      m3point.Point
+	BackConn *m3point.ConnectionDetails
 	Lipnb    *LastPathNodeBuilder
 }
 
@@ -165,7 +172,7 @@ func (ipnb *IntermediatePathNodeBuilder) GetPathLinks() []PathLinkBuilder {
 	return ipnb.PathLinks[:]
 }
 
-func (ipnb *IntermediatePathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
+func (ipnb *IntermediatePathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point) {
 	for _, plb := range ipnb.PathLinks {
 		if plb.ConnId == connId {
 			return plb.PathNode, from.Add(ipnb.getPointPackData().GetConnDetailsById(connId).Vector)
@@ -200,15 +207,15 @@ func (lipnb *LastPathNodeBuilder) DumpInfo() string {
 	return fmt.Sprintf("LINB-%s %s %s", lipnb.TrIdx.String(), lipnb.NextMainConnId, lipnb.NextInterConnId)
 }
 
-func (lipnb *LastPathNodeBuilder) GetNextMainConnId() ConnectionId {
+func (lipnb *LastPathNodeBuilder) GetNextMainConnId() m3point.ConnectionId {
 	return lipnb.NextMainConnId
 }
 
-func (lipnb *LastPathNodeBuilder) GetNextInterConnId() ConnectionId {
+func (lipnb *LastPathNodeBuilder) GetNextInterConnId() m3point.ConnectionId {
 	return lipnb.NextInterConnId
 }
 
-func (lipnb *LastPathNodeBuilder) GetNextPathNodeBuilder(from Point, connId ConnectionId, offset int) (PathNodeBuilder, Point) {
+func (lipnb *LastPathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point) {
 	ppd := lipnb.getPointPackData()
 	nextMainPoint := from.GetNearMainPoint()
 	if Log.DoAssert() {

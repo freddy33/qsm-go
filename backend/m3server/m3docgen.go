@@ -65,7 +65,7 @@ func GetTrioConnType(conns [6]m3point.Point) string {
 	return "WRONG"
 }
 
-func GetTrioTransitionTableTxt(ppd m3point.PointPackDataIfc) map[Int2][7]string {
+func GetTrioTransitionTableTxt(ppd pointdb.ServerPointPackDataIfc) map[Int2][7]string {
 	allBaseTrio := pointdb.GetAllBaseTrio()
 	result := make(map[Int2][7]string, 8*8)
 	for a, tA := range allBaseTrio {
@@ -128,7 +128,7 @@ func GetTrioTransitionTableCsv() [][]string {
 	return csvOutput
 }
 
-func GetTrioTableCsv(ppd m3point.PointPackDataIfc) [][]string {
+func GetTrioTableCsv(ppd pointdb.ServerPointPackDataIfc) [][]string {
 	nbColumns := 5
 	nbRowsPerTrio := 4
 	allBaseTrio := pointdb.GetAllBaseTrio()
@@ -161,7 +161,7 @@ func GetTrioTableCsv(ppd m3point.PointPackDataIfc) [][]string {
 }
 
 // Write all the 8x8 connections possible for all trio in text and CSV files, and classify the connections size DS
-func writeTrioConnectionsTable(dir string, ppd m3point.PointPackDataIfc) {
+func writeTrioConnectionsTable(dir string, ppd pointdb.ServerPointPackDataIfc) {
 	txtFile := m3util.CreateFile(dir, "TrioConnectionsTable.txt")
 	csvFile := m3util.CreateFile(dir, "TrioConnectionsTable.csv")
 	defer m3util.CloseFile(txtFile)
@@ -197,7 +197,7 @@ func writeTrioConnectionsTable(dir string, ppd m3point.PointPackDataIfc) {
 	}
 }
 
-func writeAllTrioDetailsTable(dir string, ppd m3point.PointPackDataIfc) {
+func writeAllTrioDetailsTable(dir string, ppd pointdb.ServerPointPackDataIfc) {
 	txtFile := m3util.CreateFile(dir, "AllTrioTable.txt")
 	csvFile := m3util.CreateFile(dir, "AllTrioTable.csv")
 	defer m3util.CloseFile(txtFile)
@@ -213,7 +213,7 @@ func writeAllTrioDetailsTable(dir string, ppd m3point.PointPackDataIfc) {
 	}
 }
 
-func writeAllTrioPermutationsTable(dir string, ppd m3point.PointPackDataIfc) {
+func writeAllTrioPermutationsTable(dir string, ppd pointdb.ServerPointPackDataIfc) {
 	txtFile := m3util.CreateFile(dir, "AllTrioPermTable.txt")
 	defer m3util.CloseFile(txtFile)
 
@@ -232,7 +232,7 @@ func writeAllTrioPermutationsTable(dir string, ppd m3point.PointPackDataIfc) {
 }
 
 // Write all the connection details in text and CSV files
-func writeAllConnectionDetails(dir string, ppd m3point.PointPackDataIfc) {
+func writeAllConnectionDetails(dir string, ppd pointdb.ServerPointPackDataIfc) {
 	txtFile := m3util.CreateFile(dir, "AllConnectionDetails.txt")
 	csvFile := m3util.CreateFile(dir, "AllConnectionDetails.csv")
 	defer m3util.CloseFile(txtFile)

@@ -13,7 +13,7 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 
 	env := GetServerFullTestDb(m3util.PointTestEnv)
 	ppd := GetPointPackData(env)
-	for _, ctxType := range m3point.GetAllContextTypes() {
+	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
 			runConnectionDetailsCheck(t, ppd.GetGrowthContextByTypeAndIndex(ctxType, pIdx))
@@ -22,7 +22,7 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 }
 
 func GetBaseTrioDetails(growthCtx m3point.GrowthContext, mainPoint m3point.Point, offset int) *m3point.TrioDetails {
-	ppd := growthCtx.GetEnv().GetData(m3util.PointIdx).(m3point.PointPackDataIfc)
+	ppd := growthCtx.GetEnv().GetData(m3util.PointIdx).(ServerPointPackDataIfc)
 	return ppd.GetTrioDetails(growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), offset))
 }
 
@@ -119,7 +119,7 @@ func runConnectionDetailsCheck(t *testing.T, growthCtx m3point.GrowthContext) {
 
 }
 
-func assertValidConnDetails(t *testing.T, ppd m3point.PointPackDataIfc, p1, p2 m3point.Point, msg string) {
+func assertValidConnDetails(t *testing.T, ppd ServerPointPackDataIfc, p1, p2 m3point.Point, msg string) {
 	connDetails1 := ppd.GetConnDetailsByPoints(p1, p2)
 	assert.NotEqual(t, m3point.EmptyConnDetails, connDetails1, msg)
 	assert.Equal(t, m3point.MakeVector(p1, p2), connDetails1.Vector, msg)
