@@ -1,47 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 
-const addLine = (scene, from, to, color = 0xffff00) => {
-  const line = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(from.x, from.y, from.z),
-      new THREE.Vector3(to.x, to.y, to.z),
-    ]),
-    new THREE.LineBasicMaterial({ color })
-  );
-
-  scene.add(line);
-};
-
-const addAxes = (scene) => {
-  addLine(scene, { x: -50, y: 0, z: 0 }, { x: 50, y: 0, z: 0 }, 0xff0000);
-  addLine(scene, { x: 0, y: -50, z: 0 }, { x: 0, y: 50, z: 0 }, 0x00ff00);
-  addLine(scene, { x: 0, y: 0, z: -50 }, { x: 0, y: 0, z: 50 }, 0x0000ff);
-};
-
-const addPoint = (scene, pos) => {
-  const geometry = new THREE.SphereGeometry(1, 32, 32);
-  const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-  const sphere = new THREE.Mesh(geometry, material);
-  sphere.position.set(pos.x, pos.y, pos.z);
-  scene.add(sphere);
-};
-
-const connectPoints = (scene, from, to, color) => {
-  addLine(scene, from, to);
-  addPoint(scene, to);
-};
-
-const addCameraPivot = (scene, camera) => {
-  const cameraPivot = new THREE.Object3D();
-
-  scene.add(cameraPivot);
-  cameraPivot.add(camera);
-  camera.position.set(65, 90, 100);
-  camera.lookAt(cameraPivot.position);
-
-  return cameraPivot;
-};
+import Service from './service';
+import Renderer from './renderer';
 
 const App = () => {
   const mount = useRef(null);
@@ -50,10 +11,15 @@ const App = () => {
   const [scene, setScene] = useState();
   const [camera, setCamera] = useState();
   const [renderer, setRenderer] = useState();
+  const [pointPackDataMsg, setPointPackDataMsg] = useState();
 
-  // let scene, camera, renderer;
-
+  // componentDidMount, will load once only when page start
   useEffect(() => {
+    Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
+      debugger;
+      setPointPackDataMsg(pointPackDataMsg);
+    });
+
     let width = mount.current.clientWidth;
     let height = mount.current.clientHeight;
 
@@ -67,13 +33,13 @@ const App = () => {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     setRenderer(renderer);
 
-    addAxes(scene);
+    Renderer.addAxes(scene);
 
     const origin = { x: 0, y: 0, z: 0 };
-    addPoint(scene, origin);
-    connectPoints(scene, origin, { x: 10, y: 10, z: 10 }, 0xffff00);
-    connectPoints(scene, origin, { x: -10, y: 10, z: 10 }, 0xffff00);
-    connectPoints(scene, origin, { x: 10, y: -10, z: 10 }, 0xffff00);
+    Renderer.addPoint(scene, origin);
+    Renderer.connectPoints(scene, origin, { x: 10, y: 10, z: 10 }, 0xffff00);
+    Renderer.connectPoints(scene, origin, { x: -10, y: 10, z: 10 }, 0xffff00);
+    Renderer.connectPoints(scene, origin, { x: 10, y: -10, z: 10 }, 0xffff00);
 
     renderer.setSize(width, height);
 
@@ -91,10 +57,11 @@ const App = () => {
     window.addEventListener('resize', handleResize);
   }, []);
 
+  // called for every button clicks to update how the UI should render
   useEffect(() => {
     if (!(scene && camera && renderer)) return;
 
-    const cameraPivot = addCameraPivot(scene, camera);
+    const cameraPivot = Renderer.addCameraPivot(scene, camera);
     const animate = () => {
       if (rotating) {
         cameraPivot.rotateOnAxis(new THREE.Vector3(0, 1, 0), 0.01);
@@ -107,18 +74,12 @@ const App = () => {
     animate();
   }, [rotating, scene, camera, renderer]);
 
-  const toggleRotation = () => {
-    console.log('fuck');
-    setRotating(!rotating);
-  };
-
   return (
     <div>
       <div className="vis" ref={mount} />
-      <button className="control" onClick={() => toggleRotation()}>
+      <button className="control" onClick={() => setRotating(!rotating)}>
         Rotate
       </button>
-      
     </div>
   );
 };
