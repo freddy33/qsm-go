@@ -4,23 +4,42 @@ package m3api;
 
 import "m3point.proto";
 
-message PathContextMsg {
-    int32 path_ctx_id = 1;
-    int32 growth_context_id = 2;
+message PathContextRequestMsg {
+    int32 growth_type = 1;
+    int32 growth_index = 2;
     int32 growth_offset = 3;
-    PointMsg center = 4;
 }
 
 message PathNodeMsg {
     int64 path_node_id = 1;
-    int32 path_ctx_id = 2;
-    PointMsg point = 3;
-    int64 d = 4;
-    int32 trio_id = 5;
-    uint32 connection_mask = 6;
-    repeated int64 linked_path_node_ids = 7;
+    PointMsg point = 2;
+    int32 d = 3;
+    int32 trio_id = 4;
+    uint32 connection_mask = 5;
+    repeated int64 linked_path_node_ids = 6;
 }
 
-message NextMoveRespMsg {
-    repeated PathNodeMsg path_nodes = 1;
+message PathContextResponseMsg {
+    int32 path_ctx_id = 1;
+    int32 growth_context_id = 2;
+    int32 growth_offset = 3;
+    PathNodeMsg root_path_node = 4;
+}
+
+message ModifiedPathNodeMsg {
+    int64 path_node_id = 1;
+    uint32 connection_mask = 4;
+    repeated int64 linked_path_node_ids = 5;
+}
+
+message NextMoveRequestMsg {
+    int32 path_ctx_id = 1;
+    int32 current_dist = 2;
+}
+
+message NextMoveResponseMsg {
+    int32 path_ctx_id = 1;
+    int32 next_dist = 2;
+    repeated ModifiedPathNodeMsg modified_path_nodes = 3;
+    repeated PathNodeMsg new_path_nodes = 4;
 }

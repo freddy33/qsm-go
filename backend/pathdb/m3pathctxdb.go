@@ -116,6 +116,10 @@ func (pathCtx *PathContextDb) GetGrowthIndex() int {
 	return pathCtx.growthCtx.GetGrowthIndex()
 }
 
+func (pathCtx *PathContextDb) GetCurrentDist() int {
+	return pathCtx.openNodeBuilder.d
+}
+
 func (pathCtx *PathContextDb) GetPathNodeMap() m3path.PathNodeMap {
 	Log.Fatalf("in DB path context %s never call GetPathNodeMap", pathCtx.String())
 	return nil

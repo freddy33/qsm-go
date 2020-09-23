@@ -1,11 +1,9 @@
 package m3server
 
 import (
-	"fmt"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
-	"github.com/golang/protobuf/proto"
 	"net/http"
 )
 
@@ -13,8 +11,6 @@ var Log = m3util.NewLogger("m3server", m3util.INFO)
 
 func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive retrievePointData")
-
-	w.Header().Set("Content-Type", "application/x-protobuf; messageType=model.m3api.PointPackDataMsg")
 
 	env := GetEnvironment(r)
 	ppd, _ := pointdb.GetServerPointPackData(env)
@@ -69,17 +65,5 @@ func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	}
 	Log.Debug("sending all growth context", len(msg.AllGrowthContexts))
 
-	data, err := proto.Marshal(&msg)
-	if err != nil {
-		Log.Warnf("Failed to marshal Point Package Data due to: %q", err.Error())
-		w.WriteHeader(500)
-		_, err = fmt.Fprintf(w, "Failed to marshal Point Package Data due to:\n%s\n", err.Error())
-		if err != nil {
-			Log.Errorf("failed to send error message to response due to %q", err.Error())
-		}
-	}
-	_, err = w.Write(data)
-	if err != nil {
-		Log.Errorf("failed to send data to response due to %q", err.Error())
-	}
+	WriteResponseMsg(w, r, &msg)
 }

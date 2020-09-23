@@ -23,11 +23,11 @@ func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Mess
 
 	var reqBody io.Reader
 	if reqMsg != nil {
-		b, err := proto.Marshal(reqMsg)
+		reqBytes, err := proto.Marshal(reqMsg)
 		if err != nil {
 			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Failed marshalling message in %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
 		}
-		reqBody = bytes.NewReader(b)
+		reqBody = bytes.NewReader(reqBytes)
 	}
 	req, err := http.NewRequest(method, cl.backendRootURL+uri, reqBody)
 	if err != nil {

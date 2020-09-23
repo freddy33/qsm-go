@@ -7,9 +7,12 @@ import (
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,11 +48,47 @@ func GetEnvironment(r *http.Request) *m3db.QsmDbEnvironment {
 }
 
 func SendResponse(w http.ResponseWriter, status int, format string, args ...interface{}) {
+	if status >= 400 {
+		Log.Errorf(format, args...)
+	}
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "text/plain")
 	_, err := fmt.Fprintf(w, format, args...)
 	if err != nil {
 		log.Printf("failed to send data to response due to %q", err.Error())
+	}
+}
+
+/*
+Return true if an error occurred and the response already filed
+*/
+func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		SendResponse(w, http.StatusBadRequest, "req body could not be read req body due to: %s", err.Error())
+		return true
+	}
+	err = proto.Unmarshal(b, reqMsg)
+	if err != nil {
+		SendResponse(w, http.StatusBadRequest, "req body could not be parsed due to: %s", err.Error())
+		return true
+	}
+	return false
+}
+
+func WriteResponseMsg(w http.ResponseWriter, r *http.Request, resMsg proto.Message) {
+	data, err := proto.Marshal(resMsg)
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, "Failed to marshal PathContextMsg due to: %q", err.Error())
+		return
+	}
+
+	typeName := reflect.TypeOf(resMsg).String()
+	typeName = strings.TrimPrefix(typeName, "*")
+	w.Header().Set("Content-Type", "application/x-protobuf; messageType="+typeName)
+	_, err = w.Write(data)
+	if err != nil {
+		Log.Errorf("failed to send data to response due to %q", err.Error())
 	}
 }
 
@@ -150,7 +189,6 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/test-init", initialize).Methods("POST")
 	app.AddHandler("/test-drop", drop).Methods("DELETE")
 	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
-	app.AddHandler("/init-root-node", initRootNode).Methods("PUT")
 	app.AddHandler("/next-nodes", moveToNextNode).Methods("POST")
 
 	return app
