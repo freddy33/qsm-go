@@ -103,7 +103,7 @@ func (space *Space) CreateEvent(ctxType m3point.GrowthType, idx int, offset int,
 	ctx := space.GetPathPackData().CreatePathCtxFromAttributes(ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset, p)
 	e := Event{pnm.id, space, pnm,nil, space.CurrentTime, k, ctx}
 	space.events[pnm.id] = &e
-	ctx.InitRootNode(p)
+	//ctx.InitRootNode(p)
 	// TODO: Remove PathNodeMap need. Use DB
 	pnm.AddPathNode(ctx.GetRootPathNode())
 	e.node = space.GetNode(p)

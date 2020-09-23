@@ -171,12 +171,12 @@ func (env *QsmApiEnvironment) initializePointData() {
 
 func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
 	uri := "create-path-ctx"
-	reqMsg := &m3api.PathContextMsg{
-		GrowthContextId: int32(growthCtx.GetId()),
+	reqMsg := &m3api.PathContextRequestMsg{
+		GrowthType: int32(growthCtx.GetGrowthType()),
+		GrowthIndex: int32(growthCtx.GetGrowthIndex()),
 		GrowthOffset:    int32(offset),
-		Center:          m3api.PointToPointMsg(center),
 	}
-	pMsg := new(m3api.PathContextMsg)
+	pMsg := new(m3api.PathContextResponseMsg)
 	_, err := ppd.env.clConn.ExecReq(http.MethodPut, uri, reqMsg, pMsg)
 	if err != nil {
 		Log.Fatal(err)
@@ -190,8 +190,8 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 	pathCtx.pointData = pointData
 	pathCtx.growthCtx = pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId()))
 	pathCtx.growthOffset = int(pMsg.GetGrowthOffset())
-	pathCtx.rootNode = nil
 	pathCtx.pathNodeMap = m3path.MakeHashPathNodeMap(100)
 	pathCtx.pathNodes = make(map[int64]*PathNodeCl, 100)
+	pathCtx.rootNode = pathCtx.addPathNodeFromMsg(pMsg.RootPathNode)
 	return pathCtx
 }

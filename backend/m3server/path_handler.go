@@ -23,7 +23,6 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 	newPathCtx := pathData.CreatePathCtxFromAttributes(
 		pointData.GetGrowthContextByTypeAndIndex(m3point.GrowthType(reqMsg.GetGrowthType()), int(reqMsg.GetGrowthIndex())),
 		int(reqMsg.GetGrowthOffset()), center)
-	newPathCtx.InitRootNode(center)
 	pathNodeDb := newPathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
 	resMsg := &m3api.PathContextResponseMsg{
 		PathCtxId:       int32(newPathCtx.GetId()),

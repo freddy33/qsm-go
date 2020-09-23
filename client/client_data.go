@@ -29,9 +29,9 @@ type PathContextCl struct {
 	growthCtx    m3point.GrowthContext
 	growthOffset int
 
-	rootNode *PathNodeCl
+	rootNode    *PathNodeCl
 	pathNodeMap m3path.PathNodeMap
-	pathNodes map[int64]*PathNodeCl
+	pathNodes   map[int64]*PathNodeCl
 
 	latestD int
 }
@@ -111,20 +111,7 @@ func (pathCtx *PathContextCl) CountAllPathNodes() int {
 }
 
 func (pathCtx *PathContextCl) InitRootNode(center m3point.Point) {
-	uri := "init-root-node"
-	reqMsg := &m3api.PathContextMsg{
-		PathCtxId:       int32(pathCtx.GetId()),
-		GrowthContextId: int32(pathCtx.GetGrowthCtx().GetId()),
-		GrowthOffset:    int32(pathCtx.GetGrowthOffset()),
-		Center:          m3api.PointToPointMsg(center),
-	}
-	pMsg := new(m3api.PathNodeMsg)
-	_, err := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg, pMsg)
-	if err != nil {
-		Log.Fatal(err)
-		return
-	}
-	pathCtx.rootNode = pathCtx.addPathNodeFromMsg(pMsg)
+	panic("InitRootNode client should not be called")
 }
 
 func (pathCtx *PathContextCl) addPathNodeFromMsg(pMsg *m3api.PathNodeMsg) *PathNodeCl {
@@ -163,25 +150,22 @@ func (pathCtx *PathContextCl) GetAllOpenPathNodes() []m3path.PathNode {
 
 func (pathCtx *PathContextCl) MoveToNextNodes() {
 	uri := "next-nodes"
-	reqMsg := &m3api.PathContextMsg{
-		PathCtxId:       int32(pathCtx.GetId()),
-		GrowthContextId: int32(pathCtx.GetGrowthCtx().GetId()),
-		GrowthOffset:    int32(pathCtx.GetGrowthOffset()),
-		Center:          m3api.PointToPointMsg(pathCtx.rootNode.point),
+	reqMsg := &m3api.NextMoveRequestMsg{
+		PathCtxId:   int32(pathCtx.GetId()),
+		CurrentDist: int32(pathCtx.latestD),
 	}
-	pListMsg := new(m3api.NextMoveRespMsg)
-	_, err := pathCtx.env.clConn.ExecReq("POST", uri, reqMsg, pListMsg)
+	pMsg := new(m3api.NextMoveResponseMsg)
+	_, err := pathCtx.env.clConn.ExecReq("POST", uri, reqMsg, pMsg)
 	if err != nil {
 		Log.Fatal(err)
 		return
 	}
-
-	pathNodes := pListMsg.GetPathNodes()
+	pathCtx.latestD = int(pMsg.NextDist)
+	pathNodes := pMsg.GetNewPathNodes()
 	Log.Infof("Received back %d path nodes back on move to next", len(pathNodes))
 	for _, pMsg := range pathNodes {
 		pathCtx.addPathNodeFromMsg(pMsg)
 	}
-	pathCtx.latestD++
 }
 
 func (pathCtx *PathContextCl) PredictedNextOpenNodesLen() int {
