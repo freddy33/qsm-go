@@ -1,5 +1,23 @@
 import * as THREE from 'three';
 
+const init = (width, height) => {
+  const camera = new THREE.PerspectiveCamera(45, width / height, 1, 500);
+  camera.position.set(45, 90, 100);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(width, height);
+
+  const scene = new THREE.Scene();
+  addAxes(scene);
+
+  return {
+    scene,
+    camera,
+    renderer,
+  };
+};
+
 const addLine = (scene, from, to, color = 0xffff00) => {
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
@@ -19,7 +37,7 @@ const addAxes = (scene) => {
 };
 
 const addPoint = (scene, pos) => {
-  const geometry = new THREE.SphereGeometry(1, 32, 32);
+  const geometry = new THREE.SphereGeometry(0.5, 32, 32);
   const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
   const sphere = new THREE.Mesh(geometry, material);
   sphere.position.set(pos.x, pos.y, pos.z);
@@ -42,10 +60,65 @@ const addCameraPivot = (scene, camera) => {
   return cameraPivot;
 };
 
+// const mockPoints = [
+//   {
+//     id: 1,
+//     x: 0,
+//     y: 0,
+//     z: 0,
+//     trioId: 9,
+//   },
+
+//   {
+//     id: 2,
+//     x: 1,
+//     y: 1,
+//     z: 1,
+//     trioId: 19,
+//   },
+// ];
+
+const mockPoints = [...Array(10).keys()].map((i) => {
+  return {
+    id: i,
+    x: i,
+    y: i,
+    z: i,
+    trioId: i,
+  };
+});
+
+const draw = (scene, points, pointPackDataMsg) => {
+  if (!pointPackDataMsg) {
+    return;
+  }
+
+  const { connections, trios } = pointPackDataMsg;
+
+  points.forEach((point) => {
+    const startingPoint = { x: point.x, y: point.y, z: point.z };
+    addPoint(scene, startingPoint);
+    const trio = trios[point.trioId];
+    trio.connIds.forEach((connId) => {
+      const trio = connections[connId];
+      const connPoint = {
+        x: startingPoint.x + trio.vector.x,
+        y: startingPoint.y + trio.vector.y,
+        z: startingPoint.z + trio.vector.z,
+      };
+      addPoint(scene, connPoint);
+      addLine(scene, startingPoint, connPoint);
+    });
+  });
+};
+
 export default {
+  init,
   addLine,
   addAxes,
   addPoint,
   connectPoints,
   addCameraPivot,
+  draw,
+  mockPoints,
 };

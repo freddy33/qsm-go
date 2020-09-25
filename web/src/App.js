@@ -1,8 +1,36 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
+import _ from 'lodash';
+import Popup from 'reactjs-popup';
+import 'reactjs-popup/dist/index.css';
 
 import Service from './service';
 import Renderer from './renderer';
+
+const convertPointPackDataMsgToState = (pointPackDataMsg) => {
+  const connections = {};
+  const trios = {};
+  pointPackDataMsg.getAllConnectionsList().forEach((conn) => {
+    connections[conn.getConnId()] = {
+      connId: conn.getConnId(),
+      ds: conn.getDs(),
+      vector: {
+        x: conn.getVector().getX(),
+        y: conn.getVector().getY(),
+        z: conn.getVector().getZ(),
+      },
+    };
+  });
+
+  pointPackDataMsg.getAllTriosList().forEach((trio) => {
+    trios[trio.getTrioId()] = {
+      trioId: trio.getTrioId(),
+      connIds: trio.getConnIdsList(),
+    };
+  });
+
+  return { connections, trios };
+};
 
 const App = () => {
   const mount = useRef(null);
@@ -12,36 +40,21 @@ const App = () => {
   const [camera, setCamera] = useState();
   const [renderer, setRenderer] = useState();
   const [pointPackDataMsg, setPointPackDataMsg] = useState();
+  const [dataInput, setDataInput] = useState('');
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
     Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
-      debugger;
-      setPointPackDataMsg(pointPackDataMsg);
+      setPointPackDataMsg(convertPointPackDataMsgToState(pointPackDataMsg));
     });
 
     let width = mount.current.clientWidth;
     let height = mount.current.clientHeight;
 
-    const scene = new THREE.Scene();
+    const { scene, camera, renderer } = Renderer.init(width, height);
     setScene(scene);
-    const camera = new THREE.PerspectiveCamera(45, width / height, 1, 500);
     setCamera(camera);
-
-    camera.position.set(45, 90, 100);
-    camera.lookAt(0, 0, 0);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
     setRenderer(renderer);
-
-    Renderer.addAxes(scene);
-
-    const origin = { x: 0, y: 0, z: 0 };
-    Renderer.addPoint(scene, origin);
-    Renderer.connectPoints(scene, origin, { x: 10, y: 10, z: 10 }, 0xffff00);
-    Renderer.connectPoints(scene, origin, { x: -10, y: 10, z: 10 }, 0xffff00);
-    Renderer.connectPoints(scene, origin, { x: 10, y: -10, z: 10 }, 0xffff00);
-
-    renderer.setSize(width, height);
 
     mount.current.appendChild(renderer.domElement);
 
@@ -56,6 +69,10 @@ const App = () => {
 
     window.addEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    Renderer.draw(scene, Renderer.mockPoints, pointPackDataMsg);
+  }, [pointPackDataMsg]);
 
   // called for every button clicks to update how the UI should render
   useEffect(() => {
@@ -77,9 +94,34 @@ const App = () => {
   return (
     <div>
       <div className="vis" ref={mount} />
-      <button className="control" onClick={() => setRotating(!rotating)}>
-        Rotate
-      </button>
+
+      <Popup trigger={<button className="control"> Configure </button>} modal>
+        {(close) => (
+          <div className="configure">
+            {/* <button onClick={() => setRotating(!rotating)}>Rotate</button> */}
+            <div>
+              <textarea
+                onChange={(evt) => {
+                  setDataInput(_.get(evt, 'target.value', ''));
+                }}
+                rows="40"
+                value={JSON.stringify(Renderer.mockPoints)}
+              ></textarea>
+            </div>
+            <div>
+              <button
+                onClick={() => {
+                  const data = JSON.parse(dataInput);
+                  Renderer.draw(scene, data, pointPackDataMsg);
+                  close();
+                }}
+              >
+                Load data
+              </button>
+            </div>
+          </div>
+        )}
+      </Popup>
     </div>
   );
 };

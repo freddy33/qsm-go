@@ -42,3 +42,7 @@ body {
   top: 10px;
   left: 10px;
 }
+
+.configure textarea {
+  width: 100%;
+}
