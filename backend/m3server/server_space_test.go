@@ -20,6 +20,11 @@ func TestSpaceNextTime(t *testing.T) {
 
 	spaceId, spaceName := callCreateSpace(t, router)
 	fmt.Printf("Created %d = %q\n", spaceId, spaceName)
+
+	allSpaces := callGetAllSpaces(t, router)
+	for i, space := range allSpaces {
+		fmt.Printf("Index %d : Id=%d Name=%q\n", i, space.SpaceId, space.SpaceName)
+	}
 }
 
 func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
@@ -54,7 +59,7 @@ func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
 	return spaceId, spaceName
 }
 
-func callGetAllSpaces(t *testing.T, router *mux.Router) {
+func callGetAllSpaces(t *testing.T, router *mux.Router) []*m3api.SpaceMsg {
 	pMsg := &m3api.SpaceListMsg{}
 	sendAndReceive(t, &requestTest{
 		router:      router,
@@ -64,6 +69,7 @@ func callGetAllSpaces(t *testing.T, router *mux.Router) {
 		uri:         "/space",
 	}, nil, pMsg)
 	assert.True(t, len(pMsg.Spaces) > 0)
+	return pMsg.Spaces
 }
 
 func callDeleteSpace(t *testing.T, router *mux.Router) (int, string) {

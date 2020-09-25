@@ -7,6 +7,25 @@ import (
 	"net/http"
 )
 
+func getSpaces(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive getSpaces")
+	env := GetEnvironment(r)
+	spd := spacedb.GetServerSpacePackData(env)
+	err := spd.LoadAllSpaces()
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	allSpaces := spd.GetAllSpaces()
+	resMsg := &m3api.SpaceListMsg{
+		Spaces: make([]*m3api.SpaceMsg, len(allSpaces)),
+	}
+	for i, space := range allSpaces {
+		resMsg.Spaces[i] = spaceDbToMsg(space.(*spacedb.SpaceDb))
+	}
+	WriteResponseMsg(w, r, resMsg)
+}
+
 func createSpace(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive createSpace")
 
@@ -24,7 +43,11 @@ func createSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resMsg := &m3api.SpaceMsg{
+	WriteResponseMsg(w, r, spaceDbToMsg(space))
+}
+
+func spaceDbToMsg(space *spacedb.SpaceDb) *m3api.SpaceMsg {
+	return &m3api.SpaceMsg{
 		SpaceId:                 int32(space.GetId()),
 		SpaceName:               space.GetName(),
 		ActivePathNodeThreshold: int32(space.GetActivePathNodeThreshold()),
@@ -36,5 +59,4 @@ func createSpace(w http.ResponseWriter, r *http.Request) {
 		EventIds:                space.GetEventIdsForMsg(),
 		NbActiveNodes:           int32(space.GetNbActiveNodes()),
 	}
-	WriteResponseMsg(w, r, resMsg)
 }

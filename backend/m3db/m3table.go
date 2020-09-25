@@ -46,7 +46,7 @@ func (env *QsmDbEnvironment) SelectAllForLoad(tableName string) (*TableExec, *sq
 		Log.Fatalf("could not load due to error while getting table exec %v", err)
 		return nil, nil
 	}
-	if te.WasCreated() {
+	if te.TableDef.ExpectedCount > 0 && te.WasCreated() {
 		Log.Fatalf("could not load since table %s was just created", te.GetFullTableName())
 		return nil, nil
 	}

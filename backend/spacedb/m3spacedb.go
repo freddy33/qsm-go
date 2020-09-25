@@ -47,12 +47,17 @@ func CreateSpace(env *m3db.QsmDbEnvironment,
 	// 2*9 is the minimum ;-)
 	space.maxCoord = 2 * 9
 	space.maxTime = 0
-	space.nbActiveNodes = 0
 
-	space.currentTime = 0
-	space.events = make([]m3space.Event, 0, 8)
+	space.finalInit()
 
 	return space, nil
+}
+
+func (space *SpaceDb) finalInit() {
+	space.nbActiveNodes = 0
+	space.currentTime = 0
+	space.events = make([]m3space.Event, 0, 8)
+	space.spd.allSpaces[space.id] = space
 }
 
 func (space *SpaceDb) GetId() int {
@@ -109,5 +114,27 @@ func (space *SpaceDb) insertInDb() error {
 		return m3util.MakeWrapQsmErrorf(err, "could not insert space %s due to '%s'", space.GetName(), err.Error())
 	}
 	space.id = int(id64)
+	return nil
+}
+
+func (spd *ServerSpacePackData) LoadAllSpaces() error {
+	_, rows := spd.env.SelectAllForLoad(SpaceTable)
+	for rows.Next() {
+		space := SpaceDb{spd: spd}
+		err := rows.Scan(&space.id, &space.name, &space.activePathNodeThreshold,
+			&space.maxTriosPerPoint, &space.maxPathNodesPerPoint, &space.maxCoord, &space.maxTime)
+		if err != nil {
+			return err
+		}
+		existingSpace, ok := spd.allSpaces[space.id]
+		if ok {
+			// Make sure same data
+			if existingSpace.name != space.name {
+				return m3util.MakeQsmErrorf("got different spaces in memory %v and DB %v", existingSpace, space)
+			}
+		} else {
+			space.finalInit()
+		}
+	}
 	return nil
 }

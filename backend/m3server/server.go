@@ -232,8 +232,6 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 		envId = m3util.GetDefaultEnvId()
 	}
 	env := m3db.GetEnvironment(envId)
-	//pointdb.InitializePointDBEnv(env, false)
-
 	r := mux.NewRouter()
 	app := &QsmApp{Router: r, Env: env}
 	app.AddHandler("/", home)
@@ -245,6 +243,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
 	app.AddHandler("/next-nodes", moveToNextNode).Methods("POST")
 	app.AddHandler("/space", createSpace).Methods("PUT")
+	app.AddHandler("/space", getSpaces).Methods("GET")
 
 	return app
 }
