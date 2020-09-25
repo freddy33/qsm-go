@@ -9,7 +9,7 @@ jobs:
   qsm:
     name: Test
     runs-on: ubuntu-latest
-    container: golang:1.13
+    container: golang:1.14
     services:
       postgres:
         image: postgres:12.3

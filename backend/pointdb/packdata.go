@@ -6,22 +6,6 @@ import (
 	"github.com/freddy33/qsm-go/model/m3point"
 )
 
-type ServerPointPackDataIfc interface {
-	m3point.PointPackDataIfc
-
-	GetConnDetailsByVector(vector m3point.Point) *m3point.ConnectionDetails
-
-	GetAllTrioDetails() []*m3point.TrioDetails
-	GetTrioDetails(trIdx m3point.TrioIndex) *m3point.TrioDetails
-	GetAllConnDetailsByVector() map[m3point.Point]*m3point.ConnectionDetails
-	GetPathNodeBuilder(growthCtx m3point.GrowthContext, offset int, c m3point.Point) PathNodeBuilder
-
-	GetNbPathBuilders() int
-	GetPathNodeBuilderById(cubeId int) PathNodeBuilder
-	GetCubeById(cubeId int) CubeKeyId
-	GetCubeIdByKey(cubeKey CubeKeyId) int
-}
-
 type ServerPointPackData struct {
 	m3point.BasePointPackData
 	env *m3db.QsmDbEnvironment
@@ -41,21 +25,15 @@ type ServerPointPackData struct {
 	pathBuildersTe *m3db.TableExec
 }
 
-func GetPointPackData(env m3util.QsmEnvironment) ServerPointPackDataIfc {
-	ppd, _ := GetServerPointPackData(env)
-	return ppd
-}
-
-func GetServerPointPackData(env m3util.QsmEnvironment) (*ServerPointPackData, bool) {
-	newData := env.GetData(m3util.PointIdx) == nil
-	if newData {
+func GetPointPackData(env m3util.QsmEnvironment) *ServerPointPackData {
+	if env.GetData(m3util.PointIdx) == nil {
 		ppd := new(ServerPointPackData)
 		ppd.EnvId = env.GetId()
 		ppd.env = env.(*m3db.QsmDbEnvironment)
 		env.SetData(m3util.PointIdx, ppd)
-		// do not return ppd but always the pointer in env data array
 	}
-	return env.GetData(m3util.PointIdx).(*ServerPointPackData), newData
+	// do not return ppd but always the pointer in env data array
+	return env.GetData(m3util.PointIdx).(*ServerPointPackData)
 }
 
 func (ppd *ServerPointPackData) ResetFlags() {

@@ -77,8 +77,8 @@ func (pnb *BasePathNodeBuilder) GetEnv() m3util.QsmEnvironment {
 	return pnb.Ctx.GrowthCtx.GetEnv()
 }
 
-func (pnb *BasePathNodeBuilder) getPointPackData() ServerPointPackDataIfc {
-	return pnb.Ctx.GrowthCtx.GetEnv().GetData(m3util.PointIdx).(ServerPointPackDataIfc)
+func (pnb *BasePathNodeBuilder) getPointPackData() *ServerPointPackData {
+	return GetPointPackData(pnb.Ctx.GrowthCtx.GetEnv())
 }
 
 func (pnb *BasePathNodeBuilder) GetCubeId() int {

@@ -120,7 +120,7 @@ func (space *SpaceDb) insertInDb() error {
 func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int,
 	creationTime m3space.DistAndTime, center m3point.Point, color m3space.EventColor) (m3space.EventIfc, error) {
 	env := space.spaceData.env
-	pointData, _ := pointdb.GetServerPointPackData(env)
+	pointData := pointdb.GetPointPackData(env)
 	growthCtx := pointData.GetGrowthContextByTypeAndIndex(growthType, growthIndex)
 	if growthCtx == nil {
 		return nil, m3util.MakeQsmErrorf("Growth context with type=%d and index=%d does not exists", growthType, growthIndex)

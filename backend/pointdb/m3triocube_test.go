@@ -10,7 +10,7 @@ func TestTrioCubeMaps(t *testing.T) {
 	Log.SetInfo()
 	Log.SetAssert(true)
 
-	ppd := getPointTestData().(*ServerPointPackData)
+	ppd := getPointTestData()
 
 	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		nbIndexes := ctxType.GetNbIndexes()

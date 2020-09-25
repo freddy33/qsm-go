@@ -12,7 +12,7 @@ import (
 
 type PathContextDb struct {
 	pathData  *ServerPathPackData
-	pointData pointdb.ServerPointPackDataIfc
+	pointData *pointdb.ServerPointPackData
 
 	id           int
 	growthCtx    m3point.GrowthContext

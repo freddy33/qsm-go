@@ -84,10 +84,6 @@ type SpacePathNodeMap struct {
 	size  int
 }
 
-func (spnm *SpacePathNodeMap) Size() int {
-	panic("implement me")
-}
-
 func (spnm *SpacePathNodeMap) Clear() {
 	panic("implement me")
 }
@@ -100,7 +96,7 @@ func (spnm *SpacePathNodeMap) Range(f func(point m3point.Point, pn m3path.PathNo
 // SpacePathNodeMap Functions
 /***************************************************************/
 
-func (spnm *SpacePathNodeMap) GetSize() int {
+func (spnm *SpacePathNodeMap) Size() int {
 	return spnm.size
 }
 
@@ -179,5 +175,5 @@ func getIndexAndOffsetForColor(k EventColor) (int, int) {
 
 func (evt *Event) LatestDistance() DistAndTime {
 	// DistAndTime and time are the same...
-	return DistAndTime(evt.space.CurrentTime - evt.created)
+	return evt.space.CurrentTime - evt.created
 }

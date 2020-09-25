@@ -174,7 +174,7 @@ func checkEnv(env *m3db.QsmDbEnvironment) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if !testDbFilled[envId] {
-		pointData, _ := pointdb.GetServerPointPackData(env)
+		pointData := pointdb.GetPointPackData(env)
 		pointData.FillDb()
 		GetServerPathPackData(env).createTables()
 		testDbFilled[envId] = true

@@ -22,7 +22,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	m3util.SetToTestMode()
 
 	env := GetPointDbFullEnv(m3util.PointLoadEnv)
-	ppd, _ := GetServerPointPackData(env)
+	ppd := GetPointPackData(env)
 
 	start := time.Now()
 	ppd.ResetFlags()
@@ -68,7 +68,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	Log.Infof("Diff calc-load = %v", calcTime-loadTime)
 
 	// Don't forget to get ppd different after init
-	ppd, _ = GetServerPointPackData(env)
+	ppd = GetPointPackData(env)
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnections))
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
 	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
@@ -83,7 +83,7 @@ func TestSaveAll(t *testing.T) {
 	m3util.SetToTestMode()
 
 	tempEnv := GetPointDbCleanEnv(m3util.PointTempEnv)
-	ppd, _ := GetServerPointPackData(tempEnv)
+	ppd := GetPointPackData(tempEnv)
 
 	// ************ Connection Details
 

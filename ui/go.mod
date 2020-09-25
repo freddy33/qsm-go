@@ -18,4 +18,4 @@ replace github.com/freddy33/qsm-go/model => ../model
 
 replace github.com/freddy33/qsm-go/client => ../client
 
-go 1.13
+go 1.14
