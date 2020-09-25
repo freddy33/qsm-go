@@ -10,6 +10,10 @@ type ServerSpacePackData struct {
 	m3space.BaseSpacePackData
 	env *m3db.QsmDbEnvironment
 
+	spacesTe *m3db.TableExec
+	eventsTe *m3db.TableExec
+	nodesTe  *m3db.TableExec
+
 	allSpaces map[int]*SpaceDb
 }
 

@@ -7,5 +7,6 @@ import (
 
 func TestCreatePathTable(t *testing.T) {
 	m3util.SetToTestMode()
-	createTablesEnv(GetPathDbCleanEnv(m3util.PathTempEnv))
+	env := GetPathDbCleanEnv(m3util.PathTempEnv)
+	GetServerPathPackData(env).createTables()
 }

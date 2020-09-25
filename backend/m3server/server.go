@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/backend/pointdb"
+	"github.com/freddy33/qsm-go/backend/spacedb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/golang/protobuf/proto"
@@ -159,8 +159,8 @@ func drop(w http.ResponseWriter, r *http.Request) {
 
 func initialize(w http.ResponseWriter, r *http.Request) {
 	envId := GetEnvId(r)
-	env := pointdb.GetPointDbFullEnv(envId)
-	pointdb.InitializePointDBEnv(env, true)
+	env := spacedb.GetSpaceDbFullEnv(envId)
+	spacedb.InitializeSpaceDBEnv(env)
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
 }
 

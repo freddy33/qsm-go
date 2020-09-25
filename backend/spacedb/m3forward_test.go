@@ -66,8 +66,8 @@ func getSpaceTestEnv() m3util.QsmEnvironment {
 		return spaceEnv
 	}
 	m3util.SetToTestMode()
-	spaceEnv := pointdb.GetPointDbFullEnv(m3util.SpaceTestEnv)
-	pointdb.InitializePointDBEnv(spaceEnv, true)
+	spaceEnv := GetSpaceDbFullEnv(m3util.SpaceTestEnv)
+	InitializeSpaceDBEnv(spaceEnv)
 	return spaceEnv
 }
 

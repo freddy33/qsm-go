@@ -33,9 +33,10 @@ func TestMakeNewPathCtx(t *testing.T) {
 	endInit := time.Now()
 	Log.Infof("Init DB took %v", endInit.Sub(start))
 
-	ppd := pointdb.GetPointPackData(env)
+	pointData := pointdb.GetPointPackData(env)
+	pathData := GetServerPathPackData(env)
 
-	growthCtx := ppd.GetGrowthContextById(40)
+	growthCtx := pointData.GetGrowthContextById(40)
 	assert.NotNil(t, growthCtx)
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())
@@ -57,7 +58,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, pn, pathCtxDb.rootNode)
 
 	assert.Equal(t, pathCtxDb.rootNode.pathCtxId, ctxId)
-	assert.Equal(t, pathCtxDb.rootNode.pointId, getOrCreatePointEnv(env, testPoint))
+	assert.Equal(t, pathCtxDb.rootNode.pointId, pathData.getOrCreatePoint(testPoint))
 	assert.Equal(t, 2601, pathCtxDb.rootNode.pathBuilderId)
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())

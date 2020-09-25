@@ -379,7 +379,7 @@ func (pn *PathNodeDb) SetPathCtx(pathCtx *PathContextDb) {
 
 func (pn *PathNodeDb) GetTrioDetails() *m3point.TrioDetails {
 	if pn.trioDetails == nil {
-		pn.trioDetails = pn.PathCtx().ppd.GetTrioDetails(pn.trioId)
+		pn.trioDetails = pn.PathCtx().pointData.GetTrioDetails(pn.trioId)
 	}
 	return pn.trioDetails
 }
@@ -396,7 +396,7 @@ func (pn *PathNodeDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
 
 func (pn *PathNodeDb) PathBuilder() pointdb.PathNodeBuilder {
 	if pn.pathBuilder == nil {
-		pn.pathBuilder = pn.PathCtx().ppd.GetPathNodeBuilderById(pn.pathBuilderId)
+		pn.pathBuilder = pn.PathCtx().pointData.GetPathNodeBuilderById(pn.pathBuilderId)
 	}
 	return pn.pathBuilder
 }
@@ -480,7 +480,7 @@ func (pn *PathNodeDb) P() m3point.Point {
 			return m3point.Origin
 		}
 		var err error
-		pn.point, err = getPointEnv(pn.pathCtx.env, pn.pointId)
+		pn.point, err = pn.pathCtx.pathData.getPointEnv(pn.pointId)
 		if err != nil {
 			Log.Fatal(err)
 			return m3point.Origin

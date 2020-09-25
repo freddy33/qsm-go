@@ -23,7 +23,7 @@ func init() {
 
 func InitializePathDBEnv(env *m3db.QsmDbEnvironment) {
 	pointdb.InitializePointDBEnv(env, true)
-	createTablesEnv(env)
+	GetServerPathPackData(env).createTables()
 }
 
 const (
@@ -140,18 +140,19 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	return &res
 }
 
-func createTablesEnv(env *m3db.QsmDbEnvironment) {
-	_, err := env.GetOrCreateTableExec(PointsTable)
+func (pathData *ServerPathPackData) createTables() {
+	var err error
+	pathData.pointsTe, err = pathData.env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PointsTable, err)
 		return
 	}
-	_, err = env.GetOrCreateTableExec(PathContextsTable)
+	pathData.pathCtxTe, err = pathData.env.GetOrCreateTableExec(PathContextsTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PathContextsTable, err)
 		return
 	}
-	_, err = env.GetOrCreateTableExec(PathNodesTable)
+	pathData.pathNodesTe, err = pathData.env.GetOrCreateTableExec(PathNodesTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PathNodesTable, err)
 		return
@@ -183,7 +184,7 @@ func checkEnv(env *m3db.QsmDbEnvironment) {
 	defer dbMutex.Unlock()
 	if !testDbFilled[envId] {
 		pointdb.FillDbEnv(env)
-		createTablesEnv(env)
+		GetServerPathPackData(env).createTables()
 		testDbFilled[envId] = true
 	}
 }

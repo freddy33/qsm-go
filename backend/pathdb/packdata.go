@@ -11,6 +11,10 @@ type ServerPathPackData struct {
 	m3path.BasePathPackData
 	env *m3db.QsmDbEnvironment
 
+	pointsTe    *m3db.TableExec
+	pathCtxTe   *m3db.TableExec
+	pathNodesTe *m3db.TableExec
+
 	// All PathContexts centered at origin with growth type + offset
 	AllCenterContexts       map[m3point.GrowthType][]m3path.PathContext
 	AllCenterContextsLoaded bool
@@ -26,11 +30,11 @@ func makeServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	return res
 }
 
-func GetServerPathPackData(env m3util.QsmEnvironment) m3path.PathPackDataIfc {
+func GetServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	if env.GetData(m3util.PathIdx) == nil {
 		env.SetData(m3util.PathIdx, makeServerPathPackData(env))
 	}
-	return env.GetData(m3util.PathIdx).(m3path.PathPackDataIfc)
+	return env.GetData(m3util.PathIdx).(*ServerPathPackData)
 }
 
 func (ppd *ServerPathPackData) addCenterPathContext(pathCtx m3path.PathContext) {

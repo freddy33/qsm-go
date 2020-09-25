@@ -105,9 +105,9 @@ func (space *SpaceDb) GetEventIdsForMsg() []int32 {
 }
 
 func (space *SpaceDb) insertInDb() error {
-	te, err := space.spd.env.GetOrCreateTableExec(SpaceTable)
+	te, err := space.spd.env.GetOrCreateTableExec(SpacesTable)
 	if err != nil {
-		return m3util.MakeWrapQsmErrorf(err, "could not get table details %s out of %s space due to '%s'", SpaceTable, space.GetName(), err.Error())
+		return m3util.MakeWrapQsmErrorf(err, "could not get table details %s out of %s space due to '%s'", SpacesTable, space.GetName(), err.Error())
 	}
 	id64, err := te.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord)
 	if err != nil {
@@ -118,7 +118,7 @@ func (space *SpaceDb) insertInDb() error {
 }
 
 func (spd *ServerSpacePackData) LoadAllSpaces() error {
-	_, rows := spd.env.SelectAllForLoad(SpaceTable)
+	_, rows := spd.env.SelectAllForLoad(SpacesTable)
 	for rows.Next() {
 		space := SpaceDb{spd: spd}
 		err := rows.Scan(&space.id, &space.name, &space.activePathNodeThreshold,

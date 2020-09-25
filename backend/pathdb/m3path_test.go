@@ -14,7 +14,7 @@ import (
 var allTestContextsMutex sync.Mutex
 
 func getAllTestContexts(env m3util.QsmEnvironment) map[m3point.GrowthType][]m3path.PathContext {
-	pathData := GetServerPathPackData(env).(*ServerPathPackData)
+	pathData := GetServerPathPackData(env)
 	if pathData.AllCenterContextsLoaded {
 		return pathData.AllCenterContexts
 	}
