@@ -12,17 +12,26 @@ func TestConnectionDetails(t *testing.T) {
 	m3util.SetToTestMode()
 
 	env := GetPointDbFullEnv(m3util.PointTestEnv)
-	conns, connsByVector := loadConnectionDetails(env)
+	ppd, _ := GetServerPointPackData(env)
+	_, err := ppd.saveAllConnectionDetails()
+	if err != nil {
+		Log.Fatal(err)
+	}
+	err = ppd.loadConnectionDetails()
+	if err != nil {
+		Log.Fatal(err)
+	}
 
-	assert.Equal(t, 50, len(conns))
-	assert.Equal(t, 50, len(connsByVector))
+	assert.Equal(t, 50, len(ppd.AllConnections))
+	assert.Equal(t, 50, len(ppd.AllConnectionsByVector))
+	assert.True(t, ppd.ConnectionsLoaded)
 
-	for k, v := range connsByVector {
+	for k, v := range ppd.AllConnectionsByVector {
 		assert.Equal(t, k, v.Vector)
 		assert.Equal(t, k.DistanceSquared(), v.DistanceSquared())
 		currentNumber := v.GetPosId()
 		sameNumber := 0
-		for _, nv := range connsByVector {
+		for _, nv := range ppd.AllConnectionsByVector {
 			if nv.GetPosId() == currentNumber {
 				sameNumber++
 				if nv.Vector != v.Vector {
@@ -39,7 +48,7 @@ func TestConnectionDetails(t *testing.T) {
 		for j, tB := range allBaseTrio {
 			connVectors := GetNonBaseConnections(tA, tB)
 			for k, connVector := range connVectors {
-				connDetails, ok := connsByVector[connVector]
+				connDetails, ok := ppd.AllConnectionsByVector[connVector]
 				assert.True(t, ok, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
 				assert.Equal(t, connVector, connDetails.Vector, "Connection between 2 trio (%d,%d) number %k is not in conn details", i, j, k)
 				countConnId[connDetails.GetId()]++

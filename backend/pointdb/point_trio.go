@@ -671,8 +671,12 @@ func (l TrioDetailList) Less(i, j int) bool {
 // trio Details Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadTrioDetails() TrioDetailList {
-	te, rows := ppd.env.SelectAllForLoad(TrioDetailsTable)
+func (ppd *ServerPointPackData) loadTrioDetails() error {
+	te := ppd.trioDetailsTe
+	rows, err := te.SelectAllForLoad()
+	if err != nil {
+		return err
+	}
 
 	res := TrioDetailList(make([]*m3point.TrioDetails, 0, te.TableDef.ExpectedCount))
 
@@ -681,7 +685,7 @@ func (ppd *ServerPointPackData) loadTrioDetails() TrioDetailList {
 		connIds := [3]m3point.ConnectionId{}
 		err := rows.Scan(&td.Id, &connIds[0], &connIds[1], &connIds[2])
 		if err != nil {
-			Log.Errorf("failed to load trio details line %d", len(res))
+			return m3util.MakeWrapQsmErrorf(err, "failed to load trio details line %d", len(res))
 		} else {
 			for i, cId := range connIds {
 				td.Conns[i] = ppd.GetConnDetailsById(cId)
@@ -689,11 +693,15 @@ func (ppd *ServerPointPackData) loadTrioDetails() TrioDetailList {
 			res = append(res, &td)
 		}
 	}
-	return res
+
+	ppd.AllTrioDetails = res
+	ppd.TrioDetailsLoaded = true
+	return nil
 }
 
 func (ppd *ServerPointPackData) saveAllTrioDetails() (int, error) {
-	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioDetailsTable)
+	te := ppd.trioDetailsTe
+	inserted, toFill, err := te.GetForSaveAll()
 	if te == nil {
 		return 0, err
 	}
@@ -706,11 +714,12 @@ func (ppd *ServerPointPackData) saveAllTrioDetails() (int, error) {
 		for _, td := range trios {
 			err := te.Insert(td.Id, td.Conns[0].Id, td.Conns[1].Id, td.Conns[2].Id)
 			if err != nil {
-				Log.Error(err)
+				return inserted, err
 			} else {
 				inserted++
 			}
 		}
+		te.SetFilled()
 	}
 	return inserted, nil
 }

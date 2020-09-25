@@ -22,11 +22,11 @@ type PathContextDb struct {
 	openNodeBuilder *OpenNodeBuilder
 }
 
-func (ppd *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
-	pathContext := MakePathContextDBFromGrowthContext(ppd.env, growthCtx, offset)
+func (pathData *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
+	pathContext := MakePathContextDBFromGrowthContext(pathData.env, growthCtx, offset)
 	pathContext.InitRootNode(center)
 	if center == m3point.Origin {
-		ppd.addCenterPathContext(pathContext)
+		pathData.addCenterPathContext(pathContext)
 	}
 	return pathContext
 }

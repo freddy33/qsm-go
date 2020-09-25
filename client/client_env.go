@@ -66,7 +66,8 @@ func GetInitializedApiEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
 
 	if m3util.TestMode {
 		// Equivalent of calling filldb job
-		response, err := cl.ExecReq(http.MethodPost, "test-init", nil, nil)
+		uri := "init-env"
+		response, err := cl.ExecReq(http.MethodPost, uri, nil, nil)
 		if err != nil {
 			Log.Fatal(err)
 			return nil
@@ -75,7 +76,7 @@ func GetInitializedApiEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
 		if strings.Contains(response, substr) {
 			Log.Debugf("All good on home response %q", response)
 		} else {
-			Log.Fatalf("The response from REST API end point %q did not have %s in %q", "test-init", substr, response)
+			Log.Fatalf("The response from REST API end point %q did not have %s in %q", uri, substr, response)
 			return nil
 		}
 	}

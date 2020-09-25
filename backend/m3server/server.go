@@ -159,8 +159,7 @@ func drop(w http.ResponseWriter, r *http.Request) {
 
 func initialize(w http.ResponseWriter, r *http.Request) {
 	envId := GetEnvId(r)
-	env := spacedb.GetSpaceDbFullEnv(envId)
-	spacedb.InitializeSpaceDBEnv(env)
+	spacedb.GetSpaceDbFullEnv(envId)
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
 }
 
@@ -241,8 +240,8 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 
 	app.AddHandler("/point-data", retrievePointData).Methods("GET")
 
-	app.AddHandler("/test-init", initialize).Methods("POST")
-	app.AddHandler("/test-drop", drop).Methods("DELETE")
+	app.AddHandler("/init-env", initialize).Methods("POST")
+	app.AddHandler("/drop-env", drop).Methods("DELETE")
 
 	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
 	app.AddHandler("/next-nodes", moveToNextNode).Methods("POST")

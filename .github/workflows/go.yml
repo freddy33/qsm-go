@@ -54,9 +54,6 @@ jobs:
       - name: Build backend
         run: go build -v .
 
-      - name: Fill DB
-        run: ./backend filldb
-
       - name: Test backend packages
         run: go test -v ./m3db ./pointdb ./pathdb ./spacedb ./m3server
 

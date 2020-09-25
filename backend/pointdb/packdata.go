@@ -33,6 +33,12 @@ type ServerPointPackData struct {
 	// The index of this slice is the cube id
 	pathBuilders       []*RootPathNodeBuilder
 	pathBuildersLoaded bool
+
+	connDetailsTe  *m3db.TableExec
+	trioDetailsTe  *m3db.TableExec
+	growthCtxTe    *m3db.TableExec
+	trioCubesTe    *m3db.TableExec
+	pathBuildersTe *m3db.TableExec
 }
 
 func GetPointPackData(env m3util.QsmEnvironment) ServerPointPackDataIfc {
@@ -108,4 +114,33 @@ func (ppd *ServerPointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthConte
 	key := CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: CreateTrioCube(ppd, growthCtx, offset, c)}
 	cubeId := ppd.GetCubeIdByKey(key)
 	return ppd.GetPathNodeBuilderById(cubeId)
+}
+
+func (ppd *ServerPointPackData) createTables() {
+	var err error
+	ppd.connDetailsTe, err = ppd.env.GetOrCreateTableExec(ConnectionDetailsTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", ConnectionDetailsTable, err)
+		return
+	}
+	ppd.trioDetailsTe, err = ppd.env.GetOrCreateTableExec(TrioDetailsTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", TrioDetailsTable, err)
+		return
+	}
+	ppd.growthCtxTe, err = ppd.env.GetOrCreateTableExec(GrowthContextsTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", GrowthContextsTable, err)
+		return
+	}
+	ppd.trioCubesTe, err = ppd.env.GetOrCreateTableExec(TrioCubesTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", TrioCubesTable, err)
+		return
+	}
+	ppd.pathBuildersTe, err = ppd.env.GetOrCreateTableExec(PathBuildersTable)
+	if err != nil {
+		Log.Fatalf("could not create table %s due to %v", PathBuildersTable, err)
+		return
+	}
 }

@@ -2,6 +2,7 @@ package pointdb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"sort"
 )
@@ -65,8 +66,12 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 // ServerPointPackData Functions for Cubes Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadContextCubes() map[CubeKeyId]int {
-	te, rows := ppd.env.SelectAllForLoad(TrioCubesTable)
+func (ppd *ServerPointPackData) loadContextCubes() error {
+	te := ppd.trioCubesTe
+	rows, err := te.SelectAllForLoad()
+	if err != nil {
+		return err
+	}
 	res := make(map[CubeKeyId]int, te.TableDef.ExpectedCount)
 
 	loaded := 0
@@ -80,18 +85,23 @@ func (ppd *ServerPointPackData) loadContextCubes() map[CubeKeyId]int {
 			&cube.MiddleEdges[4], &cube.MiddleEdges[5], &cube.MiddleEdges[6], &cube.MiddleEdges[7],
 			&cube.MiddleEdges[8], &cube.MiddleEdges[9], &cube.MiddleEdges[10], &cube.MiddleEdges[11])
 		if err != nil {
-			Log.Errorf("failed to load trio context line %d due to %v", loaded, err)
+			return m3util.MakeWrapQsmErrorf(err, "failed to load trio context line %d due to %v", loaded, err)
 		} else {
 			key := CubeKeyId{GrowthCtxId: growthCtxId, Cube: cube}
 			res[key] = cubeId
 		}
 		loaded++
 	}
-	return res
+
+	ppd.cubeIdsPerKey = res
+	ppd.cubesLoaded = true
+
+	return nil
 }
 
 func (ppd *ServerPointPackData) saveAllContextCubes() (int, error) {
-	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioCubesTable)
+	te := ppd.trioCubesTe
+	inserted, toFill, err := te.GetForSaveAll()
 	if err != nil {
 		return 0, err
 	}
@@ -108,11 +118,12 @@ func (ppd *ServerPointPackData) saveAllContextCubes() (int, error) {
 				cube.MiddleEdges[4], cube.MiddleEdges[5], cube.MiddleEdges[6], cube.MiddleEdges[7],
 				cube.MiddleEdges[8], cube.MiddleEdges[9], cube.MiddleEdges[10], cube.MiddleEdges[11])
 			if err != nil {
-				Log.Error(err)
+				return inserted, err
 			} else {
 				inserted++
 			}
 		}
+		te.SetFilled()
 	}
 	return inserted, nil
 }

@@ -71,8 +71,12 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadPathBuilders() []*RootPathNodeBuilder {
-	_, rows := ppd.env.SelectAllForLoad(PathBuildersTable)
+func (ppd *ServerPointPackData) loadPathBuilders() error {
+	te := ppd.pathBuildersTe
+	rows, err := te.SelectAllForLoad()
+	if err != nil {
+		return err
+	}
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 
 	for rows.Next() {
@@ -92,7 +96,7 @@ func (ppd *ServerPointPackData) loadPathBuilders() []*RootPathNodeBuilder {
 			&connIds[2][0], &lastIntersTrIdx[2][0], &nextMainConnIds[2][0], &nextInterConnIds[2][0],
 			&connIds[2][1], &lastIntersTrIdx[2][1], &nextMainConnIds[2][1], &nextInterConnIds[2][1])
 		if err != nil {
-			Log.Errorf("failed to load path builder line %d", len(res))
+			return m3util.MakeWrapQsmErrorf(err, "failed to load path builder line %d", len(res))
 		} else {
 			pathBuilderCtx := PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(trioIndexId), CubeId: cubeId}
 			builder := RootPathNodeBuilder{}
@@ -116,11 +120,16 @@ func (ppd *ServerPointPackData) loadPathBuilders() []*RootPathNodeBuilder {
 			res[cubeId] = &builder
 		}
 	}
-	return res
+
+	ppd.pathBuilders = res
+	ppd.pathBuildersLoaded = true
+
+	return nil
 }
 
 func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
-	te, inserted, toFill, err := ppd.env.GetForSaveAll(PathBuildersTable)
+	te := ppd.pathBuildersTe
+	inserted, toFill, err := te.GetForSaveAll()
 	if err != nil {
 		return 0, err
 	}
@@ -166,6 +175,7 @@ func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
 				inserted++
 			}
 		}
+		te.SetFilled()
 	}
 	return inserted, nil
 }

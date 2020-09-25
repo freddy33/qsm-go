@@ -154,11 +154,11 @@ func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg
 }
 
 func initDB(t *testing.T, router *mux.Router) {
-	req, err := http.NewRequest("POST", "/test-init", nil)
+	req, err := http.NewRequest("POST", "/init-env", nil)
 	assert.NoError(t, err, "Could create request")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusCreated, rr.Result().StatusCode, "Fail to call /test-init")
+	assert.Equal(t, http.StatusCreated, rr.Result().StatusCode, "Fail to call /init-env")
 	contentType := rr.Header().Get("Content-Type")
 	assert.Equal(t, "text/plain", contentType, "fail on "+contentType)
 }

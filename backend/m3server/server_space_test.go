@@ -32,6 +32,7 @@ func TestSpaceNextTime(t *testing.T) {
 
 	eventId := callCreateEvent(t, qsmApp, spaceId, 0, m3point.Point{-3, 3, 6}, m3space.RedEvent, 8, 0, 0)
 	fmt.Printf("Created %d for %d\n", eventId, spaceId)
+
 }
 
 func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {

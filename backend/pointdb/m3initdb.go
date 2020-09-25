@@ -6,20 +6,12 @@ import (
 	"sync"
 )
 
-/***************************************************************/
-// Utility methods for test
-/***************************************************************/
-
 var dbMutex sync.Mutex
 
 var cleanedDb [m3util.MaxNumberOfEnvironments]bool
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
 func GetPointDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	if !m3util.TestMode {
-		Log.Fatalf("Cannot use getServerFullTestDb in non test mode!")
-	}
-
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
@@ -33,11 +25,11 @@ func GetPointDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if err != nil {
 		Log.Fatal(err)
 	}
-	FillDbEnv(env)
+	pointData, _ := GetServerPointPackData(env)
+	pointData.createTables()
 
 	testDbFilled[envId] = true
 
-	InitializePointDBEnv(env, false)
 	return env
 }
 
@@ -63,5 +55,9 @@ func GetPointDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if err != nil {
 		Log.Fatal(err)
 	}
+
+	pointData, _ := GetServerPointPackData(env)
+	pointData.createTables()
+
 	return env
 }

@@ -1,7 +1,6 @@
 package pathdb
 
 import (
-	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
@@ -26,7 +25,6 @@ func getAllTestContexts(env m3util.QsmEnvironment) map[m3point.GrowthType][]m3pa
 		return pathData.AllCenterContexts
 	}
 
-	pointdb.InitializePointDBEnv(env.(*m3db.QsmDbEnvironment), false)
 	pointData := pointdb.GetPointPackData(env)
 
 	idx := 0

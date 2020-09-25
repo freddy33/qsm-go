@@ -19,17 +19,13 @@ const (
 	SelectNodePerId     = 0
 	SelectNodesPerD     = 1
 	SelectNodesPerPoint = 2
+	SelectActiveNodes   = 3
 )
 
 func init() {
 	m3db.AddTableDef(createSpacesTableDef())
 	m3db.AddTableDef(createEventsTableDef())
 	m3db.AddTableDef(createNodesTableDef())
-}
-
-func InitializeSpaceDBEnv(env *m3db.QsmDbEnvironment) {
-	pathdb.InitializePathDBEnv(env)
-	GetServerSpacePackData(env).createTables()
 }
 
 func createSpacesTableDef() *m3db.TableDefinition {
@@ -74,6 +70,9 @@ func createEventsTableDef() *m3db.TableDefinition {
 	return &res
 }
 
+/*
+How to query graph in PG: https://www.postgresql.org/docs/current/queries-with.html
+*/
 func createNodesTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = NodesTable
@@ -93,10 +92,11 @@ func createNodesTableDef() *m3db.TableDefinition {
 	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id"
 	res.SelectAll = "select id," + allFields + " from %s"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 3)
+	res.Queries = make([]string, 4)
 	res.Queries[SelectNodePerId] = res.SelectAll + " where id=$1"
 	res.Queries[SelectNodesPerD] = res.SelectAll + " where event_id=$1 and d=$2"
-	res.Queries[SelectNodesPerPoint] = res.SelectAll + " where point_id=$1"
+	res.Queries[SelectNodesPerPoint] = "select id, event_id, creation_time from %s where point_id=$1 and creation_time <= $2"
+	res.Queries[SelectActiveNodes] = "select id, event_id, point_id, creation_time from %s  where creation_time > $1 and creation_time <= $2"
 	return &res
 }
 
@@ -119,21 +119,11 @@ func (spd *ServerSpacePackData) createTables() {
 	}
 }
 
-/***************************************************************/
-// Utility methods for test
-/***************************************************************/
-
 var dbMutex sync.Mutex
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
 func GetSpaceDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	env := pathdb.GetPathDbFullEnv(envId)
-	checkEnv(env)
-	return env
-}
-
-func GetSpaceDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	env := pathdb.GetPathDbCleanEnv(envId)
 	checkEnv(env)
 	return env
 }

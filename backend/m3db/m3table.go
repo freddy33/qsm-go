@@ -40,72 +40,9 @@ func AddTableDef(tDef *TableDefinition) {
 	tableDefinitions[tDef.Name] = tDef
 }
 
-func (env *QsmDbEnvironment) SelectAllForLoad(tableName string) (*TableExec, *sql.Rows) {
-	te, err := env.GetOrCreateTableExec(tableName)
-	if err != nil {
-		Log.Fatalf("could not load due to error while getting table exec %v", err)
-		return nil, nil
-	}
-	if te.TableDef.ExpectedCount > 0 && te.WasCreated() {
-		Log.Fatalf("could not load since table %s was just created", te.GetFullTableName())
-		return nil, nil
-	}
-	rows, err := te.GetConnection().Query(fmt.Sprintf(te.TableDef.SelectAll, te.GetFullTableName()))
-	if err != nil {
-		Log.Fatalf("could not load due to error while select all %v", err)
-		return nil, nil
-	}
-	return te, rows
-}
-
-func (env *QsmDbEnvironment) GetForSaveAll(tableName string) (*TableExec, int, bool, error) {
-	te, err := env.GetOrCreateTableExec(tableName)
-	if err != nil {
-		return te, 0, false, err
-	}
-	if te.WasCreated() {
-		return te, 0, true, nil
-	} else {
-		Log.Debugf("%s table was already created. Checking number of rows.", tableName)
-		var nbRows int
-		count, err := env.GetConnection().Query(fmt.Sprintf("select count(*) from %s", te.GetFullTableName()))
-		if err != nil {
-			Log.Error(err)
-			return te, 0, false, err
-		}
-		if !count.Next() {
-			err = m3util.MakeQsmErrorf("counting rows of table %s returned no results", te.GetFullTableName())
-			Log.Error(err)
-			return te, 0, false, err
-		}
-		err = count.Scan(&nbRows)
-		if err != nil {
-			Log.Error(err)
-			return te, 0, false, err
-		}
-		if te.TableDef.ExpectedCount > 0 && nbRows != te.TableDef.ExpectedCount {
-			if nbRows != 0 {
-				// TODO: Delete all before refill. For now error
-				return te, nbRows, false, &QsmWrongCount{tableName, nbRows, te.TableDef.ExpectedCount}
-			}
-			return te, 0, true, nil
-		}
-		return te, nbRows, false, nil
-	}
-}
-
-type QsmWrongCount struct {
-	tableName        string
-	actual, expected int
-}
-
-func (err *QsmWrongCount) Actual() int {
-	return err.actual
-}
-
-func (err *QsmWrongCount) Error() string {
-	return fmt.Sprintf("number of rows in %s is %d and should be %d", err.tableName, err.actual, err.expected)
-}
+/***************************************************************/
+// Global QsmDbEnvironment functions
+/***************************************************************/
 
 func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec, error) {
 	env.createTableMutex.Lock()
@@ -164,12 +101,37 @@ func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec,
 	return tableExec, nil
 }
 
+/***************************************************************/
+// QsmWrongCount functions
+/***************************************************************/
+
+type QsmWrongCount struct {
+	tableName        string
+	actual, expected int
+}
+
+func (err *QsmWrongCount) Actual() int {
+	return err.actual
+}
+
+func (err *QsmWrongCount) Error() string {
+	return fmt.Sprintf("number of rows in %s is %d and should be %d", err.tableName, err.actual, err.expected)
+}
+
+/***************************************************************/
+// TableExec functions
+/***************************************************************/
+
 func (te *TableExec) GetFullTableName() string {
 	return te.env.GetSchemaName() + "." + te.tableName
 }
 
 func (te *TableExec) WasCreated() bool {
 	return te.created
+}
+
+func (te *TableExec) SetFilled() {
+	te.created = false
 }
 
 func (te *TableExec) WasChecked() bool {
@@ -187,31 +149,51 @@ func (te *TableExec) Close() error {
 	return nil
 }
 
-func (te *TableExec) fillStmt() error {
-	db := te.env.GetConnection()
-	query := fmt.Sprintf("insert into %s "+te.TableDef.Insert, te.GetFullTableName())
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		Log.Fatalf("for table %s preparing insert query with '%s' got error %v", te.tableName, query, err)
-		return err
-	}
-	te.InsertStmt = stmt
-	return nil
-}
-
-func (te *TableExec) fillQuery(i int, query string) error {
-	db := te.env.GetConnection()
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		Log.Errorf("for table %s preparing query %d with '%s' got error %v", te.tableName, i, query, err)
-		return err
-	}
-	te.QueriesStmt[i] = stmt
-	return nil
-}
-
 func (te *TableExec) IsFiltered(err error) bool {
 	return err != nil && te.TableDef.ErrorFilter != nil && te.TableDef.ErrorFilter(err)
+}
+
+func (te *TableExec) GetForSaveAll() (int, bool, error) {
+	if te.WasCreated() {
+		return 0, true, nil
+	} else {
+		Log.Debugf("%s table was already created. Checking number of rows.", te.GetFullTableName())
+		var nbRows int
+		count, err := te.env.GetConnection().Query(fmt.Sprintf("select count(*) from %s", te.GetFullTableName()))
+		if err != nil {
+			Log.Error(err)
+			return 0, false, err
+		}
+		if !count.Next() {
+			err = m3util.MakeQsmErrorf("counting rows of table %s returned no results", te.GetFullTableName())
+			Log.Error(err)
+			return 0, false, err
+		}
+		err = count.Scan(&nbRows)
+		if err != nil {
+			Log.Error(err)
+			return 0, false, err
+		}
+		if te.TableDef.ExpectedCount > 0 && nbRows != te.TableDef.ExpectedCount {
+			if nbRows != 0 {
+				// TODO: Delete all before refill. For now error
+				return nbRows, false, &QsmWrongCount{tableName: te.GetFullTableName(), actual: nbRows, expected: te.TableDef.ExpectedCount}
+			}
+			return 0, true, nil
+		}
+		return nbRows, false, nil
+	}
+}
+
+func (te *TableExec) SelectAllForLoad() (*sql.Rows, error) {
+	if te.TableDef.ExpectedCount > 0 && te.WasCreated() {
+		return nil, m3util.MakeQsmErrorf("could not load since table %s was just created", te.GetFullTableName())
+	}
+	rows, err := te.GetConnection().Query(fmt.Sprintf(te.TableDef.SelectAll, te.GetFullTableName()))
+	if err != nil {
+		return nil, m3util.MakeWrapQsmErrorf(err, "could not load all rows from %s due to: %v", te.GetFullTableName(), err)
+	}
+	return rows, nil
 }
 
 func (te *TableExec) Insert(args ...interface{}) error {
@@ -294,6 +276,29 @@ func (te *TableExec) CloseRows(rows *sql.Rows) {
 	if err != nil {
 		Log.Errorf("error closing %s result set %v", te.tableName, err)
 	}
+}
+
+func (te *TableExec) fillStmt() error {
+	db := te.env.GetConnection()
+	query := fmt.Sprintf("insert into %s "+te.TableDef.Insert, te.GetFullTableName())
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		Log.Fatalf("for table %s preparing insert query with '%s' got error %v", te.tableName, query, err)
+		return err
+	}
+	te.InsertStmt = stmt
+	return nil
+}
+
+func (te *TableExec) fillQuery(i int, query string) error {
+	db := te.env.GetConnection()
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		Log.Errorf("for table %s preparing query %d with '%s' got error %v", te.tableName, i, query, err)
+		return err
+	}
+	te.QueriesStmt[i] = stmt
+	return nil
 }
 
 func (te *TableExec) initForTable(tableName string) error {

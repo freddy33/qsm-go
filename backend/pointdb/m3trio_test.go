@@ -46,7 +46,7 @@ func getPointTestData() ServerPointPackDataIfc {
 	m3util.SetToTestMode()
 
 	env := GetPointDbFullEnv(m3util.PointTestEnv)
-	InitializePointDBEnv(env, false)
+
 	return GetPointPackData(env)
 }
 

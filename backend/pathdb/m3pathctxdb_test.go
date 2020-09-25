@@ -28,10 +28,6 @@ func TestMakeNewPathCtx(t *testing.T) {
 	m3point.Log.SetDebug()
 	m3util.SetToTestMode()
 	env := GetPathDbFullEnv(m3util.PathTestEnv)
-	start := time.Now()
-	InitializePathDBEnv(env)
-	endInit := time.Now()
-	Log.Infof("Init DB took %v", endInit.Sub(start))
 
 	pointData := pointdb.GetPointPackData(env)
 	pathData := GetServerPathPackData(env)
@@ -83,7 +79,6 @@ func TestMakeNewPathCtx(t *testing.T) {
 	Log.Infof("root node from db is %s", loadedFromDb.String())
 
 	rootCreated := time.Now()
-	Log.Infof("Total create root DB test took %v", rootCreated.Sub(endInit))
 
 	pathCtx.MoveToNextNodes()
 	assert.Equal(t, 3, pathCtx.GetNumberOfOpenNodes())

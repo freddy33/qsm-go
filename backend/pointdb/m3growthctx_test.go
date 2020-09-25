@@ -12,7 +12,8 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	m3util.SetToTestMode()
 
 	env := GetPointDbFullEnv(m3util.PointTestEnv)
-	ppd := GetPointPackData(env)
+	ppd, _ := GetServerPointPackData(env)
+	ppd.FillDb()
 	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {

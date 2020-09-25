@@ -9,8 +9,6 @@ import (
 
 func TestPathNodeDbConnMask(t *testing.T) {
 	m3util.SetToTestMode()
-	env := GetPathDbFullEnv(m3util.PathTestEnv)
-	InitializePathDBEnv(env)
 
 	pn := getNewPathNodeDb()
 	assert.Equal(t, NewPathNode, pn.state)

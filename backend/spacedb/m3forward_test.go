@@ -67,7 +67,6 @@ func getSpaceTestEnv() m3util.QsmEnvironment {
 	}
 	m3util.SetToTestMode()
 	spaceEnv := GetSpaceDbFullEnv(m3util.SpaceTestEnv)
-	InitializeSpaceDBEnv(spaceEnv)
 	return spaceEnv
 }
 

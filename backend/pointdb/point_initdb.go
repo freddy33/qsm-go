@@ -1,17 +1,10 @@
 package pointdb
 
 import (
-	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/model/m3point"
 )
 
-func InitializePointDBEnv(env *m3db.QsmDbEnvironment, forced bool) {
-	ppd, newData := GetServerPointPackData(env)
-	if forced {
-		ppd.ResetFlags()
-	} else if !newData {
-		return
-	}
+func (ppd *ServerPointPackData) InitializeAll() {
 	ppd.initConnections()
 	ppd.initTrioDetails()
 	ppd.initGrowthContexts()
@@ -33,47 +26,60 @@ func (ppd *ServerPointPackData) GetAllMod8Permutations() [12][8]m3point.TrioInde
 
 func (ppd *ServerPointPackData) initConnections() {
 	if !ppd.ConnectionsLoaded {
-		ppd.AllConnections, ppd.AllConnectionsByVector = loadConnectionDetails(ppd.env)
-		ppd.ConnectionsLoaded = true
+		err := ppd.loadConnectionDetails()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 		Log.Debugf("Environment %d has %d connection details", ppd.GetEnvId(), len(ppd.AllConnections))
 	}
 }
 
 func (ppd *ServerPointPackData) initTrioDetails() {
 	if !ppd.TrioDetailsLoaded {
-		ppd.AllTrioDetails = ppd.loadTrioDetails()
-		ppd.TrioDetailsLoaded = true
+		err := ppd.loadTrioDetails()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 		Log.Debugf("Environment %d has %d trio details", ppd.GetEnvId(), len(ppd.AllTrioDetails))
 	}
 }
 
 func (ppd *ServerPointPackData) initGrowthContexts() {
 	if !ppd.GrowthContextsLoaded {
-		ppd.AllGrowthContexts = ppd.loadGrowthContexts()
-		ppd.GrowthContextsLoaded = true
+		err := ppd.loadGrowthContexts()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 		Log.Debugf("Environment %d has %d growth contexts", ppd.GetEnvId(), len(ppd.AllGrowthContexts))
 	}
 }
 
 func (ppd *ServerPointPackData) initContextCubes() {
 	if !ppd.cubesLoaded {
-		ppd.cubeIdsPerKey = ppd.loadContextCubes()
-		ppd.cubesLoaded = true
+		err := ppd.loadContextCubes()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 		Log.Debugf("Environment %d has %d cubes", ppd.GetEnvId(), len(ppd.cubeIdsPerKey))
 	}
 }
 
 func (ppd *ServerPointPackData) initPathBuilders() {
 	if !ppd.pathBuildersLoaded {
-		ppd.pathBuilders = ppd.loadPathBuilders()
-		ppd.pathBuildersLoaded = true
+		err := ppd.loadPathBuilders()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 		Log.Debugf("Environment %d has %d path builders", ppd.GetEnvId(), len(ppd.pathBuilders))
 	}
 }
 
-func FillDbEnv(env *m3db.QsmDbEnvironment) {
-	ppd, _ := GetServerPointPackData(env)
-
+func (ppd *ServerPointPackData) FillDb() {
 	n, err := ppd.saveAllConnectionDetails()
 	if err != nil {
 		Log.Fatalf("could not save all connections due to %v", err)

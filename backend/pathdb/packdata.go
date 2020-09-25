@@ -37,15 +37,15 @@ func GetServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	return env.GetData(m3util.PathIdx).(*ServerPathPackData)
 }
 
-func (ppd *ServerPathPackData) addCenterPathContext(pathCtx m3path.PathContext) {
-	if len(ppd.AllCenterContexts[pathCtx.GetGrowthType()]) == 0 {
+func (pathData *ServerPathPackData) addCenterPathContext(pathCtx m3path.PathContext) {
+	if len(pathData.AllCenterContexts[pathCtx.GetGrowthType()]) == 0 {
 		nbIndexes := pathCtx.GetGrowthType().GetNbIndexes()
-		ppd.AllCenterContexts[pathCtx.GetGrowthType()] = make([]m3path.PathContext, nbIndexes)
+		pathData.AllCenterContexts[pathCtx.GetGrowthType()] = make([]m3path.PathContext, nbIndexes)
 		for i := 0; i < nbIndexes; i++ {
-			ppd.AllCenterContexts[pathCtx.GetGrowthType()][i] = nil
+			pathData.AllCenterContexts[pathCtx.GetGrowthType()][i] = nil
 		}
 	}
-	if ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] == nil {
-		ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] = pathCtx
+	if pathData.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] == nil {
+		pathData.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] = pathCtx
 	}
 }

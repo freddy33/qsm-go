@@ -21,11 +21,6 @@ func init() {
 	m3db.AddTableDef(creatPathNodesTableDef())
 }
 
-func InitializePathDBEnv(env *m3db.QsmDbEnvironment) {
-	pointdb.InitializePointDBEnv(env, true)
-	GetServerPathPackData(env).createTables()
-}
-
 const (
 	FindPointIdPerCoord = 0
 	SelectPointPerId    = 1
@@ -159,10 +154,6 @@ func (pathData *ServerPathPackData) createTables() {
 	}
 }
 
-/***************************************************************/
-// Utility methods for test
-/***************************************************************/
-
 var dbMutex sync.Mutex
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
@@ -183,7 +174,8 @@ func checkEnv(env *m3db.QsmDbEnvironment) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if !testDbFilled[envId] {
-		pointdb.FillDbEnv(env)
+		pointData, _ := pointdb.GetServerPointPackData(env)
+		pointData.FillDb()
 		GetServerPathPackData(env).createTables()
 		testDbFilled[envId] = true
 	}

@@ -159,7 +159,10 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 }
 
 func (spd *ServerSpacePackData) LoadAllSpaces() error {
-	_, rows := spd.env.SelectAllForLoad(SpacesTable)
+	rows, err := spd.spacesTe.SelectAllForLoad()
+	if err != nil {
+		return err
+	}
 	for rows.Next() {
 		space := SpaceDb{spaceData: spd}
 		err := rows.Scan(&space.id, &space.name, &space.activePathNodeThreshold,
