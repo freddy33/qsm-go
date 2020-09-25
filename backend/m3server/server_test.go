@@ -68,6 +68,7 @@ func TestLogLevelSetter(t *testing.T) {
 func TestReadPointData(t *testing.T) {
 	Log.SetInfo()
 	router := getApp(m3util.PointTestEnv).Router
+	initDB(t, router)
 	pMsg := &m3api.PointPackDataMsg{}
 	sendAndReceive(t, &requestTest{
 		router:      router,

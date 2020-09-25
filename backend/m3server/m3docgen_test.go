@@ -8,5 +8,5 @@ import (
 
 func TestWriteAllTables(t *testing.T) {
 	m3util.SetToTestMode()
-	GenerateTextFilesEnv(spacedb.GetSpaceDbFullEnv(m3util.PointTestEnv))
+	GenerateTextFilesEnv(spacedb.GetSpaceDbFullEnv(m3util.RunEnv))
 }

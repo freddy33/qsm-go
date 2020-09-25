@@ -12,7 +12,12 @@ import (
 	"math/rand"
 	"strconv"
 	"testing"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func TestSpaceNextTime(t *testing.T) {
 	m3util.SetToTestMode()

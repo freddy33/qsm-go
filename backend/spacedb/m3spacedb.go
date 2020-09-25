@@ -109,9 +109,10 @@ func (space *SpaceDb) GetEventIdsForMsg() []int32 {
 }
 
 func (space *SpaceDb) insertInDb() error {
-	id64, err := space.spaceData.spacesTe.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord)
+	te := space.spaceData.spacesTe
+	id64, err := te.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord)
 	if err != nil {
-		return m3util.MakeWrapQsmErrorf(err, "could not insert space %s due to '%s'", space.GetName(), err.Error())
+		return m3util.MakeWrapQsmErrorf(err, "could not insert space %q in %q due to: %s", space.GetName(), te.GetFullTableName(), err.Error())
 	}
 	space.id = int(id64)
 	return nil
