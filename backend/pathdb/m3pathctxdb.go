@@ -187,13 +187,16 @@ func (pathCtx *PathContextDb) createConnection(currentD int, fromNode *PathNodeD
 		fromNode.setDeadEnd(connIdx)
 	} else {
 		// Link the destination node to this link
-		fromNode.setConnectionState(connIdx, m3path.ConnectionNext)
+		fromNode.SetConnectionState(connIdx, m3path.ConnectionNext)
 		if nextPathNode.id <= 0 {
-			fromNode.linkNodeIds[connIdx] = NextLinkIdNotAssigned
+			fromNode.linkIds[connIdx] = NextLinkIdNotAssigned
 		} else {
-			fromNode.linkNodeIds[connIdx] = nextPathNode.id
+			fromNode.linkIds[connIdx] = nextPathNode.id
 		}
 		fromNode.linkNodes[connIdx] = nextPathNode
+	}
+	if fromNode.state == SyncInDbPathNode {
+		fromNode.state = ModifiedNode
 	}
 }
 
@@ -202,7 +205,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 	nbBlocked := 0
 	pnb := on.PathBuilder()
 	for i := 0; i < m3path.NbConnections; i++ {
-		switch on.getConnectionState(i) {
+		switch on.GetConnectionState(i) {
 		case m3path.ConnectionNext:
 			Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)
 		case m3path.ConnectionFrom:
@@ -348,21 +351,18 @@ func (pathCtx *PathContextDb) CountAllPathNodes() int {
 	return res
 }
 
-func (pathCtx *PathContextDb) getPathNodeDb(id int64) *PathNodeDb {
-	te := pathCtx.pathNodesTe()
-	row := te.QueryRow(SelectPathNodesById, id)
+func (pathCtx *PathContextDb) GetPathNodeDb(id int64) (*PathNodeDb, error) {
+	row := pathCtx.pathData.pathNodesTe.QueryRow(SelectPathNodesById, id)
 	pn, err := fetchSingleDbRow(row)
 	if err != nil {
-		Log.Fatalf("Could not read row of %s due to %v", PathNodesTable, err)
-		return nil
+		return nil, m3util.MakeWrapQsmErrorf(err, "Could not read row of %s due to %s", PathNodesTable, err.Error())
 	}
 	if pn.pathCtxId != pathCtx.id {
-		Log.Fatalf("While retrieving path node id %d got a node with context id %d instead of %d",
+		return nil, m3util.MakeQsmErrorf("While retrieving path node id %d got a node with context id %d instead of %d",
 			id, pn.pathCtxId, pathCtx.id)
-		return nil
 	}
 	pn.pathCtx = pathCtx
-	return pn
+	return pn, nil
 }
 
 func (pathCtx *PathContextDb) getPathNodeIdByPoint(pointId int64) int64 {

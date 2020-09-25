@@ -15,7 +15,7 @@ func TestNodeSyncPool(t *testing.T) {
 	assert.Equal(t, int64(-1), pn.id)
 	assert.Equal(t, -1, pn.pathCtxId)
 	for i := 0; i < 3; i++ {
-		assert.Equal(t, int64(-3), pn.linkNodeIds[1])
+		assert.Equal(t, int64(-3), pn.linkIds[1])
 	}
 
 	pn.release()
@@ -58,7 +58,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, pn, pathCtxDb.rootNode)
 
 	assert.Equal(t, pathCtxDb.rootNode.pathCtxId, ctxId)
-	assert.Equal(t, pathCtxDb.rootNode.pointId, pathData.getOrCreatePoint(testPoint))
+	assert.Equal(t, pathCtxDb.rootNode.pointId, pathData.GetOrCreatePoint(testPoint))
 	assert.Equal(t, 2601, pathCtxDb.rootNode.pathBuilderId)
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
@@ -71,7 +71,8 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.True(t, pn.HasOpenConnections())
 
 	nodeId := pathCtxDb.rootNode.id
-	loadedFromDb := pathCtxDb.getPathNodeDb(nodeId)
+	loadedFromDb, err := pathCtxDb.GetPathNodeDb(nodeId)
+	assert.NoError(t, err)
 	assert.NotNil(t, loadedFromDb)
 	assert.Equal(t, ctxId, loadedFromDb.pathCtxId)
 	assert.Equal(t, pathCtxDb, loadedFromDb.pathCtx)

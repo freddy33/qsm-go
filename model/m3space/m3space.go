@@ -52,6 +52,18 @@ type Space struct {
 	EventOutgrowthDeadThreshold DistAndTime
 }
 
+func (space *Space) GetId() int {
+	return 1
+}
+
+func (space *Space) GetName() string {
+	return "OldFaithful"
+}
+
+func (space *Space) CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int, creationTime DistAndTime, center m3point.Point, color EventColor) (EventIfc, error) {
+	panic("not implemented here")
+}
+
 func MakeSpace(env m3util.QsmEnvironment, max m3point.CInt) Space {
 	space := Space{}
 	space.env = env

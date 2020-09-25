@@ -33,16 +33,18 @@ message EventMsg {
 }
 
 message NodeEventMsg {
-    int32 event_id = 1;
-    PointMsg point = 2;
-    int32 d = 3;
-    int32 trio_id = 4;
-    uint32 connection_mask = 5;
+    int64 event_node_id = 1;
+    int32 event_id = 2;
+    PointMsg point = 3;
+    int32 creation_time = 4;
+    int32 d = 5;
+    int32 trio_id = 6;
+    uint32 connection_mask = 7;
 }
 
 message EventResponseMsg {
     int32 event_id = 1;
-    int64 path_ctx_id = 2;
+    int32 path_ctx_id = 2;
     NodeEventMsg root_node = 3;
 }
 

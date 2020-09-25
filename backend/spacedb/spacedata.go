@@ -28,6 +28,7 @@ func (spd *ServerSpacePackData) GetAllSpaces() []m3space.SpaceIfc {
 }
 
 func (spd *ServerSpacePackData) GetSpace(id int) m3space.SpaceIfc {
+	// TODO: if not in map look in DB
 	return spd.allSpaces[id]
 }
 

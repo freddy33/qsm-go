@@ -235,15 +235,21 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	r := mux.NewRouter()
 	app := &QsmApp{Router: r, Env: env}
 	app.AddHandler("/", home)
+
 	// TODO: MAke also a getter to list current log level
 	app.AddHandler("/log", logLevel).Methods("POST")
+
 	app.AddHandler("/point-data", retrievePointData).Methods("GET")
+
 	app.AddHandler("/test-init", initialize).Methods("POST")
 	app.AddHandler("/test-drop", drop).Methods("DELETE")
+
 	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
 	app.AddHandler("/next-nodes", moveToNextNode).Methods("POST")
+
 	app.AddHandler("/space", createSpace).Methods("PUT")
 	app.AddHandler("/space", getSpaces).Methods("GET")
+	app.AddHandler("/event", createEvent).Methods("PUT")
 
 	return app
 }

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (pathData *ServerPathPackData) getPointEnv(pointId int64) (*m3point.Point, error) {
+func (pathData *ServerPathPackData) GetPoint(pointId int64) (*m3point.Point, error) {
 	te := pathData.pointsTe
 	rows, err := te.Query(SelectPointPerId, pointId)
 	if err != nil {
@@ -28,7 +28,7 @@ func (pathData *ServerPathPackData) getPointEnv(pointId int64) (*m3point.Point, 
 	return nil, m3util.MakeQsmErrorf("point id %d does not exists!", pointId)
 }
 
-func (pathData *ServerPathPackData) getOrCreatePoint(p m3point.Point) int64 {
+func (pathData *ServerPathPackData) GetOrCreatePoint(p m3point.Point) int64 {
 	return getOrCreatePointTe(pathData.pointsTe, p)
 }
 
@@ -97,7 +97,7 @@ func RunInsertRandomPoints() {
 		go func() {
 			for i := 0; i < nbRound; i++ {
 				randomPoint := m3point.CreateRandomPoint(rdMax)
-				id := pathData.getOrCreatePoint(randomPoint)
+				id := pathData.GetOrCreatePoint(randomPoint)
 				if id <= 0 {
 					Log.Errorf("failed to insert %v got %d id", randomPoint, id)
 				}

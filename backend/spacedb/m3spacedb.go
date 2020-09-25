@@ -2,13 +2,16 @@ package spacedb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/backend/pathdb"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 )
 
 type SpaceDb struct {
-	spd *ServerSpacePackData
+	spaceData *ServerSpacePackData
+	pathData  *pathdb.ServerPathPackData
 
 	// Unique keys
 	id   int
@@ -26,14 +29,15 @@ type SpaceDb struct {
 
 	// Current state of this space
 	currentTime m3space.DistAndTime
-	events      []m3space.Event
+	events      []*EventDb
 }
 
 func CreateSpace(env *m3db.QsmDbEnvironment,
 	name string, activePathNodeThreshold m3space.DistAndTime,
 	maxTriosPerPoint int, maxPathNodesPerPoint int) (*SpaceDb, error) {
 	space := new(SpaceDb)
-	space.spd = GetServerSpacePackData(env)
+	space.spaceData = GetServerSpacePackData(env)
+	space.pathData = pathdb.GetServerPathPackData(env)
 	space.name = name
 	space.activePathNodeThreshold = activePathNodeThreshold
 	space.maxTriosPerPoint = maxTriosPerPoint
@@ -56,8 +60,8 @@ func CreateSpace(env *m3db.QsmDbEnvironment,
 func (space *SpaceDb) finalInit() {
 	space.nbActiveNodes = 0
 	space.currentTime = 0
-	space.events = make([]m3space.Event, 0, 8)
-	space.spd.allSpaces[space.id] = space
+	space.events = make([]*EventDb, 0, 8)
+	space.spaceData.allSpaces[space.id] = space
 }
 
 func (space *SpaceDb) GetId() int {
@@ -99,17 +103,13 @@ func (space *SpaceDb) GetCurrentTime() m3space.DistAndTime {
 func (space *SpaceDb) GetEventIdsForMsg() []int32 {
 	res := make([]int32, len(space.events))
 	for i, evt := range space.events {
-		res[i] = int32(evt.Id)
+		res[i] = int32(evt.GetId())
 	}
 	return res
 }
 
 func (space *SpaceDb) insertInDb() error {
-	te, err := space.spd.env.GetOrCreateTableExec(SpacesTable)
-	if err != nil {
-		return m3util.MakeWrapQsmErrorf(err, "could not get table details %s out of %s space due to '%s'", SpacesTable, space.GetName(), err.Error())
-	}
-	id64, err := te.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord)
+	id64, err := space.spaceData.spacesTe.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord)
 	if err != nil {
 		return m3util.MakeWrapQsmErrorf(err, "could not insert space %s due to '%s'", space.GetName(), err.Error())
 	}
@@ -117,10 +117,51 @@ func (space *SpaceDb) insertInDb() error {
 	return nil
 }
 
+func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int,
+	creationTime m3space.DistAndTime, center m3point.Point, color m3space.EventColor) (m3space.EventIfc, error) {
+	env := space.spaceData.env
+	pointData, _ := pointdb.GetServerPointPackData(env)
+	growthCtx := pointData.GetGrowthContextByTypeAndIndex(growthType, growthIndex)
+	if growthCtx == nil {
+		return nil, m3util.MakeQsmErrorf("Growth context with type=%d and index=%d does not exists", growthType, growthIndex)
+	}
+	centerPoint := center
+	pointId := space.pathData.GetOrCreatePoint(centerPoint)
+	pathCtx := space.pathData.CreatePathCtxFromAttributes(growthCtx, growthOffset, m3point.Origin)
+	rootPathNode := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
+	evt := &EventDb{
+		space:        space,
+		pathCtx:      pathCtx.(*pathdb.PathContextDb),
+		creationTime: creationTime,
+		color:        color,
+		endTime:      creationTime,
+	}
+	evt.centerNode = &EventNodeDb{
+		event:        evt,
+		pointId:      pointId,
+		pathNodeId:   rootPathNode.GetId(),
+		creationTime: creationTime,
+		d:            0,
+		point:        &centerPoint,
+		pathNode:     rootPathNode,
+	}
+	evt.centerNode.SetLinksToNil()
+	evt.centerNode.SetFullConnectionMask(rootPathNode.GetConnectionMask())
+
+	space.events = append(space.events, evt)
+
+	err := evt.insertInDb()
+	if err != nil {
+		return nil, err
+	}
+
+	return evt, nil
+}
+
 func (spd *ServerSpacePackData) LoadAllSpaces() error {
 	_, rows := spd.env.SelectAllForLoad(SpacesTable)
 	for rows.Next() {
-		space := SpaceDb{spd: spd}
+		space := SpaceDb{spaceData: spd}
 		err := rows.Scan(&space.id, &space.name, &space.activePathNodeThreshold,
 			&space.maxTriosPerPoint, &space.maxPathNodesPerPoint, &space.maxCoord, &space.maxTime)
 		if err != nil {

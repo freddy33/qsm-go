@@ -55,17 +55,17 @@ func createSpacesTableDef() *m3db.TableDefinition {
 func createEventsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = EventsTable
+	// End time set equal to creation time when alive
 	res.DdlColumns = "(id serial PRIMARY KEY," +
 		" space_id integer NOT NULL REFERENCES %s (id)," +
 		" path_ctx_id integer NOT NULL REFERENCES %s (id)," +
 		" creation_time integer NOT NULL," +
 		" color smallint NOT NULL," +
-		" point_id bigint NOT NULL REFERENCES %s (id)," +
 		" end_time integer NOT NULL)"
-	res.DdlColumnsRefs = []string{SpacesTable, pathdb.PathContextsTable, pathdb.PointsTable}
+	res.DdlColumnsRefs = []string{SpacesTable, pathdb.PathContextsTable}
 
-	allFields := "space_id, path_ctx_id, creation_time, color, point_id, end_time"
-	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,-1) returning id"
+	allFields := "space_id, path_ctx_id, creation_time, color, end_time"
+	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5) returning id"
 	res.SelectAll = "select id," + allFields + " from %s"
 	res.ExpectedCount = -1
 	res.Queries = make([]string, 1)
@@ -90,7 +90,7 @@ func createNodesTableDef() *m3db.TableDefinition {
 		NodesTable, NodesTable, NodesTable}
 
 	allFields := "event_id, path_node_id, point_id, d, creation_time, connection_mask, node1, node2, node3"
-	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,$6, $7, $8, $9) returning id"
+	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id"
 	res.SelectAll = "select id," + allFields + " from %s"
 	res.ExpectedCount = -1
 	res.Queries = make([]string, 3)

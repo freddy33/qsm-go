@@ -69,3 +69,13 @@ func GetConnectionMaskValue(connectionMask uint16, connIdx int) uint16 {
 func GetConnectionState(connectionMask uint16, connIdx int) ConnectionState {
 	return ConnectionState(GetConnectionMaskValue(connectionMask, connIdx) & ConnectionStateMask)
 }
+
+func SetConnectionState(connectionMask uint16, connIdx int, state ConnectionState) uint16 {
+	newConnMask := GetConnectionMaskValue(connectionMask, connIdx)
+	// Zero what is not state mask bit
+	newConnMask &^= ConnectionStateMask
+	// Set the new state value
+	newConnMask |= uint16(state)
+	return newConnMask
+}
+

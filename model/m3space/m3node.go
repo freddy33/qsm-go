@@ -82,7 +82,10 @@ func (nl *NodeList) addNode(newNode Node) {
 	if newNode == nil {
 		return
 	}
-	p := newNode.GetPoint()
+	p, err := newNode.GetPoint()
+	if err != nil {
+		Log.Error(err)
+	}
 	if p == nil {
 		return
 	}
@@ -181,17 +184,21 @@ func (bn *BaseNode) GetActiveLinks(space *Space) NodeLinkList {
 	for nel != nil {
 		// Need to be active on the next round also to have from link activated
 		if nel.cur.IsActiveNext(space) {
-			pn := nel.cur.GetPathNode()
-			td := pn.GetTrioDetails()
-			for i := 0; i < m3path.NbConnections; i++ {
-				if pn.IsFrom(i) {
-					conn := td.GetConnections()[i]
-					fromP := pn.P().Add(conn.Vector)
-					nl := BaseNodeLink{
-						conn.GetNegId(),
-						fromP,
+			pn, err := nel.cur.GetPathNode()
+			if err != nil {
+				Log.Error(err)
+			} else {
+				td := pn.GetTrioDetails()
+				for i := 0; i < m3path.NbConnections; i++ {
+					if pn.IsFrom(i) {
+						conn := td.GetConnections()[i]
+						fromP := pn.P().Add(conn.Vector)
+						nl := BaseNodeLink{
+							conn.GetNegId(),
+							fromP,
+						}
+						res = append(res, &nl)
 					}
-					res = append(res, &nl)
 				}
 			}
 		}
@@ -200,8 +207,8 @@ func (bn *BaseNode) GetActiveLinks(space *Space) NodeLinkList {
 	return res
 }
 
-func (bn *BaseNode) GetPoint() *m3point.Point {
-	return &bn.p
+func (bn *BaseNode) GetPoint() (*m3point.Point, error) {
+	return &bn.p, nil
 }
 
 func (bn *BaseNode) IsEmpty() bool {
@@ -224,12 +231,12 @@ func (bn *BaseNode) GetNodeEvent(id EventId) NodeEvent {
 }
 
 // Deprecated
-func (bn *BaseNode) GetPathNode(id EventId) m3path.PathNode {
+func (bn *BaseNode) GetPathNode(id EventId) (m3path.PathNode, error) {
 	res := bn.GetNodeEvent(id)
 	if res != nil {
 		return res.GetPathNode()
 	}
-	return nil
+	return nil, nil
 }
 
 // Deprecated
@@ -417,7 +424,10 @@ func (bn *BaseNode) GetConnections() *UniqueConnectionsList {
 	usedConns := UniqueConnectionsList{}
 	nel := bn.head
 	for nel != nil {
-		pn := nel.cur.GetPathNode()
+		pn, err := nel.cur.GetPathNode()
+		if err != nil {
+			Log.Error(err)
+		}
 		if pn != nil {
 			td := pn.GetTrioDetails()
 			for i := 0; i < m3path.NbConnections; i++ {
@@ -444,18 +454,30 @@ func (bn *BaseNode) IsAlreadyConnected(opn *BaseNode, space *Space) bool {
 		return false
 	}
 
-	p1 := *bn.GetPoint()
-	p2 := *opn.GetPoint()
+	p1, err := bn.GetPoint()
+	if err != nil {
+		Log.Error(err)
+	}
+	p2, err := opn.GetPoint()
+	if err != nil {
+		Log.Error(err)
+	}
 
-	cd := space.GetPointPackData().GetConnDetailsByPoints(p1, p2)
+	cd := space.GetPointPackData().GetConnDetailsByPoints(*p1, *p2)
 	if cd == nil || !cd.IsValid() {
 		Log.Errorf("finding if 2 nodes already connected but not separated by possible connection (%v, %v)", p1, p2)
 		return false
 	}
 	nel := bn.head
 	for nel != nil {
-		pn1 := nel.cur.GetPathNode()
-		pn2 := opn.GetPathNode(nel.cur.evtId)
+		pn1, err := nel.cur.GetPathNode()
+		if err != nil {
+			Log.Error(err)
+		}
+		pn2, err := opn.GetPathNode(nel.cur.evtId)
+		if err != nil {
+			Log.Error(err)
+		}
 		if pn1 != nil && pn2 != nil {
 			td := pn1.GetTrioDetails()
 			return pn1.IsNext(td.GetConnectionIdx(cd.GetId()))

@@ -8,7 +8,7 @@ import (
 
 type Node interface {
 	fmt.Stringer
-	GetPoint() *m3point.Point
+	GetPoint() (*m3point.Point, error)
 
 	IsEmpty() bool
 	HasRoot(space *Space) bool
@@ -22,7 +22,7 @@ type Node interface {
 
 	IsEventAlreadyPresent(id EventId) bool
 
-	GetPathNode(id EventId) m3path.PathNode
+	GetPathNode(id EventId) (m3path.PathNode, error)
 
 	GetAccessed(evt *Event) DistAndTime
 
@@ -47,7 +47,7 @@ type Node interface {
 type NodeEvent interface {
 	GetEventId() EventId
 	GetPathNodeId() int64
-	GetPathNode() m3path.PathNode
+	GetPathNode() (m3path.PathNode, error)
 
 	GetAccessedTime() DistAndTime
 	GetDistFromCurrent(space *Space) DistAndTime

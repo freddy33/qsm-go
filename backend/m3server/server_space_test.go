@@ -2,8 +2,11 @@ package m3server
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
@@ -14,7 +17,8 @@ import (
 func TestSpaceNextTime(t *testing.T) {
 	m3util.SetToTestMode()
 	Log.SetInfo()
-	router := getApp(m3util.SpaceTestEnv).Router
+	qsmApp := getApp(m3util.SpaceTestEnv)
+	router := qsmApp.Router
 
 	initDB(t, router)
 
@@ -25,6 +29,9 @@ func TestSpaceNextTime(t *testing.T) {
 	for i, space := range allSpaces {
 		fmt.Printf("Index %d : Id=%d Name=%q\n", i, space.SpaceId, space.SpaceName)
 	}
+
+	eventId := callCreateEvent(t, qsmApp, spaceId, 0, m3point.Point{-3, 3, 6}, m3space.RedEvent, 8, 0, 0)
+	fmt.Printf("Created %d for %d\n", eventId, spaceId)
 }
 
 func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
@@ -74,6 +81,42 @@ func callGetAllSpaces(t *testing.T, router *mux.Router) []*m3api.SpaceMsg {
 
 func callDeleteSpace(t *testing.T, router *mux.Router) (int, string) {
 	return -1, ""
+}
+
+func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
+	time m3space.DistAndTime, point m3point.Point, color m3space.EventColor,
+	growthType m3point.GrowthType, growthIndex int, growthOffset int) int {
+	reqMsg := &m3api.EventMsg{
+		SpaceId:      int32(spaceId),
+		GrowthType:   int32(growthType),
+		GrowthIndex:  int32(growthIndex),
+		GrowthOffset: int32(growthOffset),
+		CreationTime: int32(time),
+		Center:       m3api.PointToPointMsg(point),
+		Color:        uint32(color),
+	}
+	resMsg := new(m3api.EventResponseMsg)
+	sendAndReceive(t, &requestTest{
+		router:      qsmApp.Router,
+		contentType: "proto",
+		typeName:    "EventResponseMsg",
+		methodName:  "PUT",
+		uri:         "/event",
+	}, reqMsg, resMsg)
+	assert.True(t, resMsg.EventId > 0)
+
+	pathData := pathdb.GetServerPathPackData(qsmApp.Env)
+	pathCtx := pathData.GetPathCtx(int(resMsg.GetPathCtxId()))
+	assert.Equal(t, growthType, pathCtx.GetGrowthType())
+	assert.Equal(t, growthIndex, pathCtx.GetGrowthIndex())
+	assert.Equal(t, growthOffset, pathCtx.GetGrowthOffset())
+
+	assert.Equal(t, resMsg.EventId, resMsg.RootNode.EventId)
+	assert.Equal(t, point, m3api.PointMsgToPoint(resMsg.RootNode.Point))
+	assert.Equal(t, int32(0), resMsg.RootNode.D)
+	fmt.Println("TrioID=", resMsg.RootNode.TrioId, "ConnectionMask=", resMsg.RootNode.ConnectionMask)
+
+	return int(resMsg.EventId)
 }
 
 func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activeNodes int) {
