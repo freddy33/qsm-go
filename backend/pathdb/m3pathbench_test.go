@@ -47,7 +47,7 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	m3point.Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3util.PathTestEnv)
+	env := GetPathDbFullEnv(m3util.PathTestEnv)
 	allCtx := getAllTestContexts(env)
 	for r := 0; r < N; r++ {
 		for _, ctx := range allCtx[pType] {

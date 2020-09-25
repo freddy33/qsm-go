@@ -5,10 +5,10 @@ import (
 	"github.com/freddy33/qsm-go/model/m3point"
 )
 
-type EventID int
+type EventId int
 
 const (
-	NilEvent = EventID(-1)
+	NilEvent = EventId(-1)
 )
 
 type DistAndTime int
@@ -26,7 +26,7 @@ const (
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 
 type Event struct {
-	id          EventID
+	Id          EventId
 	space       *Space
 	pathNodeMap m3path.PathNodeMap
 	node        Node
@@ -37,7 +37,7 @@ type Event struct {
 
 type SpacePathNodeMap struct {
 	space *Space
-	id    EventID
+	id    EventId
 	size  int
 }
 

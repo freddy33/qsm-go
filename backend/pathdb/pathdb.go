@@ -165,14 +165,14 @@ func createTablesEnv(env *m3db.QsmDbEnvironment) {
 var dbMutex sync.Mutex
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
-func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	env := pointdb.GetServerFullTestDb(envId)
+func GetPathDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+	env := pointdb.GetPointDbFullEnv(envId)
 	checkEnv(env)
 	return env
 }
 
-func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	env := pointdb.GetCleanTempDb(envId)
+func GetPathDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+	env := pointdb.GetPointDbCleanEnv(envId)
 	checkEnv(env)
 	return env
 }

@@ -13,7 +13,7 @@ import (
 
 func TestPointsTable(t *testing.T) {
 	m3util.SetToTestMode()
-	env := GetCleanTempDb(m3util.PathTempEnv)
+	env := GetPathDbCleanEnv(m3util.PathTempEnv)
 
 	te, err := env.GetOrCreateTableExec(PointsTable)
 	assert.Nil(t, err)
@@ -71,7 +71,7 @@ func TestPointsTable(t *testing.T) {
 func TestPointsTableConcurrency(t *testing.T) {
 	runtime.GOMAXPROCS(16)
 	m3util.SetToTestMode()
-	env := GetCleanTempDb(m3util.PerfTestEnv)
+	env := GetPathDbCleanEnv(m3util.PerfTestEnv)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(100)
 	nbRoutines := 50

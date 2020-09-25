@@ -33,7 +33,7 @@ func (ppd *ServerPointPackData) GetAllMod8Permutations() [12][8]m3point.TrioInde
 
 func (ppd *ServerPointPackData) initConnections() {
 	if !ppd.ConnectionsLoaded {
-		ppd.AllConnections, ppd.AllConnectionsByVector = loadConnectionDetails(ppd.Env)
+		ppd.AllConnections, ppd.AllConnectionsByVector = loadConnectionDetails(ppd.env)
 		ppd.ConnectionsLoaded = true
 		Log.Debugf("Environment %d has %d connection details", ppd.GetEnvId(), len(ppd.AllConnections))
 	}
@@ -56,18 +56,18 @@ func (ppd *ServerPointPackData) initGrowthContexts() {
 }
 
 func (ppd *ServerPointPackData) initContextCubes() {
-	if !ppd.CubesLoaded {
-		ppd.CubeIdsPerKey = ppd.loadContextCubes()
-		ppd.CubesLoaded = true
-		Log.Debugf("Environment %d has %d cubes", ppd.GetEnvId(), len(ppd.CubeIdsPerKey))
+	if !ppd.cubesLoaded {
+		ppd.cubeIdsPerKey = ppd.loadContextCubes()
+		ppd.cubesLoaded = true
+		Log.Debugf("Environment %d has %d cubes", ppd.GetEnvId(), len(ppd.cubeIdsPerKey))
 	}
 }
 
 func (ppd *ServerPointPackData) initPathBuilders() {
-	if !ppd.PathBuildersLoaded {
-		ppd.PathBuilders = ppd.loadPathBuilders()
-		ppd.PathBuildersLoaded = true
-		Log.Debugf("Environment %d has %d path builders", ppd.GetEnvId(), len(ppd.PathBuilders))
+	if !ppd.pathBuildersLoaded {
+		ppd.pathBuilders = ppd.loadPathBuilders()
+		ppd.pathBuildersLoaded = true
+		Log.Debugf("Environment %d has %d path builders", ppd.GetEnvId(), len(ppd.pathBuilders))
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 
 type ServerPathPackData struct {
 	m3path.BasePathPackData
-	Env *m3db.QsmDbEnvironment
+	env *m3db.QsmDbEnvironment
 
 	// All PathContexts centered at origin with growth type + offset
 	AllCenterContexts       map[m3point.GrowthType][]m3path.PathContext
@@ -19,7 +19,7 @@ type ServerPathPackData struct {
 func makeServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	res := new(ServerPathPackData)
 	res.EnvId = env.GetId()
-	res.Env = env.(*m3db.QsmDbEnvironment)
+	res.env = env.(*m3db.QsmDbEnvironment)
 	res.PathCtxMap = make(map[int]m3path.PathContext, 2^8)
 	res.AllCenterContexts = make(map[m3point.GrowthType][]m3path.PathContext)
 	res.AllCenterContextsLoaded = false

@@ -135,8 +135,8 @@ func (bn *BaseNode) GetNbLatestEvents() int {
 	return res
 }
 
-func (bn *BaseNode) GetLatestEventIds() []EventID {
-	res := make([]EventID, 0, 3)
+func (bn *BaseNode) GetLatestEventIds() []EventId {
+	res := make([]EventId, 0, 3)
 	nel := bn.head
 	for nel != nil {
 		if nel.cur.IsLatest() {
@@ -159,8 +159,8 @@ func (bn *BaseNode) GetNbActiveEvents(space *Space) int {
 	return res
 }
 
-func (bn *BaseNode) GetActiveEventIds(space *Space) []EventID {
-	res := make([]EventID, 0, 3)
+func (bn *BaseNode) GetActiveEventIds(space *Space) []EventId {
+	res := make([]EventId, 0, 3)
 	nel := bn.head
 	for nel != nil {
 		if nel.cur.IsActive(space) {
@@ -208,11 +208,11 @@ func (bn *BaseNode) IsEmpty() bool {
 	return bn.head == nil
 }
 
-func (bn *BaseNode) IsEventAlreadyPresent(id EventID) bool {
+func (bn *BaseNode) IsEventAlreadyPresent(id EventId) bool {
 	return bn.GetNodeEvent(id) != nil
 }
 
-func (bn *BaseNode) GetNodeEvent(id EventID) NodeEvent {
+func (bn *BaseNode) GetNodeEvent(id EventId) NodeEvent {
 	nel := bn.head
 	for nel != nil {
 		if nel.cur.evtId == id {
@@ -224,7 +224,7 @@ func (bn *BaseNode) GetNodeEvent(id EventID) NodeEvent {
 }
 
 // Deprecated
-func (bn *BaseNode) GetPathNode(id EventID) m3path.PathNode {
+func (bn *BaseNode) GetPathNode(id EventId) m3path.PathNode {
 	res := bn.GetNodeEvent(id)
 	if res != nil {
 		return res.GetPathNode()
@@ -234,11 +234,11 @@ func (bn *BaseNode) GetPathNode(id EventID) m3path.PathNode {
 
 // Deprecated
 func (bn *BaseNode) GetAccessed(evt *Event) DistAndTime {
-	res := bn.GetNodeEvent(evt.id)
+	res := bn.GetNodeEvent(evt.Id)
 	if res != nil {
 		return res.GetAccessedTime()
 	}
-	Log.Errorf("Trying to retrieve access time for event %d and base node %s but not accessed yet", evt.id, bn.String())
+	Log.Errorf("Trying to retrieve access time for event %d and base node %s but not accessed yet", evt.Id, bn.String())
 	return DistAndTime(0)
 }
 
@@ -364,7 +364,7 @@ func (bn *BaseNode) IsDead(space *Space) bool {
 }
 
 func (bn *BaseNode) GetStateString(space *Space) string {
-	evtIds := make([]EventID, 0, 3)
+	evtIds := make([]EventId, 0, 3)
 	nel := bn.head
 	for nel != nil {
 		evtIds = append(evtIds, nel.cur.evtId)
@@ -376,7 +376,7 @@ func (bn *BaseNode) GetStateString(space *Space) string {
 	return fmt.Sprintf("node %v: %v", bn.p, evtIds)
 }
 
-func (bn *BaseNode) addPathNode(id EventID, pn m3path.PathNode, space *Space) {
+func (bn *BaseNode) addPathNode(id EventId, pn m3path.PathNode, space *Space) {
 	pnId := pn.GetId()
 	if pnId < int64(0) {
 		Log.Fatalf("trying to add non saved path node %d for event %d", pnId, id)

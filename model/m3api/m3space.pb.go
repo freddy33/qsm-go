@@ -20,196 +20,252 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type SpaceRequestMsg struct {
-	SpaceName               string   `protobuf:"bytes,1,opt,name=space_name,json=spaceName,proto3" json:"space_name,omitempty"`
-	ActivePathNodeThreshold int32    `protobuf:"varint,2,opt,name=active_path_node_threshold,json=activePathNodeThreshold,proto3" json:"active_path_node_threshold,omitempty"`
-	MaxTriosPerPoint        int32    `protobuf:"varint,3,opt,name=max_trios_per_point,json=maxTriosPerPoint,proto3" json:"max_trios_per_point,omitempty"`
-	MaxPathNodesPerPoint    int32    `protobuf:"varint,4,opt,name=max_path_nodes_per_point,json=maxPathNodesPerPoint,proto3" json:"max_path_nodes_per_point,omitempty"`
+type SpaceMsg struct {
+	SpaceId                 int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	SpaceName               string   `protobuf:"bytes,2,opt,name=space_name,json=spaceName,proto3" json:"space_name,omitempty"`
+	ActivePathNodeThreshold int32    `protobuf:"varint,3,opt,name=active_path_node_threshold,json=activePathNodeThreshold,proto3" json:"active_path_node_threshold,omitempty"`
+	MaxTriosPerPoint        int32    `protobuf:"varint,4,opt,name=max_trios_per_point,json=maxTriosPerPoint,proto3" json:"max_trios_per_point,omitempty"`
+	MaxPathNodesPerPoint    int32    `protobuf:"varint,5,opt,name=max_path_nodes_per_point,json=maxPathNodesPerPoint,proto3" json:"max_path_nodes_per_point,omitempty"`
+	MaxTime                 int32    `protobuf:"varint,6,opt,name=max_time,json=maxTime,proto3" json:"max_time,omitempty"`
+	CurrentTime             int32    `protobuf:"varint,7,opt,name=current_time,json=currentTime,proto3" json:"current_time,omitempty"`
+	MaxCoord                int32    `protobuf:"varint,8,opt,name=max_coord,json=maxCoord,proto3" json:"max_coord,omitempty"`
+	EventIds                []int32  `protobuf:"varint,9,rep,packed,name=event_ids,json=eventIds,proto3" json:"event_ids,omitempty"`
+	NbActiveNodes           int32    `protobuf:"varint,10,opt,name=nb_active_nodes,json=nbActiveNodes,proto3" json:"nb_active_nodes,omitempty"`
 	XXX_NoUnkeyedLiteral    struct{} `json:"-"`
 	XXX_unrecognized        []byte   `json:"-"`
 	XXX_sizecache           int32    `json:"-"`
 }
 
-func (m *SpaceRequestMsg) Reset()         { *m = SpaceRequestMsg{} }
-func (m *SpaceRequestMsg) String() string { return proto.CompactTextString(m) }
-func (*SpaceRequestMsg) ProtoMessage()    {}
-func (*SpaceRequestMsg) Descriptor() ([]byte, []int) {
+func (m *SpaceMsg) Reset()         { *m = SpaceMsg{} }
+func (m *SpaceMsg) String() string { return proto.CompactTextString(m) }
+func (*SpaceMsg) ProtoMessage()    {}
+func (*SpaceMsg) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c43524b64f4ebcab, []int{0}
 }
 
-func (m *SpaceRequestMsg) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SpaceRequestMsg.Unmarshal(m, b)
+func (m *SpaceMsg) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SpaceMsg.Unmarshal(m, b)
 }
-func (m *SpaceRequestMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SpaceRequestMsg.Marshal(b, m, deterministic)
+func (m *SpaceMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SpaceMsg.Marshal(b, m, deterministic)
 }
-func (m *SpaceRequestMsg) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SpaceRequestMsg.Merge(m, src)
+func (m *SpaceMsg) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SpaceMsg.Merge(m, src)
 }
-func (m *SpaceRequestMsg) XXX_Size() int {
-	return xxx_messageInfo_SpaceRequestMsg.Size(m)
+func (m *SpaceMsg) XXX_Size() int {
+	return xxx_messageInfo_SpaceMsg.Size(m)
 }
-func (m *SpaceRequestMsg) XXX_DiscardUnknown() {
-	xxx_messageInfo_SpaceRequestMsg.DiscardUnknown(m)
+func (m *SpaceMsg) XXX_DiscardUnknown() {
+	xxx_messageInfo_SpaceMsg.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SpaceRequestMsg proto.InternalMessageInfo
+var xxx_messageInfo_SpaceMsg proto.InternalMessageInfo
 
-func (m *SpaceRequestMsg) GetSpaceName() string {
+func (m *SpaceMsg) GetSpaceId() int32 {
+	if m != nil {
+		return m.SpaceId
+	}
+	return 0
+}
+
+func (m *SpaceMsg) GetSpaceName() string {
 	if m != nil {
 		return m.SpaceName
 	}
 	return ""
 }
 
-func (m *SpaceRequestMsg) GetActivePathNodeThreshold() int32 {
+func (m *SpaceMsg) GetActivePathNodeThreshold() int32 {
 	if m != nil {
 		return m.ActivePathNodeThreshold
 	}
 	return 0
 }
 
-func (m *SpaceRequestMsg) GetMaxTriosPerPoint() int32 {
+func (m *SpaceMsg) GetMaxTriosPerPoint() int32 {
 	if m != nil {
 		return m.MaxTriosPerPoint
 	}
 	return 0
 }
 
-func (m *SpaceRequestMsg) GetMaxPathNodesPerPoint() int32 {
+func (m *SpaceMsg) GetMaxPathNodesPerPoint() int32 {
 	if m != nil {
 		return m.MaxPathNodesPerPoint
 	}
 	return 0
 }
 
-type SpaceResponseMsg struct {
-	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *SpaceResponseMsg) Reset()         { *m = SpaceResponseMsg{} }
-func (m *SpaceResponseMsg) String() string { return proto.CompactTextString(m) }
-func (*SpaceResponseMsg) ProtoMessage()    {}
-func (*SpaceResponseMsg) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c43524b64f4ebcab, []int{1}
-}
-
-func (m *SpaceResponseMsg) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SpaceResponseMsg.Unmarshal(m, b)
-}
-func (m *SpaceResponseMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SpaceResponseMsg.Marshal(b, m, deterministic)
-}
-func (m *SpaceResponseMsg) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SpaceResponseMsg.Merge(m, src)
-}
-func (m *SpaceResponseMsg) XXX_Size() int {
-	return xxx_messageInfo_SpaceResponseMsg.Size(m)
-}
-func (m *SpaceResponseMsg) XXX_DiscardUnknown() {
-	xxx_messageInfo_SpaceResponseMsg.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SpaceResponseMsg proto.InternalMessageInfo
-
-func (m *SpaceResponseMsg) GetSpaceId() int32 {
+func (m *SpaceMsg) GetMaxTime() int32 {
 	if m != nil {
-		return m.SpaceId
+		return m.MaxTime
 	}
 	return 0
 }
 
-type EventRequestMsg struct {
-	SpaceId              int32     `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	GrowthType           int32     `protobuf:"varint,2,opt,name=growth_type,json=growthType,proto3" json:"growth_type,omitempty"`
-	GrowthIndex          int32     `protobuf:"varint,3,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index,omitempty"`
-	GrowthOffset         int32     `protobuf:"varint,4,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset,omitempty"`
-	CreationTime         int32     `protobuf:"varint,5,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
-	Center               *PointMsg `protobuf:"bytes,6,opt,name=center,proto3" json:"center,omitempty"`
-	Color                uint32    `protobuf:"varint,7,opt,name=color,proto3" json:"color,omitempty"`
+func (m *SpaceMsg) GetCurrentTime() int32 {
+	if m != nil {
+		return m.CurrentTime
+	}
+	return 0
+}
+
+func (m *SpaceMsg) GetMaxCoord() int32 {
+	if m != nil {
+		return m.MaxCoord
+	}
+	return 0
+}
+
+func (m *SpaceMsg) GetEventIds() []int32 {
+	if m != nil {
+		return m.EventIds
+	}
+	return nil
+}
+
+func (m *SpaceMsg) GetNbActiveNodes() int32 {
+	if m != nil {
+		return m.NbActiveNodes
+	}
+	return 0
+}
+
+type SpaceListMsg struct {
+	Spaces               []*SpaceMsg `protobuf:"bytes,1,rep,name=spaces,proto3" json:"spaces,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *SpaceListMsg) Reset()         { *m = SpaceListMsg{} }
+func (m *SpaceListMsg) String() string { return proto.CompactTextString(m) }
+func (*SpaceListMsg) ProtoMessage()    {}
+func (*SpaceListMsg) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c43524b64f4ebcab, []int{1}
+}
+
+func (m *SpaceListMsg) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SpaceListMsg.Unmarshal(m, b)
+}
+func (m *SpaceListMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SpaceListMsg.Marshal(b, m, deterministic)
+}
+func (m *SpaceListMsg) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SpaceListMsg.Merge(m, src)
+}
+func (m *SpaceListMsg) XXX_Size() int {
+	return xxx_messageInfo_SpaceListMsg.Size(m)
+}
+func (m *SpaceListMsg) XXX_DiscardUnknown() {
+	xxx_messageInfo_SpaceListMsg.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SpaceListMsg proto.InternalMessageInfo
+
+func (m *SpaceListMsg) GetSpaces() []*SpaceMsg {
+	if m != nil {
+		return m.Spaces
+	}
+	return nil
+}
+
+type EventMsg struct {
+	EventId              int32     `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	SpaceId              int32     `protobuf:"varint,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	GrowthType           int32     `protobuf:"varint,3,opt,name=growth_type,json=growthType,proto3" json:"growth_type,omitempty"`
+	GrowthIndex          int32     `protobuf:"varint,4,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index,omitempty"`
+	GrowthOffset         int32     `protobuf:"varint,5,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset,omitempty"`
+	CreationTime         int32     `protobuf:"varint,6,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
+	Center               *PointMsg `protobuf:"bytes,7,opt,name=center,proto3" json:"center,omitempty"`
+	Color                uint32    `protobuf:"varint,8,opt,name=color,proto3" json:"color,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
 	XXX_sizecache        int32     `json:"-"`
 }
 
-func (m *EventRequestMsg) Reset()         { *m = EventRequestMsg{} }
-func (m *EventRequestMsg) String() string { return proto.CompactTextString(m) }
-func (*EventRequestMsg) ProtoMessage()    {}
-func (*EventRequestMsg) Descriptor() ([]byte, []int) {
+func (m *EventMsg) Reset()         { *m = EventMsg{} }
+func (m *EventMsg) String() string { return proto.CompactTextString(m) }
+func (*EventMsg) ProtoMessage()    {}
+func (*EventMsg) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c43524b64f4ebcab, []int{2}
 }
 
-func (m *EventRequestMsg) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_EventRequestMsg.Unmarshal(m, b)
+func (m *EventMsg) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_EventMsg.Unmarshal(m, b)
 }
-func (m *EventRequestMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_EventRequestMsg.Marshal(b, m, deterministic)
+func (m *EventMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_EventMsg.Marshal(b, m, deterministic)
 }
-func (m *EventRequestMsg) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventRequestMsg.Merge(m, src)
+func (m *EventMsg) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_EventMsg.Merge(m, src)
 }
-func (m *EventRequestMsg) XXX_Size() int {
-	return xxx_messageInfo_EventRequestMsg.Size(m)
+func (m *EventMsg) XXX_Size() int {
+	return xxx_messageInfo_EventMsg.Size(m)
 }
-func (m *EventRequestMsg) XXX_DiscardUnknown() {
-	xxx_messageInfo_EventRequestMsg.DiscardUnknown(m)
+func (m *EventMsg) XXX_DiscardUnknown() {
+	xxx_messageInfo_EventMsg.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_EventRequestMsg proto.InternalMessageInfo
+var xxx_messageInfo_EventMsg proto.InternalMessageInfo
 
-func (m *EventRequestMsg) GetSpaceId() int32 {
+func (m *EventMsg) GetEventId() int32 {
+	if m != nil {
+		return m.EventId
+	}
+	return 0
+}
+
+func (m *EventMsg) GetSpaceId() int32 {
 	if m != nil {
 		return m.SpaceId
 	}
 	return 0
 }
 
-func (m *EventRequestMsg) GetGrowthType() int32 {
+func (m *EventMsg) GetGrowthType() int32 {
 	if m != nil {
 		return m.GrowthType
 	}
 	return 0
 }
 
-func (m *EventRequestMsg) GetGrowthIndex() int32 {
+func (m *EventMsg) GetGrowthIndex() int32 {
 	if m != nil {
 		return m.GrowthIndex
 	}
 	return 0
 }
 
-func (m *EventRequestMsg) GetGrowthOffset() int32 {
+func (m *EventMsg) GetGrowthOffset() int32 {
 	if m != nil {
 		return m.GrowthOffset
 	}
 	return 0
 }
 
-func (m *EventRequestMsg) GetCreationTime() int32 {
+func (m *EventMsg) GetCreationTime() int32 {
 	if m != nil {
 		return m.CreationTime
 	}
 	return 0
 }
 
-func (m *EventRequestMsg) GetCenter() *PointMsg {
+func (m *EventMsg) GetCenter() *PointMsg {
 	if m != nil {
 		return m.Center
 	}
 	return nil
 }
 
-func (m *EventRequestMsg) GetColor() uint32 {
+func (m *EventMsg) GetColor() uint32 {
 	if m != nil {
 		return m.Color
 	}
 	return 0
 }
 
-type NodeMsg struct {
+type NodeEventMsg struct {
 	EventId              int32     `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	Point                *PointMsg `protobuf:"bytes,2,opt,name=point,proto3" json:"point,omitempty"`
 	D                    int32     `protobuf:"varint,3,opt,name=d,proto3" json:"d,omitempty"`
@@ -220,60 +276,60 @@ type NodeMsg struct {
 	XXX_sizecache        int32     `json:"-"`
 }
 
-func (m *NodeMsg) Reset()         { *m = NodeMsg{} }
-func (m *NodeMsg) String() string { return proto.CompactTextString(m) }
-func (*NodeMsg) ProtoMessage()    {}
-func (*NodeMsg) Descriptor() ([]byte, []int) {
+func (m *NodeEventMsg) Reset()         { *m = NodeEventMsg{} }
+func (m *NodeEventMsg) String() string { return proto.CompactTextString(m) }
+func (*NodeEventMsg) ProtoMessage()    {}
+func (*NodeEventMsg) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c43524b64f4ebcab, []int{3}
 }
 
-func (m *NodeMsg) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NodeMsg.Unmarshal(m, b)
+func (m *NodeEventMsg) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NodeEventMsg.Unmarshal(m, b)
 }
-func (m *NodeMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NodeMsg.Marshal(b, m, deterministic)
+func (m *NodeEventMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NodeEventMsg.Marshal(b, m, deterministic)
 }
-func (m *NodeMsg) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NodeMsg.Merge(m, src)
+func (m *NodeEventMsg) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NodeEventMsg.Merge(m, src)
 }
-func (m *NodeMsg) XXX_Size() int {
-	return xxx_messageInfo_NodeMsg.Size(m)
+func (m *NodeEventMsg) XXX_Size() int {
+	return xxx_messageInfo_NodeEventMsg.Size(m)
 }
-func (m *NodeMsg) XXX_DiscardUnknown() {
-	xxx_messageInfo_NodeMsg.DiscardUnknown(m)
+func (m *NodeEventMsg) XXX_DiscardUnknown() {
+	xxx_messageInfo_NodeEventMsg.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NodeMsg proto.InternalMessageInfo
+var xxx_messageInfo_NodeEventMsg proto.InternalMessageInfo
 
-func (m *NodeMsg) GetEventId() int32 {
+func (m *NodeEventMsg) GetEventId() int32 {
 	if m != nil {
 		return m.EventId
 	}
 	return 0
 }
 
-func (m *NodeMsg) GetPoint() *PointMsg {
+func (m *NodeEventMsg) GetPoint() *PointMsg {
 	if m != nil {
 		return m.Point
 	}
 	return nil
 }
 
-func (m *NodeMsg) GetD() int32 {
+func (m *NodeEventMsg) GetD() int32 {
 	if m != nil {
 		return m.D
 	}
 	return 0
 }
 
-func (m *NodeMsg) GetTrioId() int32 {
+func (m *NodeEventMsg) GetTrioId() int32 {
 	if m != nil {
 		return m.TrioId
 	}
 	return 0
 }
 
-func (m *NodeMsg) GetConnectionMask() uint32 {
+func (m *NodeEventMsg) GetConnectionMask() uint32 {
 	if m != nil {
 		return m.ConnectionMask
 	}
@@ -281,12 +337,12 @@ func (m *NodeMsg) GetConnectionMask() uint32 {
 }
 
 type EventResponseMsg struct {
-	EventId              int32    `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	PathCtxId            int64    `protobuf:"varint,2,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id,omitempty"`
-	RootNode             *NodeMsg `protobuf:"bytes,3,opt,name=root_node,json=rootNode,proto3" json:"root_node,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	EventId              int32         `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	PathCtxId            int64         `protobuf:"varint,2,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id,omitempty"`
+	RootNode             *NodeEventMsg `protobuf:"bytes,3,opt,name=root_node,json=rootNode,proto3" json:"root_node,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
 }
 
 func (m *EventResponseMsg) Reset()         { *m = EventResponseMsg{} }
@@ -328,14 +384,14 @@ func (m *EventResponseMsg) GetPathCtxId() int64 {
 	return 0
 }
 
-func (m *EventResponseMsg) GetRootNode() *NodeMsg {
+func (m *EventResponseMsg) GetRootNode() *NodeEventMsg {
 	if m != nil {
 		return m.RootNode
 	}
 	return nil
 }
 
-type NextTimeRequestMsg struct {
+type SpaceTimeRequestMsg struct {
 	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	CurrentTime          int32    `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -343,94 +399,94 @@ type NextTimeRequestMsg struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *NextTimeRequestMsg) Reset()         { *m = NextTimeRequestMsg{} }
-func (m *NextTimeRequestMsg) String() string { return proto.CompactTextString(m) }
-func (*NextTimeRequestMsg) ProtoMessage()    {}
-func (*NextTimeRequestMsg) Descriptor() ([]byte, []int) {
+func (m *SpaceTimeRequestMsg) Reset()         { *m = SpaceTimeRequestMsg{} }
+func (m *SpaceTimeRequestMsg) String() string { return proto.CompactTextString(m) }
+func (*SpaceTimeRequestMsg) ProtoMessage()    {}
+func (*SpaceTimeRequestMsg) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c43524b64f4ebcab, []int{5}
 }
 
-func (m *NextTimeRequestMsg) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NextTimeRequestMsg.Unmarshal(m, b)
+func (m *SpaceTimeRequestMsg) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SpaceTimeRequestMsg.Unmarshal(m, b)
 }
-func (m *NextTimeRequestMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NextTimeRequestMsg.Marshal(b, m, deterministic)
+func (m *SpaceTimeRequestMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SpaceTimeRequestMsg.Marshal(b, m, deterministic)
 }
-func (m *NextTimeRequestMsg) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NextTimeRequestMsg.Merge(m, src)
+func (m *SpaceTimeRequestMsg) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SpaceTimeRequestMsg.Merge(m, src)
 }
-func (m *NextTimeRequestMsg) XXX_Size() int {
-	return xxx_messageInfo_NextTimeRequestMsg.Size(m)
+func (m *SpaceTimeRequestMsg) XXX_Size() int {
+	return xxx_messageInfo_SpaceTimeRequestMsg.Size(m)
 }
-func (m *NextTimeRequestMsg) XXX_DiscardUnknown() {
-	xxx_messageInfo_NextTimeRequestMsg.DiscardUnknown(m)
+func (m *SpaceTimeRequestMsg) XXX_DiscardUnknown() {
+	xxx_messageInfo_SpaceTimeRequestMsg.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NextTimeRequestMsg proto.InternalMessageInfo
+var xxx_messageInfo_SpaceTimeRequestMsg proto.InternalMessageInfo
 
-func (m *NextTimeRequestMsg) GetSpaceId() int32 {
+func (m *SpaceTimeRequestMsg) GetSpaceId() int32 {
 	if m != nil {
 		return m.SpaceId
 	}
 	return 0
 }
 
-func (m *NextTimeRequestMsg) GetCurrentTime() int32 {
+func (m *SpaceTimeRequestMsg) GetCurrentTime() int32 {
 	if m != nil {
 		return m.CurrentTime
 	}
 	return 0
 }
 
-type NextTimeResponseMsg struct {
-	SpaceId              int32      `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	CurrentTime          int32      `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time,omitempty"`
-	ActiveNodes          []*NodeMsg `protobuf:"bytes,3,rep,name=active_nodes,json=activeNodes,proto3" json:"active_nodes,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+type SpaceTimeResponseMsg struct {
+	SpaceId              int32           `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	CurrentTime          int32           `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time,omitempty"`
+	ActiveNodes          []*NodeEventMsg `protobuf:"bytes,3,rep,name=active_nodes,json=activeNodes,proto3" json:"active_nodes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
 }
 
-func (m *NextTimeResponseMsg) Reset()         { *m = NextTimeResponseMsg{} }
-func (m *NextTimeResponseMsg) String() string { return proto.CompactTextString(m) }
-func (*NextTimeResponseMsg) ProtoMessage()    {}
-func (*NextTimeResponseMsg) Descriptor() ([]byte, []int) {
+func (m *SpaceTimeResponseMsg) Reset()         { *m = SpaceTimeResponseMsg{} }
+func (m *SpaceTimeResponseMsg) String() string { return proto.CompactTextString(m) }
+func (*SpaceTimeResponseMsg) ProtoMessage()    {}
+func (*SpaceTimeResponseMsg) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c43524b64f4ebcab, []int{6}
 }
 
-func (m *NextTimeResponseMsg) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NextTimeResponseMsg.Unmarshal(m, b)
+func (m *SpaceTimeResponseMsg) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SpaceTimeResponseMsg.Unmarshal(m, b)
 }
-func (m *NextTimeResponseMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NextTimeResponseMsg.Marshal(b, m, deterministic)
+func (m *SpaceTimeResponseMsg) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SpaceTimeResponseMsg.Marshal(b, m, deterministic)
 }
-func (m *NextTimeResponseMsg) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NextTimeResponseMsg.Merge(m, src)
+func (m *SpaceTimeResponseMsg) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SpaceTimeResponseMsg.Merge(m, src)
 }
-func (m *NextTimeResponseMsg) XXX_Size() int {
-	return xxx_messageInfo_NextTimeResponseMsg.Size(m)
+func (m *SpaceTimeResponseMsg) XXX_Size() int {
+	return xxx_messageInfo_SpaceTimeResponseMsg.Size(m)
 }
-func (m *NextTimeResponseMsg) XXX_DiscardUnknown() {
-	xxx_messageInfo_NextTimeResponseMsg.DiscardUnknown(m)
+func (m *SpaceTimeResponseMsg) XXX_DiscardUnknown() {
+	xxx_messageInfo_SpaceTimeResponseMsg.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NextTimeResponseMsg proto.InternalMessageInfo
+var xxx_messageInfo_SpaceTimeResponseMsg proto.InternalMessageInfo
 
-func (m *NextTimeResponseMsg) GetSpaceId() int32 {
+func (m *SpaceTimeResponseMsg) GetSpaceId() int32 {
 	if m != nil {
 		return m.SpaceId
 	}
 	return 0
 }
 
-func (m *NextTimeResponseMsg) GetCurrentTime() int32 {
+func (m *SpaceTimeResponseMsg) GetCurrentTime() int32 {
 	if m != nil {
 		return m.CurrentTime
 	}
 	return 0
 }
 
-func (m *NextTimeResponseMsg) GetActiveNodes() []*NodeMsg {
+func (m *SpaceTimeResponseMsg) GetActiveNodes() []*NodeEventMsg {
 	if m != nil {
 		return m.ActiveNodes
 	}
@@ -438,13 +494,13 @@ func (m *NextTimeResponseMsg) GetActiveNodes() []*NodeMsg {
 }
 
 func init() {
-	proto.RegisterType((*SpaceRequestMsg)(nil), "m3api.SpaceRequestMsg")
-	proto.RegisterType((*SpaceResponseMsg)(nil), "m3api.SpaceResponseMsg")
-	proto.RegisterType((*EventRequestMsg)(nil), "m3api.EventRequestMsg")
-	proto.RegisterType((*NodeMsg)(nil), "m3api.NodeMsg")
+	proto.RegisterType((*SpaceMsg)(nil), "m3api.SpaceMsg")
+	proto.RegisterType((*SpaceListMsg)(nil), "m3api.SpaceListMsg")
+	proto.RegisterType((*EventMsg)(nil), "m3api.EventMsg")
+	proto.RegisterType((*NodeEventMsg)(nil), "m3api.NodeEventMsg")
 	proto.RegisterType((*EventResponseMsg)(nil), "m3api.EventResponseMsg")
-	proto.RegisterType((*NextTimeRequestMsg)(nil), "m3api.NextTimeRequestMsg")
-	proto.RegisterType((*NextTimeResponseMsg)(nil), "m3api.NextTimeResponseMsg")
+	proto.RegisterType((*SpaceTimeRequestMsg)(nil), "m3api.SpaceTimeRequestMsg")
+	proto.RegisterType((*SpaceTimeResponseMsg)(nil), "m3api.SpaceTimeResponseMsg")
 }
 
 func init() {
@@ -452,39 +508,44 @@ func init() {
 }
 
 var fileDescriptor_c43524b64f4ebcab = []byte{
-	// 543 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x53, 0xcf, 0x6a, 0x1b, 0x3f,
-	0x10, 0x46, 0xf1, 0x6f, 0xed, 0x78, 0xd6, 0x8e, 0x83, 0x12, 0xc8, 0xfe, 0x02, 0x6d, 0x9d, 0x2d,
-	0x25, 0x86, 0x12, 0x43, 0x63, 0xe8, 0xa5, 0xc7, 0xd2, 0x83, 0x0f, 0x76, 0xcd, 0xd6, 0xf7, 0x45,
-	0x5d, 0x4d, 0xec, 0x25, 0xd1, 0x6a, 0x2b, 0x29, 0xe9, 0xa6, 0x0f, 0xd0, 0x97, 0xe8, 0x6b, 0xf5,
-	0x65, 0x7a, 0x2b, 0xfa, 0xe3, 0xc4, 0x85, 0x04, 0x7c, 0x9c, 0x6f, 0xbe, 0x91, 0xe6, 0xfb, 0x66,
-	0x06, 0xfa, 0x62, 0xa2, 0x6b, 0x56, 0xe0, 0xb8, 0x56, 0xd2, 0x48, 0x1a, 0x89, 0x09, 0xab, 0xcb,
-	0xd3, 0xbe, 0x98, 0xd4, 0xb2, 0xac, 0x8c, 0x47, 0xd3, 0xdf, 0x04, 0x06, 0x5f, 0x2c, 0x2b, 0xc3,
-	0x6f, 0xb7, 0xa8, 0xcd, 0x4c, 0xaf, 0xe8, 0x0b, 0x00, 0x57, 0x98, 0x57, 0x4c, 0x60, 0x42, 0x86,
-	0x64, 0xd4, 0xcd, 0xba, 0x0e, 0x99, 0x33, 0x81, 0xf4, 0x03, 0x9c, 0xb2, 0xc2, 0x94, 0x77, 0x98,
-	0xd7, 0xcc, 0xac, 0xf3, 0x4a, 0x72, 0xcc, 0xcd, 0x5a, 0xa1, 0x5e, 0xcb, 0x1b, 0x9e, 0xec, 0x0d,
-	0xc9, 0x28, 0xca, 0x4e, 0x3c, 0x63, 0xc1, 0xcc, 0x7a, 0x2e, 0x39, 0x2e, 0x37, 0x69, 0x7a, 0x01,
-	0x47, 0x82, 0x35, 0xb9, 0x51, 0xa5, 0xd4, 0x79, 0x8d, 0x2a, 0x77, 0xcd, 0x24, 0x2d, 0x57, 0x75,
-	0x28, 0x58, 0xb3, 0xb4, 0x99, 0x05, 0xaa, 0x85, 0xc5, 0xe9, 0x7b, 0x48, 0x2c, 0xfd, 0xe1, 0xa3,
-	0xed, 0x9a, 0xff, 0x5c, 0xcd, 0xb1, 0x60, 0xcd, 0xe6, 0x9b, 0x87, 0xba, 0xf4, 0x02, 0x0e, 0x83,
-	0x2a, 0x5d, 0xcb, 0x4a, 0xa3, 0x95, 0xf5, 0x3f, 0xec, 0x7b, 0x59, 0x25, 0x77, 0xa2, 0xa2, 0xac,
-	0xe3, 0xe2, 0x29, 0x4f, 0xff, 0x10, 0x18, 0x7c, 0xba, 0xc3, 0xca, 0x6c, 0xb9, 0xf0, 0x3c, 0x9d,
-	0xbe, 0x82, 0x78, 0xa5, 0xe4, 0x77, 0xb3, 0xce, 0xcd, 0x7d, 0x8d, 0x41, 0x32, 0x78, 0x68, 0x79,
-	0x5f, 0x23, 0x3d, 0x83, 0x5e, 0x20, 0x94, 0x15, 0xc7, 0x26, 0xc8, 0x0b, 0x45, 0x53, 0x0b, 0xd1,
-	0xd7, 0xd0, 0x0f, 0x14, 0x79, 0x75, 0xa5, 0x71, 0x23, 0x27, 0xd4, 0x7d, 0x76, 0x98, 0x25, 0x15,
-	0x0a, 0x99, 0x29, 0x65, 0x95, 0x9b, 0x52, 0x60, 0x12, 0x79, 0xd2, 0x06, 0x5c, 0x96, 0x02, 0xe9,
-	0x39, 0xb4, 0x0b, 0xac, 0x0c, 0xaa, 0xa4, 0x3d, 0x24, 0xa3, 0xf8, 0x72, 0x30, 0x76, 0x93, 0x1e,
-	0x3b, 0x27, 0x66, 0x7a, 0x95, 0x85, 0x34, 0x3d, 0x86, 0xa8, 0x90, 0x37, 0x52, 0x25, 0x9d, 0x21,
-	0x19, 0xf5, 0x33, 0x1f, 0xa4, 0xbf, 0x08, 0x74, 0xac, 0x79, 0x41, 0x33, 0x5a, 0x1b, 0xb6, 0x34,
-	0xbb, 0x78, 0xca, 0xe9, 0x1b, 0x88, 0xbc, 0xed, 0x7b, 0x4f, 0x7f, 0xe2, 0xb3, 0xb4, 0x07, 0x84,
-	0x07, 0xb9, 0x84, 0xd3, 0x13, 0xe8, 0xd8, 0x49, 0xdb, 0xe7, 0xbc, 0xbc, 0xb6, 0x0d, 0xa7, 0x9c,
-	0x9e, 0xc3, 0xa0, 0x90, 0x55, 0x85, 0x85, 0x93, 0x26, 0x98, 0xbe, 0x76, 0xd2, 0xfa, 0xd9, 0xc1,
-	0x23, 0x3c, 0x63, 0xfa, 0x3a, 0xfd, 0x01, 0x87, 0x61, 0x30, 0xff, 0x0c, 0xf2, 0xb9, 0x2e, 0x5f,
-	0x42, 0xec, 0x76, 0xa5, 0x30, 0x8d, 0xcd, 0xda, 0x5e, 0x5b, 0x59, 0xd7, 0x42, 0x1f, 0x4d, 0x33,
-	0xe5, 0xf4, 0x2d, 0x74, 0x95, 0x94, 0xc6, 0xed, 0x92, 0x6b, 0x33, 0xbe, 0x3c, 0x08, 0x4a, 0x82,
-	0x07, 0xd9, 0xbe, 0x25, 0xd8, 0x20, 0xcd, 0x80, 0xce, 0xb1, 0x31, 0xd6, 0xe4, 0xdd, 0xf6, 0xe2,
-	0x0c, 0x7a, 0xc5, 0xad, 0x52, 0xb6, 0x35, 0x37, 0x2d, 0xbf, 0x18, 0x71, 0xc0, 0xec, 0x3b, 0xe9,
-	0x4f, 0x02, 0x47, 0x8f, 0x8f, 0xee, 0xb2, 0x9c, 0x3b, 0xbc, 0x4a, 0xdf, 0x41, 0x2f, 0x9c, 0xa4,
-	0x3b, 0x92, 0xa4, 0x35, 0x6c, 0x3d, 0xa1, 0x2c, 0xf6, 0x1c, 0x77, 0x29, 0x5f, 0xdb, 0xee, 0xfe,
-	0x27, 0x7f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x9b, 0x76, 0x65, 0x3d, 0x26, 0x04, 0x00, 0x00,
+	// 615 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x54, 0x41, 0x4f, 0x14, 0x4d,
+	0x10, 0xcd, 0xec, 0x7e, 0xbb, 0xec, 0xd6, 0xce, 0x7c, 0x90, 0x86, 0x84, 0x01, 0xa3, 0xae, 0x63,
+	0x14, 0x2e, 0x12, 0xc3, 0x26, 0x78, 0xf0, 0x64, 0x88, 0x87, 0x4d, 0x04, 0xc9, 0xc0, 0x7d, 0xd2,
+	0x4c, 0x17, 0xec, 0x04, 0xa6, 0x7b, 0xec, 0x6e, 0x70, 0x38, 0x79, 0xf5, 0xa0, 0xff, 0xc1, 0x9f,
+	0x6a, 0xba, 0xa6, 0xc7, 0xdd, 0x55, 0x12, 0x8c, 0xc7, 0x7e, 0xaf, 0xaa, 0xba, 0xea, 0xbd, 0xea,
+	0x86, 0xa8, 0x9c, 0x98, 0x8a, 0xe7, 0xb8, 0x57, 0x69, 0x65, 0x15, 0xeb, 0x95, 0x13, 0x5e, 0x15,
+	0xdb, 0x51, 0x39, 0xa9, 0x54, 0x21, 0x6d, 0x83, 0x26, 0x5f, 0xbb, 0x30, 0x38, 0x75, 0x51, 0x47,
+	0xe6, 0x92, 0x6d, 0xc1, 0x80, 0x32, 0xb2, 0x42, 0xc4, 0xc1, 0x38, 0xd8, 0xed, 0xa5, 0x2b, 0x74,
+	0x9e, 0x0a, 0xf6, 0x18, 0xa0, 0xa1, 0x24, 0x2f, 0x31, 0xee, 0x8c, 0x83, 0xdd, 0x61, 0x3a, 0x24,
+	0xe4, 0x98, 0x97, 0xc8, 0xde, 0xc2, 0x36, 0xcf, 0x6d, 0x71, 0x8b, 0x59, 0xc5, 0xed, 0x2c, 0x93,
+	0x4a, 0x60, 0x66, 0x67, 0x1a, 0xcd, 0x4c, 0x5d, 0x8b, 0xb8, 0x4b, 0xb5, 0x36, 0x9b, 0x88, 0x13,
+	0x6e, 0x67, 0xc7, 0x4a, 0xe0, 0x59, 0x4b, 0xb3, 0x57, 0xb0, 0x5e, 0xf2, 0x3a, 0xb3, 0xba, 0x50,
+	0x26, 0xab, 0x50, 0x67, 0xd4, 0x60, 0xfc, 0x1f, 0x65, 0xad, 0x95, 0xbc, 0x3e, 0x73, 0xcc, 0x09,
+	0xea, 0x13, 0x87, 0xb3, 0x03, 0x88, 0x5d, 0xf8, 0xaf, 0x8b, 0x16, 0x73, 0x7a, 0x94, 0xb3, 0x51,
+	0xf2, 0xba, 0xbd, 0x66, 0x9e, 0xb7, 0x05, 0x03, 0xba, 0xa6, 0x28, 0x31, 0xee, 0x37, 0xd3, 0xb9,
+	0xda, 0x45, 0x89, 0xec, 0x19, 0x84, 0xf9, 0x8d, 0xd6, 0x28, 0x6d, 0x43, 0xaf, 0x10, 0x3d, 0xf2,
+	0x18, 0x85, 0x3c, 0x82, 0xa1, 0xcb, 0xce, 0x95, 0xd2, 0x22, 0x1e, 0x10, 0xef, 0xca, 0x1d, 0xba,
+	0xb3, 0x23, 0xf1, 0xd6, 0x65, 0x17, 0xc2, 0xc4, 0xc3, 0x71, 0xd7, 0x91, 0x04, 0x4c, 0x85, 0x61,
+	0x2f, 0x61, 0x55, 0x9e, 0x67, 0x5e, 0x1e, 0x6a, 0x38, 0x06, 0xca, 0x8f, 0xe4, 0xf9, 0x3b, 0x42,
+	0xa9, 0xcf, 0xe4, 0x0d, 0x84, 0xe4, 0xc4, 0x87, 0xc2, 0x58, 0xe7, 0xc6, 0x0e, 0xf4, 0x49, 0x60,
+	0x13, 0x07, 0xe3, 0xee, 0xee, 0x68, 0x7f, 0x75, 0x8f, 0x1c, 0xdc, 0x6b, 0xed, 0x4a, 0x3d, 0x9d,
+	0x7c, 0xef, 0xc0, 0xe0, 0xbd, 0xbb, 0xcd, 0x7b, 0xd8, 0xb6, 0xd2, 0x7a, 0xe8, 0x3b, 0x59, 0xb2,
+	0xb7, 0xb3, 0x6c, 0xef, 0x53, 0x18, 0x5d, 0x6a, 0xf5, 0xd9, 0xce, 0x32, 0x7b, 0x57, 0xa1, 0x37,
+	0x0c, 0x1a, 0xe8, 0xec, 0xae, 0x22, 0x85, 0x7c, 0x40, 0x21, 0x05, 0xd6, 0xde, 0x1c, 0x9f, 0x34,
+	0x75, 0x10, 0x7b, 0x0e, 0x91, 0x0f, 0x51, 0x17, 0x17, 0x06, 0x5b, 0x33, 0x7c, 0xde, 0x47, 0xc2,
+	0x5c, 0x50, 0xae, 0x91, 0xdb, 0x42, 0xc9, 0x45, 0x27, 0xc2, 0x16, 0x24, 0xad, 0x77, 0xa0, 0x9f,
+	0xa3, 0xb4, 0xa8, 0xc9, 0x88, 0xf9, 0xe4, 0xe4, 0x23, 0x4d, 0xde, 0xd0, 0x6c, 0x03, 0x7a, 0xb9,
+	0xba, 0x56, 0x9a, 0x0c, 0x89, 0xd2, 0xe6, 0x90, 0xfc, 0x08, 0x20, 0x74, 0x92, 0xfe, 0x8d, 0x26,
+	0x2f, 0xa0, 0xd7, 0x6c, 0x4e, 0xe7, 0xfe, 0x9b, 0x1a, 0x96, 0x85, 0x10, 0xb4, 0x6b, 0x1c, 0x08,
+	0xb6, 0x09, 0x2b, 0x6e, 0x59, 0x5d, 0xb9, 0x46, 0x87, 0xbe, 0x3b, 0x4e, 0x05, 0xdb, 0x81, 0xd5,
+	0x5c, 0x49, 0x89, 0x39, 0xcd, 0x57, 0x72, 0x73, 0x45, 0x22, 0x44, 0xe9, 0xff, 0x73, 0xf8, 0x88,
+	0x9b, 0xab, 0xe4, 0x0b, 0xac, 0x51, 0x77, 0x29, 0x9a, 0x4a, 0x49, 0x83, 0x0f, 0x74, 0xf9, 0x04,
+	0x46, 0xb4, 0xee, 0xb9, 0xad, 0x5b, 0xf3, 0xba, 0xe9, 0xd0, 0x41, 0x87, 0xb6, 0x9e, 0x0a, 0xf6,
+	0x1a, 0x86, 0x5a, 0x29, 0x4b, 0xdb, 0x45, 0x6d, 0x8e, 0xf6, 0xd7, 0xfd, 0x24, 0x8b, 0x42, 0xa4,
+	0x03, 0x17, 0xe5, 0x90, 0xe4, 0x14, 0xd6, 0x69, 0x8f, 0x9c, 0xde, 0x29, 0x7e, 0xba, 0x41, 0x63,
+	0x1f, 0xf8, 0x01, 0x7e, 0x7f, 0x23, 0x9d, 0x3f, 0xde, 0x48, 0xf2, 0x2d, 0x80, 0x8d, 0x85, 0xaa,
+	0x4b, 0xa3, 0xfd, 0x7b, 0x59, 0x76, 0x00, 0xe1, 0xd2, 0xeb, 0xe9, 0xd2, 0x73, 0xb8, 0x77, 0xc0,
+	0x11, 0x9f, 0x3f, 0xa8, 0xf3, 0x3e, 0x7d, 0x71, 0x93, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x27,
+	0x41, 0x3d, 0x79, 0x09, 0x05, 0x00, 0x00,
 }

@@ -11,7 +11,7 @@ func TestConnectionDetails(t *testing.T) {
 	Log.SetDebug()
 	m3util.SetToTestMode()
 
-	env := GetServerFullTestDb(m3util.PointTestEnv)
+	env := GetPointDbFullEnv(m3util.PointTestEnv)
 	conns, connsByVector := loadConnectionDetails(env)
 
 	assert.Equal(t, 50, len(conns))

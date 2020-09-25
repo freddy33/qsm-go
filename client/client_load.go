@@ -37,6 +37,7 @@ func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Mess
 		return ExecFailed, m3util.MakeQsmErrorf("Got a nil request %s:%s for REST API end point %q", method, uri, cl.backendRootURL)
 	}
 	req.Header.Add(m3api.HttpEnvIdKey, cl.envId.String())
+	req.Header.Add("Content-Type", "application/x-protobuf")
 
 	resp, err := cl.httpClient.Do(req)
 	if err != nil {
@@ -94,7 +95,7 @@ func (env *QsmApiEnvironment) initializePointData() {
 	if ppdIfc != nil {
 		pointData = ppdIfc.(*ClientPointPackData)
 		if pointData.GrowthContextsLoaded {
-			Log.Debugf("Env %d already loaded", env.GetId())
+			Log.Debugf("env %d already loaded", env.GetId())
 			return
 		}
 	}

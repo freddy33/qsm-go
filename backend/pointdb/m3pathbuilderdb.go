@@ -72,7 +72,7 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 /***************************************************************/
 
 func (ppd *ServerPointPackData) loadPathBuilders() []*RootPathNodeBuilder {
-	_, rows := ppd.Env.SelectAllForLoad(PathBuildersTable)
+	_, rows := ppd.env.SelectAllForLoad(PathBuildersTable)
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 
 	for rows.Next() {
@@ -120,7 +120,7 @@ func (ppd *ServerPointPackData) loadPathBuilders() []*RootPathNodeBuilder {
 }
 
 func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
-	te, inserted, toFill, err := ppd.Env.GetForSaveAll(PathBuildersTable)
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(PathBuildersTable)
 	if err != nil {
 		return 0, err
 	}
@@ -174,7 +174,7 @@ func (ppd *ServerPointPackData) calculateAllPathBuilders() []*RootPathNodeBuilde
 	ppd.CheckCubesInitialized()
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 	res[0] = nil
-	for cubeKey, cubeId := range ppd.CubeIdsPerKey {
+	for cubeKey, cubeId := range ppd.cubeIdsPerKey {
 		root := RootPathNodeBuilder{}
 		root.Ctx = &PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(cubeKey.GrowthCtxId), CubeId: cubeId}
 		ppd.Populate(&root)

@@ -672,7 +672,7 @@ func (l TrioDetailList) Less(i, j int) bool {
 /***************************************************************/
 
 func (ppd *ServerPointPackData) loadTrioDetails() TrioDetailList {
-	te, rows := ppd.Env.SelectAllForLoad(TrioDetailsTable)
+	te, rows := ppd.env.SelectAllForLoad(TrioDetailsTable)
 
 	res := TrioDetailList(make([]*m3point.TrioDetails, 0, te.TableDef.ExpectedCount))
 
@@ -693,7 +693,7 @@ func (ppd *ServerPointPackData) loadTrioDetails() TrioDetailList {
 }
 
 func (ppd *ServerPointPackData) saveAllTrioDetails() (int, error) {
-	te, inserted, toFill, err := ppd.Env.GetForSaveAll(TrioDetailsTable)
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioDetailsTable)
 	if te == nil {
 		return 0, err
 	}

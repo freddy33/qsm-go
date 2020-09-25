@@ -66,7 +66,7 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 /***************************************************************/
 
 func (ppd *ServerPointPackData) loadContextCubes() map[CubeKeyId]int {
-	te, rows := ppd.Env.SelectAllForLoad(TrioCubesTable)
+	te, rows := ppd.env.SelectAllForLoad(TrioCubesTable)
 	res := make(map[CubeKeyId]int, te.TableDef.ExpectedCount)
 
 	loaded := 0
@@ -91,7 +91,7 @@ func (ppd *ServerPointPackData) loadContextCubes() map[CubeKeyId]int {
 }
 
 func (ppd *ServerPointPackData) saveAllContextCubes() (int, error) {
-	te, inserted, toFill, err := ppd.Env.GetForSaveAll(TrioCubesTable)
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(TrioCubesTable)
 	if err != nil {
 		return 0, err
 	}
@@ -209,7 +209,7 @@ func (cl *CubeListBuilder) exists(offset int, c m3point.Point) bool {
 func (ppd *ServerPointPackData) getCubeList(growthCtx m3point.GrowthContext) *CubeListBuilder {
 	ppd.CheckCubesInitialized()
 	res := CubeListBuilder{ppd: ppd, growthCtx: growthCtx, allCubes: make([]CubeOfTrioIndex, 0, 100)}
-	for cubeKey := range ppd.CubeIdsPerKey {
+	for cubeKey := range ppd.cubeIdsPerKey {
 		if cubeKey.GrowthCtxId == growthCtx.GetId() {
 			res.allCubes = append(res.allCubes, cubeKey.Cube)
 		}

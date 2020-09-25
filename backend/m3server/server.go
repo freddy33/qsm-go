@@ -2,6 +2,7 @@ package m3server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/pointdb"
@@ -59,6 +60,18 @@ func SendResponse(w http.ResponseWriter, status int, format string, args ...inte
 	}
 }
 
+func getRequestType(w http.ResponseWriter, r *http.Request) string {
+	reqContentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(reqContentType, "application/json") {
+		return "json"
+	} else if strings.HasPrefix(reqContentType, "application/x-protobuf") {
+		return "proto"
+	} else {
+		SendResponse(w, http.StatusBadRequest, "unsupported content type %q", reqContentType)
+		return "error"
+	}
+}
+
 /*
 Return true if an error occurred and the response already filed
 */
@@ -68,7 +81,14 @@ func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message
 		SendResponse(w, http.StatusBadRequest, "req body could not be read req body due to: %s", err.Error())
 		return true
 	}
-	err = proto.Unmarshal(b, reqMsg)
+	reqContentType := getRequestType(w, r)
+	if reqContentType == "json" {
+		err = json.Unmarshal(b, reqMsg)
+	} else if reqContentType == "proto" {
+		err = proto.Unmarshal(b, reqMsg)
+	} else {
+		return true
+	}
 	if err != nil {
 		SendResponse(w, http.StatusBadRequest, "req body could not be parsed due to: %s", err.Error())
 		return true
@@ -77,15 +97,49 @@ func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message
 }
 
 func WriteResponseMsg(w http.ResponseWriter, r *http.Request, resMsg proto.Message) {
-	data, err := proto.Marshal(resMsg)
-	if err != nil {
-		SendResponse(w, http.StatusInternalServerError, "Failed to marshal PathContextMsg due to: %q", err.Error())
+	var useProtobuf, useJson bool
+
+	reqContentType := getRequestType(w, r)
+	// Return same type has request payload by default
+	if reqContentType == "json" {
+		useProtobuf = false
+		useJson = true
+	} else if reqContentType == "proto" {
+		useProtobuf = true
+		useJson = false
+	} else {
 		return
+	}
+	// If accept tells me ok to use proto switch to it
+	acceptContents := r.Header.Values("Accept")
+	for _, ac := range acceptContents {
+		if strings.HasPrefix(ac, "application/x-protobuf") {
+			useProtobuf = true
+			useJson = false
+			break
+		}
 	}
 
 	typeName := reflect.TypeOf(resMsg).String()
 	typeName = strings.TrimPrefix(typeName, "*")
-	w.Header().Set("Content-Type", "application/x-protobuf; messageType="+typeName)
+
+	var data []byte
+	var err error
+	if useProtobuf {
+		data, err = proto.Marshal(resMsg)
+		w.Header().Set("Content-Type", "application/x-protobuf; messageType="+typeName)
+	} else if useJson {
+		data, err = json.Marshal(resMsg)
+		w.Header().Set("Content-Type", "application/json; messageType="+typeName)
+	} else {
+		SendResponse(w, http.StatusBadRequest, "No acceptable content type for response found in %v", acceptContents)
+	}
+
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, "Failed to marshal %q due to: %s", typeName, err.Error())
+		return
+	}
+
 	_, err = w.Write(data)
 	if err != nil {
 		Log.Errorf("failed to send data to response due to %q", err.Error())
@@ -105,7 +159,7 @@ func drop(w http.ResponseWriter, r *http.Request) {
 
 func initialize(w http.ResponseWriter, r *http.Request) {
 	envId := GetEnvId(r)
-	env := pointdb.GetServerFullTestDb(envId)
+	env := pointdb.GetPointDbFullEnv(envId)
 	pointdb.InitializePointDBEnv(env, true)
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
 }
@@ -178,7 +232,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 		envId = m3util.GetDefaultEnvId()
 	}
 	env := m3db.GetEnvironment(envId)
-	pointdb.InitializePointDBEnv(env, false)
+	//pointdb.InitializePointDBEnv(env, false)
 
 	r := mux.NewRouter()
 	app := &QsmApp{Router: r, Env: env}
@@ -190,6 +244,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/test-drop", drop).Methods("DELETE")
 	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
 	app.AddHandler("/next-nodes", moveToNextNode).Methods("POST")
+	app.AddHandler("/space", createSpace).Methods("PUT")
 
 	return app
 }

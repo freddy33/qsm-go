@@ -67,7 +67,7 @@ func loadConnectionDetails(env *m3db.QsmDbEnvironment) ([]*m3point.ConnectionDet
 }
 
 func (ppd *ServerPointPackData) saveAllConnectionDetails() (int, error) {
-	te, inserted, toFill, err := ppd.Env.GetForSaveAll(ConnectionDetailsTable)
+	te, inserted, toFill, err := ppd.env.GetForSaveAll(ConnectionDetailsTable)
 	if err != nil {
 		return 0, err
 	}

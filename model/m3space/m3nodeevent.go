@@ -8,13 +8,13 @@ type NodeEventList struct {
 }
 
 type BaseNodeEvent struct {
-	evtId        EventID
+	evtId        EventId
 	pathNodeId   int64
 	accessedTime DistAndTime
 	pathNode     m3path.PathNode
 }
 
-func (ne *BaseNodeEvent) GetEventId() EventID {
+func (ne *BaseNodeEvent) GetEventId() EventId {
 	return ne.evtId
 }
 
@@ -34,7 +34,7 @@ func (ne *BaseNodeEvent) GetPathNode() m3path.PathNode {
 }
 
 func (ne *BaseNodeEvent) IsRoot(evt *Event) bool {
-	return ne.evtId == evt.id && ne.accessedTime == evt.created
+	return ne.evtId == evt.Id && ne.accessedTime == evt.created
 }
 
 func (ne *BaseNodeEvent) GetAccessedTime() DistAndTime {

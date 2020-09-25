@@ -24,15 +24,15 @@ type ServerPointPackDataIfc interface {
 
 type ServerPointPackData struct {
 	m3point.BasePointPackData
-	Env *m3db.QsmDbEnvironment
+	env *m3db.QsmDbEnvironment
 
 	// Identified all cubes uniquely
-	CubeIdsPerKey map[CubeKeyId]int
-	CubesLoaded   bool
+	cubeIdsPerKey map[CubeKeyId]int
+	cubesLoaded   bool
 
 	// The index of this slice is the cube id
-	PathBuilders       []*RootPathNodeBuilder
-	PathBuildersLoaded bool
+	pathBuilders       []*RootPathNodeBuilder
+	pathBuildersLoaded bool
 }
 
 func GetPointPackData(env m3util.QsmEnvironment) ServerPointPackDataIfc {
@@ -45,7 +45,7 @@ func GetServerPointPackData(env m3util.QsmEnvironment) (*ServerPointPackData, bo
 	if newData {
 		ppd := new(ServerPointPackData)
 		ppd.EnvId = env.GetId()
-		ppd.Env = env.(*m3db.QsmDbEnvironment)
+		ppd.env = env.(*m3db.QsmDbEnvironment)
 		env.SetData(m3util.PointIdx, ppd)
 		// do not return ppd but always the pointer in env data array
 	}
@@ -56,34 +56,34 @@ func (ppd *ServerPointPackData) ResetFlags() {
 	ppd.ConnectionsLoaded = false
 	ppd.TrioDetailsLoaded = false
 	ppd.GrowthContextsLoaded = false
-	ppd.CubesLoaded = false
-	ppd.PathBuildersLoaded = false
+	ppd.cubesLoaded = false
+	ppd.pathBuildersLoaded = false
 }
 
 func (ppd *ServerPointPackData) CheckCubesInitialized() {
-	if !ppd.CubesLoaded {
+	if !ppd.cubesLoaded {
 		Log.Fatalf("Cubes should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}
 }
 
 func (ppd *ServerPointPackData) CheckPathBuildersInitialized() {
-	if !ppd.PathBuildersLoaded {
+	if !ppd.pathBuildersLoaded {
 		Log.Fatalf("Path Builders should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
 	}
 }
 
 func (ppd *ServerPointPackData) GetNbPathBuilders() int {
 	ppd.CheckPathBuildersInitialized()
-	return len(ppd.PathBuilders)
+	return len(ppd.pathBuilders)
 }
 
 func (ppd *ServerPointPackData) GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
-	return ppd.PathBuilders[cubeId]
+	return ppd.pathBuilders[cubeId]
 }
 
 func (ppd *ServerPointPackData) GetCubeById(cubeId int) CubeKeyId {
 	ppd.CheckCubesInitialized()
-	for cubeKey, id := range ppd.CubeIdsPerKey {
+	for cubeKey, id := range ppd.cubeIdsPerKey {
 		if id == cubeId {
 			return cubeKey
 		}
@@ -94,7 +94,7 @@ func (ppd *ServerPointPackData) GetCubeById(cubeId int) CubeKeyId {
 
 func (ppd *ServerPointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
 	ppd.CheckCubesInitialized()
-	id, ok := ppd.CubeIdsPerKey[cubeKey]
+	id, ok := ppd.cubeIdsPerKey[cubeKey]
 	if !ok {
 		Log.Fatalf("trying to find cube %v which does not exists", cubeKey)
 		return -1

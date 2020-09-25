@@ -21,7 +21,7 @@ func TestLoadOrCalculate(t *testing.T) {
 	Log.SetInfo()
 	m3util.SetToTestMode()
 
-	env := GetServerFullTestDb(m3util.PointLoadEnv)
+	env := GetPointDbFullEnv(m3util.PointLoadEnv)
 	ppd, _ := GetServerPointPackData(env)
 
 	start := time.Now()
@@ -32,10 +32,10 @@ func TestLoadOrCalculate(t *testing.T) {
 	ppd.TrioDetailsLoaded = true
 	ppd.AllGrowthContexts = ppd.calculateAllGrowthContexts()
 	ppd.GrowthContextsLoaded = true
-	ppd.CubeIdsPerKey = ppd.calculateAllContextCubes()
-	ppd.CubesLoaded = true
-	ppd.PathBuilders = ppd.calculateAllPathBuilders()
-	ppd.PathBuildersLoaded = true
+	ppd.cubeIdsPerKey = ppd.calculateAllContextCubes()
+	ppd.cubesLoaded = true
+	ppd.pathBuilders = ppd.calculateAllPathBuilders()
+	ppd.pathBuildersLoaded = true
 	calcTime := time.Now().Sub(start)
 	Log.Infof("Took %v to calculate", calcTime)
 
@@ -43,8 +43,8 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
 	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
 	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.AllGrowthContexts))
-	assert.Equal(t, ExpectedNbCubes, len(ppd.CubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.PathBuilders)-1)
+	assert.Equal(t, ExpectedNbCubes, len(ppd.cubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.pathBuilders)-1)
 
 	start = time.Now()
 	// force reload
@@ -60,8 +60,8 @@ func TestLoadOrCalculate(t *testing.T) {
 	assert.Equal(t, ExpectedNbConns, len(ppd.AllConnectionsByVector))
 	assert.Equal(t, ExpectedNbTrios, len(ppd.AllTrioDetails))
 	assert.Equal(t, ExpectedNbGrowthContexts, len(ppd.AllGrowthContexts))
-	assert.Equal(t, ExpectedNbCubes, len(ppd.CubeIdsPerKey))
-	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.PathBuilders)-1)
+	assert.Equal(t, ExpectedNbCubes, len(ppd.cubeIdsPerKey))
+	assert.Equal(t, ExpectedNbPathBuilders, len(ppd.pathBuilders)-1)
 }
 
 func TestSaveAll(t *testing.T) {
@@ -69,7 +69,7 @@ func TestSaveAll(t *testing.T) {
 	Log.SetDebug()
 	m3util.SetToTestMode()
 
-	tempEnv := GetCleanTempDb(m3util.PointTempEnv)
+	tempEnv := GetPointDbCleanEnv(m3util.PointTempEnv)
 	ppd, _ := GetServerPointPackData(tempEnv)
 
 	// ************ Connection Details

@@ -54,7 +54,7 @@ func TestFirstPathContextFilling(t *testing.T) {
 	m3point.Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3util.PathTestEnv)
+	env := GetPathDbFullEnv(m3util.PathTestEnv)
 	allCtx := getAllTestContexts(env)
 	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		for _, ctx := range allCtx[ctxType] {

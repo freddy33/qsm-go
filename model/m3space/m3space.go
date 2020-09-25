@@ -19,10 +19,10 @@ type Space struct {
 	env m3util.QsmEnvironment
 
 	// the int value of the next event id created
-	lastIdCounter EventID
+	lastIdCounter EventId
 	maxEvents     int
 
-	// The slice of events where the index is the EventID
+	// The slice of events where the index is the EventId
 	events []*Event
 
 	// The current time of space time
@@ -120,7 +120,7 @@ func (space *Space) GetNbEvents() int {
 	return res
 }
 
-func (space *Space) GetEvent(id EventID) *Event {
+func (space *Space) GetEvent(id EventId) *Event {
 	return space.events[id]
 }
 

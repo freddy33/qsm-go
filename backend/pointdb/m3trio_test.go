@@ -45,7 +45,7 @@ func TestPosMod8(t *testing.T) {
 func getPointTestData() ServerPointPackDataIfc {
 	m3util.SetToTestMode()
 
-	env := GetServerFullTestDb(m3util.PointTestEnv)
+	env := GetPointDbFullEnv(m3util.PointTestEnv)
 	InitializePointDBEnv(env, false)
 	return GetPointPackData(env)
 }

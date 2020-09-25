@@ -92,7 +92,7 @@ func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 /***************************************************************/
 func RunInsertRandomPoints() {
 	m3util.SetToTestMode()
-	env := GetFullTestDb(m3util.PerfTestEnv)
+	env := GetPathDbFullEnv(m3util.PerfTestEnv)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(10)
 	nbRoutines := 100

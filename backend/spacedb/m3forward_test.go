@@ -12,7 +12,6 @@ import (
 	"testing"
 )
 
-var Log = m3util.NewLogger("spacedb", m3util.INFO)
 var LogData = m3util.NewDataLogger("m3data", m3util.INFO)
 
 func BenchmarkPack1(b *testing.B) {
@@ -67,7 +66,7 @@ func getSpaceTestEnv() m3util.QsmEnvironment {
 		return spaceEnv
 	}
 	m3util.SetToTestMode()
-	spaceEnv := pointdb.GetServerFullTestDb(m3util.SpaceTestEnv)
+	spaceEnv := pointdb.GetPointDbFullEnv(m3util.SpaceTestEnv)
 	pointdb.InitializePointDBEnv(spaceEnv, true)
 	return spaceEnv
 }

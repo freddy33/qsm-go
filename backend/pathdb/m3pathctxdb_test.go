@@ -27,7 +27,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	Log.SetDebug()
 	m3point.Log.SetDebug()
 	m3util.SetToTestMode()
-	env := GetFullTestDb(m3util.PathTestEnv)
+	env := GetPathDbFullEnv(m3util.PathTestEnv)
 	start := time.Now()
 	InitializePathDBEnv(env)
 	endInit := time.Now()

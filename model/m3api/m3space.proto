@@ -4,28 +4,35 @@ package m3api;
 
 import "m3point.proto";
 
-message SpaceRequestMsg {
-    string space_name = 1;
-    int32 active_path_node_threshold = 2;
-    int32 max_trios_per_point = 3;
-    int32 max_path_nodes_per_point = 4;
-}
-
-message SpaceResponseMsg {
+message SpaceMsg {
     int32 space_id = 1;
+    string space_name = 2;
+    int32 active_path_node_threshold = 3;
+    int32 max_trios_per_point = 4;
+    int32 max_path_nodes_per_point = 5;
+    int32 max_time = 6;
+    int32 current_time = 7;
+    int32 max_coord = 8;
+    repeated int32 event_ids = 9;
+    int32 nb_active_nodes = 10;
 }
 
-message EventRequestMsg {
-    int32 space_id = 1;
-    int32 growth_type = 2;
-    int32 growth_index = 3;
-    int32 growth_offset = 4;
-    int32 creation_time = 5;
-    PointMsg center = 6;
-    uint32 color = 7;
+message SpaceListMsg {
+    repeated SpaceMsg spaces = 1;
 }
 
-message NodeMsg {
+message EventMsg {
+    int32 event_id = 1;
+    int32 space_id = 2;
+    int32 growth_type = 3;
+    int32 growth_index = 4;
+    int32 growth_offset = 5;
+    int32 creation_time = 6;
+    PointMsg center = 7;
+    uint32 color = 8;
+}
+
+message NodeEventMsg {
     int32 event_id = 1;
     PointMsg point = 2;
     int32 d = 3;
@@ -36,17 +43,17 @@ message NodeMsg {
 message EventResponseMsg {
     int32 event_id = 1;
     int64 path_ctx_id = 2;
-    NodeMsg root_node = 3;
+    NodeEventMsg root_node = 3;
 }
 
-message NextTimeRequestMsg {
+message SpaceTimeRequestMsg {
     int32 space_id = 1;
     int32 current_time = 2;
 }
 
-message NextTimeResponseMsg {
+message SpaceTimeResponseMsg {
     int32 space_id = 1;
     int32 current_time = 2;
-    repeated NodeMsg active_nodes = 3;
+    repeated NodeEventMsg active_nodes = 3;
 }
 
