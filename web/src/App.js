@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import _ from 'lodash';
-import Popup from 'reactjs-popup';
-import 'reactjs-popup/dist/index.css';
 
 import Service from './service';
 import Renderer from './renderer';
@@ -44,12 +42,12 @@ const App = () => {
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
-    Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
-      setPointPackDataMsg(convertPointPackDataMsgToState(pointPackDataMsg));
+    Service.fetchPointPackDataMsg().then((response) => {
+      const pointPackDataMsg = convertPointPackDataMsgToState(response);
+      setPointPackDataMsg(pointPackDataMsg);
     });
 
-    let width = mount.current.clientWidth;
-    let height = mount.current.clientHeight;
+    const { clientWidth: width, clientHeight: height } = mount.current;
 
     const { scene, camera, renderer } = Renderer.init(width, height);
     setScene(scene);
@@ -59,8 +57,7 @@ const App = () => {
     mount.current.appendChild(renderer.domElement);
 
     const handleResize = () => {
-      width = mount.current.clientWidth;
-      height = mount.current.clientHeight;
+      const { clientWidth: width, clientHeight: height } = mount.current;
       renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
@@ -68,6 +65,8 @@ const App = () => {
     };
 
     window.addEventListener('resize', handleResize);
+
+    setDataInput(JSON.stringify(Renderer.mockPoints));
   }, []);
 
   useEffect(() => {
@@ -92,36 +91,41 @@ const App = () => {
   }, [rotating, scene, camera, renderer]);
 
   return (
-    <div>
-      <div className="vis" ref={mount} />
+    <div className="main">
+      <div className="panel">
+        <div>
+          <textarea
+            onChange={(evt) => {
+              setDataInput(_.get(evt, 'target.value', ''));
+            }}
+            rows="30"
+            value={dataInput}
+          />
+        </div>
+        <div>
+          <button
+            onClick={() => {
+              const data = JSON.parse(dataInput);
 
-      <Popup trigger={<button className="control"> Configure </button>} modal>
-        {(close) => (
-          <div className="configure">
-            {/* <button onClick={() => setRotating(!rotating)}>Rotate</button> */}
-            <div>
-              <textarea
-                onChange={(evt) => {
-                  setDataInput(_.get(evt, 'target.value', ''));
-                }}
-                rows="40"
-                value={JSON.stringify(Renderer.mockPoints)}
-              ></textarea>
-            </div>
-            <div>
-              <button
-                onClick={() => {
-                  const data = JSON.parse(dataInput);
-                  Renderer.draw(scene, data, pointPackDataMsg);
-                  close();
-                }}
-              >
-                Load data
-              </button>
-            </div>
-          </div>
-        )}
-      </Popup>
+              const { clientWidth: width, clientHeight: height } = mount.current;
+
+              const { scene, camera, renderer: newRenderer } = Renderer.init(width, height);
+              setScene(scene);
+              setCamera(camera);
+              setRenderer(newRenderer);
+
+              mount.current.replaceChild(newRenderer.domElement, renderer.domElement);
+              Renderer.draw(scene, data, pointPackDataMsg);
+            }}
+          >
+            Load data
+          </button>
+        </div>
+        <div>
+          <button onClick={() => setRotating(!rotating)}>Rotate</button>
+        </div>
+      </div>
+      <div className="vis" ref={mount} />
     </div>
   );
 };

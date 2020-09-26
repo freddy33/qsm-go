@@ -31,9 +31,9 @@ const addLine = (scene, from, to, color = 0xffff00) => {
 };
 
 const addAxes = (scene) => {
-  addLine(scene, { x: -50, y: 0, z: 0 }, { x: 50, y: 0, z: 0 }, 0xff0000);
-  addLine(scene, { x: 0, y: -50, z: 0 }, { x: 0, y: 50, z: 0 }, 0x00ff00);
-  addLine(scene, { x: 0, y: 0, z: -50 }, { x: 0, y: 0, z: 50 }, 0x0000ff);
+  addLine(scene, { x: -70, y: 0, z: 0 }, { x: 70, y: 0, z: 0 }, 0xff0000);
+  addLine(scene, { x: 0, y: -70, z: 0 }, { x: 0, y: 70, z: 0 }, 0x00ff00);
+  addLine(scene, { x: 0, y: 0, z: -70 }, { x: 0, y: 0, z: 70 }, 0x0000ff);
 };
 
 const addPoint = (scene, pos) => {
@@ -60,31 +60,14 @@ const addCameraPivot = (scene, camera) => {
   return cameraPivot;
 };
 
-// const mockPoints = [
-//   {
-//     id: 1,
-//     x: 0,
-//     y: 0,
-//     z: 0,
-//     trioId: 9,
-//   },
-
-//   {
-//     id: 2,
-//     x: 1,
-//     y: 1,
-//     z: 1,
-//     trioId: 19,
-//   },
-// ];
-
+const getRandomInt = (max) => Math.floor(Math.random() * Math.floor(max));
 const mockPoints = [...Array(10).keys()].map((i) => {
   return {
     id: i,
-    x: i,
-    y: i,
-    z: i,
-    trioId: i,
+    x: i + getRandomInt(10),
+    y: i + getRandomInt(10),
+    z: i + getRandomInt(10),
+    trioId: i + getRandomInt(10),
   };
 });
 
