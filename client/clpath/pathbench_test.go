@@ -70,7 +70,6 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 }
 
 func runPathContext(pathCtx m3path.PathContext, until int) {
-	pathCtx.InitRootNode(m3point.Origin)
 	for d := 0; d < until; d++ {
 //		verifyDistance(pathCtx, d)
 		origLen := float64(pathCtx.GetNumberOfOpenNodes())

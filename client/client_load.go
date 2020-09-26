@@ -11,65 +11,64 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 )
 
-func (cl *ClientConnection) ExecReq(method string, uri string, m proto.Message) io.ReadCloser {
+const(
+	ExecOK     = "OK"
+	ExecFailed = "FAIL"
+)
+
+func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Message, respMsg proto.Message) (string, error) {
 	uri = strings.TrimPrefix(uri, "/")
-	client := http.Client{Timeout: 10 * time.Second}
-	var body io.Reader
-	if m != nil {
-		b, err := proto.Marshal(m)
+
+	var reqBody io.Reader
+	if reqMsg != nil {
+		reqBytes, err := proto.Marshal(reqMsg)
 		if err != nil {
-			Log.Errorf("Failed marshalling message in %s:%s for REST API end point %q due to: %s",
-				method, uri,
-				cl.BackendRootURL, err.Error())
-			return nil
+			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Failed marshalling message in %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
 		}
-		body = bytes.NewReader(b)
+		reqBody = bytes.NewReader(reqBytes)
 	}
-	req, err := http.NewRequest(method, cl.BackendRootURL+uri, body)
+	req, err := http.NewRequest(method, cl.backendRootURL+uri, reqBody)
 	if err != nil {
-		Log.Errorf("Could not request %s:%s for REST API end point %q due to: %s",
-			method, uri,
-			cl.BackendRootURL, err.Error())
-		return nil
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not request %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
 	}
 	if req == nil {
-		Log.Errorf("Got a nil request %s:%s for REST API end point %q",
-			method, uri,
-			cl.BackendRootURL)
-		return nil
+		return ExecFailed, m3util.MakeQsmErrorf("Got a nil request %s:%s for REST API end point %q", method, uri, cl.backendRootURL)
 	}
-	req.Header.Add(m3api.HttpEnvIdKey, cl.EnvId.String())
+	req.Header.Add(m3api.HttpEnvIdKey, cl.envId.String())
+	req.Header.Add("Content-Type", "application/x-protobuf")
 
-	resp, err := client.Do(req)
+	resp, err := cl.httpClient.Do(req)
 	if err != nil {
-		Log.Errorf("Could not retrieve data from REST API %s:%s end point %q due to: %s",
-			method, uri,
-			cl.BackendRootURL, err.Error())
-		return nil
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not retrieve data from REST API %s:%s end point %q due to: %v", method, uri, cl.backendRootURL, err)
 	}
 	if resp == nil {
-		Log.Errorf("Got a nil response from REST API %s:%s end point %q",
-			method, uri,
-			cl.BackendRootURL)
-		return nil
+		return ExecFailed, m3util.MakeQsmErrorf("Got a nil response from REST API %s:%s end point %q", method, uri, cl.backendRootURL)
 	}
-	return resp.Body
+	respBody := resp.Body
+	defer m3util.CloseBody(respBody)
+	respBytes, err := ioutil.ReadAll(respBody)
+	if err != nil {
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not read body from REST API end point %q due to %v", uri, err)
+	}
+	if respMsg != nil {
+		// TODO: Verify content type and resp object type match
+		err = proto.Unmarshal(respBytes, respMsg)
+		if err != nil {
+			return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not unmarshal from REST API end point %q due to %v", uri, err)
+		}
+		return ExecOK, nil
+	}
+	return string(respBytes), nil
 }
 
 func (cl *ClientConnection) CheckServerUp() bool {
-	body := cl.ExecReq(http.MethodGet, "", nil)
-	if body == nil {
+	response, err := cl.ExecReq(http.MethodGet, "", nil, nil)
+	if err != nil {
+		Log.Error(err)
 		return false
 	}
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		return true
-	}
-	response := string(b)
 	Log.Debugf("All good on home response %q", response)
 	return true
 }
@@ -95,8 +94,8 @@ func (env *QsmApiEnvironment) initializePointData() {
 	ppdIfc := env.GetData(m3util.PointIdx)
 	if ppdIfc != nil {
 		pointData = ppdIfc.(*ClientPointPackData)
-		if pointData.PathBuildersLoaded {
-			Log.Debugf("Env %d already loaded", env.GetId())
+		if pointData.GrowthContextsLoaded {
+			Log.Debugf("env %d already loaded", env.GetId())
 			return
 		}
 	}
@@ -111,17 +110,10 @@ func (env *QsmApiEnvironment) initializePointData() {
 		Log.Fatalf("Something wrong above")
 		return
 	}
-	body := env.clConn.ExecReq(http.MethodGet, "point-data", nil)
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
-	if err != nil {
-		Log.Fatalf("Could not read body from REST API end point %q due to %s", "point-data", err.Error())
-		return
-	}
 	pMsg := &m3api.PointPackDataMsg{}
-	err = proto.Unmarshal(b, pMsg)
+	_, err := env.clConn.ExecReq(http.MethodGet, "point-data", nil, pMsg)
 	if err != nil {
-		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", "point-data", err.Error())
+		Log.Fatal(err)
 		return
 	}
 
@@ -176,136 +168,22 @@ func (env *QsmApiEnvironment) initializePointData() {
 	}
 	pointData.GrowthContextsLoaded = true
 	Log.Debugf("loaded %d growth context", len(pointData.AllGrowthContexts))
-
-	pointData.CubeIdsPerKey = make(map[m3point.CubeKeyId]int, len(pMsg.AllCubes))
-	growthCtxByCubeId := make(map[int]int, len(pMsg.AllCubes))
-	for id, cube := range pMsg.AllCubes {
-		// Do not load dummy cube
-		if id != 0 {
-			key := m3point.CubeKeyId{
-				GrowthCtxId: int(cube.GetGrowthContextId()),
-				Cube: m3point.CubeOfTrioIndex{
-					Center:      m3point.TrioIndex(cube.GetCenterTrioId()),
-					CenterFaces: get6TrioIndex(cube.GetCenterFacesTrioIds()),
-					MiddleEdges: get12TrioIndex(cube.GetMiddleEdgesTrioIds()),
-				},
-			}
-			cubeId := int(cube.GetCubeId())
-			pointData.CubeIdsPerKey[key] = cubeId
-			growthCtxByCubeId[cubeId] = key.GetGrowthCtxId()
-		}
-	}
-	pointData.CubesLoaded = true
-	Log.Debugf("loaded %d cubes", len(pointData.CubeIdsPerKey))
-
-	pointData.PathBuilders = make([]*m3point.RootPathNodeBuilder, len(pMsg.AllPathNodeBuilders))
-	for idx, pnd := range pMsg.AllPathNodeBuilders {
-		if idx == 0 {
-			// Dummy cube and path loader
-			continue
-		}
-		cubeId := int(pnd.GetCubeId())
-		trIdx := m3point.TrioIndex(pnd.GetTrioId())
-		tr := pointData.GetTrioDetails(trIdx)
-		pointData.PathBuilders[idx] = &m3point.RootPathNodeBuilder{
-			BasePathNodeBuilder: m3point.BasePathNodeBuilder{Ctx: &m3point.PathBuilderContext{
-				GrowthCtx: pointData.GetGrowthContextById(growthCtxByCubeId[cubeId]),
-				CubeId:    cubeId},
-				TrIdx: trIdx},
-			PathLinks: convertToInterPathBuilders(pointData, growthCtxByCubeId, tr, pnd),
-		}
-	}
-	pointData.PathBuildersLoaded = true
-	Log.Debugf("loaded %d path builders", len(pointData.PathBuilders))
-}
-
-func convertToInterPathBuilders(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, tr *m3point.TrioDetails, pnd *m3api.RootPathNodeBuilderMsg) [3]m3point.PathLinkBuilder {
-	res := [3]m3point.PathLinkBuilder{}
-	interNodeBuilders := pnd.GetInterNodeBuilders()
-	for idx, cd := range tr.Conns {
-		res[idx] = m3point.PathLinkBuilder{
-			ConnId:   cd.Id,
-			PathNode: convertToInterPathBuilder(ppd, growthCtxByCubeId, interNodeBuilders[idx]),
-		}
-	}
-	return res
-}
-
-func convertToInterPathBuilder(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.IntermediatePathNodeBuilderMsg) *m3point.IntermediatePathNodeBuilder {
-	cubeId := int(pnd.GetCubeId())
-	trIdx := m3point.TrioIndex(pnd.GetTrioId())
-	return &m3point.IntermediatePathNodeBuilder{
-		BasePathNodeBuilder: m3point.BasePathNodeBuilder{Ctx: &m3point.PathBuilderContext{
-			GrowthCtx: ppd.GetGrowthContextById(growthCtxByCubeId[cubeId]),
-			CubeId:    cubeId},
-			TrIdx: trIdx},
-		PathLinks: [2]m3point.PathLinkBuilder{
-			{
-				ConnId:   m3point.ConnectionId(pnd.Link1ConnId),
-				PathNode: convertToLastPathBuilder(ppd, growthCtxByCubeId, pnd.LastNodeBuilder1),
-			},
-			{
-				ConnId:   m3point.ConnectionId(pnd.Link2ConnId),
-				PathNode: convertToLastPathBuilder(ppd, growthCtxByCubeId, pnd.LastNodeBuilder2),
-			},
-		},
-	}
-}
-
-func convertToLastPathBuilder(ppd *ClientPointPackData, growthCtxByCubeId map[int]int, pnd *m3api.LastPathNodeBuilderMsg) *m3point.LastPathNodeBuilder {
-	cubeId := int(pnd.GetCubeId())
-	trIdx := m3point.TrioIndex(pnd.GetTrioId())
-	return &m3point.LastPathNodeBuilder{
-		BasePathNodeBuilder: m3point.BasePathNodeBuilder{Ctx: &m3point.PathBuilderContext{
-			GrowthCtx: ppd.GetGrowthContextById(growthCtxByCubeId[cubeId]),
-			CubeId:    cubeId},
-			TrIdx: trIdx},
-		NextMainConnId:  m3point.ConnectionId(pnd.NextMainConnId),
-		NextInterConnId: m3point.ConnectionId(pnd.NextInterConnId),
-	}
-}
-
-func get6TrioIndex(s []int32) [6]m3point.TrioIndex {
-	if len(s) != 6 {
-		Log.Fatalf("cannot convert slice of size %d to 6", len(s))
-	}
-	res := [6]m3point.TrioIndex{}
-	for idx, i := range s {
-		res[idx] = m3point.TrioIndex(i)
-	}
-	return res
-}
-func get12TrioIndex(s []int32) [12]m3point.TrioIndex {
-	if len(s) != 12 {
-		Log.Fatalf("cannot convert slice of size %d to 12", len(s))
-	}
-	res := [12]m3point.TrioIndex{}
-	for idx, i := range s {
-		res[idx] = m3point.TrioIndex(i)
-	}
-	return res
 }
 
 func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
 	uri := "create-path-ctx"
-	reqMsg := &m3api.PathContextMsg{
-		GrowthContextId: int32(growthCtx.GetId()),
+	reqMsg := &m3api.PathContextRequestMsg{
+		GrowthType: int32(growthCtx.GetGrowthType()),
+		GrowthIndex: int32(growthCtx.GetGrowthIndex()),
 		GrowthOffset:    int32(offset),
-		Center:          m3api.PointToPointMsg(center),
 	}
-	body := ppd.env.clConn.ExecReq(http.MethodPut, uri, reqMsg)
-	defer m3util.CloseBody(body)
-	b, err := ioutil.ReadAll(body)
+	pMsg := new(m3api.PathContextResponseMsg)
+	_, err := ppd.env.clConn.ExecReq(http.MethodPut, uri, reqMsg, pMsg)
 	if err != nil {
-		Log.Fatalf("Could not read body from REST API end point %q due to %s", uri, err.Error())
+		Log.Fatal(err)
 		return nil
 	}
-	pMsg := new(m3api.PathContextMsg)
-	err = proto.Unmarshal(b, pMsg)
-	if err != nil {
-		Log.Fatalf("Could not marshall body from REST API end point %q due to %s", uri, err.Error())
-		return nil
-	}
+
 	pathCtx := new(PathContextCl)
 	pathCtx.id = int(pMsg.GetPathCtxId())
 	pathCtx.env = ppd.env
@@ -313,8 +191,8 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 	pathCtx.pointData = pointData
 	pathCtx.growthCtx = pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId()))
 	pathCtx.growthOffset = int(pMsg.GetGrowthOffset())
-	pathCtx.rootNode = nil
 	pathCtx.pathNodeMap = m3path.MakeHashPathNodeMap(100)
 	pathCtx.pathNodes = make(map[int64]*PathNodeCl, 100)
+	pathCtx.rootNode = pathCtx.addPathNodeFromMsg(pMsg.RootPathNode)
 	return pathCtx
 }

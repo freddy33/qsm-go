@@ -6,20 +6,12 @@ import (
 	"sync"
 )
 
-/***************************************************************/
-// Utility methods for test
-/***************************************************************/
-
 var dbMutex sync.Mutex
 
 var cleanedDb [m3util.MaxNumberOfEnvironments]bool
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
-func GetServerFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	if !m3util.TestMode {
-		Log.Fatalf("Cannot use getServerFullTestDb in non test mode!")
-	}
-
+func GetPointDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
@@ -33,18 +25,18 @@ func GetServerFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if err != nil {
 		Log.Fatal(err)
 	}
-	FillDbEnv(env)
+	pointData := GetPointPackData(env)
+	pointData.createTables()
 
 	testDbFilled[envId] = true
 
-	InitializePointDBEnv(env, false)
 	return env
 }
 
 // Do not use this environment to load
-func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+func GetPointDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if !m3util.TestMode {
-		Log.Fatalf("Cannot use GetCleanTempDb in non test mode!")
+		Log.Fatalf("Cannot use GetPointDbCleanEnv in non test mode!")
 	}
 
 	dbMutex.Lock()
@@ -63,5 +55,9 @@ func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if err != nil {
 		Log.Fatal(err)
 	}
+
+	pointData := GetPointPackData(env)
+	pointData.createTables()
+
 	return env
 }

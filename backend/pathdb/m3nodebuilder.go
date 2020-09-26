@@ -34,10 +34,12 @@ func createNewNodeBuilder(previous *OpenNodeBuilder) *OpenNodeBuilder {
 
 func (onb *OpenNodeBuilder) fillOpenPathNodes() {
 	pathCtx := onb.pathCtx
-	rows, err := pathCtx.pathNodesTe().Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
+	te := pathCtx.pathData.pathNodesTe
+	rows, err := te.Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
 	if err != nil {
 		Log.Fatal(err)
 	}
+	defer te.CloseRows(rows)
 	for rows.Next() {
 		pn, err := fetchDbRow(rows)
 		if err != nil {

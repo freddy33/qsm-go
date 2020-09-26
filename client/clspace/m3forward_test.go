@@ -40,7 +40,7 @@ func benchSpaceTest(b *testing.B, pSize m3point.CInt) {
 }
 
 func TestCreateAllIndexes(t *testing.T) {
-	allContexts := m3point.GetAllContextTypes()
+	allContexts := m3point.GetAllGrowthTypes()
 	for _, ctxType := range allContexts {
 		createAllIndexesForContext(t, ctxType)
 	}

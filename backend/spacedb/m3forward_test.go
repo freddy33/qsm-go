@@ -12,7 +12,6 @@ import (
 	"testing"
 )
 
-var Log = m3util.NewLogger("spacedb", m3util.INFO)
 var LogData = m3util.NewDataLogger("m3data", m3util.INFO)
 
 func BenchmarkPack1(b *testing.B) {
@@ -41,7 +40,7 @@ func benchSpaceTest(b *testing.B, pSize m3point.CInt) {
 }
 
 func TestCreateAllIndexes(t *testing.T) {
-	allContexts := m3point.GetAllContextTypes()
+	allContexts := m3point.GetAllGrowthTypes()
 	for _, ctxType := range allContexts {
 		createAllIndexesForContext(t, ctxType)
 	}
@@ -67,8 +66,7 @@ func getSpaceTestEnv() m3util.QsmEnvironment {
 		return spaceEnv
 	}
 	m3util.SetToTestMode()
-	spaceEnv := pointdb.GetServerFullTestDb(m3util.SpaceTestEnv)
-	pointdb.InitializePointDBEnv(spaceEnv, true)
+	spaceEnv := GetSpaceDbFullEnv(m3util.SpaceTestEnv)
 	return spaceEnv
 }
 

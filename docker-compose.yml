@@ -17,20 +17,6 @@ services:
     depends_on:
       - postgres
 
-  job-filldb:
-    container_name: job-filldb
-    build:
-      context: .
-      dockerfile: job-filldb.Dockerfile
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: qsm
-      DB_PASSWORD: qsm
-      DB_NAME: qsm
-    depends_on:
-      - postgres
-
   postgres:
     container_name: postgres
     image: fredsimon-docker.jfrog.io/postgres:12.3

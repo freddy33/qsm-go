@@ -9,7 +9,7 @@ import (
 
 var LogStat = m3util.NewStatLogger("m3stat", m3util.INFO)
 
-type ThreeIds [3]EventID
+type ThreeIds [3]EventId
 
 var NilThreeIds = ThreeIds{NilEvent, NilEvent, NilEvent}
 
@@ -90,7 +90,10 @@ func (space *Space) ForwardTime() *ForwardResult {
 
 func (space *Space) populateActiveNodesAndLinks(n Node, res *ForwardResult, nodes *NodeList, links *NodeLinkList) {
 	nbActive := n.GetNbActiveEvents(space)
-	point := n.GetPoint()
+	point, err := n.GetPoint()
+	if err != nil {
+		Log.Error(err)
+	}
 	if point != nil && point.IsMainPoint() && nbActive >= m3point.THREE {
 		tIds := MakeThreeIds(n.GetActiveEventIds(space))
 		res.addPoint(tIds, *point)
@@ -106,13 +109,13 @@ func (evt *Event) moveToNext(wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func SortEventIDs(ids *[]EventID) {
+func SortEventIDs(ids *[]EventId) {
 	sort.Slice(*ids, func(i, j int) bool {
 		return (*ids)[i] < (*ids)[j]
 	})
 }
 
-func MakeThreeIds(ids []EventID) []ThreeIds {
+func MakeThreeIds(ids []EventId) []ThreeIds {
 	SortEventIDs(&ids)
 	if len(ids) == 3 {
 		return []ThreeIds{{ids[0], ids[1], ids[2]}}
@@ -128,7 +131,7 @@ func MakeThreeIds(ids []EventID) []ThreeIds {
 	return nil
 }
 
-func (tIds ThreeIds) contains(id EventID) bool {
+func (tIds ThreeIds) contains(id EventId) bool {
 	for _, tid := range tIds {
 		if tid == id {
 			return true

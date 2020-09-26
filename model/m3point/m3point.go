@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"math/rand"
+	"time"
 )
 
 var Log = m3util.NewLogger("m3point", m3util.INFO)
@@ -21,6 +22,10 @@ var Origin = Point{0, 0, 0}
 var XFirst = Point{THREE, 0, 0}
 var YFirst = Point{0, THREE, 0}
 var ZFirst = Point{0, 0, THREE}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 /***************************************************************/
 // Util Functions

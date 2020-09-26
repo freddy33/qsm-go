@@ -1,7 +1,6 @@
 package pathdb
 
 import (
-	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
@@ -14,7 +13,7 @@ import (
 var allTestContextsMutex sync.Mutex
 
 func getAllTestContexts(env m3util.QsmEnvironment) map[m3point.GrowthType][]m3path.PathContext {
-	pathData := GetServerPathPackData(env).(*ServerPathPackData)
+	pathData := GetServerPathPackData(env)
 	if pathData.AllCenterContextsLoaded {
 		return pathData.AllCenterContexts
 	}
@@ -26,7 +25,6 @@ func getAllTestContexts(env m3util.QsmEnvironment) map[m3point.GrowthType][]m3pa
 		return pathData.AllCenterContexts
 	}
 
-	pointdb.InitializePointDBEnv(env.(*m3db.QsmDbEnvironment), false)
 	pointData := pointdb.GetPointPackData(env)
 
 	idx := 0
@@ -54,9 +52,9 @@ func TestFirstPathContextFilling(t *testing.T) {
 	m3point.Log.SetAssert(true)
 	m3util.SetToTestMode()
 
-	env := GetFullTestDb(m3util.PathTestEnv)
+	env := GetPathDbFullEnv(m3util.PathTestEnv)
 	allCtx := getAllTestContexts(env)
-	for _, ctxType := range m3point.GetAllContextTypes() {
+	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		for _, ctx := range allCtx[ctxType] {
 			fillPathContext(t, ctx, 12)
 			Log.Infof("Run for %s got %d points %d last open end path", ctx.String(), ctx.CountAllPathNodes(), ctx.GetNumberOfOpenNodes())

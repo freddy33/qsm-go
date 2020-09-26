@@ -12,4 +12,4 @@ replace github.com/freddy33/qsm-go/m3util => ../m3util
 
 replace github.com/freddy33/qsm-go/model => ../model
 
-go 1.13
+go 1.14

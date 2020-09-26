@@ -3,13 +3,13 @@ name: QSM
 on: [push]
 
 env:
-  GOPROXY: https://fredsimon.artifactoryonline.com/artifactory/api/go/go
+  GOPROXY: https://fredsimon.jfrog.io/fredsimon/api/go/go
 
 jobs:
   qsm:
     name: Test
     runs-on: ubuntu-latest
-    container: golang:1.13
+    container: golang:1.14
     services:
       postgres:
         image: postgres:12.3
@@ -54,11 +54,8 @@ jobs:
       - name: Build backend
         run: go build -v .
 
-      - name: Fill DB
-        run: ./backend filldb
-
       - name: Test backend packages
-        run: go test -v ./m3db ./pointdb ./pathdb ./m3server
+        run: go test -v ./m3db ./pointdb ./pathdb ./spacedb ./m3server
 
 # TODO: Make sure to update kinto before running this
 #      - name: Test client with Kinto

@@ -1,6 +1,9 @@
 package m3space
 
-import "github.com/freddy33/qsm-go/model/m3path"
+import (
+	"github.com/freddy33/qsm-go/model/m3path"
+	"github.com/freddy33/qsm-go/model/m3point"
+)
 
 type NodeEventList struct {
 	cur  *BaseNodeEvent
@@ -8,13 +11,44 @@ type NodeEventList struct {
 }
 
 type BaseNodeEvent struct {
-	evtId        EventID
+	evtId        EventId
 	pathNodeId   int64
 	accessedTime DistAndTime
 	pathNode     m3path.PathNode
 }
 
-func (ne *BaseNodeEvent) GetEventId() EventID {
+func (ne *BaseNodeEvent) GetPoint() (*m3point.Point, error) {
+	panic("implement me")
+}
+
+func (ne *BaseNodeEvent) GetPathNode() (m3path.PathNode, error) {
+	pn := ne.pathNode
+	// TODO: Should be a method with bool m3path.InPoolId {
+	if pn != nil && pn.GetId() == int64(-2) {
+		// nilify for now
+		ne.pathNode = nil
+		return nil, nil
+	}
+	return pn, nil
+}
+
+func (ne *BaseNodeEvent) GetId() int64 {
+	return 1
+}
+
+func (ne *BaseNodeEvent) GetPointId() int64 {
+	return 1
+}
+
+func (ne *BaseNodeEvent) GetCreationTime() DistAndTime {
+	return ne.accessedTime
+}
+
+func (ne *BaseNodeEvent) GetD() DistAndTime {
+	return 1
+}
+
+func (ne *BaseNodeEvent) GetEventId() EventId {
 	return ne.evtId
 }
 
@@ -22,19 +56,8 @@ func (ne *BaseNodeEvent) GetPathNodeId() int64 {
 	return ne.pathNodeId
 }
 
-func (ne *BaseNodeEvent) GetPathNode() m3path.PathNode {
-	pn := ne.pathNode
-	// TODO: Should be a method with bool m3path.InPoolId {
-	if pn != nil && pn.GetId() == int64(-2) {
-		// nilify for now
-		ne.pathNode = nil
-		return nil
-	}
-	return pn
-}
-
 func (ne *BaseNodeEvent) IsRoot(evt *Event) bool {
-	return ne.evtId == evt.id && ne.accessedTime == evt.created
+	return ne.evtId == evt.Id && ne.accessedTime == evt.created
 }
 
 func (ne *BaseNodeEvent) GetAccessedTime() DistAndTime {
@@ -46,7 +69,7 @@ func (ne *BaseNodeEvent) GetDistFromCurrent(space *Space) DistAndTime {
 }
 
 func (ne *BaseNodeEvent) IsLatest() bool {
-	pn := ne.GetPathNode()
+	pn, _ := ne.GetPathNode()
 	if pn != nil {
 		return pn.IsLatest()
 	}

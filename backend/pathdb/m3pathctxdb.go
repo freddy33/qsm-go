@@ -11,10 +11,8 @@ import (
 )
 
 type PathContextDb struct {
-	env       *m3db.QsmDbEnvironment
-	ppd       m3point.PointPackDataIfc
-	pathNodes *m3db.TableExec
-	points    *m3db.TableExec
+	pathData  *ServerPathPackData
+	pointData *pointdb.ServerPointPackData
 
 	id           int
 	growthCtx    m3point.GrowthContext
@@ -24,19 +22,19 @@ type PathContextDb struct {
 	openNodeBuilder *OpenNodeBuilder
 }
 
-func (ppd *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
-	pathContext := MakePathContextDBFromGrowthContext(ppd.Env, growthCtx, offset)
-	// TODO: Make the init root node here!
+func (pathData *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
+	pathContext := MakePathContextDBFromGrowthContext(pathData.env, growthCtx, offset)
+	pathContext.InitRootNode(center)
 	if center == m3point.Origin {
-		ppd.addCenterPathContext(pathContext)
+		pathData.addCenterPathContext(pathContext)
 	}
 	return pathContext
 }
 
 func MakePathContextDBFromGrowthContext(env m3util.QsmEnvironment, growthCtx m3point.GrowthContext, offset int) m3path.PathContext {
 	pathCtx := PathContextDb{}
-	pathCtx.env = env.(*m3db.QsmDbEnvironment)
-	pathCtx.ppd = pointdb.GetPointPackData(env)
+	pathCtx.pathData = GetServerPathPackData(env)
+	pathCtx.pointData = pointdb.GetPointPackData(env)
 	pathCtx.growthCtx = growthCtx
 	pathCtx.growthOffset = offset
 	pathCtx.rootNode = nil
@@ -54,37 +52,15 @@ func MakePathContextDBFromGrowthContext(env m3util.QsmEnvironment, growthCtx m3p
 }
 
 func (pathCtx *PathContextDb) pathNodesTe() *m3db.TableExec {
-	if pathCtx.pathNodes != nil {
-		return pathCtx.pathNodes
-	}
-	var err error
-	pathCtx.pathNodes, err = pathCtx.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Fatalf("could not get %s out of %d env due to '%s'", PathNodesTable, pathCtx.env.GetId(), err.Error())
-		return nil
-	}
-	return pathCtx.pathNodes
+	return pathCtx.pathData.pathNodesTe
 }
 
 func (pathCtx *PathContextDb) pointsTe() *m3db.TableExec {
-	if pathCtx.points != nil {
-		return pathCtx.points
-	}
-	var err error
-	pathCtx.points, err = pathCtx.env.GetOrCreateTableExec(PointsTable)
-	if err != nil {
-		Log.Fatalf("could not get %s out of %d env due to '%s'", PointsTable, pathCtx.env.GetId(), err.Error())
-		return nil
-	}
-	return pathCtx.points
+	return pathCtx.pathData.pointsTe
 }
 
 func (pathCtx *PathContextDb) insertInDb() error {
-	te, err := pathCtx.env.GetOrCreateTableExec(PathContextsTable)
-	if err != nil {
-		return err
-	}
-	id64, err := te.InsertReturnId(pathCtx.GetGrowthCtx().GetId(), pathCtx.GetGrowthOffset())
+	id64, err := pathCtx.pathData.pathCtxTe.InsertReturnId(pathCtx.GetGrowthCtx().GetId(), pathCtx.GetGrowthOffset())
 	if err != nil {
 		return err
 	}
@@ -116,6 +92,10 @@ func (pathCtx *PathContextDb) GetGrowthIndex() int {
 	return pathCtx.growthCtx.GetGrowthIndex()
 }
 
+func (pathCtx *PathContextDb) GetCurrentDist() int {
+	return pathCtx.openNodeBuilder.d
+}
+
 func (pathCtx *PathContextDb) GetPathNodeMap() m3path.PathNodeMap {
 	Log.Fatalf("in DB path context %s never call GetPathNodeMap", pathCtx.String())
 	return nil
@@ -128,7 +108,7 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 	}
 
 	// the path builder enforce origin as the center
-	nodeBuilder := pathCtx.ppd.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
+	nodeBuilder := pathCtx.pointData.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
 
 	rootNode := getNewPathNodeDb()
 
@@ -151,14 +131,13 @@ func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
 
 	pathCtx.rootNode = rootNode
 
-	te, err := pathCtx.env.GetOrCreateTableExec(PathContextsTable)
+	rowAffected, err := pathCtx.pathData.pathCtxTe.Update(UpdatePathBuilderId, pathCtx.id, rootNode.pathBuilderId)
 	if err != nil {
-		Log.Errorf("could not get path context table exec on init root node of path context %s due to %v", pathCtx.String(), err)
+		Log.Errorf("could not update path context %s with new path builder id %d due to %v", pathCtx.String(), rootNode.pathBuilderId, err)
 		return
 	}
-	rowAffected, err := te.Update(UpdatePathBuilderId, pathCtx.id, rootNode.pathBuilderId)
 	if rowAffected != 1 {
-		Log.Errorf("could not update path context %s with new path builder id %d due to %v", pathCtx.String(), rootNode.pathBuilderId, err)
+		Log.Errorf("updating path context %s with new path builder id %d returned wrong rows %d", pathCtx.String(), rootNode.pathBuilderId, rowAffected)
 		return
 	}
 
@@ -208,13 +187,16 @@ func (pathCtx *PathContextDb) createConnection(currentD int, fromNode *PathNodeD
 		fromNode.setDeadEnd(connIdx)
 	} else {
 		// Link the destination node to this link
-		fromNode.setConnectionState(connIdx, m3path.ConnectionNext)
+		fromNode.SetConnectionState(connIdx, m3path.ConnectionNext)
 		if nextPathNode.id <= 0 {
-			fromNode.linkNodeIds[connIdx] = NextLinkIdNotAssigned
+			fromNode.linkIds[connIdx] = NextLinkIdNotAssigned
 		} else {
-			fromNode.linkNodeIds[connIdx] = nextPathNode.id
+			fromNode.linkIds[connIdx] = nextPathNode.id
 		}
 		fromNode.linkNodes[connIdx] = nextPathNode
+	}
+	if fromNode.state == SyncInDbPathNode {
+		fromNode.state = ModifiedNode
 	}
 }
 
@@ -223,7 +205,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 	nbBlocked := 0
 	pnb := on.PathBuilder()
 	for i := 0; i < m3path.NbConnections; i++ {
-		switch on.getConnectionState(i) {
+		switch on.GetConnectionState(i) {
 		case m3path.ConnectionNext:
 			Log.Warnf("executing move to next at %d on open node %s that already has next link at %d!", next.d, on.String(), i)
 		case m3path.ConnectionFrom:
@@ -369,21 +351,18 @@ func (pathCtx *PathContextDb) CountAllPathNodes() int {
 	return res
 }
 
-func (pathCtx *PathContextDb) getPathNodeDb(id int64) *PathNodeDb {
-	te := pathCtx.pathNodesTe()
-	row := te.QueryRow(SelectPathNodesById, id)
+func (pathCtx *PathContextDb) GetPathNodeDb(id int64) (*PathNodeDb, error) {
+	row := pathCtx.pathData.pathNodesTe.QueryRow(SelectPathNodesById, id)
 	pn, err := fetchSingleDbRow(row)
 	if err != nil {
-		Log.Fatalf("Could not read row of %s due to %v", PathNodesTable, err)
-		return nil
+		return nil, m3util.MakeWrapQsmErrorf(err, "Could not read row of %s due to %s", PathNodesTable, err.Error())
 	}
 	if pn.pathCtxId != pathCtx.id {
-		Log.Fatalf("While retrieving path node id %d got a node with context id %d instead of %d",
+		return nil, m3util.MakeQsmErrorf("While retrieving path node id %d got a node with context id %d instead of %d",
 			id, pn.pathCtxId, pathCtx.id)
-		return nil
 	}
 	pn.pathCtx = pathCtx
-	return pn
+	return pn, nil
 }
 
 func (pathCtx *PathContextDb) getPathNodeIdByPoint(pointId int64) int64 {

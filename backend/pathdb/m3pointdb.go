@@ -9,35 +9,27 @@ import (
 	"time"
 )
 
-func getPointEnv(env *m3db.QsmDbEnvironment, pointId int64) (*m3point.Point, error) {
-	te, err := env.GetOrCreateTableExec(PointsTable)
-	if err != nil {
-		return nil, m3db.MakeQsmErrorf("could not get points table exec due to '%s'", err.Error())
-	}
+func (pathData *ServerPathPackData) GetPoint(pointId int64) (*m3point.Point, error) {
+	te := pathData.pointsTe
 	rows, err := te.Query(SelectPointPerId, pointId)
 	if err != nil {
-		return nil, m3db.MakeQsmErrorf("could not select point %d from points table exec due to '%s'", pointId, err.Error())
+		return nil, m3util.MakeWrapQsmErrorf(err, "could not select point %d from points table exec due to %v", pointId, err)
 	}
 	defer te.CloseRows(rows)
 	if rows.Next() {
 		res := m3point.Point{}
 		err = rows.Scan(&res[0], &res[1], &res[2])
 		if err != nil {
-			return nil, m3db.MakeQsmErrorf("could not read row of %s for %d due to '%s'", PointsTable, pointId, err.Error())
+			return nil, m3util.MakeWrapQsmErrorf(err, "could not read row of %s for %d due to %v", PointsTable, pointId, err)
 		} else {
 			return &res, nil
 		}
 	}
-	return nil, m3db.MakeQsmErrorf("point id %d does not exists!", pointId)
+	return nil, m3util.MakeQsmErrorf("point id %d does not exists!", pointId)
 }
 
-func getOrCreatePointEnv(env *m3db.QsmDbEnvironment, p m3point.Point) int64 {
-	te, err := env.GetOrCreateTableExec(PointsTable)
-	if err != nil {
-		Log.Errorf("could not get points table exec due to %v", err)
-		return -1
-	}
-	return getOrCreatePointTe(te, p)
+func (pathData *ServerPathPackData) GetOrCreatePoint(p m3point.Point) int64 {
+	return getOrCreatePointTe(pathData.pointsTe, p)
 }
 
 func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
@@ -92,7 +84,8 @@ func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
 /***************************************************************/
 func RunInsertRandomPoints() {
 	m3util.SetToTestMode()
-	env := GetFullTestDb(m3util.PerfTestEnv)
+	env := GetPathDbFullEnv(m3util.PerfTestEnv)
+	pathData := GetServerPathPackData(env)
 	// increase concurrency chance with low random
 	rdMax := m3point.CInt(10)
 	nbRoutines := 100
@@ -104,7 +97,7 @@ func RunInsertRandomPoints() {
 		go func() {
 			for i := 0; i < nbRound; i++ {
 				randomPoint := m3point.CreateRandomPoint(rdMax)
-				id := getOrCreatePointEnv(env, randomPoint)
+				id := pathData.GetOrCreatePoint(randomPoint)
 				if id <= 0 {
 					Log.Errorf("failed to insert %v got %d id", randomPoint, id)
 				}

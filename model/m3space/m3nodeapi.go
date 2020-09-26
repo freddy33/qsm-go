@@ -8,21 +8,21 @@ import (
 
 type Node interface {
 	fmt.Stringer
-	GetPoint() *m3point.Point
+	GetPoint() (*m3point.Point, error)
 
 	IsEmpty() bool
 	HasRoot(space *Space) bool
 
 	GetNbEvents() int
 	GetNbLatestEvents() int
-	GetLatestEventIds() []EventID
+	GetLatestEventIds() []EventId
 	GetNbActiveEvents(space *Space) int
-	GetActiveEventIds(space *Space) []EventID
+	GetActiveEventIds(space *Space) []EventId
 	GetActiveLinks(space *Space) NodeLinkList
 
-	IsEventAlreadyPresent(id EventID) bool
+	IsEventAlreadyPresent(id EventId) bool
 
-	GetPathNode(id EventID) m3path.PathNode
+	GetPathNode(id EventId) (m3path.PathNode, error)
 
 	GetAccessed(evt *Event) DistAndTime
 
@@ -41,13 +41,13 @@ type Node interface {
 
 	GetStateString(space *Space) string
 
-	addPathNode(id EventID, pn m3path.PathNode, space *Space)
+	addPathNode(id EventId, pn m3path.PathNode, space *Space)
 }
 
 type NodeEvent interface {
-	GetEventId() EventID
+	GetEventId() EventId
 	GetPathNodeId() int64
-	GetPathNode() m3path.PathNode
+	GetPathNode() (m3path.PathNode, error)
 
 	GetAccessedTime() DistAndTime
 	GetDistFromCurrent(space *Space) DistAndTime

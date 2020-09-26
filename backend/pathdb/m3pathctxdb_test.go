@@ -15,7 +15,7 @@ func TestNodeSyncPool(t *testing.T) {
 	assert.Equal(t, int64(-1), pn.id)
 	assert.Equal(t, -1, pn.pathCtxId)
 	for i := 0; i < 3; i++ {
-		assert.Equal(t, int64(-3), pn.linkNodeIds[1])
+		assert.Equal(t, int64(-3), pn.linkIds[1])
 	}
 
 	pn.release()
@@ -27,15 +27,12 @@ func TestMakeNewPathCtx(t *testing.T) {
 	Log.SetDebug()
 	m3point.Log.SetDebug()
 	m3util.SetToTestMode()
-	env := GetFullTestDb(m3util.PathTestEnv)
-	start := time.Now()
-	InitializePathDBEnv(env)
-	endInit := time.Now()
-	Log.Infof("Init DB took %v", endInit.Sub(start))
+	env := GetPathDbFullEnv(m3util.PathTestEnv)
 
-	ppd := pointdb.GetPointPackData(env)
+	pointData := pointdb.GetPointPackData(env)
+	pathData := GetServerPathPackData(env)
 
-	growthCtx := ppd.GetGrowthContextById(40)
+	growthCtx := pointData.GetGrowthContextById(40)
 	assert.NotNil(t, growthCtx)
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())
@@ -57,7 +54,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, pn, pathCtxDb.rootNode)
 
 	assert.Equal(t, pathCtxDb.rootNode.pathCtxId, ctxId)
-	assert.Equal(t, pathCtxDb.rootNode.pointId, getOrCreatePointEnv(env, testPoint))
+	assert.Equal(t, pathCtxDb.rootNode.pointId, pathData.GetOrCreatePoint(testPoint))
 	assert.Equal(t, 2601, pathCtxDb.rootNode.pathBuilderId)
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
@@ -70,7 +67,8 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.True(t, pn.HasOpenConnections())
 
 	nodeId := pathCtxDb.rootNode.id
-	loadedFromDb := pathCtxDb.getPathNodeDb(nodeId)
+	loadedFromDb, err := pathCtxDb.GetPathNodeDb(nodeId)
+	assert.NoError(t, err)
 	assert.NotNil(t, loadedFromDb)
 	assert.Equal(t, ctxId, loadedFromDb.pathCtxId)
 	assert.Equal(t, pathCtxDb, loadedFromDb.pathCtx)
@@ -81,7 +79,6 @@ func TestMakeNewPathCtx(t *testing.T) {
 	Log.Infof("root node from db is %s", loadedFromDb.String())
 
 	rootCreated := time.Now()
-	Log.Infof("Total create root DB test took %v", rootCreated.Sub(endInit))
 
 	pathCtx.MoveToNextNodes()
 	assert.Equal(t, 3, pathCtx.GetNumberOfOpenNodes())

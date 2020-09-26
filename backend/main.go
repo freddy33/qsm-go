@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/pointdb"
+	"github.com/freddy33/qsm-go/backend/spacedb"
 	"log"
 	"net/http"
 	"os"
@@ -95,12 +96,13 @@ func main() {
 			runServer = true
 			didSomething = true
 		case "gentxt":
-			m3server.GenerateTextFilesEnv(m3db.GetEnvironment(m3util.GetDefaultEnvId()))
+			m3server.GenerateTextFilesEnv(spacedb.GetSpaceDbFullEnv(m3util.GetDefaultEnvId()))
 			didSomething = true
 		case "filldb":
 			envID := m3util.GetDefaultEnvId()
 			env := m3db.GetEnvironment(envID)
-			pointdb.FillDbEnv(env)
+			pointData := pointdb.GetPointPackData(env)
+			pointData.FillDb()
 			didSomething = true
 		case "-env":
 			m3util.SetDefaultEnvId(m3util.ReadEnvId("backend main", others[i+1]))

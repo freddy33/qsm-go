@@ -5,10 +5,10 @@ import (
 	"github.com/freddy33/qsm-go/model/m3point"
 )
 
-type EventID int
+type EventId int
 
 const (
-	NilEvent = EventID(-1)
+	NilEvent = EventId(-1)
 )
 
 type DistAndTime int
@@ -25,8 +25,27 @@ const (
 // TODO: This should be in the space data entry of the environment
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 
+type EventNodeIfc interface {
+	GetId() int64
+	GetEventId() EventId
+	GetPointId() int64
+	GetCreationTime() DistAndTime
+	GetD() DistAndTime
+	GetPoint() (*m3point.Point, error)
+	GetPathNode() (m3path.PathNode, error)
+}
+
+type EventIfc interface {
+	GetId() EventId
+	GetSpace() SpaceIfc
+	GetPathContext() m3path.PathContext
+	GetCreationTime() DistAndTime
+	GetColor() EventColor
+	GetCenterNode() EventNodeIfc
+}
+
 type Event struct {
-	id          EventID
+	Id          EventId
 	space       *Space
 	pathNodeMap m3path.PathNodeMap
 	node        Node
@@ -35,14 +54,34 @@ type Event struct {
 	PathContext m3path.PathContext
 }
 
-type SpacePathNodeMap struct {
-	space *Space
-	id    EventID
-	size  int
+func (evt *Event) GetId() EventId {
+	return evt.Id
 }
 
-func (spnm *SpacePathNodeMap) Size() int {
-	panic("implement me")
+func (evt *Event) GetSpace() SpaceIfc {
+	return evt.space
+}
+
+func (evt *Event) GetPathContext() m3path.PathContext {
+	return evt.PathContext
+}
+
+func (evt *Event) GetCreationTime() DistAndTime {
+	return evt.created
+}
+
+func (evt *Event) GetColor() EventColor {
+	return evt.color
+}
+
+func (evt *Event) GetCenterNode() EventNodeIfc {
+	return evt.node.(*BaseNode).head.cur
+}
+
+type SpacePathNodeMap struct {
+	space *Space
+	id    EventId
+	size  int
 }
 
 func (spnm *SpacePathNodeMap) Clear() {
@@ -57,14 +96,17 @@ func (spnm *SpacePathNodeMap) Range(f func(point m3point.Point, pn m3path.PathNo
 // SpacePathNodeMap Functions
 /***************************************************************/
 
-func (spnm *SpacePathNodeMap) GetSize() int {
+func (spnm *SpacePathNodeMap) Size() int {
 	return spnm.size
 }
 
 func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) m3path.PathNode {
 	res, ok := spnm.space.nodesMap.Load(p)
 	if ok {
-		pathNode := res.(Node).GetPathNode(spnm.id)
+		pathNode, err := res.(Node).GetPathNode(spnm.id)
+		if err != nil {
+			Log.Error(err)
+		}
 		if pathNode != nil {
 			return pathNode
 		}
@@ -96,14 +138,14 @@ func (spnm *SpacePathNodeMap) IsActive(pathNode m3path.PathNode) bool {
 // Event Functions
 /***************************************************************/
 
-func (space *Space) CreateEvent(ctxType m3point.GrowthType, idx int, offset int, p m3point.Point, k EventColor) *Event {
+func (space *Space) CreateEventAtZero(ctxType m3point.GrowthType, idx int, offset int, p m3point.Point, k EventColor) *Event {
 	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
 	space.lastIdCounter++
 	ppd := space.GetPointPackData()
 	ctx := space.GetPathPackData().CreatePathCtxFromAttributes(ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset, p)
 	e := Event{pnm.id, space, pnm,nil, space.CurrentTime, k, ctx}
 	space.events[pnm.id] = &e
-	ctx.InitRootNode(p)
+	//ctx.InitRootNode(p)
 	// TODO: Remove PathNodeMap need. Use DB
 	pnm.AddPathNode(ctx.GetRootPathNode())
 	e.node = space.GetNode(p)
@@ -113,7 +155,7 @@ func (space *Space) CreateEvent(ctxType m3point.GrowthType, idx int, offset int,
 
 func (space *Space) CreateEventFromColor(p m3point.Point, k EventColor) *Event {
 	idx, offset := getIndexAndOffsetForColor(k)
-	return space.CreateEvent(8, idx, offset, p, k)
+	return space.CreateEventAtZero(8, idx, offset, p, k)
 }
 
 func getIndexAndOffsetForColor(k EventColor) (int, int) {
@@ -133,5 +175,5 @@ func getIndexAndOffsetForColor(k EventColor) (int, int) {
 
 func (evt *Event) LatestDistance() DistAndTime {
 	// DistAndTime and time are the same...
-	return DistAndTime(evt.space.CurrentTime - evt.created)
+	return evt.space.CurrentTime - evt.created
 }

@@ -21,11 +21,6 @@ func init() {
 	m3db.AddTableDef(creatPathNodesTableDef())
 }
 
-func InitializePathDBEnv(env *m3db.QsmDbEnvironment) {
-	pointdb.InitializePointDBEnv(env, true)
-	createTablesEnv(env)
-}
-
 const (
 	FindPointIdPerCoord = 0
 	SelectPointPerId    = 1
@@ -140,39 +135,36 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	return &res
 }
 
-func createTablesEnv(env *m3db.QsmDbEnvironment) {
-	_, err := env.GetOrCreateTableExec(PointsTable)
+func (pathData *ServerPathPackData) createTables() {
+	var err error
+	pathData.pointsTe, err = pathData.env.GetOrCreateTableExec(PointsTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PointsTable, err)
 		return
 	}
-	_, err = env.GetOrCreateTableExec(PathContextsTable)
+	pathData.pathCtxTe, err = pathData.env.GetOrCreateTableExec(PathContextsTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PathContextsTable, err)
 		return
 	}
-	_, err = env.GetOrCreateTableExec(PathNodesTable)
+	pathData.pathNodesTe, err = pathData.env.GetOrCreateTableExec(PathNodesTable)
 	if err != nil {
 		Log.Fatalf("could not create table %s due to %v", PathNodesTable, err)
 		return
 	}
 }
 
-/***************************************************************/
-// Utility methods for test
-/***************************************************************/
-
 var dbMutex sync.Mutex
 var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
-func GetFullTestDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	env := pointdb.GetServerFullTestDb(envId)
+func GetPathDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+	env := pointdb.GetPointDbFullEnv(envId)
 	checkEnv(env)
 	return env
 }
 
-func GetCleanTempDb(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
-	env := pointdb.GetCleanTempDb(envId)
+func GetPathDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+	env := pointdb.GetPointDbCleanEnv(envId)
 	checkEnv(env)
 	return env
 }
@@ -182,8 +174,9 @@ func checkEnv(env *m3db.QsmDbEnvironment) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if !testDbFilled[envId] {
-		pointdb.FillDbEnv(env)
-		createTablesEnv(env)
+		pointData := pointdb.GetPointPackData(env)
+		pointData.FillDb()
+		GetServerPathPackData(env).createTables()
 		testDbFilled[envId] = true
 	}
 }

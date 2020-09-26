@@ -9,7 +9,11 @@ import (
 
 type ServerPathPackData struct {
 	m3path.BasePathPackData
-	Env *m3db.QsmDbEnvironment
+	env *m3db.QsmDbEnvironment
+
+	pointsTe    *m3db.TableExec
+	pathCtxTe   *m3db.TableExec
+	pathNodesTe *m3db.TableExec
 
 	// All PathContexts centered at origin with growth type + offset
 	AllCenterContexts       map[m3point.GrowthType][]m3path.PathContext
@@ -19,29 +23,29 @@ type ServerPathPackData struct {
 func makeServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	res := new(ServerPathPackData)
 	res.EnvId = env.GetId()
-	res.Env = env.(*m3db.QsmDbEnvironment)
+	res.env = env.(*m3db.QsmDbEnvironment)
 	res.PathCtxMap = make(map[int]m3path.PathContext, 2^8)
 	res.AllCenterContexts = make(map[m3point.GrowthType][]m3path.PathContext)
 	res.AllCenterContextsLoaded = false
 	return res
 }
 
-func GetServerPathPackData(env m3util.QsmEnvironment) m3path.PathPackDataIfc {
+func GetServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	if env.GetData(m3util.PathIdx) == nil {
 		env.SetData(m3util.PathIdx, makeServerPathPackData(env))
 	}
-	return env.GetData(m3util.PathIdx).(m3path.PathPackDataIfc)
+	return env.GetData(m3util.PathIdx).(*ServerPathPackData)
 }
 
-func (ppd *ServerPathPackData) addCenterPathContext(pathCtx m3path.PathContext) {
-	if len(ppd.AllCenterContexts[pathCtx.GetGrowthType()]) == 0 {
+func (pathData *ServerPathPackData) addCenterPathContext(pathCtx m3path.PathContext) {
+	if len(pathData.AllCenterContexts[pathCtx.GetGrowthType()]) == 0 {
 		nbIndexes := pathCtx.GetGrowthType().GetNbIndexes()
-		ppd.AllCenterContexts[pathCtx.GetGrowthType()] = make([]m3path.PathContext, nbIndexes)
+		pathData.AllCenterContexts[pathCtx.GetGrowthType()] = make([]m3path.PathContext, nbIndexes)
 		for i := 0; i < nbIndexes; i++ {
-			ppd.AllCenterContexts[pathCtx.GetGrowthType()][i] = nil
+			pathData.AllCenterContexts[pathCtx.GetGrowthType()][i] = nil
 		}
 	}
-	if ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] == nil {
-		ppd.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] = pathCtx
+	if pathData.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] == nil {
+		pathData.AllCenterContexts[pathCtx.GetGrowthType()][pathCtx.GetGrowthOffset()] = pathCtx
 	}
 }

@@ -8,4 +8,4 @@ require (
 
 replace github.com/freddy33/qsm-go/m3util => ../m3util
 
-go 1.13
+go 1.14

@@ -2,6 +2,7 @@ package pointdb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"sort"
 )
@@ -13,7 +14,7 @@ const (
 type CubeListBuilder struct {
 	ppd       *ServerPointPackData
 	growthCtx m3point.GrowthContext
-	allCubes  []m3point.CubeOfTrioIndex
+	allCubes  []CubeOfTrioIndex
 }
 
 func init() {
@@ -57,7 +58,7 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 		" middle_edges_MXPY, middle_edges_MXMY, middle_edges_MXPZ, middle_edges_MXMZ, " +
 		" middle_edges_PYPZ, middle_edges_PYMZ, middle_edges_MYPZ, middle_edges_MYMZ" +
 		" from %s"
-	res.ExpectedCount = m3point.TotalNumberOfCubes
+	res.ExpectedCount = TotalNumberOfCubes
 	return &res
 }
 
@@ -65,33 +66,42 @@ func createContextCubesTableDef() *m3db.TableDefinition {
 // ServerPointPackData Functions for Cubes Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadContextCubes() map[m3point.CubeKeyId]int {
-	te, rows := ppd.Env.SelectAllForLoad(TrioCubesTable)
-	res := make(map[m3point.CubeKeyId]int, te.TableDef.ExpectedCount)
+func (ppd *ServerPointPackData) loadContextCubes() error {
+	te := ppd.trioCubesTe
+	rows, err := te.SelectAllForLoad()
+	if err != nil {
+		return err
+	}
+	res := make(map[CubeKeyId]int, te.TableDef.ExpectedCount)
 
 	loaded := 0
 	for rows.Next() {
 		var cubeId int
 		var growthCtxId int
-		cube := m3point.CubeOfTrioIndex{}
+		cube := CubeOfTrioIndex{}
 		err := rows.Scan(&cubeId, &growthCtxId, &cube.Center,
 			&cube.CenterFaces[0], &cube.CenterFaces[1], &cube.CenterFaces[2], &cube.CenterFaces[3], &cube.CenterFaces[4], &cube.CenterFaces[5],
 			&cube.MiddleEdges[0], &cube.MiddleEdges[1], &cube.MiddleEdges[2], &cube.MiddleEdges[3],
 			&cube.MiddleEdges[4], &cube.MiddleEdges[5], &cube.MiddleEdges[6], &cube.MiddleEdges[7],
 			&cube.MiddleEdges[8], &cube.MiddleEdges[9], &cube.MiddleEdges[10], &cube.MiddleEdges[11])
 		if err != nil {
-			Log.Errorf("failed to load trio context line %d due to %v", loaded, err)
+			return m3util.MakeWrapQsmErrorf(err, "failed to load trio context line %d due to %v", loaded, err)
 		} else {
-			key := m3point.CubeKeyId{GrowthCtxId: growthCtxId, Cube: cube}
+			key := CubeKeyId{GrowthCtxId: growthCtxId, Cube: cube}
 			res[key] = cubeId
 		}
 		loaded++
 	}
-	return res
+
+	ppd.cubeIdsPerKey = res
+	ppd.cubesLoaded = true
+
+	return nil
 }
 
 func (ppd *ServerPointPackData) saveAllContextCubes() (int, error) {
-	te, inserted, toFill, err := ppd.Env.GetForSaveAll(TrioCubesTable)
+	te := ppd.trioCubesTe
+	inserted, toFill, err := te.GetForSaveAll()
 	if err != nil {
 		return 0, err
 	}
@@ -108,11 +118,12 @@ func (ppd *ServerPointPackData) saveAllContextCubes() (int, error) {
 				cube.MiddleEdges[4], cube.MiddleEdges[5], cube.MiddleEdges[6], cube.MiddleEdges[7],
 				cube.MiddleEdges[8], cube.MiddleEdges[9], cube.MiddleEdges[10], cube.MiddleEdges[11])
 			if err != nil {
-				Log.Error(err)
+				return inserted, err
 			} else {
 				inserted++
 			}
 		}
+		te.SetFilled()
 	}
 	return inserted, nil
 }
@@ -121,8 +132,8 @@ func (ppd *ServerPointPackData) saveAllContextCubes() (int, error) {
 // CubeListBuilder Functions
 /***************************************************************/
 
-func (ppd *ServerPointPackData) calculateAllContextCubes() map[m3point.CubeKeyId]int {
-	res := make(map[m3point.CubeKeyId]int, m3point.TotalNumberOfCubes)
+func (ppd *ServerPointPackData) calculateAllContextCubes() map[CubeKeyId]int {
+	res := make(map[CubeKeyId]int, TotalNumberOfCubes)
 	cubeIdx := 1
 	for _, growthCtx := range ppd.GetAllGrowthContexts() {
 		cl := CubeListBuilder{ppd: ppd, growthCtx: growthCtx}
@@ -160,7 +171,7 @@ func (ppd *ServerPointPackData) calculateAllContextCubes() map[m3point.CubeKeyId
 			return false
 		})
 		for _, cube := range cl.allCubes {
-			key := m3point.CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: cube}
+			key := CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: cube}
 			_, alreadyIn := res[key]
 			if !alreadyIn {
 				res[key] = cubeIdx
@@ -172,23 +183,23 @@ func (ppd *ServerPointPackData) calculateAllContextCubes() map[m3point.CubeKeyId
 }
 
 func (cl *CubeListBuilder) populate(max m3point.CInt) {
-	allCubesMap := make(map[m3point.CubeOfTrioIndex]int)
+	allCubesMap := make(map[CubeOfTrioIndex]int)
 	// For center populate for all offsets
 	maxOffset := cl.growthCtx.GetGrowthType().GetMaxOffset()
 	for offset := 0; offset < maxOffset; offset++ {
-		cube := m3point.CreateTrioCube(cl.ppd, cl.growthCtx, offset, Origin)
+		cube := CreateTrioCube(cl.ppd, cl.growthCtx, offset, Origin)
 		allCubesMap[cube]++
 	}
 	// Go through space
 	for x := -max; x <= max; x++ {
 		for y := -max; y <= max; y++ {
 			for z := -max; z <= max; z++ {
-				cube := m3point.CreateTrioCube(cl.ppd, cl.growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
+				cube := CreateTrioCube(cl.ppd, cl.growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
 				allCubesMap[cube]++
 			}
 		}
 	}
-	cl.allCubes = make([]m3point.CubeOfTrioIndex, len(allCubesMap))
+	cl.allCubes = make([]CubeOfTrioIndex, len(allCubesMap))
 	idx := 0
 	for c := range allCubesMap {
 		cl.allCubes[idx] = c
@@ -197,7 +208,7 @@ func (cl *CubeListBuilder) populate(max m3point.CInt) {
 }
 
 func (cl *CubeListBuilder) exists(offset int, c m3point.Point) bool {
-	toFind := m3point.CreateTrioCube(cl.ppd, cl.growthCtx, offset, c)
+	toFind := CreateTrioCube(cl.ppd, cl.growthCtx, offset, c)
 	for _, c := range cl.allCubes {
 		if c == toFind {
 			return true
@@ -208,8 +219,8 @@ func (cl *CubeListBuilder) exists(offset int, c m3point.Point) bool {
 
 func (ppd *ServerPointPackData) getCubeList(growthCtx m3point.GrowthContext) *CubeListBuilder {
 	ppd.CheckCubesInitialized()
-	res := CubeListBuilder{ppd: ppd, growthCtx: growthCtx, allCubes: make([]m3point.CubeOfTrioIndex, 0, 100)}
-	for cubeKey := range ppd.CubeIdsPerKey {
+	res := CubeListBuilder{ppd: ppd, growthCtx: growthCtx, allCubes: make([]CubeOfTrioIndex, 0, 100)}
+	for cubeKey := range ppd.cubeIdsPerKey {
 		if cubeKey.GrowthCtxId == growthCtx.GetId() {
 			res.allCubes = append(res.allCubes, cubeKey.Cube)
 		}

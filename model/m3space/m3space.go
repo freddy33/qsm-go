@@ -19,10 +19,10 @@ type Space struct {
 	env m3util.QsmEnvironment
 
 	// the int value of the next event id created
-	lastIdCounter EventID
+	lastIdCounter EventId
 	maxEvents     int
 
-	// The slice of events where the index is the EventID
+	// The slice of events where the index is the EventId
 	events []*Event
 
 	// The current time of space time
@@ -50,6 +50,18 @@ type Space struct {
 	EventOutgrowthOldThreshold DistAndTime
 	// DistAndTime from latest above which to consider event outgrowth dead
 	EventOutgrowthDeadThreshold DistAndTime
+}
+
+func (space *Space) GetId() int {
+	return 1
+}
+
+func (space *Space) GetName() string {
+	return "OldFaithful"
+}
+
+func (space *Space) CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int, creationTime DistAndTime, center m3point.Point, color EventColor) (EventIfc, error) {
+	panic("not implemented here")
 }
 
 func MakeSpace(env m3util.QsmEnvironment, max m3point.CInt) Space {
@@ -120,7 +132,7 @@ func (space *Space) GetNbEvents() int {
 	return res
 }
 
-func (space *Space) GetEvent(id EventID) *Event {
+func (space *Space) GetEvent(id EventId) *Event {
 	return space.events[id]
 }
 
