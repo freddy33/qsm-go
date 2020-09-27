@@ -238,6 +238,7 @@ func (phm *pointHashMap) Range(f func(point Point, value interface{}) bool, nbPr
 						}
 						if f(entry.point, entry.value) {
 							// TODO: find a way to stop all go routines
+							wg.Done()
 							return
 						}
 						entry = entry.next
