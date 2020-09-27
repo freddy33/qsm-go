@@ -138,14 +138,18 @@ func (spnm *SpacePathNodeMap) IsActive(pathNode m3path.PathNode) bool {
 // Event Functions
 /***************************************************************/
 
-func (space *Space) CreateEventAtZero(ctxType m3point.GrowthType, idx int, offset int, p m3point.Point, k EventColor) *Event {
+func (space *Space) CreateEventAtZeroTime(ctxType m3point.GrowthType, idx int, offset int, p m3point.Point, k EventColor) *Event {
 	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
 	space.lastIdCounter++
 	ppd := space.GetPointPackData()
-	ctx := space.GetPathPackData().CreatePathCtxFromAttributes(ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset, p)
+	ctx, err := space.GetPathPackData().CreatePathCtxFromAttributes(ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset)
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
 	e := Event{pnm.id, space, pnm,nil, space.CurrentTime, k, ctx}
 	space.events[pnm.id] = &e
-	//ctx.InitRootNode(p)
+	//ctx.initRootNode(p)
 	// TODO: Remove PathNodeMap need. Use DB
 	pnm.AddPathNode(ctx.GetRootPathNode())
 	e.node = space.GetNode(p)
@@ -155,7 +159,7 @@ func (space *Space) CreateEventAtZero(ctxType m3point.GrowthType, idx int, offse
 
 func (space *Space) CreateEventFromColor(p m3point.Point, k EventColor) *Event {
 	idx, offset := getIndexAndOffsetForColor(k)
-	return space.CreateEventAtZero(8, idx, offset, p, k)
+	return space.CreateEventAtZeroTime(8, idx, offset, p, k)
 }
 
 func getIndexAndOffsetForColor(k EventColor) (int, int) {

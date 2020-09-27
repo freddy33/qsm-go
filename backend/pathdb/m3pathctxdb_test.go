@@ -37,45 +37,42 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())
 	assert.Equal(t, 0, growthCtx.GetGrowthIndex())
-	pathCtx := MakePathContextDBFromGrowthContext(env, growthCtx, 0)
+	pathCtx, err := pathData.CreatePathCtxDb(growthCtx, 0)
+	assert.NoError(t, err)
 	assert.NotNil(t, pathCtx)
-	assert.Equal(t, 0, pathCtx.GetNumberOfOpenNodes())
-	pathCtxDb, ok := pathCtx.(*PathContextDb)
-	assert.True(t, ok)
-	ctxId := pathCtxDb.id
+	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
+	ctxId := pathCtx.id
 	assert.True(t, ctxId > 0)
-	assert.Nil(t, pathCtxDb.rootNode)
 
-	testPoint := m3point.XFirst
-	pathCtx.InitRootNode(testPoint)
+	testPoint := m3point.Origin
 	pn := pathCtx.GetRootPathNode()
-	assert.NotNil(t, pathCtxDb.rootNode)
+	assert.NotNil(t, pathCtx.rootNode)
 	assert.NotNil(t, pn)
-	assert.Equal(t, pn, pathCtxDb.rootNode)
+	assert.Equal(t, pn, pathCtx.rootNode)
 
-	assert.Equal(t, pathCtxDb.rootNode.pathCtxId, ctxId)
-	assert.Equal(t, pathCtxDb.rootNode.pointId, pathData.GetOrCreatePoint(testPoint))
-	assert.Equal(t, 2601, pathCtxDb.rootNode.pathBuilderId)
+	assert.Equal(t, pathCtx.rootNode.pathCtxId, ctxId)
+	assert.Equal(t, pathCtx.rootNode.pointId, pathData.GetOrCreatePoint(testPoint))
+	assert.Equal(t, 2601, pathCtx.rootNode.pathBuilderId)
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
 
-	assert.NotNil(t, pathCtxDb.openNodeBuilder)
-	assert.Equal(t, pathCtxDb.rootNode, pathCtxDb.openNodeBuilder.openNodesMap.GetPathNode(testPoint))
+	assert.NotNil(t, pathCtx.openNodeBuilder)
+	assert.Equal(t, pathCtx.rootNode, pathCtx.openNodeBuilder.openNodesMap.GetPathNode(testPoint))
 
 	assert.Equal(t, 0, pn.D())
 	assert.True(t, pn.IsRoot())
 	assert.True(t, pn.HasOpenConnections())
 
-	nodeId := pathCtxDb.rootNode.id
-	loadedFromDb, err := pathCtxDb.GetPathNodeDb(nodeId)
+	nodeId := pathCtx.rootNode.id
+	loadedFromDb, err := pathCtx.GetPathNodeDb(nodeId)
 	assert.NoError(t, err)
 	assert.NotNil(t, loadedFromDb)
 	assert.Equal(t, ctxId, loadedFromDb.pathCtxId)
-	assert.Equal(t, pathCtxDb, loadedFromDb.pathCtx)
+	assert.Equal(t, pathCtx, loadedFromDb.pathCtx)
 	assert.Equal(t, nodeId, loadedFromDb.id)
 	assert.Equal(t, 2601, loadedFromDb.pathBuilderId)
 
-	Log.Infof("root node is %s", pathCtxDb.rootNode.String())
+	Log.Infof("root node is %s", pathCtx.rootNode.String())
 	Log.Infof("root node from db is %s", loadedFromDb.String())
 
 	rootCreated := time.Now()

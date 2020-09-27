@@ -124,10 +124,10 @@ func CreateAllIndexes(nbIndexes int) ([][4]int, [12]int) {
 }
 
 func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
-	space.CreateEventAtZero(ctxTypes[0], indexes[0], offsets[0], m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
-	space.CreateEventAtZero(ctxTypes[1], indexes[1], offsets[1], m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
-	space.CreateEventAtZero(ctxTypes[2], indexes[2], offsets[2], m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
-	space.CreateEventAtZero(ctxTypes[3], indexes[3], offsets[3], m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
+	space.CreateEventAtZeroTime(ctxTypes[0], indexes[0], offsets[0], m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
+	space.CreateEventAtZeroTime(ctxTypes[1], indexes[1], offsets[1], m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
+	space.CreateEventAtZeroTime(ctxTypes[2], indexes[2], offsets[2], m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
+	space.CreateEventAtZeroTime(ctxTypes[3], indexes[3], offsets[3], m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
 func RunSpacePyramidWithParams(env m3util.QsmEnvironment, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {

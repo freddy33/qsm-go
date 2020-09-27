@@ -22,19 +22,14 @@ type PathContextDb struct {
 	openNodeBuilder *OpenNodeBuilder
 }
 
-func (pathData *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
-	pathContext := MakePathContextDBFromGrowthContext(pathData.env, growthCtx, offset)
-	pathContext.InitRootNode(center)
-	if center == m3point.Origin {
-		pathData.addCenterPathContext(pathContext)
-	}
-	return pathContext
+func (pathData *ServerPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) (m3path.PathContext, error) {
+	return pathData.CreatePathCtxDb(growthCtx, offset)
 }
 
-func MakePathContextDBFromGrowthContext(env m3util.QsmEnvironment, growthCtx m3point.GrowthContext, offset int) m3path.PathContext {
+func (pathData *ServerPathPackData) CreatePathCtxDb(growthCtx m3point.GrowthContext, offset int) (*PathContextDb, error) {
 	pathCtx := PathContextDb{}
-	pathCtx.pathData = GetServerPathPackData(env)
-	pathCtx.pointData = pointdb.GetPointPackData(env)
+	pathCtx.pathData = pathData
+	pathCtx.pointData = pointdb.GetPointPackData(pathData.env)
 	pathCtx.growthCtx = growthCtx
 	pathCtx.growthOffset = offset
 	pathCtx.rootNode = nil
@@ -42,13 +37,63 @@ func MakePathContextDBFromGrowthContext(env m3util.QsmEnvironment, growthCtx m3p
 
 	err := pathCtx.insertInDb()
 	if err != nil {
-		Log.Errorf("could not save new path context %s due to %v", pathCtx.String(), err)
-		return nil
+		return nil, m3util.MakeWrapQsmErrorf(err, "could not save new path context %s due to %v", pathCtx.String(), err)
 	}
 
-	ppd := GetServerPathPackData(env)
-	ppd.AddPathCtx(&pathCtx)
-	return &pathCtx
+	pathData.pathCtxMap[pathCtx.GetId()] = &pathCtx
+
+	err = pathCtx.initRootNode()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pathCtx, nil
+}
+
+func (pathCtx *PathContextDb) initRootNode() error {
+	if pathCtx.id <= 0 {
+		return m3util.MakeQsmErrorf("trying to init root node on not inserted in DB path context %s", pathCtx.String())
+	}
+
+	// the path builder enforce origin as the center
+	nodeBuilder := pathCtx.pointData.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
+
+	rootNode := getNewPathNodeDb()
+
+	rootNode.pathCtxId = pathCtx.id
+	rootNode.pathCtx = pathCtx
+
+	rootNode.SetPathBuilder(nodeBuilder)
+
+	rootNode.SetTrioId(nodeBuilder.GetTrioIndex())
+
+	// But the path node here points to real points in space
+	center := m3point.Origin
+	rootNode.pointId = getOrCreatePointTe(pathCtx.pointsTe(), center)
+	rootNode.point = &center
+	rootNode.d = 0
+
+	err := rootNode.syncInDb()
+	if err != nil {
+		return m3util.MakeWrapQsmErrorf(err, "could not insert the root node %s of path context %s due to %v", rootNode.String(), pathCtx.String(), err)
+	}
+
+	pathCtx.rootNode = rootNode
+
+	rowAffected, err := pathCtx.pathData.pathCtxTe.Update(UpdatePathBuilderId, pathCtx.id, rootNode.pathBuilderId)
+	if err != nil {
+		return m3util.MakeWrapQsmErrorf(err, "could not update path context %s with new path builder id %d due to %v", pathCtx.String(), rootNode.pathBuilderId, err)
+	}
+	if rowAffected != 1 {
+		return m3util.MakeQsmErrorf("updating path context %s with new path builder id %d returned wrong rows %d", pathCtx.String(), rootNode.pathBuilderId, rowAffected)
+	}
+
+	onb := createNewNodeBuilder(nil)
+	onb.pathCtx = pathCtx
+	onb.addPathNode(rootNode)
+
+	pathCtx.openNodeBuilder = onb
+	return nil
 }
 
 func (pathCtx *PathContextDb) pathNodesTe() *m3db.TableExec {
@@ -99,53 +144,6 @@ func (pathCtx *PathContextDb) GetCurrentDist() int {
 func (pathCtx *PathContextDb) GetPathNodeMap() m3path.PathNodeMap {
 	Log.Fatalf("in DB path context %s never call GetPathNodeMap", pathCtx.String())
 	return nil
-}
-
-func (pathCtx *PathContextDb) InitRootNode(center m3point.Point) {
-	if pathCtx.id <= 0 {
-		Log.Fatalf("trying to init root node on not inserted in DB path context %s", pathCtx.String())
-		return
-	}
-
-	// the path builder enforce origin as the center
-	nodeBuilder := pathCtx.pointData.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
-
-	rootNode := getNewPathNodeDb()
-
-	rootNode.pathCtxId = pathCtx.id
-	rootNode.pathCtx = pathCtx
-
-	rootNode.SetPathBuilder(nodeBuilder)
-
-	rootNode.SetTrioId(nodeBuilder.GetTrioIndex())
-
-	// But the path node here points to real points in space
-	rootNode.pointId = getOrCreatePointTe(pathCtx.pointsTe(), center)
-	rootNode.point = &center
-	rootNode.d = 0
-
-	err := rootNode.syncInDb()
-	if err != nil {
-		Log.Fatalf("could not insert the root node %s of path context %s due to %v", rootNode.String(), pathCtx.String(), err)
-	}
-
-	pathCtx.rootNode = rootNode
-
-	rowAffected, err := pathCtx.pathData.pathCtxTe.Update(UpdatePathBuilderId, pathCtx.id, rootNode.pathBuilderId)
-	if err != nil {
-		Log.Errorf("could not update path context %s with new path builder id %d due to %v", pathCtx.String(), rootNode.pathBuilderId, err)
-		return
-	}
-	if rowAffected != 1 {
-		Log.Errorf("updating path context %s with new path builder id %d returned wrong rows %d", pathCtx.String(), rootNode.pathBuilderId, rowAffected)
-		return
-	}
-
-	onb := createNewNodeBuilder(nil)
-	onb.pathCtx = pathCtx
-	onb.addPathNode(rootNode)
-
-	pathCtx.openNodeBuilder = onb
 }
 
 func (pathCtx *PathContextDb) GetRootPathNode() m3path.PathNode {

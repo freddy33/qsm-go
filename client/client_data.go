@@ -17,8 +17,8 @@ type ClientPointPackData struct {
 }
 
 type ClientPathPackData struct {
-	m3path.BasePathPackData
-	env *QsmApiEnvironment
+	env        *QsmApiEnvironment
+	pathCtxMap map[int]*PathContextCl
 }
 
 type PathContextCl struct {
@@ -111,7 +111,7 @@ func (pathCtx *PathContextCl) CountAllPathNodes() int {
 }
 
 func (pathCtx *PathContextCl) InitRootNode(center m3point.Point) {
-	panic("InitRootNode client should not be called")
+	panic("initRootNode client should not be called")
 }
 
 func (pathCtx *PathContextCl) addPathNodeFromMsg(pMsg *m3api.PathNodeMsg) *PathNodeCl {

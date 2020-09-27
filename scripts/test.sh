@@ -28,7 +28,8 @@ test_client() {
 }
 
 test_backend() {
-  cd ${rootDir}/backend && go test ./m3db/ ./pointdb/ ./pathdb/ ./spacedb/ ./m3server/
+  #cd ${rootDir}/backend && go test ./m3db/ ./pointdb/ ./pathdb/ ./spacedb/ ./m3server/
+  cd ${rootDir}/backend && go test ./m3db/ ./pointdb/ ./pathdb/
 }
 
 test_ui() {

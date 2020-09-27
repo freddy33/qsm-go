@@ -1,7 +1,6 @@
 package spacedb
 
 import (
-	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
@@ -92,9 +91,6 @@ func TestSpaceAllPyramids(t *testing.T) {
 		nbFound := 0
 		allIndexes := createAllIndexesForContext(t, 8)
 		for i, idxs := range allIndexes {
-			for k, growthType := range ctxs {
-				pathdb.MakePathContextDBFromGrowthContext(env, ppd.GetGrowthContextByTypeAndIndex(growthType, idxs[k]), offsets[k])
-			}
 			found, originalPyramid, time, finalPyramid, nbPoss := m3space.RunSpacePyramidWithParams(env, pSize, ctxs, idxs, offsets)
 			if found {
 				orgSize := m3space.GetPyramidSize(originalPyramid)
@@ -123,13 +119,6 @@ func TestSpaceRunPySize4(t *testing.T) {
 	m3space.LogStat.SetInfo()
 
 	env := getSpaceTestEnv()
-	ppd := pointdb.GetPointPackData(env)
-	growthTypes := [4]m3point.GrowthType{2, 2, 2, 2}
-	indexes := [4]int{0, 0, 0, 0}
-	offsets := [4]int{0, 0, 0, 3}
-	for k, growthType := range growthTypes {
-		pathdb.MakePathContextDBFromGrowthContext(env, ppd.GetGrowthContextByTypeAndIndex(growthType, indexes[k]), offsets[k])
-	}
 
 	found, originalPyramid, time, finalPyramid, nbPoss := m3space.RunSpacePyramidWithParams(env, 4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 0}, [4]int{0, 0, 0, 0})
 	// TODO: Reactivate after space node fix
@@ -162,12 +151,8 @@ func TestSpaceRunPySize2(t *testing.T) {
 
 func runSpaceTest(pSize m3point.CInt) {
 	env := getSpaceTestEnv()
-	ppd := pointdb.GetPointPackData(env)
 	growthTypes := [4]m3point.GrowthType{8, 8, 8, 8}
 	indexes := [4]int{0, 4, 8, 10}
 	offsets := [4]int{0, 0, 0, 4}
-	for k, growthType := range growthTypes {
-		pathdb.MakePathContextDBFromGrowthContext(env, ppd.GetGrowthContextByTypeAndIndex(growthType, indexes[k]), offsets[k])
-	}
 	m3space.RunSpacePyramidWithParams(env, pSize, growthTypes, indexes, offsets)
 }

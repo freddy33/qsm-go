@@ -128,7 +128,10 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 	}
 	centerPoint := center
 	pointId := space.pathData.GetOrCreatePoint(centerPoint)
-	pathCtx := space.pathData.CreatePathCtxFromAttributes(growthCtx, growthOffset, m3point.Origin)
+	pathCtx, err := space.pathData.CreatePathCtxFromAttributes(growthCtx, growthOffset)
+	if err != nil {
+		return nil, err
+	}
 	rootPathNode := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
 	evt := &EventDb{
 		space:        space,

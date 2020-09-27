@@ -6,44 +6,8 @@ import (
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
-	"sync"
 	"testing"
 )
-
-var allTestContextsMutex sync.Mutex
-
-func getAllTestContexts(env m3util.QsmEnvironment) map[m3point.GrowthType][]m3path.PathContext {
-	pathData := GetServerPathPackData(env)
-	if pathData.AllCenterContextsLoaded {
-		return pathData.AllCenterContexts
-	}
-
-	allTestContextsMutex.Lock()
-	defer allTestContextsMutex.Unlock()
-
-	if pathData.AllCenterContextsLoaded {
-		return pathData.AllCenterContexts
-	}
-
-	pointData := pointdb.GetPointPackData(env)
-
-	idx := 0
-	for _, growthCtx := range pointData.GetAllGrowthContexts() {
-		ctxType := growthCtx.GetGrowthType()
-		maxOffset := ctxType.GetMaxOffset()
-		if len(pathData.AllCenterContexts[ctxType]) == 0 {
-			pathData.AllCenterContexts[ctxType] = make([]m3path.PathContext, ctxType.GetNbIndexes()*maxOffset)
-			idx = 0
-		}
-		for offset := 0; offset < maxOffset; offset++ {
-			pathData.AllCenterContexts[ctxType][idx] = MakePathContextDBFromGrowthContext(env, growthCtx, offset)
-			idx++
-		}
-	}
-
-	pathData.AllCenterContextsLoaded = true
-	return pathData.AllCenterContexts
-}
 
 func TestFirstPathContextFilling(t *testing.T) {
 	Log.SetInfo()
@@ -53,20 +17,21 @@ func TestFirstPathContextFilling(t *testing.T) {
 	m3util.SetToTestMode()
 
 	env := GetPathDbFullEnv(m3util.PathTestEnv)
-	allCtx := getAllTestContexts(env)
+	pathData := GetServerPathPackData(env)
+	allCtx := pathData.GetAllPathContexts()
 	for _, ctxType := range m3point.GetAllGrowthTypes() {
-		for _, ctx := range allCtx[ctxType] {
-			fillPathContext(t, ctx, 12)
-			Log.Infof("Run for %s got %d points %d last open end path", ctx.String(), ctx.CountAllPathNodes(), ctx.GetNumberOfOpenNodes())
+		for _, pathCtx := range allCtx[ctxType] {
+			fillPathContext(t, pathCtx, 12)
+			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
 			if Log.IsDebug() {
-				Log.Debug(ctx.DumpInfo())
+				Log.Debug(pathCtx.DumpInfo())
 			}
 			break
 		}
 	}
 }
 
-func fillPathContext(t *testing.T, pathCtx m3path.PathContext, until int) {
+func fillPathContext(t *testing.T, pathCtx *PathContextDb, until int) {
 	growthCtx := pathCtx.GetGrowthCtx()
 	ppd := pointdb.GetPointPackData(growthCtx.GetEnv())
 	trIdx := growthCtx.GetBaseTrioIndex(ppd, 0, pathCtx.GetGrowthOffset())
@@ -78,7 +43,6 @@ func fillPathContext(t *testing.T, pathCtx m3path.PathContext, until int) {
 
 	Log.Debug(growthCtx.String(), td.String())
 
-	pathCtx.InitRootNode(m3point.Origin)
 	pathCtx.MoveToNextNodes()
 
 	//pathNodeMap := pathCtx.GetPathNodeMap()

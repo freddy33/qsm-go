@@ -50,7 +50,7 @@ func Test_Evt1_Type8_D0_Old20_Same4(t *testing.T) {
 		// No test of the old mechanism
 		space.EventOutgrowthOldThreshold = m3space.DistAndTime(20)
 
-		evt := space.CreateEventAtZero(8, trioIdx, 0, m3point.Origin, m3space.RedEvent)
+		evt := space.CreateEventAtZeroTime(8, trioIdx, 0, m3point.Origin, m3space.RedEvent)
 
 		deltaT8FromIdx0 := 0
 		deltaT9FromIdx0 := 0
@@ -103,7 +103,7 @@ func Test_Evt1_Type8_D0_Old20_Same2(t *testing.T) {
 		// No test of the old mechanism
 		space.EventOutgrowthOldThreshold = m3space.DistAndTime(20)
 
-		evt := space.CreateEventAtZero(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
+		evt := space.CreateEventAtZeroTime(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
 
 		deltaT8FromIdx0 := 0
 		deltaT9FromIdx0 := 0
@@ -157,7 +157,7 @@ func Test_Evt1_Type8_D0_Old20_Same3(t *testing.T) {
 		// No test of the old mechanism
 		space.EventOutgrowthOldThreshold = m3space.DistAndTime(20)
 
-		evt := space.CreateEventAtZero(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
+		evt := space.CreateEventAtZeroTime(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
 
 		deltaT8FromIdx0 := 0
 		deltaT9FromIdx0 := 0
@@ -208,7 +208,7 @@ func Test_Evt1_Type1_D0_Old3_Dead9_Same4(t *testing.T) {
 		// Only latest counting
 		space.SetEventOutgrowthThreshold(m3space.DistAndTime(0))
 
-		evt := space.CreateEventAtZero(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
+		evt := space.CreateEventAtZeroTime(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
 
 		assert.Equal(t, m3space.DistAndTime(3), space.EventOutgrowthOldThreshold)
 
@@ -254,7 +254,7 @@ func Test_Evt1_Type1_D0_Old3_Dead20_Same4(t *testing.T) {
 		space.SetEventOutgrowthThreshold(m3space.DistAndTime(0))
 		space.EventOutgrowthDeadThreshold = m3space.DistAndTime(20)
 
-		evt := space.CreateEventAtZero(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
+		evt := space.CreateEventAtZeroTime(ctxType, trioIdx, 0, m3point.Origin, m3space.RedEvent)
 
 		assert.Equal(t, m3space.DistAndTime(3), space.EventOutgrowthOldThreshold)
 

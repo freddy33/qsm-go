@@ -29,17 +29,19 @@ type PathContext interface {
 	fmt.Stringer
 	GetId() int
 	GetGrowthCtx() m3point.GrowthContext
-	GetGrowthOffset() int
 	GetGrowthType() m3point.GrowthType
 	GetGrowthIndex() int
+	GetGrowthOffset() int
+	GetRootPathNode() PathNode
+
 	GetPathNodeMap() PathNodeMap
 	CountAllPathNodes() int
-	InitRootNode(center m3point.Point)
-	GetRootPathNode() PathNode
 	GetNumberOfOpenNodes() int
 	GetAllOpenPathNodes() []PathNode
-	MoveToNextNodes()
 	PredictedNextOpenNodesLen() int
+
+	MoveToNextNodes()
+
 	DumpInfo() string
 }
 

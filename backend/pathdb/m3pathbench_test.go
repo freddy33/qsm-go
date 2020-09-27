@@ -48,11 +48,11 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	m3util.SetToTestMode()
 
 	env := GetPathDbFullEnv(m3util.PathTestEnv)
-	allCtx := getAllTestContexts(env)
+	pathData := GetServerPathPackData(env)
+	allCtx := pathData.GetAllPathContexts()
 	for r := 0; r < N; r++ {
-		for _, ctx := range allCtx[pType] {
+		for _, pathCtx := range allCtx[pType] {
 			start := time.Now()
-			pathCtx := MakePathContextDBFromGrowthContext(env, ctx.GetGrowthCtx(), ctx.GetGrowthOffset())
 			runPathContext(pathCtx, until)
 			t := time.Since(start)
 			LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
@@ -63,8 +63,7 @@ func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
 	}
 }
 
-func runPathContext(pathCtx m3path.PathContext, until int) {
-	pathCtx.InitRootNode(m3point.Origin)
+func runPathContext(pathCtx *PathContextDb, until int) {
 	for d := 0; d < until; d++ {
 		verifyDistance(pathCtx, d)
 		origLen := float64(pathCtx.GetNumberOfOpenNodes())
@@ -85,8 +84,8 @@ func runPathContext(pathCtx m3path.PathContext, until int) {
 	}
 }
 
-func verifyDistance(pathCtx m3path.PathContext, d int) {
-	pnm := pathCtx.(*PathContextDb).openNodeBuilder.openNodesMap
+func verifyDistance(pathCtx *PathContextDb, d int) {
+	pnm := pathCtx.openNodeBuilder.openNodesMap
 	pnm.Range(func(point m3point.Point, pn m3path.PathNode) bool {
 		if pn.D() != d {
 			Log.Errorf("Something fishy for %s", pathCtx.String())

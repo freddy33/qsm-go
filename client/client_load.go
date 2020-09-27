@@ -78,7 +78,6 @@ func (env *QsmApiEnvironment) initializePathData() {
 	ppdIfc := env.GetData(m3util.PathIdx)
 	if ppdIfc == nil {
 		pathData = new(ClientPathPackData)
-		pathData.EnvId = env.GetId()
 		pathData.env = env
 		env.SetData(m3util.PathIdx, pathData)
 	} else {
@@ -170,7 +169,23 @@ func (env *QsmApiEnvironment) initializePointData() {
 	Log.Debugf("loaded %d growth context", len(pointData.AllGrowthContexts))
 }
 
-func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int, center m3point.Point) m3path.PathContext {
+func (pathData *ClientPathPackData) GetEnvId() m3util.QsmEnvID {
+	if pathData == nil {
+		return m3util.NoEnv
+	}
+	return pathData.env.GetId()
+}
+
+func (pathData *ClientPathPackData) GetPathCtx(id int) m3path.PathContext {
+	pathCtx, ok := pathData.pathCtxMap[id]
+	if ok {
+		return pathCtx
+	}
+	// TODO: Load from DB
+	return nil
+}
+
+func (pathData *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) (m3path.PathContext, error) {
 	uri := "create-path-ctx"
 	reqMsg := &m3api.PathContextRequestMsg{
 		GrowthType: int32(growthCtx.GetGrowthType()),
@@ -178,21 +193,24 @@ func (ppd *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.Gro
 		GrowthOffset:    int32(offset),
 	}
 	pMsg := new(m3api.PathContextResponseMsg)
-	_, err := ppd.env.clConn.ExecReq(http.MethodPut, uri, reqMsg, pMsg)
+	_, err := pathData.env.clConn.ExecReq(http.MethodPut, uri, reqMsg, pMsg)
 	if err != nil {
 		Log.Fatal(err)
-		return nil
+		return nil, nil
 	}
 
 	pathCtx := new(PathContextCl)
 	pathCtx.id = int(pMsg.GetPathCtxId())
-	pathCtx.env = ppd.env
-	pointData := GetClientPointPackData(ppd.env)
+	pathCtx.env = pathData.env
+	pointData := GetClientPointPackData(pathData.env)
 	pathCtx.pointData = pointData
 	pathCtx.growthCtx = pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId()))
 	pathCtx.growthOffset = int(pMsg.GetGrowthOffset())
 	pathCtx.pathNodeMap = m3path.MakeHashPathNodeMap(100)
 	pathCtx.pathNodes = make(map[int64]*PathNodeCl, 100)
 	pathCtx.rootNode = pathCtx.addPathNodeFromMsg(pMsg.RootPathNode)
-	return pathCtx
+
+	pathData.pathCtxMap[pathCtx.GetId()] = pathCtx
+
+	return pathCtx, nil
 }
