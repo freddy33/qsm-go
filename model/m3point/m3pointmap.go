@@ -222,13 +222,13 @@ func (phm *pointHashMap) Range(f func(point Point, value interface{}) bool, nbPr
 	} else {
 		// Parallelize
 		wg := new(sync.WaitGroup)
-		wg.Add(nbProc)
 		for segId := 0; segId < nbProc; segId++ {
 			startIdx := dataSize * segId
 			endIdx := startIdx + dataSize
 			if endIdx > dataSize {
 				endIdx = dataSize
 			}
+			wg.Add(1)
 			go func() {
 				for i := startIdx; i < endIdx; i++ {
 					entry := phm.data[i]
