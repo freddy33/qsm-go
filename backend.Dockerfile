@@ -1,4 +1,4 @@
-FROM fredsimon-docker.jfrog.io/golang:1.13 as BUILDER
+FROM fredsimon-docker.jfrog.io/golang:1.14 as BUILDER
 COPY m3util /app/m3util
 COPY model /app/model
 COPY backend/go.mod backend/go.sum /app/backend/
