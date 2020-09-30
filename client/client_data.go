@@ -33,7 +33,7 @@ type PathContextCl struct {
 	pathNodeMap m3path.PathNodeMap
 	pathNodes   map[int64]*PathNodeCl
 
-	latestD int
+	maxDist int
 }
 
 type PathNodeCl struct {
@@ -134,14 +134,6 @@ func (pathCtx *PathContextCl) GetRootPathNode() m3path.PathNode {
 	return pathCtx.rootNode
 }
 
-func (pathCtx *PathContextCl) GetNumberOfOpenNodes() int {
-	return len(pathCtx.GetAllOpenPathNodes())
-}
-
-func (pathCtx *PathContextCl) GetAllOpenPathNodes() []m3path.PathNode {
-	return pathCtx.mapGetPathNodesAt(pathCtx.latestD)
-}
-
 func (pathCtx *PathContextCl) mapGetPathNodesAt(dist int) []m3path.PathNode {
 	res := make([]m3path.PathNode, 0, 100)
 	for _, pn := range pathCtx.pathNodes {
@@ -152,11 +144,26 @@ func (pathCtx *PathContextCl) mapGetPathNodesAt(dist int) []m3path.PathNode {
 	return res
 }
 
+func (pathCtx *PathContextCl) mapGetPathNodesBetween(fromDist, toDist int) []m3path.PathNode {
+	res := make([]m3path.PathNode, 0, 100)
+	for _, pn := range pathCtx.pathNodes {
+		if pn.d >= fromDist && pn.d <= toDist {
+			res = append(res, pn)
+		}
+	}
+	return res
+}
+
+func (pathCtx *PathContextCl) GetMaxDist() int {
+	return pathCtx.maxDist
+}
+
 func (pathCtx *PathContextCl) GetPathNodesAt(dist int) ([]m3path.PathNode, error) {
 	uri := "path-nodes"
 	reqMsg := &m3api.PathNodesRequestMsg{
 		PathCtxId:   int32(pathCtx.GetId()),
 		Dist: int32(dist),
+		ToDist: int32(0),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
 	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
@@ -164,15 +171,71 @@ func (pathCtx *PathContextCl) GetPathNodesAt(dist int) ([]m3path.PathNode, error
 		return nil, err
 	}
 	pathNodes := pMsg.GetPathNodes()
-	Log.Infof("Received back %d path nodes back on move to next", len(pathNodes))
+	pathCtx.maxDist = int(pMsg.MaxDist)
+	Log.Infof("Received back %d path nodes back at %d for %d", len(pathNodes), dist, pathCtx.GetId())
 	for _, pMsg := range pathNodes {
 		pathCtx.addPathNodeFromMsg(pMsg)
 	}
 	return pathCtx.mapGetPathNodesAt(dist), nil
 }
 
-func (pathCtx *PathContextCl) PredictedNextOpenNodesLen() int {
-	return m3path.CalculatePredictedSize(pathCtx.latestD, pathCtx.GetNumberOfOpenNodes())
+func (pathCtx *PathContextCl) GetNumberOfNodesAt(dist int) int {
+	uri := "nb-path-nodes"
+	reqMsg := &m3api.PathNodesRequestMsg{
+		PathCtxId:   int32(pathCtx.GetId()),
+		Dist: int32(dist),
+		ToDist: int32(0),
+	}
+	pMsg := new(m3api.PathNodesResponseMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
+	if err != nil {
+		Log.Error(err)
+		return -1
+	}
+	nbPathNodes := int(pMsg.GetNbPathNodes())
+	pathCtx.maxDist = int(pMsg.MaxDist)
+	Log.Infof("Received back nb path nodes = %d at %d for %d", nbPathNodes, dist, pathCtx.GetId())
+	return nbPathNodes
+}
+
+func (pathCtx *PathContextCl) GetNumberOfNodesBetween(fromDist int, toDist int) int {
+	uri := "nb-path-nodes"
+	reqMsg := &m3api.PathNodesRequestMsg{
+		PathCtxId:   int32(pathCtx.GetId()),
+		Dist: int32(fromDist),
+		ToDist: int32(toDist),
+	}
+	pMsg := new(m3api.PathNodesResponseMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
+	if err != nil {
+		Log.Error(err)
+		return -1
+	}
+	nbPathNodes := int(pMsg.GetNbPathNodes())
+	pathCtx.maxDist = int(pMsg.MaxDist)
+	Log.Infof("Received back nb path nodes = %d from %d to %d for %d", nbPathNodes, fromDist, toDist, pathCtx.GetId())
+	return nbPathNodes
+}
+
+func (pathCtx *PathContextCl) GetPathNodesBetween(fromDist, toDist int) ([]m3path.PathNode, error) {
+	uri := "path-nodes"
+	reqMsg := &m3api.PathNodesRequestMsg{
+		PathCtxId:   int32(pathCtx.GetId()),
+		Dist: int32(fromDist),
+		ToDist: int32(toDist),
+	}
+	pMsg := new(m3api.PathNodesResponseMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
+	if err != nil {
+		return nil, err
+	}
+	pathNodes := pMsg.GetPathNodes()
+	pathCtx.maxDist = int(pMsg.MaxDist)
+	Log.Infof("Received back %d path nodes back from %d to %d for %d", len(pathNodes), fromDist, toDist, pathCtx.GetId())
+	for _, pMsg := range pathNodes {
+		pathCtx.addPathNodeFromMsg(pMsg)
+	}
+	return pathCtx.mapGetPathNodesBetween(fromDist, toDist), nil
 }
 
 func (pathCtx *PathContextCl) DumpInfo() string {
@@ -197,10 +260,6 @@ func (pn *PathNodeCl) GetPathContext() m3path.PathContext {
 
 func (pn *PathNodeCl) IsRoot() bool {
 	return pn.d == 0
-}
-
-func (pn *PathNodeCl) IsLatest() bool {
-	return pn.pathCtx.latestD == pn.d
 }
 
 func (pn *PathNodeCl) P() m3point.Point {

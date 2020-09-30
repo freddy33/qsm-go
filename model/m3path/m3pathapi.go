@@ -34,6 +34,8 @@ type PathContext interface {
 	GetGrowthOffset() int
 	GetRootPathNode() PathNode
 
+	GetMaxDist() int
+
 	GetNumberOfNodesAt(dist int) int
 	GetPathNodesAt(dist int) ([]PathNode, error)
 

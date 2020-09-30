@@ -245,6 +245,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 
 	app.AddHandler("/path-context", createPathContext).Methods("POST")
 	app.AddHandler("/path-nodes", getPathNodes).Methods("GET")
+	app.AddHandler("/nb-path-nodes", getNbPathNodes).Methods("GET")
 
 	app.AddHandler("/space", createSpace).Methods("PUT")
 	app.AddHandler("/space", getSpaces).Methods("GET")

@@ -30,10 +30,14 @@ message PathContextResponseMsg {
 message PathNodesRequestMsg {
     int32 path_ctx_id = 1;
     int32 dist = 2;
+    int32 to_dist = 3;
 }
 
 message PathNodesResponseMsg {
     int32 path_ctx_id = 1;
     int32 dist = 2;
+    int32 to_dist = 4;
+    int32 max_dist = 5;
+    int32 nb_path_nodes = 6;
     repeated PathNodeMsg path_nodes = 3;
 }

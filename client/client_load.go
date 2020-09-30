@@ -79,6 +79,7 @@ func (env *QsmApiEnvironment) initializePathData() {
 	if ppdIfc == nil {
 		pathData = new(ClientPathPackData)
 		pathData.env = env
+		pathData.pathCtxMap = make(map[int]*PathContextCl)
 		env.SetData(m3util.PathIdx, pathData)
 	} else {
 		pathData = ppdIfc.(*ClientPathPackData)

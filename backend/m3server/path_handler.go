@@ -3,6 +3,7 @@ package m3server
 import (
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"net/http"
 )
@@ -17,19 +18,22 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 
 	env := GetEnvironment(r)
 	pathData := pathdb.GetServerPathPackData(env)
-	newPathCtx, err := pathData.GetPathCtxDb(m3point.GrowthType(reqMsg.GetGrowthType()),
-		int(reqMsg.GetGrowthIndex()), int(reqMsg.GetGrowthOffset()))
+	pathCtx, err := pathData.GetPathCtxDb(
+		m3point.GrowthType(reqMsg.GetGrowthType()),
+		int(reqMsg.GetGrowthIndex()),
+		int(reqMsg.GetGrowthOffset()))
 	if err != nil {
 		SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	pathNodeDb := newPathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
+
+	pathNodeDb := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
 	resMsg := &m3api.PathContextResponseMsg{
-		PathCtxId:       int32(newPathCtx.GetId()),
-		GrowthContextId: int32(newPathCtx.GetGrowthCtx().GetId()),
-		GrowthOffset:    int32(newPathCtx.GetGrowthOffset()),
+		PathCtxId:       int32(pathCtx.GetId()),
+		GrowthContextId: int32(pathCtx.GetGrowthCtx().GetId()),
+		GrowthOffset:    int32(pathCtx.GetGrowthOffset()),
 		RootPathNode:    pathNodeToMsg(pathNodeDb),
-		MaxDist:         int32(0),
+		MaxDist:         int32(pathCtx.GetMaxDist()),
 	}
 	WriteResponseMsg(w, r, resMsg)
 }
@@ -63,18 +67,69 @@ func getPathNodes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dist := int(reqMsg.Dist)
-	pathNodes, err := pathCtx.GetPathNodesAt(dist)
+	toDist := int(reqMsg.ToDist)
+	var pathNodes []m3path.PathNode
+	var err error
+	if toDist <= 0 {
+		pathNodes, err = pathCtx.GetPathNodesAt(dist)
+	} else {
+		pathNodes, err = pathCtx.GetPathNodesBetween(dist, toDist)
+	}
 	if err != nil {
 		SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	nbPathNodes := len(pathNodes)
 	resMsg := &m3api.PathNodesResponseMsg{
-		PathCtxId: int32(pathCtx.GetId()),
-		Dist:      int32(dist),
-		PathNodes: make([]*m3api.PathNodeMsg, len(pathNodes)),
+		PathCtxId:   int32(pathCtx.GetId()),
+		Dist:        int32(dist),
+		ToDist:      int32(toDist),
+		MaxDist:     int32(pathCtx.GetMaxDist()),
+		NbPathNodes: int32(nbPathNodes),
+		PathNodes:   make([]*m3api.PathNodeMsg, nbPathNodes),
 	}
 	for i, pn := range pathNodes {
 		resMsg.PathNodes[i] = pathNodeToMsg(pn.(*pathdb.PathNodeDb))
+	}
+
+	WriteResponseMsg(w, r, resMsg)
+}
+
+func getNbPathNodes(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive getNbPathNodes")
+
+	reqMsg := &m3api.PathNodesRequestMsg{}
+	if ReadRequestMsg(w, r, reqMsg) {
+		return
+	}
+
+	env := GetEnvironment(r)
+	pathData := pathdb.GetServerPathPackData(env)
+
+	pathCtx := pathData.GetPathCtx(int(reqMsg.GetPathCtxId()))
+	if pathCtx == nil {
+		SendResponse(w, http.StatusBadRequest, "path context id %d does not exists", reqMsg.GetPathCtxId())
+		return
+	}
+
+	var nbPathNodes int
+	dist := int(reqMsg.Dist)
+	toDist := int(reqMsg.ToDist)
+	if toDist <= 0 {
+		nbPathNodes = pathCtx.GetNumberOfNodesAt(dist)
+	} else {
+		nbPathNodes = pathCtx.GetNumberOfNodesBetween(dist, toDist)
+	}
+	if nbPathNodes < 1 {
+		SendResponse(w, http.StatusInternalServerError, "Could not retrieve the count of %s between dist %d and %d", pathCtx.String(), dist, toDist)
+		return
+	}
+	resMsg := &m3api.PathNodesResponseMsg{
+		PathCtxId:   int32(pathCtx.GetId()),
+		Dist:        int32(dist),
+		ToDist:      int32(toDist),
+		MaxDist:     int32(pathCtx.GetMaxDist()),
+		NbPathNodes: int32(nbPathNodes),
 	}
 
 	WriteResponseMsg(w, r, resMsg)
