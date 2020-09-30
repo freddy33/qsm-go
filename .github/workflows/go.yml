@@ -55,7 +55,7 @@ jobs:
         run: go build -v .
 
       - name: Test backend packages
-        run: go test -v ./m3db ./pointdb ./pathdb ./spacedb ./m3server
+        run: go test -v ./m3db ./pointdb ./pathdb ./m3server
 
 # TODO: Make sure to update kinto before running this
 #      - name: Test client with Kinto
