@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/pointdb"
-	"github.com/freddy33/qsm-go/backend/spacedb"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +11,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/freddy33/qsm-go/backend/pointdb"
+	"github.com/freddy33/qsm-go/backend/spacedb"
+	"github.com/rs/cors"
 
 	config "github.com/freddy33/qsm-go/backend/conf"
 
@@ -58,7 +60,15 @@ func listenSignals() {
 func createAppAndListen(port string) {
 	defer m3util.CloseAll()
 	runningApp = m3server.MakeApp(m3util.GetDefaultEnvId())
-	runningApp.Server = &http.Server{Addr: ":" + port, Handler: runningApp.Router}
+
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+	})
+
+	handler := c.Handler(runningApp.Router)
+
+	runningApp.Server = &http.Server{Addr: ":" + port, Handler: handler}
 	runningApp.HttpServerDone = &sync.WaitGroup{}
 	runningApp.HttpServerDone.Add(1)
 	log.Printf("Starting server on port=%s", port)
