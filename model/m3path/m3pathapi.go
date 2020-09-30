@@ -34,13 +34,11 @@ type PathContext interface {
 	GetGrowthOffset() int
 	GetRootPathNode() PathNode
 
-	GetPathNodeMap() PathNodeMap
-	CountAllPathNodes() int
-	GetNumberOfOpenNodes() int
-	GetAllOpenPathNodes() []PathNode
-	PredictedNextOpenNodesLen() int
+	GetNumberOfNodesAt(dist int) int
+	GetPathNodesAt(dist int) ([]PathNode, error)
 
-	MoveToNextNodes()
+	GetNumberOfNodesBetween(fromDist int, toDist int) int
+	GetPathNodesBetween(fromDist, toDist int) ([]PathNode, error)
 
 	DumpInfo() string
 }
@@ -51,12 +49,10 @@ type PathNode interface {
 	GetPathContext() PathContext
 
 	IsRoot() bool
-	IsLatest() bool
 	P() m3point.Point
 	D() int
 	GetTrioIndex() m3point.TrioIndex
 
-	HasOpenConnections() bool
 	IsFrom(connIdx int) bool
 	IsNext(connIdx int) bool
 	IsDeadEnd(connIdx int) bool

@@ -117,6 +117,7 @@ func (ppd *ServerPointPackData) loadPathBuilders() error {
 				}
 				builder.PathLinks[i] = PathLinkBuilder{ConnId: rootTd.Conns[i].GetId(), PathNode: &interPathNode}
 			}
+			builder.Verify()
 			res[cubeId] = &builder
 		}
 	}

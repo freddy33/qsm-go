@@ -8,7 +8,7 @@ import (
 type PathPackDataIfc interface {
 	m3util.QsmDataPack
 	GetPathCtx(id int) PathContext
-	CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) (PathContext, error)
+	GetPathCtxFromAttributes(growthType m3point.GrowthType, growthIndex int, growthOffset int) (PathContext, error)
 }
 
 

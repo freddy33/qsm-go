@@ -120,7 +120,7 @@ func (ppd *BasePointPackData) GetGrowthContextByTypeAndIndex(growthType GrowthTy
 			return growthCtx
 		}
 	}
-	Log.Fatalf("could not find trio Context for %d %d", growthType, index)
+	Log.Errorf("could not find trio Context for %d %d", growthType, index)
 	return nil
 }
 

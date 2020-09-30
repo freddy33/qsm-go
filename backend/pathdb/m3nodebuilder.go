@@ -1,8 +1,8 @@
 package pathdb
 
 import (
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
-	"github.com/freddy33/qsm-go/model/m3point"
 )
 
 type OpenNodeBuilder struct {
@@ -13,47 +13,44 @@ type OpenNodeBuilder struct {
 	selectConflict, insertConflict int
 }
 
-func createNewNodeBuilder(previous *OpenNodeBuilder) *OpenNodeBuilder {
-	res := new(OpenNodeBuilder)
-	if previous == nil {
-		res.d = 0
-		res.expectedSize = 1
-		res.openNodesMap = m3path.MakeSimplePathNodeMap(1)
-	} else {
-		res.pathCtx = previous.pathCtx
-		res.d = previous.d + 1
-		res.expectedSize = previous.nextOpenNodesLen()
-		if res.expectedSize > 32 {
-			res.openNodesMap = m3path.MakeHashPathNodeMap(res.expectedSize)
-		} else {
-			res.openNodesMap = m3path.MakeSimplePathNodeMap(res.expectedSize)
-		}
+func createCurrentNodeBuilder(pathCtx *PathContextDb) (*OpenNodeBuilder, error) {
+	lastNodes, err := pathCtx.GetPathNodesAt(pathCtx.GetMaxDist())
+	if err != nil {
+		return nil, err
 	}
-	return res
+
+	if len(lastNodes) == 0 {
+		return nil, m3util.MakeQsmErrorf("cannot create open nodes builder from nothing at %s", pathCtx.String())
+	}
+
+	res := new(OpenNodeBuilder)
+	res.pathCtx = pathCtx
+	res.d = lastNodes[0].D()
+	res.expectedSize = m3path.CalculatePredictedSize(pathCtx.GetGrowthType(), res.d)
+	if res.expectedSize > 32 {
+		res.openNodesMap = m3path.MakeHashPathNodeMap(res.expectedSize)
+	} else {
+		res.openNodesMap = m3path.MakeSimplePathNodeMap(res.expectedSize)
+	}
+
+	for i := 0; i < len(lastNodes); i++ {
+		res.addPathNode(lastNodes[i].(*PathNodeDb))
+	}
+
+	return res, nil
 }
 
-func (onb *OpenNodeBuilder) fillOpenPathNodes() {
-	pathCtx := onb.pathCtx
-	te := pathCtx.pathData.pathNodesTe
-	rows, err := te.Query(SelectPathNodesByCtxAndDistance, pathCtx.id, onb.d)
-	if err != nil {
-		Log.Fatal(err)
+func createNextNodeBuilder(previous *OpenNodeBuilder) *OpenNodeBuilder {
+	res := new(OpenNodeBuilder)
+	res.pathCtx = previous.pathCtx
+	res.d = previous.d + 1
+	res.expectedSize = m3path.CalculatePredictedSize(res.pathCtx.GetGrowthType(), res.d)
+	if res.expectedSize > 32 {
+		res.openNodesMap = m3path.MakeHashPathNodeMap(res.expectedSize)
+	} else {
+		res.openNodesMap = m3path.MakeSimplePathNodeMap(res.expectedSize)
 	}
-	defer te.CloseRows(rows)
-	for rows.Next() {
-		pn, err := fetchDbRow(rows)
-		if err != nil {
-			Log.Fatalf("Could not read row of %s due to %v", PathNodesTable, err)
-		} else {
-			if pn.pathCtxId != pathCtx.id {
-				Log.Fatalf("While retrieving all path nodes got a node with context id %d instead of %d",
-					pn.pathCtxId, pathCtx.id)
-				return
-			}
-			pn.pathCtx = pathCtx
-			onb.addPathNode(pn)
-		}
-	}
+	return res
 }
 
 func (onb *OpenNodeBuilder) addPathNode(pn *PathNodeDb) *PathNodeDb {
@@ -63,23 +60,4 @@ func (onb *OpenNodeBuilder) addPathNode(pn *PathNodeDb) *PathNodeDb {
 
 func (onb *OpenNodeBuilder) openNodesSize() int {
 	return onb.openNodesMap.Size()
-}
-
-func (onb *OpenNodeBuilder) nextOpenNodesLen() int {
-	return m3path.CalculatePredictedSize(onb.d, onb.openNodesMap.Size())
-}
-
-func (onb *OpenNodeBuilder) clear() {
-	// Do not release the first three steps
-	if onb.d > 3 {
-		onb.openNodesMap.Range(func(point m3point.Point, pn m3path.PathNode) bool {
-			// do not release root nodes
-			if !pn.IsRoot() {
-				pn.(*PathNodeDb).release()
-			}
-			return false
-		}, nbParallelProcesses)
-	}
-	// Clear the map
-	onb.openNodesMap.Clear()
 }

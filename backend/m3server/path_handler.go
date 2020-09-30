@@ -2,7 +2,6 @@ package m3server
 
 import (
 	"github.com/freddy33/qsm-go/backend/pathdb"
-	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"net/http"
@@ -17,11 +16,9 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	env := GetEnvironment(r)
-	pointData := pointdb.GetPointPackData(env)
 	pathData := pathdb.GetServerPathPackData(env)
-	newPathCtx, err := pathData.CreatePathCtxFromAttributes(
-		pointData.GetGrowthContextByTypeAndIndex(m3point.GrowthType(reqMsg.GetGrowthType()),
-			int(reqMsg.GetGrowthIndex())), int(reqMsg.GetGrowthOffset()))
+	newPathCtx, err := pathData.GetPathCtxDb(m3point.GrowthType(reqMsg.GetGrowthType()),
+		int(reqMsg.GetGrowthIndex()), int(reqMsg.GetGrowthOffset()))
 	if err != nil {
 		SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -32,6 +29,7 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 		GrowthContextId: int32(newPathCtx.GetGrowthCtx().GetId()),
 		GrowthOffset:    int32(newPathCtx.GetGrowthOffset()),
 		RootPathNode:    pathNodeToMsg(pathNodeDb),
+		MaxDist:         int32(0),
 	}
 	WriteResponseMsg(w, r, resMsg)
 }
@@ -47,10 +45,10 @@ func pathNodeToMsg(pathNodeDb *pathdb.PathNodeDb) *m3api.PathNodeMsg {
 	}
 }
 
-func moveToNextNode(w http.ResponseWriter, r *http.Request) {
-	Log.Infof("Receive moveToNextNode")
+func getPathNodes(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive getPathNodes")
 
-	reqMsg := &m3api.NextMoveRequestMsg{}
+	reqMsg := &m3api.PathNodesRequestMsg{}
 	if ReadRequestMsg(w, r, reqMsg) {
 		return
 	}
@@ -64,26 +62,20 @@ func moveToNextNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentDist := pathCtx.(*pathdb.PathContextDb).GetCurrentDist()
-	if int(reqMsg.CurrentDist) != currentDist {
-		SendResponse(w, http.StatusBadRequest, "Path context %d current dist is %d not %d", reqMsg.GetPathCtxId(), currentDist, reqMsg.CurrentDist)
+	dist := int(reqMsg.Dist)
+	pathNodes, err := pathCtx.GetPathNodesAt(dist)
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	pathCtx.MoveToNextNodes()
-
-	resMsg := &m3api.NextMoveResponseMsg{}
-	openPathNodes := pathCtx.GetAllOpenPathNodes()
-	Log.Infof("Sending back %d path nodes back on move to next for %d", len(openPathNodes), pathCtx.GetId())
-	resMsg.PathCtxId = int32(pathCtx.GetId())
-	resMsg.NextDist = int32(pathCtx.(*pathdb.PathContextDb).GetCurrentDist())
-	resMsg.NewPathNodes = make([]*m3api.PathNodeMsg, len(openPathNodes))
-	for i, pni := range openPathNodes {
-		pn := pni.(*pathdb.PathNodeDb)
-		resMsg.NewPathNodes[i] = pathNodeToMsg(pn)
+	resMsg := &m3api.PathNodesResponseMsg{
+		PathCtxId: int32(pathCtx.GetId()),
+		Dist:      int32(dist),
+		PathNodes: make([]*m3api.PathNodeMsg, len(pathNodes)),
 	}
-
-	// TODO: Check how to return the modified path nodes
+	for i, pn := range pathNodes {
+		resMsg.PathNodes[i] = pathNodeToMsg(pn.(*pathdb.PathNodeDb))
+	}
 
 	WriteResponseMsg(w, r, resMsg)
 }

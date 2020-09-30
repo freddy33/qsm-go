@@ -3,7 +3,6 @@ package spacedb
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/pathdb"
-	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
@@ -120,22 +119,16 @@ func (space *SpaceDb) insertInDb() error {
 
 func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int,
 	creationTime m3space.DistAndTime, center m3point.Point, color m3space.EventColor) (m3space.EventIfc, error) {
-	env := space.spaceData.env
-	pointData := pointdb.GetPointPackData(env)
-	growthCtx := pointData.GetGrowthContextByTypeAndIndex(growthType, growthIndex)
-	if growthCtx == nil {
-		return nil, m3util.MakeQsmErrorf("Growth context with type=%d and index=%d does not exists", growthType, growthIndex)
-	}
 	centerPoint := center
 	pointId := space.pathData.GetOrCreatePoint(centerPoint)
-	pathCtx, err := space.pathData.CreatePathCtxFromAttributes(growthCtx, growthOffset)
+	pathCtx, err := space.pathData.GetPathCtxDb(growthType, growthIndex, growthOffset)
 	if err != nil {
 		return nil, err
 	}
 	rootPathNode := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
 	evt := &EventDb{
 		space:        space,
-		pathCtx:      pathCtx.(*pathdb.PathContextDb),
+		pathCtx:      pathCtx,
 		creationTime: creationTime,
 		color:        color,
 		endTime:      creationTime,
@@ -149,12 +142,12 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 		point:        &centerPoint,
 		pathNode:     rootPathNode,
 	}
-	evt.centerNode.SetLinksToNil()
+	evt.centerNode.SetConnStateToNil()
 	evt.centerNode.SetFullConnectionMask(rootPathNode.GetConnectionMask())
 
 	space.events = append(space.events, evt)
 
-	err := evt.insertInDb()
+	err = evt.insertInDb()
 	if err != nil {
 		return nil, err
 	}

@@ -75,7 +75,7 @@ func (t GrowthType) GetMaxOffset() int {
 /***************************************************************/
 
 func (gowthCtx *BaseGrowthContext) String() string {
-	return fmt.Sprintf("GrowthCtx%d-%d-Idx%02d", gowthCtx.Id, gowthCtx.GrowthType, gowthCtx.GrowthIndex)
+	return fmt.Sprintf("GrowthCtx%d-T%d-Idx%02d", gowthCtx.Id, gowthCtx.GrowthType, gowthCtx.GrowthIndex)
 }
 
 func (gowthCtx *BaseGrowthContext) GetEnv() m3util.QsmEnvironment {

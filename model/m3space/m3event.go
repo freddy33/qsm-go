@@ -116,11 +116,11 @@ func (spnm *SpacePathNodeMap) GetPathNode(p m3point.Point) m3path.PathNode {
 
 func (spnm *SpacePathNodeMap) AddPathNode(pathNode m3path.PathNode) (m3path.PathNode, bool) {
 	n := spnm.space.getOrCreateNode(pathNode.P())
-	nbLatest := n.GetNbLatestEvents()
+	alreadyLatest := spnm.space.CurrentTime == n.GetLastAccessed(spnm.space)
 	n.addPathNode(spnm.id, pathNode, spnm.space)
 	spnm.size++
 	// New latest node
-	if nbLatest == 0 {
+	if !alreadyLatest {
 		spnm.space.latestNodes = append(spnm.space.latestNodes, n)
 	}
 	return pathNode, true
@@ -141,8 +141,7 @@ func (spnm *SpacePathNodeMap) IsActive(pathNode m3path.PathNode) bool {
 func (space *Space) CreateEventAtZeroTime(ctxType m3point.GrowthType, idx int, offset int, p m3point.Point, k EventColor) *Event {
 	pnm := &SpacePathNodeMap{space, space.lastIdCounter, 0}
 	space.lastIdCounter++
-	ppd := space.GetPointPackData()
-	ctx, err := space.GetPathPackData().CreatePathCtxFromAttributes(ppd.GetGrowthContextByTypeAndIndex(ctxType, idx), offset)
+	ctx, err := space.GetPathPackData().GetPathCtxFromAttributes(ctxType, idx, offset)
 	if err != nil {
 		Log.Error(err)
 		return nil

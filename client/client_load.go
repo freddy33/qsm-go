@@ -185,15 +185,15 @@ func (pathData *ClientPathPackData) GetPathCtx(id int) m3path.PathContext {
 	return nil
 }
 
-func (pathData *ClientPathPackData) CreatePathCtxFromAttributes(growthCtx m3point.GrowthContext, offset int) (m3path.PathContext, error) {
-	uri := "create-path-ctx"
+func (pathData *ClientPathPackData) GetPathCtxFromAttributes(growthType m3point.GrowthType, growthIndex int, offset int) (m3path.PathContext, error) {
+	uri := "path-context"
 	reqMsg := &m3api.PathContextRequestMsg{
-		GrowthType: int32(growthCtx.GetGrowthType()),
-		GrowthIndex: int32(growthCtx.GetGrowthIndex()),
+		GrowthType: int32(growthType),
+		GrowthIndex: int32(growthIndex),
 		GrowthOffset:    int32(offset),
 	}
 	pMsg := new(m3api.PathContextResponseMsg)
-	_, err := pathData.env.clConn.ExecReq(http.MethodPut, uri, reqMsg, pMsg)
+	_, err := pathData.env.clConn.ExecReq(http.MethodPost, uri, reqMsg, pMsg)
 	if err != nil {
 		Log.Fatal(err)
 		return nil, nil

@@ -28,30 +28,43 @@ const (
 	ModifiedNode
 )
 
-type ConnectionsDbIfc interface {
+type ConnectionsStateMgr interface {
+	// Connection mask management methods
 	GetConnectionMask() uint16
 	GetConnectionState(connIdx int) m3path.ConnectionState
 	SetConnectionMask(connIdx int, maskValue uint16)
 	SetConnectionState(connIdx int, state m3path.ConnectionState)
+
+	// Link Ids management methods
 	SetLinkIdsFromDbData(linkIds [m3path.NbConnections]sql.NullInt64)
 	GetConnsDataForMsg() []int64
 	GetLinkIdsForDb() [m3path.NbConnections]sql.NullInt64
-	SetLinksToNil()
+	SetConnStateToNil()
+
+	// Trio index and auto retrieval method
+	GetTrioIndex() m3point.TrioIndex
+	GetTrioDetails() *m3point.TrioDetails
+
+	// Usable methods for the mask
+	HasOpenConnections() bool
+	IsFrom(connIdx int) bool
+	IsNext(connIdx int) bool
+	IsDeadEnd(connIdx int) bool
 }
 
-type ConnectionsDb struct {
+type ConnectionsStateDb struct {
 	connectionMask uint16
 	linkIds        [m3path.NbConnections]int64
+	trioId         m3point.TrioIndex
 }
 
 type PathNodeDb struct {
-	ConnectionsDb
+	ConnectionsStateDb
 	state PathNodeDbState
 
 	// In most cases this is already filled
 	pathCtxId int
-	// TODO: Create a map in ServerPathPackData for this
-	pathCtx *PathContextDb
+	pathCtx   *PathContextDb
 
 	// Just Ids will fill this only
 	id      int64
@@ -59,8 +72,8 @@ type PathNodeDb struct {
 	d       int
 
 	// Full Id loaded will fill this
-	pathBuilderId int
-	trioId        m3point.TrioIndex
+	pathBuilderId  int
+	pathBuilderIdx int
 
 	// This is dynamically loaded on demand from DB
 	point *m3point.Point
@@ -102,12 +115,17 @@ func (pn *PathNodeDb) reduceSize() {
 	}
 }
 
-// Set a p[ath node to nil empty state
-func (cn *ConnectionsDb) SetLinksToNil() {
+// Set a connection state to nil empty state
+func (cn *ConnectionsStateDb) SetConnStateToNil() {
+	cn.trioId = m3point.NilTrioIndex
 	cn.connectionMask = uint16(m3path.ConnectionNotSet)
 	for i := 0; i < m3path.NbConnections; i++ {
 		cn.linkIds[i] = LinkIdNotSet
 	}
+}
+
+func (cn *ConnectionsStateDb) GetTrioIndex() m3point.TrioIndex {
+	return cn.trioId
 }
 
 func (pn *PathNodeDb) setToNil(id int64) {
@@ -121,12 +139,11 @@ func (pn *PathNodeDb) setToNil(id int64) {
 	pn.pathCtx = nil
 	pn.pathBuilderId = -1
 	pn.pathBuilder = nil
-	pn.trioId = m3point.NilTrioIndex
 	pn.trioDetails = nil
 	pn.pointId = -1
 	pn.point = nil
 	pn.d = -1
-	pn.SetLinksToNil()
+	pn.SetConnStateToNil()
 	pn.clearLinkNodes()
 }
 
@@ -138,19 +155,19 @@ func (pn *PathNodeDb) IsInPool() bool {
 	return pn.id == InPoolId
 }
 
-func (cn *ConnectionsDb) GetConnectionMask() uint16 {
+func (cn *ConnectionsStateDb) GetConnectionMask() uint16 {
 	return cn.connectionMask
 }
 
-func (cn *ConnectionsDb) GetConnectionState(connIdx int) m3path.ConnectionState {
+func (cn *ConnectionsStateDb) GetConnectionState(connIdx int) m3path.ConnectionState {
 	return m3path.GetConnectionState(cn.connectionMask, connIdx)
 }
 
-func (cn *ConnectionsDb) SetFullConnectionMask(maskValue uint16) {
+func (cn *ConnectionsStateDb) SetFullConnectionMask(maskValue uint16) {
 	cn.connectionMask = maskValue
 }
 
-func (cn *ConnectionsDb) SetConnectionMask(connIdx int, maskValue uint16) {
+func (cn *ConnectionsStateDb) SetConnectionMask(connIdx int, maskValue uint16) {
 	allConnsMask := cn.connectionMask
 	// Zero the bit mask for this connection
 	allConnsMask &^= m3path.SingleConnectionMask << uint16(connIdx*m3path.ConnectionMaskBits)
@@ -159,12 +176,12 @@ func (cn *ConnectionsDb) SetConnectionMask(connIdx int, maskValue uint16) {
 	cn.connectionMask = allConnsMask
 }
 
-func (cn *ConnectionsDb) SetConnectionState(connIdx int, state m3path.ConnectionState) {
+func (cn *ConnectionsStateDb) SetConnectionState(connIdx int, state m3path.ConnectionState) {
 	connMask := m3path.SetConnectionState(cn.connectionMask, connIdx, state)
 	cn.SetConnectionMask(connIdx, connMask)
 }
 
-func (cn *ConnectionsDb) SetLinkIdsFromDbData(linkIds [m3path.NbConnections]sql.NullInt64) {
+func (cn *ConnectionsStateDb) SetLinkIdsFromDbData(linkIds [m3path.NbConnections]sql.NullInt64) {
 	for i := 0; i < m3path.NbConnections; i++ {
 		switch cn.GetConnectionState(i) {
 		case m3path.ConnectionNotSet:
@@ -199,11 +216,11 @@ func (cn *ConnectionsDb) SetLinkIdsFromDbData(linkIds [m3path.NbConnections]sql.
 	}
 }
 
-func (cn *ConnectionsDb) GetConnsDataForMsg() []int64 {
+func (cn *ConnectionsStateDb) GetConnsDataForMsg() []int64 {
 	return cn.linkIds[:]
 }
 
-func (cn *ConnectionsDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullInt64 {
+func (cn *ConnectionsStateDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullInt64 {
 	dbLinkIds := [m3path.NbConnections]sql.NullInt64{}
 	for i := 0; i < m3path.NbConnections; i++ {
 		switch cn.GetConnectionState(i) {
@@ -315,7 +332,7 @@ func (pn *PathNodeDb) insertInDb() (bool, error) {
 	te := pn.pathCtx.pathNodesTe()
 	pathNodeIds := pn.GetLinkIdsForDb()
 	var err error
-	pn.id, err = te.InsertReturnId(pn.pathCtxId, pn.pathBuilderId, pn.trioId, pn.pointId, pn.d,
+	pn.id, err = te.InsertReturnId(pn.pathCtxId, pn.pathBuilderId, pn.pathBuilderIdx, pn.trioId, pn.pointId, pn.d,
 		pn.connectionMask,
 		pathNodeIds[0], pathNodeIds[1], pathNodeIds[2])
 	if err == nil {
@@ -340,10 +357,10 @@ func (pn *PathNodeDb) updateInDb() error {
 	return nil
 }
 
-func fetchDbRow(rows *sql.Rows) (*PathNodeDb, error) {
+func createPathNodeFromDbRows(rows *sql.Rows) (*PathNodeDb, error) {
 	pn := getNewPathNodeDb()
 	pathNodeIds := [m3path.NbConnections]sql.NullInt64{}
-	err := rows.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.trioId, &pn.pointId, &pn.d,
+	err := rows.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.pathBuilderIdx, &pn.trioId, &pn.pointId, &pn.d,
 		&pn.connectionMask,
 		&pathNodeIds[0], &pathNodeIds[1], &pathNodeIds[2])
 	if err != nil {
@@ -356,10 +373,10 @@ func fetchDbRow(rows *sql.Rows) (*PathNodeDb, error) {
 	return pn, nil
 }
 
-func fetchSingleDbRow(row *sql.Row) (*PathNodeDb, error) {
+func createPathNodeFromDbRow(row *sql.Row) (*PathNodeDb, error) {
 	pn := getNewPathNodeDb()
 	pathNodeIds := [m3path.NbConnections]sql.NullInt64{}
-	err := row.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.trioId, &pn.pointId, &pn.d,
+	err := row.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.pathBuilderIdx, &pn.trioId, &pn.pointId, &pn.d,
 		&pn.connectionMask,
 		&pathNodeIds[0], &pathNodeIds[1], &pathNodeIds[2])
 	if err != nil {
@@ -399,9 +416,8 @@ func (pn *PathNodeDb) GetTrioDetails() *m3point.TrioDetails {
 	return pn.trioDetails
 }
 
-func (pn *PathNodeDb) SetTrioId(trioId m3point.TrioIndex) {
-	pn.trioId = trioId
-	pn.trioDetails = nil
+func (cn *ConnectionsStateDb) SetTrioId(trioId m3point.TrioIndex) {
+	cn.trioId = trioId
 }
 
 func (pn *PathNodeDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
@@ -411,13 +427,26 @@ func (pn *PathNodeDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
 
 func (pn *PathNodeDb) PathBuilder() pointdb.PathNodeBuilder {
 	if pn.pathBuilder == nil {
-		pn.pathBuilder = pn.PathCtx().pointData.GetPathNodeBuilderById(pn.pathBuilderId)
+		rootPathBuilder := pn.PathCtx().pointData.GetRootPathNodeBuilderById(pn.pathBuilderId)
+		// Find in all the linked path builder the one matching
+		pn.pathBuilder = rootPathBuilder.GetPathBuilderByIndex(pn.pathBuilderIdx)
 	}
 	return pn.pathBuilder
 }
 
 func (pn *PathNodeDb) SetPathBuilder(pathBuilder pointdb.PathNodeBuilder) {
+	pnIdx := -1
+	for i := 0; i < pointdb.NbPathBuildersPerContext; i++ {
+		if pathBuilder == pathBuilder.GetPathBuilderByIndex(i) {
+			pnIdx = i
+			break
+		}
+	}
+	if pnIdx < 0 {
+		Log.Fatalf("Did not find path builder %s in its own context", pathBuilder.String())
+	}
 	pn.pathBuilderId = pathBuilder.GetCubeId()
+	pn.pathBuilderIdx = pnIdx
 	pn.pathBuilder = pathBuilder
 }
 
@@ -435,20 +464,10 @@ func (pn *PathNodeDb) IsRoot() bool {
 	return pn.d == 0
 }
 
-func (pn *PathNodeDb) IsLatest() bool {
-	pn.check()
-	onb := pn.PathCtx().openNodeBuilder
-	if onb == nil {
-		Log.Errorf("asking for latest flag on non initialize path context %s for %s", pn.pathCtx.String(), pn.String())
-		return false
-	}
-	return pn.d >= onb.d
-}
-
-func (pn *PathNodeDb) HasOpenConnections() bool {
-	pn.check()
+func (cn *ConnectionsStateDb) HasOpenConnections() bool {
+	//cn.check()
 	for i := 0; i < m3path.NbConnections; i++ {
-		if pn.GetConnectionState(i) == m3path.ConnectionNotSet {
+		if cn.GetConnectionState(i) == m3path.ConnectionNotSet {
 			return true
 		}
 	}
@@ -510,10 +529,6 @@ func (pn *PathNodeDb) P() m3point.Point {
 func (pn *PathNodeDb) D() int {
 	pn.check()
 	return pn.d
-}
-
-func (pn *PathNodeDb) GetTrioIndex() m3point.TrioIndex {
-	return pn.trioId
 }
 
 func (pn *PathNodeDb) GetNext(connIdx int) int64 {

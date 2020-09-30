@@ -21,8 +21,9 @@ func TestPathContextMove(t *testing.T) {
 
 	pathCtxId := callCreatePathContext(t, qsmApp, 8, 2, 1, 42)
 
-	callNextMove(t, pathCtxId, router, 1, 3)
-	callNextMove(t, pathCtxId, router, 2, 6)
+	callGetPathNodes(t, pathCtxId, router, 3, 12)
+	callGetPathNodes(t, pathCtxId, router, 2, 6)
+	callGetPathNodes(t, pathCtxId, router, 4, 22)
 }
 
 func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
@@ -37,8 +38,8 @@ func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
 		router:      qsmApp.Router,
 		contentType: "proto",
 		typeName:    "PathContextResponseMsg",
-		methodName:  "PUT",
-		uri:         "/create-path-ctx",
+		methodName:  "POST",
+		uri:         "/path-context",
 	}, reqMsg, resMsg)
 
 	pathCtxId := int(resMsg.PathCtxId)
@@ -56,23 +57,23 @@ func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
 	return pathCtxId
 }
 
-func callNextMove(t *testing.T, pathCtxId int, router *mux.Router, dist int, activeNodes int) {
-	reqMsg := &m3api.NextMoveRequestMsg{
-		PathCtxId:   int32(pathCtxId),
-		CurrentDist: int32(dist - 1),
+func callGetPathNodes(t *testing.T, pathCtxId int, router *mux.Router, dist int, expectedActiveNodes int) {
+	reqMsg := &m3api.PathNodesRequestMsg{
+		PathCtxId: int32(pathCtxId),
+		Dist:      int32(dist),
 	}
-	nextMoveResponse := &m3api.NextMoveResponseMsg{}
+	nextMoveResponse := &m3api.PathNodesResponseMsg{}
 	sendAndReceive(t, &requestTest{
 		router:      router,
 		contentType: "proto",
-		typeName:    "NextMoveResponseMsg",
-		methodName:  "POST",
-		uri:         "/next-nodes",
+		typeName:    "PathNodesResponseMsg",
+		methodName:  "GET",
+		uri:         "/path-nodes",
 	}, reqMsg, nextMoveResponse)
 
 	assert.Equal(t, int32(pathCtxId), nextMoveResponse.GetPathCtxId())
-	assert.Equal(t, int32(dist), nextMoveResponse.GetNextDist())
+	assert.Equal(t, int32(dist), nextMoveResponse.GetDist())
 	// TODO: Check how to return this
 	//assert.Equal(t, 1, len(nextMoveResponse.GetModifiedPathNodes()))
-	assert.Equal(t, activeNodes, len(nextMoveResponse.GetNewPathNodes()))
+	assert.Equal(t, expectedActiveNodes, len(nextMoveResponse.GetPathNodes()))
 }

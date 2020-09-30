@@ -14,8 +14,6 @@ type Node interface {
 	HasRoot(space *Space) bool
 
 	GetNbEvents() int
-	GetNbLatestEvents() int
-	GetLatestEventIds() []EventId
 	GetNbActiveEvents(space *Space) int
 	GetActiveEventIds(space *Space) []EventId
 	GetActiveLinks(space *Space) NodeLinkList
@@ -52,7 +50,6 @@ type NodeEvent interface {
 	GetAccessedTime() DistAndTime
 	GetDistFromCurrent(space *Space) DistAndTime
 
-	IsLatest() bool
 	IsRoot(evt *Event) bool
 	IsActive(space *Space) bool
 	IsActiveNext(space *Space) bool

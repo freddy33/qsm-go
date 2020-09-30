@@ -2,9 +2,9 @@ package m3space
 
 import (
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"sort"
-	"sync"
 )
 
 var LogStat = m3util.NewStatLogger("m3stat", m3util.INFO)
@@ -41,8 +41,9 @@ func (space *Space) ForwardTime() *ForwardResult {
 	expectedLatestNodes := 0
 	for _, evt := range space.events {
 		if evt != nil {
-			nbLatest += evt.PathContext.GetNumberOfOpenNodes()
-			expectedLatestNodes += evt.PathContext.PredictedNextOpenNodesLen()
+			d := int(space.CurrentTime - evt.created)
+			nbLatest += evt.PathContext.GetNumberOfNodesAt(d)
+			expectedLatestNodes += m3path.CalculatePredictedSize(evt.PathContext.GetGrowthType(), d)
 		}
 	}
 	space.latestNodes = make([]Node, 0, expectedLatestNodes)
@@ -53,7 +54,7 @@ func (space *Space) ForwardTime() *ForwardResult {
 	LogStat.Infof("%4d: %d: %d: %d: %d: %d",
 		space.CurrentTime, space.GetNbEvents(), len(space.ActiveNodes), len(space.ActiveLinks), nbLatest, expectedLatestNodes)
 
-	wg := sync.WaitGroup{}
+/*	wg := sync.WaitGroup{}
 	for _, evt := range space.events {
 		if evt != nil {
 			wg.Add(1)
@@ -61,14 +62,20 @@ func (space *Space) ForwardTime() *ForwardResult {
 		}
 	}
 	wg.Wait()
-
+*/
 	space.CurrentTime++
 
 	for _, evt := range space.events {
 		if evt != nil {
-			for _, opn := range evt.PathContext.GetAllOpenPathNodes() {
-				// TODO: Remove PathNodeMap need. Use DB
-				evt.pathNodeMap.AddPathNode(opn)
+			d := int(space.CurrentTime - evt.created)
+			pathNodes, err := evt.PathContext.GetPathNodesAt(d)
+			if err != nil {
+				Log.Error(err)
+			} else {
+				for _, opn := range pathNodes {
+					// TODO: Remove PathNodeMap need. Use DB
+					evt.pathNodeMap.AddPathNode(opn)
+				}
 			}
 		}
 	}
@@ -104,10 +111,14 @@ func (space *Space) populateActiveNodesAndLinks(n Node, res *ForwardResult, node
 	}
 }
 
-func (evt *Event) moveToNext(wg *sync.WaitGroup) {
-	evt.PathContext.MoveToNextNodes()
+/*func (evt *Event) moveToNext(wg *sync.WaitGroup) {
+	err := evt.PathContext.calculateNextMaxDist()
+	if err != nil {
+		Log.Error(err)
+	}
 	wg.Done()
 }
+*/
 
 func SortEventIDs(ids *[]EventId) {
 	sort.Slice(*ids, func(i, j int) bool {

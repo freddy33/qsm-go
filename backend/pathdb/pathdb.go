@@ -46,8 +46,8 @@ func createPointsTableDef() *m3db.TableDefinition {
 }
 
 const (
-	SelectPathContextById = 0
-	UpdatePathBuilderId   = 1
+	UpdatePathBuilderId = 0
+	UpdateMaxDist       = 1
 )
 
 func createPathContextsTableDef() *m3db.TableDefinition {
@@ -56,27 +56,30 @@ func createPathContextsTableDef() *m3db.TableDefinition {
 	res.DdlColumns = "(id serial PRIMARY KEY," +
 		" growth_ctx_id smallint NOT NULL REFERENCES %s (id)," +
 		" growth_offset smallint NOT NULL," +
-		" path_builders_id smallint NULL REFERENCES %s (id))"
+		" path_builders_id smallint NULL REFERENCES %s (id)," +
+		" max_dist integer NOT NULL DEFAULT 0," +
+		" CONSTRAINT path_ctx_growth_param_key UNIQUE (growth_ctx_id, growth_offset))"
 	res.DdlColumnsRefs = []string{
 		pointdb.GrowthContextsTable, pointdb.PathBuildersTable}
 	res.Insert = "(growth_ctx_id, growth_offset, path_builders_id) values ($1,$2,NULL) returning id"
-	res.SelectAll = "select id, growth_ctx_id, growth_offset, path_builders_id from %s"
-	res.ExpectedCount = -1
+	allFields := "id, growth_ctx_id, growth_offset, path_builders_id, max_dist"
+	res.SelectAll = "select " + allFields + " from %s"
+	res.ExpectedCount = 200
 	res.Queries = make([]string, 2)
-	res.Queries[SelectPathContextById] = "select growth_ctx_id, growth_offset, path_builders_id from %s where id = $1"
 	res.Queries[UpdatePathBuilderId] = "update %s set path_builders_id = $2 where id = $1"
+	res.Queries[UpdateMaxDist] = "update %s set max_dist = $2 where id = $1"
 	return &res
 }
 
 const (
 	SelectPathNodesById int = iota
 	UpdatePathNode
+	CountPathNodesByCtxAndDistance
 	SelectPathNodesByCtxAndDistance
-	PathNodeIdsBefore
-	ConnectedPathNodeIds
+	CountPathNodesByCtxAndBetweenDistance
+	SelectPathNodesByCtxAndBetweenDistance
 	CountPathNodesByCtx
 	SelectPathNodeIdByCtxAndPointId
-	SelectPathNodesByPoint
 )
 
 func creatPathNodesTableDef() *m3db.TableDefinition {
@@ -85,6 +88,7 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.DdlColumns = "(id bigserial PRIMARY KEY," +
 		" path_ctx_id integer NOT NULL REFERENCES %s (id)," +
 		" path_builders_id smallint NOT NULL REFERENCES %s (id)," +
+		" path_builder_idx smallint NOT NULL," +
 		" trio_id smallint NOT NULL REFERENCES %s (id)," +
 		" point_id bigint NOT NULL REFERENCES %s (id)," +
 		" d integer NOT NULL DEFAULT 0," +
@@ -97,16 +101,16 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.ErrorFilter = func(err error) bool {
 		return err.Error() == "pq: duplicate key value violates unique constraint \"unique_point_per_path_ctx\""
 	}
-	res.Insert = "(path_ctx_id, path_builders_id, trio_id, point_id, d," +
+	res.Insert = "(path_ctx_id, path_builders_id, path_builder_idx, trio_id, point_id, d," +
 		" connection_mask," +
 		" path_node1, path_node2, path_node3)" +
-		" values ($1,$2,$3,$4,$5," +
-		" $6," +
-		" $7,$8,$9) returning id"
+		" values ($1,$2,$3,$4,$5,$6," +
+		" $7," +
+		" $8,$9,$10) returning id"
 	res.SelectAll = "not to call select all on node path"
 	res.ExpectedCount = -1
 	res.Queries = make([]string, 8)
-	selectAllFields := " id, path_ctx_id, path_builders_id, trio_id, point_id, d," +
+	selectAllFields := " id, path_ctx_id, path_builders_id, path_builder_idx, trio_id, point_id, d," +
 		" connection_mask," +
 		" path_node1, path_node2, path_node3"
 	res.Queries[SelectPathNodesById] = "select " +
@@ -116,22 +120,25 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" connection_mask = $2," +
 		" path_node1 = $3, path_node2 = $4, path_node3 = $5" +
 		" where id = $1"
+
+	res.Queries[CountPathNodesByCtxAndDistance] = "select count(id)" +
+		" from %s where path_ctx_id = $1 and d = $2"
 	res.Queries[SelectPathNodesByCtxAndDistance] = "select " +
 		selectAllFields +
 		" from %s where path_ctx_id = $1 and d = $2"
-	res.Queries[PathNodeIdsBefore] = "select point_id, id, d" +
-		" from %s where path_ctx_id = $1 and d < $2 and d >= $3"
-	res.Queries[PathNodeIdsBefore] = "select point_id, id, d" +
-		" from %s where path_ctx_id = $1 and d < $2 and d >= $3"
-	res.Queries[ConnectedPathNodeIds] = "select id" +
-		" from %s where path_ctx_id = $1 and d = $2 and (path_node1 = $3 or path_node2 = $3 or path_node3 = $3)"
+
+	res.Queries[CountPathNodesByCtxAndBetweenDistance] = "select count(id)" +
+		" from %s where path_ctx_id = $1 and d >= $2 and d <= $3"
+	res.Queries[SelectPathNodesByCtxAndBetweenDistance] = "select " +
+		selectAllFields +
+		" from %s where path_ctx_id = $1 and d >= $2 and d <= $3"
+
 	res.Queries[CountPathNodesByCtx] = "select count(*)" +
 		" from %s where path_ctx_id = $1"
+
 	res.Queries[SelectPathNodeIdByCtxAndPointId] = "select id " +
 		" from %s where path_ctx_id = $1 and point_id = $2"
-	res.Queries[SelectPathNodesByPoint] = "select " +
-		selectAllFields +
-		" from %s where point_id = $1"
+
 	return &res
 }
 

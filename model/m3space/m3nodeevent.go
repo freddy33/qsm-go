@@ -68,14 +68,6 @@ func (ne *BaseNodeEvent) GetDistFromCurrent(space *Space) DistAndTime {
 	return space.CurrentTime - ne.accessedTime
 }
 
-func (ne *BaseNodeEvent) IsLatest() bool {
-	pn, _ := ne.GetPathNode()
-	if pn != nil {
-		return pn.IsLatest()
-	}
-	return false
-}
-
 // Return true if path node is currently active
 func (ne *BaseNodeEvent) IsActive(space *Space) bool {
 	evt := space.GetEvent(ne.evtId)

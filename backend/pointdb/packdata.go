@@ -61,7 +61,7 @@ func (ppd *ServerPointPackData) GetNbPathBuilders() int {
 	return len(ppd.pathBuilders)
 }
 
-func (ppd *ServerPointPackData) GetPathNodeBuilderById(cubeId int) PathNodeBuilder {
+func (ppd *ServerPointPackData) GetRootPathNodeBuilderById(cubeId int) PathNodeBuilder {
 	return ppd.pathBuilders[cubeId]
 }
 
@@ -91,7 +91,7 @@ func (ppd *ServerPointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthConte
 	// TODO: Verify the key below stay local and is not staying in memory
 	key := CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: CreateTrioCube(ppd, growthCtx, offset, c)}
 	cubeId := ppd.GetCubeIdByKey(key)
-	return ppd.GetPathNodeBuilderById(cubeId)
+	return ppd.GetRootPathNodeBuilderById(cubeId)
 }
 
 func (ppd *ServerPointPackData) createTables() {

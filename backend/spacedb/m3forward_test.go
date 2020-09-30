@@ -1,7 +1,6 @@
 package spacedb
 
 import (
-	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
@@ -77,7 +76,6 @@ func TestSpaceAllPyramids(t *testing.T) {
 	m3space.LogRun.SetWarn()
 
 	env := getSpaceTestEnv()
-	ppd := pointdb.GetPointPackData(env)
 
 	ctxs := [4]m3point.GrowthType{8, 8, 8, 8}
 

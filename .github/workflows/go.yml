@@ -9,10 +9,10 @@ jobs:
   qsm:
     name: Test
     runs-on: ubuntu-latest
-    container: golang:1.14
+    container: fredsimon-docker.jfrog.io/golang:1.14
     services:
       postgres:
-        image: postgres:12.3
+        image: fredsimon-docker.jfrog.io/postgres:12.3
         env:
           POSTGRES_DB: qsm
           POSTGRES_USER: qsm

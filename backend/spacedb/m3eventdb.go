@@ -10,7 +10,7 @@ import (
 )
 
 type EventNodeDb struct {
-	pathdb.ConnectionsDb
+	pathdb.ConnectionsStateDb
 
 	event *EventDb
 	id    int64

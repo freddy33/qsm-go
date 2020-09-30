@@ -7,24 +7,45 @@ import (
 	"strings"
 )
 
+const NbPathBuildersPerContext = 10
+
+const (
+	RootPathBuilder = iota
+	IntermediatePathBuilder1
+	IntermediatePathBuilder2
+	IntermediatePathBuilder3
+	LastPathBuilder11
+	LastPathBuilder12
+	LastPathBuilder21
+	LastPathBuilder22
+	LastPathBuilder31
+	LastPathBuilder32
+)
+
 type PathNodeBuilder interface {
 	fmt.Stringer
 	GetEnv() m3util.QsmEnvironment
 	GetCubeId() int
 	GetTrioIndex() m3point.TrioIndex
 	GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point)
+	GetPathBuilderByIndex(pbIdx int) PathNodeBuilder
 	DumpInfo() string
 	Verify()
 }
 
 // The Ctx for each main point start point that gives in the global map the root path node builder
 type PathBuilderContext struct {
-	GrowthCtx m3point.GrowthContext
-	CubeId    int
+	GrowthCtx    m3point.GrowthContext
+	CubeId       int
+	PathBuilders [NbPathBuildersPerContext]PathNodeBuilder
 }
 
 func (ctx *PathBuilderContext) String() string {
 	return fmt.Sprintf("PBC-%02d-%03d", ctx.GrowthCtx.GetId(), ctx.CubeId)
+}
+
+func (ctx *PathBuilderContext) GetPathBuilderByIndex(pbIdx int) PathNodeBuilder {
+	return ctx.PathBuilders[pbIdx]
 }
 
 type BasePathNodeBuilder struct {
@@ -89,6 +110,10 @@ func (pnb *BasePathNodeBuilder) GetTrioIndex() m3point.TrioIndex {
 	return pnb.TrIdx
 }
 
+func (pnb *BasePathNodeBuilder) GetPathBuilderByIndex(pbIdx int) PathNodeBuilder {
+	return pnb.Ctx.GetPathBuilderByIndex(pbIdx)
+}
+
 /***************************************************************/
 // RootPathNodeBuilder Functions
 /***************************************************************/
@@ -122,24 +147,24 @@ func (rpnb *RootPathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, conn
 }
 
 func (rpnb *RootPathNodeBuilder) Verify() {
+	rpnb.Ctx.PathBuilders[RootPathBuilder] = rpnb
+
 	td := rpnb.getPointPackData().GetTrioDetails(rpnb.TrIdx)
-	if !td.HasConnection(rpnb.PathLinks[0].ConnId) {
-		Log.Errorf("%s failed checking next path link 0 %s part of trio", rpnb.String(), rpnb.PathLinks[0].ConnId)
-	}
-	if !td.HasConnection(rpnb.PathLinks[1].ConnId) {
-		Log.Errorf("%s failed checking next path link 1 %s part of trio", rpnb.String(), rpnb.PathLinks[1].ConnId)
-	}
-	if !td.HasConnection(rpnb.PathLinks[2].ConnId) {
-		Log.Errorf("%s failed checking next path link 2 %s part of trio", rpnb.String(), rpnb.PathLinks[2].ConnId)
-	}
-	if rpnb.PathLinks[0].ConnId == rpnb.PathLinks[1].ConnId {
-		Log.Errorf("%s failed checking next path links 0 and 1 connections are different", rpnb.String(), rpnb.PathLinks[0].ConnId, rpnb.PathLinks[1].ConnId)
-	}
-	if rpnb.PathLinks[0].ConnId == rpnb.PathLinks[2].ConnId {
-		Log.Errorf("%s failed checking next path links 0 and 2 connections are different", rpnb.String(), rpnb.PathLinks[0].ConnId, rpnb.PathLinks[2].ConnId)
-	}
-	if rpnb.PathLinks[1].ConnId == rpnb.PathLinks[2].ConnId {
-		Log.Errorf("%s failed checking next path links 1 and 2 connections are different", rpnb.String(), rpnb.PathLinks[1].ConnId, rpnb.PathLinks[2].ConnId)
+	for linkIdx, pl := range rpnb.PathLinks {
+		if !td.HasConnection(pl.ConnId) {
+			Log.Fatalf("%s failed checking next path link %d %s part of trio", rpnb.String(), linkIdx, pl.ConnId)
+		}
+		for i, plo := range rpnb.PathLinks {
+			if linkIdx != i && pl.ConnId == plo.ConnId {
+				Log.Fatalf("%s failed checking next path links %d and %d connections are different %s == %s", rpnb.String(), linkIdx, i, pl.ConnId, plo.ConnId)
+			}
+		}
+		ipnb := pl.PathNode.(*IntermediatePathNodeBuilder)
+		ipnb.Verify()
+		rpnb.Ctx.PathBuilders[IntermediatePathBuilder1+linkIdx] = ipnb
+		for interLinkIdx, ipl := range ipnb.PathLinks {
+			rpnb.Ctx.PathBuilders[LastPathBuilder11+(linkIdx*2)+interLinkIdx] = ipl.PathNode
+		}
 	}
 }
 
@@ -184,14 +209,16 @@ func (ipnb *IntermediatePathNodeBuilder) GetNextPathNodeBuilder(from m3point.Poi
 
 func (ipnb *IntermediatePathNodeBuilder) Verify() {
 	td := ipnb.getPointPackData().GetTrioDetails(ipnb.TrIdx)
-	if !td.HasConnection(ipnb.PathLinks[0].ConnId) {
-		Log.Errorf("%s failed checking next path link 0 %s part of trio", ipnb.String(), ipnb.PathLinks[0].ConnId)
-	}
-	if !td.HasConnection(ipnb.PathLinks[1].ConnId) {
-		Log.Errorf("%s failed checking next path link 1 %s part of trio", ipnb.String(), ipnb.PathLinks[1].ConnId)
-	}
-	if ipnb.PathLinks[0].ConnId == ipnb.PathLinks[1].ConnId {
-		Log.Errorf("%s failed checking next path links connections are different", ipnb.String(), ipnb.PathLinks[0].ConnId, ipnb.PathLinks[1].ConnId)
+	for linkIdx, pl := range ipnb.PathLinks {
+		if !td.HasConnection(pl.ConnId) {
+			Log.Fatalf("%s failed checking next path link %d %s part of trio", ipnb.String(), linkIdx, pl.ConnId)
+		}
+		for i, plo := range ipnb.PathLinks {
+			if linkIdx != i && pl.ConnId == plo.ConnId {
+				Log.Fatalf("%s failed checking next path links %d and %d connections are different %s == %s", ipnb.String(), linkIdx, i, pl.ConnId, plo.ConnId)
+			}
+		}
+		pl.PathNode.Verify()
 	}
 }
 

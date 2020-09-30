@@ -139,33 +139,36 @@ func (pathCtx *PathContextCl) GetNumberOfOpenNodes() int {
 }
 
 func (pathCtx *PathContextCl) GetAllOpenPathNodes() []m3path.PathNode {
+	return pathCtx.mapGetPathNodesAt(pathCtx.latestD)
+}
+
+func (pathCtx *PathContextCl) mapGetPathNodesAt(dist int) []m3path.PathNode {
 	res := make([]m3path.PathNode, 0, 100)
 	for _, pn := range pathCtx.pathNodes {
-		if pn.IsLatest() {
+		if dist == pn.d {
 			res = append(res, pn)
 		}
 	}
 	return res
 }
 
-func (pathCtx *PathContextCl) MoveToNextNodes() {
-	uri := "next-nodes"
-	reqMsg := &m3api.NextMoveRequestMsg{
+func (pathCtx *PathContextCl) GetPathNodesAt(dist int) ([]m3path.PathNode, error) {
+	uri := "path-nodes"
+	reqMsg := &m3api.PathNodesRequestMsg{
 		PathCtxId:   int32(pathCtx.GetId()),
-		CurrentDist: int32(pathCtx.latestD),
+		Dist: int32(dist),
 	}
-	pMsg := new(m3api.NextMoveResponseMsg)
-	_, err := pathCtx.env.clConn.ExecReq("POST", uri, reqMsg, pMsg)
+	pMsg := new(m3api.PathNodesResponseMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
 	if err != nil {
-		Log.Fatal(err)
-		return
+		return nil, err
 	}
-	pathCtx.latestD = int(pMsg.NextDist)
-	pathNodes := pMsg.GetNewPathNodes()
+	pathNodes := pMsg.GetPathNodes()
 	Log.Infof("Received back %d path nodes back on move to next", len(pathNodes))
 	for _, pMsg := range pathNodes {
 		pathCtx.addPathNodeFromMsg(pMsg)
 	}
+	return pathCtx.mapGetPathNodesAt(dist), nil
 }
 
 func (pathCtx *PathContextCl) PredictedNextOpenNodesLen() int {

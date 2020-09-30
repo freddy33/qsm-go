@@ -153,6 +153,9 @@ func (te *TableExec) IsFiltered(err error) bool {
 	return err != nil && te.TableDef.ErrorFilter != nil && te.TableDef.ErrorFilter(err)
 }
 
+/*
+Return the number of rows in the table, than a bool if the table should be filled and an error if something is wrong
+*/
 func (te *TableExec) GetForSaveAll() (int, bool, error) {
 	if te.WasCreated() {
 		return 0, true, nil

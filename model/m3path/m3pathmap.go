@@ -6,7 +6,6 @@ type PathNodeMap interface {
 	Size() int
 	GetPathNode(p m3point.Point) PathNode
 	AddPathNode(pathNode PathNode) (PathNode, bool)
-	IsActive(pathNode PathNode) bool
 	Clear()
 	Range(f func(point m3point.Point, pn PathNode) bool, nbProc int)
 }
@@ -46,10 +45,6 @@ func (pnm *SimplePathNodeMap) AddPathNode(pathNode PathNode)  (PathNode, bool) {
 		(*pnm)[p] = pathNode
 	}
 	return res, !ok
-}
-
-func (pnm *SimplePathNodeMap) IsActive(pathNode PathNode) bool {
-	return pathNode.IsLatest()
 }
 
 func (pnm *SimplePathNodeMap) Clear() {
@@ -94,10 +89,6 @@ func (hnm *PointHashPathNodeMap) AddPathNode(pathNode PathNode) (PathNode, bool)
 	return pn.(PathNode), inserted
 }
 
-func (*PointHashPathNodeMap) IsActive(pathNode PathNode) bool {
-	return pathNode.IsLatest()
-}
-
 func (hnm *PointHashPathNodeMap) Clear() {
 	hnm.pointMap.Clear()
 }
@@ -108,25 +99,22 @@ func (hnm *PointHashPathNodeMap) Range(f func(point m3point.Point, pn PathNode) 
 	}, nbProc)
 }
 
-func CalculatePredictedSize(d int, currentLen int) int {
+func CalculatePredictedSize(growthType m3point.GrowthType, d int) int {
 	if d == 0 {
 		return 3
 	}
 	if d == 1 {
 		return 6
 	}
-	// from sphere area growth of d to d+1 the ratio should be 1 + 2/d + 1/d^2
-	origLen := float64(currentLen)
-	df := float64(d)
-	predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
-	if d <= 16 {
-		predictedRatio = predictedRatio * 1.11
-	} else if d <= 32 {
-		predictedRatio = predictedRatio * 1.04
-	} else {
-		predictedRatio = predictedRatio * 1.02
+
+	buffer := float32(1.02)
+	df := float32(d)
+	if growthType == m3point.GrowthType(8) {
+		return int((1.775*df*df - 2.497*df + 5.039) * buffer)
+	} else if growthType == m3point.GrowthType(2) {
+		return int((1.445*df*df - 0.065*df - 0.377) * buffer)
 	}
-	predictedLen := origLen * predictedRatio
-	return int(predictedLen)
+	// TODO: Find trend lines for other context types
+	return int((1.775*df*df - 2.497*df + 5.039) * buffer)
 }
 

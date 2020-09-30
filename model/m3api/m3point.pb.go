@@ -21,9 +21,9 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type PointMsg struct {
-	X                    int32    `protobuf:"zigzag32,2,opt,name=x,proto3" json:"x,omitempty"`
-	Y                    int32    `protobuf:"zigzag32,3,opt,name=y,proto3" json:"y,omitempty"`
-	Z                    int32    `protobuf:"zigzag32,4,opt,name=z,proto3" json:"z,omitempty"`
+	X                    int32    `protobuf:"zigzag32,2,opt,name=x,proto3" json:"x"`
+	Y                    int32    `protobuf:"zigzag32,3,opt,name=y,proto3" json:"y"`
+	Z                    int32    `protobuf:"zigzag32,4,opt,name=z,proto3" json:"z"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -76,7 +76,7 @@ func (m *PointMsg) GetZ() int32 {
 }
 
 type ConnectionMsg struct {
-	ConnId               int32     `protobuf:"zigzag32,1,opt,name=conn_id,json=connId,proto3" json:"conn_id,omitempty"`
+	ConnId               int32     `protobuf:"zigzag32,1,opt,name=conn_id,json=connId,proto3" json:"conn_id"`
 	Vector               *PointMsg `protobuf:"bytes,2,opt,name=vector,proto3" json:"vector,omitempty"`
 	Ds                   int64     `protobuf:"varint,3,opt,name=ds,proto3" json:"ds,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
@@ -131,7 +131,7 @@ func (m *ConnectionMsg) GetDs() int64 {
 }
 
 type TrioMsg struct {
-	TrioId               int32    `protobuf:"varint,1,opt,name=trio_id,json=trioId,proto3" json:"trio_id,omitempty"`
+	TrioId               int32    `protobuf:"varint,1,opt,name=trio_id,json=trioId,proto3" json:"trio_id"`
 	ConnIds              []int32  `protobuf:"zigzag32,2,rep,packed,name=conn_ids,json=connIds,proto3" json:"conn_ids,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -178,9 +178,9 @@ func (m *TrioMsg) GetConnIds() []int32 {
 }
 
 type GrowthContextMsg struct {
-	GrowthContextId      int32    `protobuf:"varint,1,opt,name=growth_context_id,json=growthContextId,proto3" json:"growth_context_id,omitempty"`
-	GrowthType           int32    `protobuf:"varint,2,opt,name=growth_type,json=growthType,proto3" json:"growth_type,omitempty"`
-	GrowthIndex          int32    `protobuf:"varint,3,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index,omitempty"`
+	GrowthContextId      int32    `protobuf:"varint,1,opt,name=growth_context_id,json=growthContextId,proto3" json:"growth_context_id"`
+	GrowthType           int32    `protobuf:"varint,2,opt,name=growth_type,json=growthType,proto3" json:"growth_type"`
+	GrowthIndex          int32    `protobuf:"varint,3,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

@@ -37,10 +37,10 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())
 	assert.Equal(t, 0, growthCtx.GetGrowthIndex())
-	pathCtx, err := pathData.CreatePathCtxDb(growthCtx, 0)
+	pathCtx, err := pathData.GetPathCtxDb(growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex(), 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, pathCtx)
-	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
+	assert.Equal(t, 1, pathCtx.GetNumberOfNodesAt(0))
 	ctxId := pathCtx.id
 	assert.True(t, ctxId > 0)
 
@@ -54,14 +54,10 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, pathCtx.rootNode.pointId, pathData.GetOrCreatePoint(testPoint))
 	assert.Equal(t, 2601, pathCtx.rootNode.pathBuilderId)
 
-	assert.Equal(t, 1, pathCtx.GetNumberOfOpenNodes())
-
-	assert.NotNil(t, pathCtx.openNodeBuilder)
-	assert.Equal(t, pathCtx.rootNode, pathCtx.openNodeBuilder.openNodesMap.GetPathNode(testPoint))
+	assert.Equal(t, 1, pathCtx.GetNumberOfNodesAt(0))
 
 	assert.Equal(t, 0, pn.D())
 	assert.True(t, pn.IsRoot())
-	assert.True(t, pn.HasOpenConnections())
 
 	nodeId := pathCtx.rootNode.id
 	loadedFromDb, err := pathCtx.GetPathNodeDb(nodeId)
@@ -77,8 +73,9 @@ func TestMakeNewPathCtx(t *testing.T) {
 
 	rootCreated := time.Now()
 
-	pathCtx.MoveToNextNodes()
-	assert.Equal(t, 3, pathCtx.GetNumberOfOpenNodes())
+	err = pathCtx.calculateNextMaxDist()
+	assert.NoError(t, err)
+	assert.Equal(t, 3, pathCtx.GetNumberOfNodesAt(1))
 
 	moveNext := time.Now()
 	Log.Infof("Total move next DB test took %v", moveNext.Sub(rootCreated))

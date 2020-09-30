@@ -243,8 +243,8 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/init-env", initialize).Methods("POST")
 	app.AddHandler("/drop-env", drop).Methods("DELETE")
 
-	app.AddHandler("/create-path-ctx", createPathContext).Methods("PUT")
-	app.AddHandler("/next-nodes", moveToNextNode).Methods("POST")
+	app.AddHandler("/path-context", createPathContext).Methods("POST")
+	app.AddHandler("/path-nodes", getPathNodes).Methods("GET")
 
 	app.AddHandler("/space", createSpace).Methods("PUT")
 	app.AddHandler("/space", getSpaces).Methods("GET")

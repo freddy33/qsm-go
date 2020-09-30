@@ -1,96 +1,76 @@
 package pathdb
 
 import (
+	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/stretchr/testify/assert"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 )
 
 var LogDataTest = m3util.NewDataLogger("DATA", m3util.DEBUG)
 
-const (
-	BenchNbRound = 51
-)
-
 /***************************************************************/
 // PathContext Test size optimization
 /***************************************************************/
 
-func TestPathCtx8(t *testing.T) {
-	runForPathCtxType(1, 25, m3point.GrowthType(8), true)
-}
-
-/***************************************************************/
-// PathContext Bench
-/***************************************************************/
-
-func BenchmarkPathCtx3(b *testing.B) {
-	runForPathCtxType(b.N, BenchNbRound, 3, false)
-}
-
-func BenchmarkPathCtx4(b *testing.B) {
-	runForPathCtxType(b.N, BenchNbRound, 4, false)
-}
-
-func BenchmarkPathCtx8(b *testing.B) {
-	runForPathCtxType(b.N, BenchNbRound, 8, false)
-}
-
-func runForPathCtxType(N, until int, pType m3point.GrowthType, single bool) {
-	LogDataTest.SetWarn()
-	Log.SetWarn()
+func TestPopulateMaxAllPathCtx(t *testing.T) {
+	LogDataTest.SetInfo()
+	Log.SetInfo()
 	Log.SetAssert(true)
 	m3point.Log.SetWarn()
 	m3point.Log.SetAssert(true)
 	m3util.SetToTestMode()
 
 	env := GetPathDbFullEnv(m3util.PathTestEnv)
+	for _, growthType := range m3point.GetAllGrowthTypes() {
+		runForPathCtxType(t, env, 25, growthType, 0.1)
+	}
+}
+
+func runForPathCtxType(t *testing.T, env *m3db.QsmDbEnvironment, until int, growthType m3point.GrowthType, doPercent float32) {
 	pathData := GetServerPathPackData(env)
-	allCtx := pathData.GetAllPathContexts()
-	for r := 0; r < N; r++ {
-		for _, pathCtx := range allCtx[pType] {
+	err := pathData.initAllPathContexts()
+	assert.NoError(t, err)
+	if err != nil {
+		return
+	}
+	for _, pathCtx := range pathData.AllCenterContexts[growthType] {
+		rf := rand.Float32()
+		Log.Infof("Comparing %f < %f for %s", rf, doPercent, pathCtx.String())
+		if rf < doPercent {
 			start := time.Now()
-			runPathContext(pathCtx, until)
+			allNb, lastNb, err := runPathContext(pathCtx, until)
+			assert.NoError(t, err)
 			t := time.Since(start)
-			LogDataTest.Infof("%s %s %d %d", t, pathCtx, pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfOpenNodes())
-			if single {
-				break
-			}
+			LogDataTest.Infof("%s %s %d %d", t, pathCtx, allNb, lastNb)
 		}
 	}
 }
 
-func runPathContext(pathCtx *PathContextDb, until int) {
+func runPathContext(pathCtx *PathContextDb, until int) (int, int, error) {
 	for d := 0; d < until; d++ {
-		verifyDistance(pathCtx, d)
-		origLen := float64(pathCtx.GetNumberOfOpenNodes())
-		predictedIntLen := pathCtx.PredictedNextOpenNodesLen()
-		pathCtx.MoveToNextNodes()
-		if d != 0 && LogDataTest.IsInfo() {
-			finalLen := pathCtx.GetNumberOfOpenNodes()
-			df := float64(d)
-			predictedRatio := 1.0 + 2.0/df + 1.0/(df*df)
-			actualRatio := float64(finalLen) / origLen
-			errorBar := math.Abs(actualRatio-predictedRatio) / predictedRatio
+		maxDist := pathCtx.GetMaxDist()
+		if d > maxDist {
+			err := pathCtx.calculateNextMaxDist()
+			if err != nil {
+				return -1, -1, err
+			}
+		}
+		if LogDataTest.IsInfo() {
+			predictedIntLen := m3path.CalculatePredictedSize(pathCtx.GetGrowthType(), d)
+			finalLen := pathCtx.GetNumberOfNodesAt(d)
+			errorBar := math.Abs(float64(finalLen-predictedIntLen)) / float64(finalLen)
 			if predictedIntLen < finalLen {
-				LogDataTest.Errorf("%s: Distance %d orig=%.0f final=%.0f predictLen=%d actualRatio=%.5f predictedRatio=%.5f errorBar=%f", pathCtx.String(), d, origLen, finalLen, predictedIntLen, actualRatio, predictedRatio, errorBar)
+				LogDataTest.Errorf("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)
 			} else {
-				LogDataTest.Infof("%s: Distance %d orig=%.0f final=%.0f predictLen=%d actualRatio=%.5f predictedRatio=%.5f errorBar=%f", pathCtx.String(), d, origLen, finalLen, predictedIntLen, actualRatio, predictedRatio, errorBar)
+				LogDataTest.Infof("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)
 			}
 		}
 	}
-}
-
-func verifyDistance(pathCtx *PathContextDb, d int) {
-	pnm := pathCtx.openNodeBuilder.openNodesMap
-	pnm.Range(func(point m3point.Point, pn m3path.PathNode) bool {
-		if pn.D() != d {
-			Log.Errorf("Something fishy for %s", pathCtx.String())
-			return true
-		}
-		return false
-	}, 1)
+	return pathCtx.GetNumberOfNodesBetween(0, until), pathCtx.GetNumberOfNodesAt(until), nil
 }

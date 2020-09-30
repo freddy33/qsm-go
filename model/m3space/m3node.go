@@ -126,30 +126,6 @@ func (bn *BaseNode) GetNbEvents() int {
 	return res
 }
 
-func (bn *BaseNode) GetNbLatestEvents() int {
-	res := 0
-	nel := bn.head
-	for nel != nil {
-		if nel.cur.IsLatest() {
-			res++
-		}
-		nel = nel.next
-	}
-	return res
-}
-
-func (bn *BaseNode) GetLatestEventIds() []EventId {
-	res := make([]EventId, 0, 3)
-	nel := bn.head
-	for nel != nil {
-		if nel.cur.IsLatest() {
-			res = append(res, nel.cur.GetEventId())
-		}
-		nel = nel.next
-	}
-	return res
-}
-
 func (bn *BaseNode) GetNbActiveEvents(space *Space) int {
 	res := 0
 	nel := bn.head

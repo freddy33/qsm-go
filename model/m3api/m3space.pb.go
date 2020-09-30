@@ -21,13 +21,13 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type SpaceMsg struct {
-	SpaceId                 int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	SpaceId                 int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
 	SpaceName               string   `protobuf:"bytes,2,opt,name=space_name,json=spaceName,proto3" json:"space_name,omitempty"`
 	ActivePathNodeThreshold int32    `protobuf:"varint,3,opt,name=active_path_node_threshold,json=activePathNodeThreshold,proto3" json:"active_path_node_threshold,omitempty"`
 	MaxTriosPerPoint        int32    `protobuf:"varint,4,opt,name=max_trios_per_point,json=maxTriosPerPoint,proto3" json:"max_trios_per_point,omitempty"`
 	MaxPathNodesPerPoint    int32    `protobuf:"varint,5,opt,name=max_path_nodes_per_point,json=maxPathNodesPerPoint,proto3" json:"max_path_nodes_per_point,omitempty"`
-	MaxTime                 int32    `protobuf:"varint,6,opt,name=max_time,json=maxTime,proto3" json:"max_time,omitempty"`
-	CurrentTime             int32    `protobuf:"varint,7,opt,name=current_time,json=currentTime,proto3" json:"current_time,omitempty"`
+	MaxTime                 int32    `protobuf:"varint,6,opt,name=max_time,json=maxTime,proto3" json:"max_time"`
+	CurrentTime             int32    `protobuf:"varint,7,opt,name=current_time,json=currentTime,proto3" json:"current_time"`
 	MaxCoord                int32    `protobuf:"varint,8,opt,name=max_coord,json=maxCoord,proto3" json:"max_coord,omitempty"`
 	EventIds                []int32  `protobuf:"varint,9,rep,packed,name=event_ids,json=eventIds,proto3" json:"event_ids,omitempty"`
 	NbActiveNodes           int32    `protobuf:"varint,10,opt,name=nb_active_nodes,json=nbActiveNodes,proto3" json:"nb_active_nodes,omitempty"`
@@ -171,12 +171,12 @@ func (m *SpaceListMsg) GetSpaces() []*SpaceMsg {
 }
 
 type EventMsg struct {
-	EventId              int32     `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	SpaceId              int32     `protobuf:"varint,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	GrowthType           int32     `protobuf:"varint,3,opt,name=growth_type,json=growthType,proto3" json:"growth_type,omitempty"`
-	GrowthIndex          int32     `protobuf:"varint,4,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index,omitempty"`
-	GrowthOffset         int32     `protobuf:"varint,5,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset,omitempty"`
-	CreationTime         int32     `protobuf:"varint,6,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
+	EventId              int32     `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id"`
+	SpaceId              int32     `protobuf:"varint,2,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
+	GrowthType           int32     `protobuf:"varint,3,opt,name=growth_type,json=growthType,proto3" json:"growth_type"`
+	GrowthIndex          int32     `protobuf:"varint,4,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index"`
+	GrowthOffset         int32     `protobuf:"varint,5,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset"`
+	CreationTime         int32     `protobuf:"varint,6,opt,name=creation_time,json=creationTime,proto3" json:"creation_time"`
 	Center               *PointMsg `protobuf:"bytes,7,opt,name=center,proto3" json:"center,omitempty"`
 	Color                uint32    `protobuf:"varint,8,opt,name=color,proto3" json:"color,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
@@ -266,12 +266,12 @@ func (m *EventMsg) GetColor() uint32 {
 }
 
 type NodeEventMsg struct {
-	EventNodeId          int64     `protobuf:"varint,1,opt,name=event_node_id,json=eventNodeId,proto3" json:"event_node_id,omitempty"`
-	EventId              int32     `protobuf:"varint,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventNodeId          int64     `protobuf:"varint,1,opt,name=event_node_id,json=eventNodeId,proto3" json:"event_node_id"`
+	EventId              int32     `protobuf:"varint,2,opt,name=event_id,json=eventId,proto3" json:"event_id"`
 	Point                *PointMsg `protobuf:"bytes,3,opt,name=point,proto3" json:"point,omitempty"`
-	CreationTime         int32     `protobuf:"varint,4,opt,name=creation_time,json=creationTime,proto3" json:"creation_time,omitempty"`
-	D                    int32     `protobuf:"varint,5,opt,name=d,proto3" json:"d,omitempty"`
-	TrioId               int32     `protobuf:"varint,6,opt,name=trio_id,json=trioId,proto3" json:"trio_id,omitempty"`
+	CreationTime         int32     `protobuf:"varint,4,opt,name=creation_time,json=creationTime,proto3" json:"creation_time"`
+	D                    int32     `protobuf:"varint,5,opt,name=d,proto3" json:"d"`
+	TrioId               int32     `protobuf:"varint,6,opt,name=trio_id,json=trioId,proto3" json:"trio_id"`
 	ConnectionMask       uint32    `protobuf:"varint,7,opt,name=connection_mask,json=connectionMask,proto3" json:"connection_mask,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
 	XXX_unrecognized     []byte    `json:"-"`
@@ -353,8 +353,8 @@ func (m *NodeEventMsg) GetConnectionMask() uint32 {
 }
 
 type EventResponseMsg struct {
-	EventId              int32         `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	PathCtxId            int32         `protobuf:"varint,2,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id,omitempty"`
+	EventId              int32         `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id"`
+	PathCtxId            int32         `protobuf:"varint,2,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id"`
 	RootNode             *NodeEventMsg `protobuf:"bytes,3,opt,name=root_node,json=rootNode,proto3" json:"root_node,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
@@ -408,8 +408,8 @@ func (m *EventResponseMsg) GetRootNode() *NodeEventMsg {
 }
 
 type SpaceTimeRequestMsg struct {
-	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	CurrentTime          int32    `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time,omitempty"`
+	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
+	CurrentTime          int32    `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -455,8 +455,8 @@ func (m *SpaceTimeRequestMsg) GetCurrentTime() int32 {
 }
 
 type SpaceTimeResponseMsg struct {
-	SpaceId              int32           `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	CurrentTime          int32           `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time,omitempty"`
+	SpaceId              int32           `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
+	CurrentTime          int32           `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time"`
 	ActiveNodes          []*NodeEventMsg `protobuf:"bytes,3,rep,name=active_nodes,json=activeNodes,proto3" json:"active_nodes,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
