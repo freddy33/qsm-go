@@ -4,6 +4,7 @@
 # IDE
 .idea/
 *.iml
+.vscode
 
 # Executable
 /model/model
