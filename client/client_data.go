@@ -110,10 +110,6 @@ func (pathCtx *PathContextCl) CountAllPathNodes() int {
 	return len(pathCtx.pathNodes)
 }
 
-func (pathCtx *PathContextCl) InitRootNode(center m3point.Point) {
-	panic("initRootNode client should not be called")
-}
-
 func (pathCtx *PathContextCl) addPathNodeFromMsg(pMsg *m3api.PathNodeMsg) *PathNodeCl {
 	pn := new(PathNodeCl)
 	pn.id = pMsg.GetPathNodeId()
@@ -156,6 +152,26 @@ func (pathCtx *PathContextCl) mapGetPathNodesBetween(fromDist, toDist int) []m3p
 
 func (pathCtx *PathContextCl) GetMaxDist() int {
 	return pathCtx.maxDist
+}
+
+func (pathCtx *PathContextCl) RequestNewMaxDist(requestDist int) error {
+	if pathCtx.GetMaxDist() >= requestDist {
+		// Already done
+		return nil
+	}
+	uri := "max-dist"
+	reqMsg := &m3api.PathNodesRequestMsg{
+		PathCtxId:   int32(pathCtx.GetId()),
+		Dist: int32(requestDist),
+	}
+	pMsg := new(m3api.PathNodesResponseMsg)
+	_, err := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg, pMsg)
+	if err != nil {
+		return err
+	}
+	pathCtx.maxDist = int(pMsg.MaxDist)
+	Log.Infof("New max dist is %d for %d", pathCtx.GetMaxDist(), pathCtx.GetId())
+	return nil
 }
 
 func (pathCtx *PathContextCl) GetPathNodesAt(dist int) ([]m3path.PathNode, error) {

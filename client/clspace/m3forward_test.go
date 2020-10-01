@@ -66,7 +66,7 @@ func getSpaceTestEnv() m3util.QsmEnvironment {
 		return spaceEnv
 	}
 	m3util.SetToTestMode()
-	spaceEnv := client.GetInitializedApiEnv(m3util.SpaceTestEnv)
+	spaceEnv := client.GetInitializedApiEnv(m3util.TestClientEnv)
 	return spaceEnv
 }
 

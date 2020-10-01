@@ -317,6 +317,25 @@ func (ec *RangeErrorCollector) listen() {
 // TODO: This should be in path data entry of the env
 var nbParallelProcesses = 8
 
+func (pathCtx *PathContextDb) RequestNewMaxDist(requestDist int) error {
+	if requestDist <= pathCtx.GetMaxDist() {
+		return nil
+	}
+	nbExecution := 0
+	for d := pathCtx.GetMaxDist() + 1; d <= requestDist; d++ {
+		err := pathCtx.calculateNextMaxDist()
+		if err != nil {
+			return err
+		}
+		nbExecution++
+	}
+	if requestDist > pathCtx.GetMaxDist() {
+		return m3util.MakeQsmErrorf("After executing %d next max dist on path context %d the max dist %d still not the requested value %d",
+			nbExecution, pathCtx.GetId(), pathCtx.GetMaxDist(), requestDist)
+	}
+	return nil
+}
+
 func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 	current, err := createCurrentNodeBuilder(pathCtx)
 	if err != nil {

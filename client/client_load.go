@@ -46,6 +46,9 @@ func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Mess
 	if resp == nil {
 		return ExecFailed, m3util.MakeQsmErrorf("Got a nil response from REST API %s:%s end point %q", method, uri, cl.backendRootURL)
 	}
+
+	// TODO: Need to read the status code!
+
 	respBody := resp.Body
 	defer m3util.CloseBody(respBody)
 	respBytes, err := ioutil.ReadAll(respBody)

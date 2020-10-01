@@ -70,43 +70,73 @@ func TestReadPointData(t *testing.T) {
 	router := getApp(m3util.PointTestEnv).Router
 	initDB(t, router)
 	pMsg := &m3api.PointPackDataMsg{}
-	sendAndReceive(t, &requestTest{
+	if !sendAndReceive(t, &requestTest{
 		router:      router,
 		contentType: "proto",
 		typeName:    "PointPackDataMsg",
 		methodName:  "GET",
 		uri:         "/point-data",
-	}, nil, pMsg)
+	}, nil, pMsg) {
+		return
+	}
 
 	assert.Equal(t, 50, len(pMsg.AllConnections))
 	assert.Equal(t, 200, len(pMsg.AllTrios))
 	assert.Equal(t, 52, len(pMsg.AllGrowthContexts))
 }
 
-func verifyResponsePlainText(t *testing.T, rr *httptest.ResponseRecorder, req *requestTest) {
-	assert.Equal(t, http.StatusOK, rr.Result().StatusCode, "fail on %v", req)
-	contentType := rr.Header().Get("Content-Type")
-	assert.Equal(t, "text/plain", contentType, "fail on %q for %v", contentType, req)
+func verifyStatus(t *testing.T, rr *httptest.ResponseRecorder, req *requestTest) bool {
+	statusCode := rr.Result().StatusCode
+	if !assert.Equal(t, http.StatusOK, statusCode, "fail on %v", req) {
+		msg := "Content not text/plain"
+		if rr.Header().Get("Content-Type") == "text/plain" {
+			b, err := ioutil.ReadAll(rr.Body)
+			if !assert.NoError(t, err, "Fail to read bytes for %v", req) {
+				return false
+			}
+			msg = string(b)
+		}
+		return assert.Fail(t, "Received wrong code", "Got %d with message: %q", statusCode, msg)
+	}
+	return true
 }
 
-func verifyResponseContentType(t *testing.T, rr *httptest.ResponseRecorder, req *requestTest) {
-	assert.Equal(t, http.StatusOK, rr.Result().StatusCode, "fail on %v", req)
+func verifyResponsePlainText(t *testing.T, rr *httptest.ResponseRecorder, req *requestTest) bool {
+	if !verifyStatus(t, rr, req) {
+		return false
+	}
+	contentType := rr.Header().Get("Content-Type")
+	return assert.Equal(t, "text/plain", contentType, "fail on %q for %v", contentType, req)
+}
+
+func verifyResponseContentType(t *testing.T, rr *httptest.ResponseRecorder, req *requestTest) bool {
+	if !verifyStatus(t, rr, req) {
+		return false
+	}
 	contentType := rr.Header().Get("Content-Type")
 	contentTypeSplit := strings.Split(contentType, ";")
-	assert.Equal(t, 2, len(contentTypeSplit), "fail on %q for %v", contentType, req)
-	if req.contentType == "json" {
-		assert.Equal(t, contentTypeSplit[0], "application/json", "fail on %q for %v", contentType, req)
-	} else if req.contentType == "proto" {
-		assert.Equal(t, contentTypeSplit[0], "application/x-protobuf", "fail on %q for %v", contentType, req)
+	if !assert.Equal(t, 2, len(contentTypeSplit), "fail on %q for %v", contentType, req) {
+		return false
 	}
+	var firstPart string
+	if req.contentType == "json" {
+		firstPart = "application/json"
+	} else if req.contentType == "proto" {
+		firstPart = "application/x-protobuf"
+	}
+	if !assert.Equal(t, contentTypeSplit[0], firstPart, "fail on %q for %v", contentType, req) {
+		return false
+	}
+
 	mt := strings.TrimSpace(contentTypeSplit[1])
 	mtSplit := strings.Split(mt, "=")
-	assert.Equal(t, 2, len(mtSplit), "fail on=%q source=%q for %v", mt, contentType, req)
-	assert.Equal(t, "messageType", mtSplit[0], "fail on=%q source=%q for %v", mt, contentType, req)
-	assert.Equal(t, "m3api."+req.typeName, mtSplit[1], "fail on=%q source=%q for %v", mt, contentType, req)
+	good := assert.Equal(t, 2, len(mtSplit), "fail on=%q source=%q for %v", mt, contentType, req)
+	good = good && assert.Equal(t, "messageType", mtSplit[0], "fail on=%q source=%q for %v", mt, contentType, req)
+	good = good && assert.Equal(t, "m3api."+req.typeName, mtSplit[1], "fail on=%q source=%q for %v", mt, contentType, req)
+	return good
 }
 
-func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg proto.Message) {
+func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg proto.Message) bool {
 	var err error
 	var httpReq *http.Request
 	if reqMsg != nil {
@@ -116,41 +146,47 @@ func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg
 		} else if req.contentType == "proto" {
 			reqBytes, err = proto.Marshal(reqMsg)
 		} else {
-			assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
+			return assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
 		}
-		assert.NoError(t, err, "could not marshal %v", req)
+		if !assert.NoError(t, err, "could not marshal %v", req) {
+			return false
+		}
 		httpReq, err = http.NewRequest(req.methodName, req.uri, bytes.NewReader(reqBytes))
 	} else {
 		httpReq, err = http.NewRequest(req.methodName, req.uri, nil)
 	}
-	assert.NoError(t, err, "Could create request %v", req)
+	if !assert.NoError(t, err, "Could create request %v", req) {
+		return false
+	}
 
 	if req.contentType == "json" {
 		httpReq.Header.Set("Content-Type", "application/json")
 	} else if req.contentType == "proto" {
 		httpReq.Header.Set("Content-Type", "application/x-protobuf")
 	} else {
-		assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
+		return assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
 	}
 	rr := httptest.NewRecorder()
 	req.router.ServeHTTP(rr, httpReq)
 
-	b, err := ioutil.ReadAll(rr.Body)
-	assert.NoError(t, err, "Fail to read bytes for %v", req)
-
 	if resMsg != nil {
-		verifyResponseContentType(t, rr, req)
-		var err error
+		if !verifyResponseContentType(t, rr, req) {
+			return false
+		}
+		b, err := ioutil.ReadAll(rr.Body)
+		if !assert.NoError(t, err, "Fail to read bytes for %v", req) {
+			return false
+		}
 		if req.contentType == "json" {
 			err = json.Unmarshal(b, resMsg)
 		} else if req.contentType == "proto" {
 			err = proto.Unmarshal(b, resMsg)
 		} else {
-			assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
+			return assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
 		}
-		assert.NoError(t, err, "Fail to marshall bytes of %v", req)
+		return assert.NoError(t, err, "Fail to marshall bytes of %v", req)
 	} else {
-		verifyResponsePlainText(t, rr, req)
+		return verifyResponsePlainText(t, rr, req)
 	}
 }
 

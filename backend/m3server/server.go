@@ -72,14 +72,11 @@ func getRequestType(w http.ResponseWriter, r *http.Request) string {
 	}
 }
 
-/*
-Return true if an error occurred and the response already filed
-*/
 func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		SendResponse(w, http.StatusBadRequest, "req body could not be read req body due to: %s", err.Error())
-		return true
+		return false
 	}
 	reqContentType := getRequestType(w, r)
 	if reqContentType == "json" {
@@ -87,13 +84,13 @@ func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message
 	} else if reqContentType == "proto" {
 		err = proto.Unmarshal(b, reqMsg)
 	} else {
-		return true
+		return false
 	}
 	if err != nil {
 		SendResponse(w, http.StatusBadRequest, "req body could not be parsed due to: %s", err.Error())
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 func WriteResponseMsg(w http.ResponseWriter, r *http.Request, resMsg proto.Message) {
@@ -244,6 +241,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/drop-env", drop).Methods("DELETE")
 
 	app.AddHandler("/path-context", createPathContext).Methods("POST")
+	app.AddHandler("/max-dist", increaseMaxDist).Methods("PUT")
 	app.AddHandler("/path-nodes", getPathNodes).Methods("GET")
 	app.AddHandler("/nb-path-nodes", getNbPathNodes).Methods("GET")
 

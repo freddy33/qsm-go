@@ -28,16 +28,17 @@ func TestPopulateMaxAllPathCtx(t *testing.T) {
 
 	env := GetPathDbFullEnv(m3util.PathTestEnv)
 	for _, growthType := range m3point.GetAllGrowthTypes() {
-		runForPathCtxType(t, env, 25, growthType, 0.1)
+		if !runForPathCtxType(t, env, 25, growthType, 0.1) {
+			return
+		}
 	}
 }
 
-func runForPathCtxType(t *testing.T, env *m3db.QsmDbEnvironment, until int, growthType m3point.GrowthType, doPercent float32) {
+func runForPathCtxType(t *testing.T, env *m3db.QsmDbEnvironment, until int, growthType m3point.GrowthType, doPercent float32) bool {
 	pathData := GetServerPathPackData(env)
 	err := pathData.initAllPathContexts()
-	assert.NoError(t, err)
-	if err != nil {
-		return
+	if !assert.NoError(t, err) {
+		return false
 	}
 	for _, pathCtx := range pathData.AllCenterContexts[growthType] {
 		rf := rand.Float32()
@@ -45,27 +46,31 @@ func runForPathCtxType(t *testing.T, env *m3db.QsmDbEnvironment, until int, grow
 		if rf < doPercent {
 			start := time.Now()
 			allNb, lastNb, err := runPathContext(pathCtx, until)
-			assert.NoError(t, err)
-			t := time.Since(start)
-			LogDataTest.Infof("%s %s %d %d", t, pathCtx, allNb, lastNb)
+			if !assert.NoError(t, err) {
+				return false
+			}
+			timeTook := time.Since(start)
+			LogDataTest.Infof("%s %s %d %d", timeTook, pathCtx, allNb, lastNb)
 		}
 	}
+	return true
 }
 
 func runPathContext(pathCtx *PathContextDb, until int) (int, int, error) {
+	err := pathCtx.RequestNewMaxDist(until)
+	if err != nil {
+		return -1, -1, err
+	}
 	for d := 0; d < until; d++ {
-		maxDist := pathCtx.GetMaxDist()
-		if d > maxDist {
-			err := pathCtx.calculateNextMaxDist()
-			if err != nil {
-				return -1, -1, err
-			}
-		}
 		if LogDataTest.IsInfo() {
 			predictedIntLen := m3path.CalculatePredictedSize(pathCtx.GetGrowthType(), d)
 			finalLen := pathCtx.GetNumberOfNodesAt(d)
-			errorBar := math.Abs(float64(finalLen-predictedIntLen)) / float64(finalLen)
-			if predictedIntLen < finalLen {
+			errorBar := math.Abs(float64(finalLen-predictedIntLen)) / float64(predictedIntLen)
+			// If final length way too small => error
+			if d > 10 && finalLen < predictedIntLen && errorBar > 0.3 {
+				return -1, -1, m3util.MakeQsmErrorf("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)
+			}
+			if predictedIntLen < finalLen && errorBar > 0.08 {
 				LogDataTest.Errorf("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)
 			} else {
 				LogDataTest.Infof("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)

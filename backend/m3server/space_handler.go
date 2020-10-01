@@ -32,7 +32,7 @@ func createSpace(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive createSpace")
 
 	reqMsg := &m3api.SpaceMsg{}
-	if ReadRequestMsg(w, r, reqMsg) {
+	if !ReadRequestMsg(w, r, reqMsg) {
 		return
 	}
 
@@ -67,7 +67,7 @@ func createEvent(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive createEvent")
 
 	reqMsg := &m3api.EventMsg{}
-	if ReadRequestMsg(w, r, reqMsg) {
+	if !ReadRequestMsg(w, r, reqMsg) {
 		return
 	}
 

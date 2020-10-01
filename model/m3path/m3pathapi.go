@@ -35,6 +35,7 @@ type PathContext interface {
 	GetRootPathNode() PathNode
 
 	GetMaxDist() int
+	RequestNewMaxDist(requestDist int) error
 
 	GetNumberOfNodesAt(dist int) int
 	GetPathNodesAt(dist int) ([]PathNode, error)

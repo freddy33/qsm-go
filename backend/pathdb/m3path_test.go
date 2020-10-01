@@ -20,7 +20,9 @@ func TestFirstPathContextFilling(t *testing.T) {
 	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		for _, pathCtx := range pathData.AllCenterContexts[ctxType] {
 			until := 12
-			fillPathContext(t, pathCtx, until)
+			if !fillPathContext(t, pathCtx, until) {
+				return
+			}
 			Log.Infof("Run for %s got %d points %d last open end path", pathCtx.String(), pathCtx.CountAllPathNodes(), pathCtx.GetNumberOfNodesAt(until))
 			if Log.IsDebug() {
 				Log.Debug(pathCtx.DumpInfo())
@@ -30,22 +32,31 @@ func TestFirstPathContextFilling(t *testing.T) {
 	}
 }
 
-func fillPathContext(t *testing.T, pathCtx *PathContextDb, until int) {
+func fillPathContext(t *testing.T, pathCtx *PathContextDb, until int) bool {
 	growthCtx := pathCtx.GetGrowthCtx()
 	ppd := pointdb.GetPointPackData(growthCtx.GetEnv())
 	trIdx := growthCtx.GetBaseTrioIndex(ppd, 0, pathCtx.GetGrowthOffset())
-	assert.NotEqual(t, m3point.NilTrioIndex, trIdx)
+	if !assert.NotEqual(t, m3point.NilTrioIndex, trIdx) {
+		return false
+	}
 
 	td := ppd.GetTrioDetails(trIdx)
-	assert.NotNil(t, td)
-	assert.Equal(t, trIdx, td.GetId())
+	if !assert.NotNil(t, td) {
+		return false
+	}
+	if !assert.Equal(t, trIdx, td.GetId()) {
+		return false
+	}
 
 	Log.Debug(growthCtx.String(), td.String())
 
 	for d := 0; d <= until; d++ {
 		if d > pathCtx.GetMaxDist() {
 			err := pathCtx.calculateNextMaxDist()
-			assert.NoError(t, err)
+			if !assert.NoError(t, err) {
+				return false
+			}
 		}
 	}
+	return true
 }
