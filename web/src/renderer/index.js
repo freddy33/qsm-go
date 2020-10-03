@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import _ from 'lodash';
 
 const init = (width, height) => {
   const camera = new THREE.PerspectiveCamera(45, width / height, 1, 500);
@@ -72,17 +73,20 @@ const mockPoints = [...Array(10).keys()].map((i) => {
 });
 
 const draw = (scene, points, pointPackDataMsg) => {
-  if (!pointPackDataMsg) {
+  const connections = _.get(pointPackDataMsg, 'connections', {});
+  const trios = _.get(pointPackDataMsg, 'trios', {});
+
+  // debugger;
+  if (!_.size(connections) || !_.size(trios)) {
     return;
   }
-
-  const { connections, trios } = pointPackDataMsg;
 
   points.forEach((point) => {
     const startingPoint = { x: point.x, y: point.y, z: point.z };
     addPoint(scene, startingPoint);
     const trio = trios[point.trioId];
-    trio.connIds.forEach((connId) => {
+    const connIds = _.get(trio, 'connIds', []);
+    connIds.forEach((connId) => {
       const trio = connections[connId];
       const connPoint = {
         x: startingPoint.x + trio.vector.x,
