@@ -2,6 +2,8 @@ package spacedb
 
 import (
 	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/backend/pathdb"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3space"
 )
@@ -41,12 +43,14 @@ func (spaceData *ServerSpacePackData) LoadAllSpaces() error {
 	if spaceData.allSpacesLoaded {
 		return nil
 	}
+	pathData := pathdb.GetServerPathPackData(spaceData.env)
+	pointData := pointdb.GetServerPointPackData(spaceData.env)
 	rows, err := spaceData.spacesTe.SelectAllForLoad()
 	if err != nil {
 		return err
 	}
 	for rows.Next() {
-		space := SpaceDb{spaceData: spaceData}
+		space := SpaceDb{spaceData: spaceData, pathData: pathData, pointData: pointData}
 		err := rows.Scan(&space.id, &space.name, &space.activePathNodeThreshold,
 			&space.maxTriosPerPoint, &space.maxPathNodesPerPoint, &space.maxCoord, &space.maxTime)
 		if err != nil {

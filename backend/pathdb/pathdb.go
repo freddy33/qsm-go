@@ -109,8 +109,8 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" $8,$9,$10) returning id"
 	res.SelectAll = "not to call select all on node path"
 	res.ExpectedCount = -1
-	res.QueryTableRefs = make(map[int][]string, 1)
 	res.Queries = make([]string, 8)
+	res.QueryTableRefs = make(map[int][]string, 1)
 	selectAllFields := "id, path_ctx_id, path_builders_id, path_builder_idx, trio_id, point_id, d," +
 		" connection_mask," +
 		" path_node1, path_node2, path_node3"
@@ -195,7 +195,7 @@ func checkEnv(env *m3db.QsmDbEnvironment) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if !testDbFilled[envId] {
-		pointData := pointdb.GetPointPackData(env)
+		pointData := pointdb.GetServerPointPackData(env)
 		pointData.FillDb()
 		GetServerPathPackData(env).createTables()
 		testDbFilled[envId] = true

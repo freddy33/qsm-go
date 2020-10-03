@@ -155,9 +155,9 @@ func (pathCtx *PathContextDb) createConnection(currentD int, fromNode *PathNodeD
 		// Link the destination node to this link
 		fromNode.SetConnectionState(connIdx, m3path.ConnectionNext)
 		if nextPathNode.id <= 0 {
-			fromNode.linkIds[connIdx] = NextLinkIdNotAssigned
+			fromNode.LinkIds[connIdx] = NextLinkIdNotAssigned
 		} else {
-			fromNode.linkIds[connIdx] = nextPathNode.id
+			fromNode.LinkIds[connIdx] = nextPathNode.id
 		}
 		fromNode.linkNodes[connIdx] = nextPathNode
 	}
@@ -208,7 +208,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 						pn.pathCtx = pathCtx
 						pn.SetPathBuilder(npnb)
 						pn.SetTrioId(npnb.GetTrioIndex())
-						pn.trioDetails = nil
+						pn.TrioDetails = nil
 						pn.point = &np
 						pn.pointId = pId
 						pn.d = next.d
@@ -362,11 +362,11 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 			}
 			return false
 		}
-		if on.trioId == m3point.NilTrioIndex {
+		if on.TrioId == m3point.NilTrioIndex {
 			ec.collectErrors <- m3util.MakeQsmErrorf("reached a node without trio id %s", on.String())
 			return true
 		}
-		td := on.GetTrioDetails()
+		td := on.GetTrioDetails(pathCtx.pointData)
 		if td == nil {
 			ec.collectErrors <- m3util.MakeQsmErrorf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
 			return true
@@ -468,7 +468,7 @@ func (pathCtx *PathContextDb) GetPathNodeDb(id int64) (*PathNodeDb, error) {
 func createPathCtxFromDbRows(rows *sql.Rows, pathData *ServerPathPackData) (*PathContextDb, error) {
 	pathCtx := new(PathContextDb)
 	pathCtx.pathData = pathData
-	pathCtx.pointData = pointdb.GetPointPackData(pathData.env)
+	pathCtx.pointData = pointdb.GetServerPointPackData(pathData.env)
 	var growthCtxId, pathBuilderId int
 	err := rows.Scan(&pathCtx.id, &growthCtxId, &pathCtx.growthOffset, &pathBuilderId, &pathCtx.maxDist)
 	if err != nil {

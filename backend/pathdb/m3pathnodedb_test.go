@@ -12,7 +12,7 @@ func TestPathNodeDbConnMask(t *testing.T) {
 
 	pn := getNewPathNodeDb()
 	assert.Equal(t, NewPathNode, pn.state)
-	assert.Equal(t, uint16(m3path.ConnectionNotSet), pn.connectionMask)
+	assert.Equal(t, uint16(m3path.ConnectionNotSet), pn.ConnectionMask)
 
 	assert.True(t, pn.IsNew())
 	assert.False(t, pn.IsInPool())

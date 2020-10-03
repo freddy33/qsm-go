@@ -12,7 +12,7 @@ import (
 func GenerateTextFilesEnv(env m3util.QsmEnvironment) {
 	genDoc := m3util.GetGenDocDir()
 
-	ppd := pointdb.GetPointPackData(env)
+	ppd := pointdb.GetServerPointPackData(env)
 	writeAllTrioDetailsTable(genDoc, ppd)
 	writeAllTrioPermutationsTable(genDoc, ppd)
 	writeTrioConnectionsTable(genDoc, ppd)

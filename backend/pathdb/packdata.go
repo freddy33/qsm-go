@@ -112,7 +112,7 @@ func (pathData *ServerPathPackData) initAllPathContexts() error {
 		}
 	} else {
 		Log.Info("Creating and saving all path contexts in DB")
-		pointData := pointdb.GetPointPackData(pathData.env)
+		pointData := pointdb.GetServerPointPackData(pathData.env)
 		for _, growthCtx := range pointData.GetAllGrowthContexts() {
 			ctxType := growthCtx.GetGrowthType()
 			maxOffset := ctxType.GetMaxOffset()
@@ -139,7 +139,7 @@ func (pathData *ServerPathPackData) GetPathCtxFromAttributes(growthType m3point.
 }
 
 func (pathData *ServerPathPackData) GetPathCtxDbFromAttributes(growthType m3point.GrowthType, growthIndex int, growthOffset int) (*PathContextDb, error) {
-	growthCtx := pointdb.GetPointPackData(pathData.env).GetGrowthContextByTypeAndIndex(growthType, growthIndex)
+	growthCtx := pointdb.GetServerPointPackData(pathData.env).GetGrowthContextByTypeAndIndex(growthType, growthIndex)
 	if growthCtx == nil {
 		return nil, m3util.MakeQsmErrorf("could not find Growth Context for %d %d", growthType, growthIndex)
 	}
@@ -158,7 +158,7 @@ func (pathData *ServerPathPackData) GetPathCtxDbFromAttributes(growthType m3poin
 func (pathData *ServerPathPackData) internalCreatePathCtxDb(growthCtx m3point.GrowthContext, offset int) (*PathContextDb, error) {
 	pathCtx := PathContextDb{}
 	pathCtx.pathData = pathData
-	pathCtx.pointData = pointdb.GetPointPackData(pathData.env)
+	pathCtx.pointData = pointdb.GetServerPointPackData(pathData.env)
 	pathCtx.growthCtx = growthCtx
 	pathCtx.growthOffset = offset
 	pathCtx.rootNode = nil

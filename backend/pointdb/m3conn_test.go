@@ -12,7 +12,7 @@ func TestConnectionDetails(t *testing.T) {
 	m3util.SetToTestMode()
 
 	env := GetPointDbFullEnv(m3util.PointTestEnv)
-	ppd := GetPointPackData(env)
+	ppd := GetServerPointPackData(env)
 	_, err := ppd.saveAllConnectionDetails()
 	if err != nil {
 		Log.Fatal(err)

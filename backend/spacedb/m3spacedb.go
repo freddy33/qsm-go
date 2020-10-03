@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/pathdb"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
-	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"sync"
@@ -14,6 +14,7 @@ import (
 type SpaceDb struct {
 	spaceData *ServerSpacePackData
 	pathData  *pathdb.ServerPathPackData
+	pointData *pointdb.ServerPointPackData
 
 	// Unique keys
 	id   int
@@ -52,19 +53,20 @@ func CreateSpace(env *m3db.QsmDbEnvironment,
 	space := new(SpaceDb)
 	space.spaceData = GetServerSpacePackData(env)
 	space.pathData = pathdb.GetServerPathPackData(env)
+	space.pointData = pointdb.GetServerPointPackData(env)
 	space.name = name
 	space.activePathNodeThreshold = activePathNodeThreshold
 	space.maxTriosPerPoint = maxTriosPerPoint
 	space.maxPathNodesPerPoint = maxPathNodesPerPoint
 
+	// 2*9 is the minimum ;-)
+	space.maxCoord = m3space.MinMaxCoord
+	space.maxTime = 0
+
 	err := space.insertInDb()
 	if err != nil {
 		return nil, err
 	}
-
-	// 2*9 is the minimum ;-)
-	space.maxCoord = m3space.MinMaxCoord
-	space.maxTime = 0
 
 	err = space.finalInit()
 	if err != nil {
@@ -79,23 +81,15 @@ func (space *SpaceDb) finalInit() error {
 	if err != nil {
 		return err
 	}
+	space.events = make(map[m3space.EventId]*EventDb, 8)
 	for rows.Next() {
-		evt := EventDb{space: space}
-		var spaceId, pathCtxId int
-		err = rows.Scan(&evt.id, &spaceId, &pathCtxId, &evt.creationTime, &evt.color, &evt.endTime)
+		err = CreateEventFromDbRows(rows, space)
 		if err != nil {
 			return err
 		}
-		if spaceId != space.GetId() {
-			return m3util.MakeQsmErrorf("got event %d from db with wrong space id %d instead of %d", evt.id, spaceId, space.GetId())
-		}
-		evt.pathCtx = space.pathData.GetPathCtxDb(pathCtxId)
-		if evt.pathCtx == nil {
-			return m3util.MakeQsmErrorf("got event %d from db with wrong path context id %d", evt.id, pathCtxId)
-		}
 	}
-	space.events = make(map[m3space.EventId]*EventDb, 8)
 	space.spaceData.allSpaces[space.id] = space
+	return nil
 }
 
 func (space *SpaceDb) GetId() int {
@@ -142,7 +136,7 @@ func (space *SpaceDb) GetEventIdsForMsg() []int32 {
 
 func (space *SpaceDb) insertInDb() error {
 	te := space.spaceData.spacesTe
-	id64, err := te.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord)
+	id64, err := te.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord, space.maxTime)
 	if err != nil {
 		return m3util.MakeWrapQsmErrorf(err, "could not insert space %q in %q due to: %s", space.GetName(), te.GetFullTableName(), err.Error())
 	}
@@ -164,7 +158,7 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 		pathCtx:      pathCtx,
 		creationTime: creationTime,
 		color:        color,
-		endTime:      creationTime,
+		maxNodeTime:  m3space.DistAndTime(0),
 	}
 	evt.centerNode = &EventNodeDb{
 		event:        evt,
@@ -177,13 +171,14 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 	}
 	evt.centerNode.SetConnStateToNil()
 	evt.centerNode.SetFullConnectionMask(rootPathNode.GetConnectionMask())
-
-	space.setMaxCoordAndTime(evt.centerNode)
+	evt.centerNode.SetTrioDetails(rootPathNode.GetTrioDetails(space.pointData))
 
 	err = evt.insertInDb()
 	if err != nil {
 		return nil, err
 	}
+
+	space.setMaxCoordAndTime(evt.centerNode)
 
 	return evt, nil
 }
@@ -269,6 +264,12 @@ func (st *SpaceTime) GetCurrentTime() m3space.DistAndTime {
 	return st.currentTime
 }
 
+func (st *SpaceTime) GetRuleAnalyzer() *SpaceTimeRuleAnalyzer {
+	res := MakeRuleAnalyzer(st)
+	st.VisitAll(res)
+	return res
+}
+
 /*
 Return fromDist, toDist, and use between flag for this event in this space time
 */
@@ -286,6 +287,7 @@ func (st *SpaceTime) queryPathContext(evt *EventDb) (int, int, bool) {
 	}
 }
 
+
 func (st *SpaceTime) populate() error {
 	if st.populated {
 		return st.populatedError
@@ -300,42 +302,33 @@ func (st *SpaceTime) populate() error {
 
 	events := st.GetActiveEvents()
 	st.activeEvents = make([]*EventDb, len(events))
+	nodesMap := make(map[m3space.EventId][]*EventNodeDb, len(events))
 	nbPathNodes := 0
-	for i, evt := range events {
-		st.activeEvents[i] = evt.(*EventDb)
-		fromDist, toDist, useBetween := st.queryPathContext(st.activeEvents[i])
-		if useBetween {
-			nbPathNodes += evt.GetPathContext().GetNumberOfNodesBetween(fromDist, toDist)
-		} else {
-			nbPathNodes += evt.GetPathContext().GetNumberOfNodesAt(toDist)
+	for i, evtIfc := range events {
+		evt := evtIfc.(*EventDb)
+		st.activeEvents[i] = evt
+		nodeList, err := evt.GetActiveNodesAt(st.currentTime)
+		if err != nil {
+			st.populatedError = err
+			st.populated = true
+			return err
 		}
+		nbPathNodes += len(nodeList)
+		nodesMap[evt.GetId()] = nodeList
 	}
 	st.stNodes = make(map[int64]*SpaceTimeNode, nbPathNodes)
-	for _, evt := range st.activeEvents {
-		fromDist, toDist, useBetween := st.queryPathContext(evt)
-		var pathNodes []m3path.PathNode
-		var err error
-		if useBetween {
-			pathNodes, err = evt.GetPathContext().GetPathNodesBetween(fromDist, toDist)
-		} else {
-			pathNodes, err = evt.GetPathContext().GetPathNodesAt(toDist)
-		}
-		if err != nil {
-			st.populatedError = err
-			st.populated = true
-			return err
-		}
-		evtCenter, err := evt.GetCenterNode().GetPoint()
-		if err != nil {
-			st.populatedError = err
-			st.populated = true
-			return err
-		}
-		for _, pn := range pathNodes {
-			point := (*evtCenter).Add(pn.P())
-			stn, ok := st.stNodes
-			[]
-
+	for _, nodeList := range nodesMap {
+		for _, en := range nodeList {
+			stn, ok := st.stNodes[en.GetPointId()]
+			if ok {
+				stn.head.Add(en)
+			} else {
+				st.stNodes[en.GetPointId()] = &SpaceTimeNode{
+					spaceTime: st,
+					pointId:   en.GetPointId(),
+					head:      &NodeEventList{cur: en},
+				}
+			}
 		}
 	}
 	st.populated = true
@@ -343,7 +336,12 @@ func (st *SpaceTime) populate() error {
 }
 
 func (st *SpaceTime) GetNbActiveNodes() int {
-	return st.nbActiveNodes
+	err := st.populate()
+	if err != nil {
+		Log.Error(err)
+		return -1
+	}
+	return len(st.stNodes)
 }
 
 func (st *SpaceTime) GetSpace() m3space.SpaceIfc {
@@ -355,19 +353,72 @@ func (st *SpaceTime) GetActiveEvents() []m3space.EventIfc {
 }
 
 func (st *SpaceTime) Next() m3space.SpaceTimeIfc {
-	panic("implement me")
+	// TODO: Place to optimize when threshold is > 0 and conflict at nodes level appears
+	// TODO: For now just recreate all
+	return st.space.GetSpaceTimeAt(st.currentTime + 1)
 }
 
 func (st *SpaceTime) GetNbActiveLinks() int {
-	panic("implement me")
+	err := st.populate()
+	if err != nil {
+		Log.Error(err)
+		return -1
+	}
+	threshold := st.space.GetActivePathNodeThreshold()
+	if threshold == 0 {
+		return 0
+	}
+	// Count all link ids positive for distance to latest ( currentTime - creationTime )
+	// strictly smaller than threshold
+	nbActiveLinks := 0
+	for _, stn := range st.stNodes {
+		connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
+		stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+			if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
+				alreadyDone, ok := connIdsAlreadyDone[connId]
+				if !ok || !alreadyDone {
+					nbActiveLinks++
+				}
+				connIdsAlreadyDone[connId] = true
+			}
+		})
+	}
+	return nbActiveLinks
 }
 
 func (st *SpaceTime) VisitAll(visitor m3space.SpaceTimeVisitor) {
-	panic("implement me")
+	err := st.populate()
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	threshold := st.space.GetActivePathNodeThreshold()
+	if threshold == 0 {
+		return
+	}
+	for _, stn := range st.stNodes {
+		visitor.VisitNode(stn)
+		point, err := stn.GetPoint()
+		if err != nil {
+			Log.Error(err)
+			return
+		}
+		connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
+		stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+			if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
+				alreadyDone, ok := connIdsAlreadyDone[connId]
+				if !ok || !alreadyDone {
+					visitor.VisitLink(stn, *point, connId)
+				}
+				connIdsAlreadyDone[connId] = true
+			}
+		})
+	}
+
 }
 
 func (st *SpaceTime) GetDisplayState() string {
 	return fmt.Sprintf("========= SpaceTime State =========\n"+
 		"Current Time: %d, Nb Active Nodes: %d, Nb Events %d",
-		st.currentTime, st.nbActiveNodes, st.space.GetNbEventsAt(st.currentTime))
+		st.currentTime, st.GetNbActiveNodes(), st.space.GetNbEventsAt(st.currentTime))
 }

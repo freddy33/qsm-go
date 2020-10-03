@@ -55,7 +55,7 @@ func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
 	maxDist := int(resMsg.MaxDist)
 	assert.True(t, resMsg.PathCtxId > 0, "Did not get path ctx id but "+strconv.Itoa(pathCtxId))
 	assert.Equal(t, int32(expectedId), resMsg.GrowthContextId)
-	pointData := pointdb.GetPointPackData(qsmApp.Env)
+	pointData := pointdb.GetServerPointPackData(qsmApp.Env)
 	growthContextFromDb := pointData.GetGrowthContextById(int(resMsg.GrowthContextId))
 	assert.Equal(t, growthType, growthContextFromDb.GetGrowthType())
 	assert.Equal(t, growthIndex, growthContextFromDb.GetGrowthIndex())

@@ -111,7 +111,7 @@ func main() {
 		case "filldb":
 			envID := m3util.GetDefaultEnvId()
 			env := m3db.GetEnvironment(envID)
-			pointData := pointdb.GetPointPackData(env)
+			pointData := pointdb.GetServerPointPackData(env)
 			pointData.FillDb()
 			didSomething = true
 		case "-env":

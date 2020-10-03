@@ -1,6 +1,7 @@
 package m3space
 
 import (
+	"fmt"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 )
@@ -64,6 +65,7 @@ type SpaceTimeNodeIfc interface {
 	IsEmpty() bool
 	GetNbEventNodes() int
 	GetEventNodes() []EventNodeIfc
+	GetEventIds() []EventId
 
 	HasRoot() bool
 	GetLastAccessed() DistAndTime
@@ -74,6 +76,7 @@ type SpaceTimeNodeIfc interface {
 }
 
 type EventIfc interface {
+	fmt.Stringer
 	GetId() EventId
 	GetSpace() SpaceIfc
 	GetPathContext() m3path.PathContext
@@ -83,12 +86,14 @@ type EventIfc interface {
 }
 
 type EventNodeIfc interface {
+	fmt.Stringer
 	GetId() int64
 	GetEventId() EventId
 	GetPointId() int64
 	GetPathNodeId() int64
 	GetCreationTime() DistAndTime
 	GetD() DistAndTime
+	GetColor() EventColor
 	GetPoint() (*m3point.Point, error)
 	GetPathNode() (m3path.PathNode, error)
 }

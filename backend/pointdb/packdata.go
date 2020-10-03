@@ -25,7 +25,7 @@ type ServerPointPackData struct {
 	pathBuildersTe *m3db.TableExec
 }
 
-func GetPointPackData(env m3util.QsmEnvironment) *ServerPointPackData {
+func GetServerPointPackData(env m3util.QsmEnvironment) *ServerPointPackData {
 	if env.GetData(m3util.PointIdx) == nil {
 		ppd := new(ServerPointPackData)
 		ppd.EnvId = env.GetId()

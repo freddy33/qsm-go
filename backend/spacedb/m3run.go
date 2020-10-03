@@ -3,6 +3,7 @@ package spacedb
 import (
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/freddy33/qsm-go/model/m3space"
 	"log"
 	"math"
 	"sort"
@@ -123,15 +124,31 @@ func CreateAllIndexes(nbIndexes int) ([][4]int, [12]int) {
 	return res, [12]int{nbConbinations, idx, t1, nbT1, t2a, nbT2a, t2b, nbT2b, t3, nbT3, t4, nbT4}
 }
 
-func createPyramidWithParams(space SpaceIfc, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
-	space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], DistAndTime(0), m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
-	space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], DistAndTime(0), m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
-	space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], DistAndTime(0), m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
-	space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], DistAndTime(0), m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
+func createPyramidWithParams(space *SpaceDb, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
+	_, err := space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], m3space.DistAndTime(0), m3point.Point{3, 0, 3}.Mul(pyramidSize), m3space.RedEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	_, err = space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], m3space.DistAndTime(0), m3point.Point{-3, 3, 3}.Mul(pyramidSize), m3space.GreenEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	_, err = space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], m3space.DistAndTime(0), m3point.Point{-3, -3, 3}.Mul(pyramidSize), m3space.BlueEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	_, err = space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], m3space.DistAndTime(0), m3point.Point{0, 0, -3}.Mul(pyramidSize), m3space.YellowEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
 }
 
-func RunSpacePyramidWithParams(spaceData SpacePackDataIfc, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
-	space := spaceData.GetAllSpaces()[0]
+func RunSpacePyramidWithParams(spaceData *ServerSpacePackData, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, m3space.DistAndTime, Pyramid, int) {
+	space := spaceData.GetAllSpaces()[0].(*SpaceDb)
 	createPyramidWithParams(space, pSize, ctxTypes, indexes, offsets)
 
 	originalPyramid := Pyramid{}
@@ -151,8 +168,8 @@ func RunSpacePyramidWithParams(spaceData SpacePackDataIfc, pSize m3point.CInt, c
 	originalPyramid = originalPyramid.ordered()
 	LogRun.Infof("Starting with pyramid %v : %d", originalPyramid, GetPyramidSize(originalPyramid))
 
-	expectedTime := DistAndTime(0)
-	finalTime := DistAndTime(3)
+	expectedTime := m3space.DistAndTime(0)
+	finalTime := m3space.DistAndTime(3)
 	//if finalTime < DistAndTime(25) {
 	//	finalTime = DistAndTime(25)
 	//}
@@ -160,12 +177,12 @@ func RunSpacePyramidWithParams(spaceData SpacePackDataIfc, pSize m3point.CInt, c
 	var bestPyramid Pyramid
 	var bestSize m3point.DInt
 	var nbPossibilities int
-	var spaceTime SpaceTimeIfc
+	var spaceTime *SpaceTime
 
 	for expectedTime < finalTime {
-		spaceTime = space.GetSpaceTimeAt(expectedTime)
-		frwdRes := spaceTime.ForwardTime()
 		expectedTime++
+		spaceTime = space.GetSpaceTimeAt(expectedTime).(*SpaceTime)
+		frwdRes := spaceTime.GetRuleAnalyzer()
 		// This collection contains all the blocks of three events that have points activated at the same time
 		pointsPer3Ids := frwdRes.PointsPerThreeIds
 		nbThreeIdsActive := len(pointsPer3Ids)
@@ -193,6 +210,9 @@ func RunSpacePyramidWithParams(spaceData SpacePackDataIfc, pSize m3point.CInt, c
 				}
 			}
 		}
+	}
+	if spaceTime == nil {
+		return false, originalPyramid, m3space.DistAndTime(0), Pyramid{}, 0
 	}
 	return found, originalPyramid, spaceTime.GetCurrentTime(), bestPyramid, nbPossibilities
 }

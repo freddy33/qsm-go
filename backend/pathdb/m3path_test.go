@@ -34,7 +34,7 @@ func TestFirstPathContextFilling(t *testing.T) {
 
 func fillPathContext(t *testing.T, pathCtx *PathContextDb, until int) bool {
 	growthCtx := pathCtx.GetGrowthCtx()
-	ppd := pointdb.GetPointPackData(growthCtx.GetEnv())
+	ppd := pointdb.GetServerPointPackData(growthCtx.GetEnv())
 	trIdx := growthCtx.GetBaseTrioIndex(ppd, 0, pathCtx.GetGrowthOffset())
 	if !assert.NotEqual(t, m3point.NilTrioIndex, trIdx) {
 		return false

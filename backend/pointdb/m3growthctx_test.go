@@ -12,7 +12,7 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 	m3util.SetToTestMode()
 
 	env := GetPointDbFullEnv(m3util.PointTestEnv)
-	ppd := GetPointPackData(env)
+	ppd := GetServerPointPackData(env)
 	ppd.FillDb()
 	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
@@ -23,12 +23,12 @@ func TestConnectionDetailsInGrowthContext(t *testing.T) {
 }
 
 func GetBaseTrioDetails(growthCtx m3point.GrowthContext, mainPoint m3point.Point, offset int) *m3point.TrioDetails {
-	ppd := GetPointPackData(growthCtx.GetEnv())
+	ppd := GetServerPointPackData(growthCtx.GetEnv())
 	return ppd.GetTrioDetails(growthCtx.GetBaseTrioIndex(ppd, growthCtx.GetBaseDivByThree(mainPoint), offset))
 }
 
 func runConnectionDetailsCheck(t *testing.T, growthCtx m3point.GrowthContext) {
-	ppd := GetPointPackData(growthCtx.GetEnv())
+	ppd := GetServerPointPackData(growthCtx.GetEnv())
 	// For all trioIndex rotations, any 2 close nextMainPoint points there should be a connection details
 	min := m3point.CInt(-5)
 	max := m3point.CInt(5)

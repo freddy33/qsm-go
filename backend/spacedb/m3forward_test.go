@@ -4,7 +4,6 @@ import (
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
@@ -30,8 +29,8 @@ func BenchmarkPack20(b *testing.B) {
 
 func benchSpaceTest(b *testing.B, pSize m3point.CInt) {
 	Log.SetWarn()
-	m3space.LogStat.SetWarn()
-	m3space.LogRun.SetWarn()
+	LogStat.SetWarn()
+	LogRun.SetWarn()
 	for r := 0; r < b.N; r++ {
 		runSpaceTest(pSize)
 	}
@@ -46,7 +45,7 @@ func TestCreateAllIndexes(t *testing.T) {
 
 func createAllIndexesForContext(t assert.TestingT, ctxType m3point.GrowthType) [][4]int {
 	nbIndexes := ctxType.GetNbIndexes()
-	res, idxs := m3space.CreateAllIndexes(nbIndexes)
+	res, idxs := CreateAllIndexes(nbIndexes)
 	assert.NotNil(t, res)
 	for i := 0; i < len(idxs)/2; i++ {
 		assert.Equal(t, idxs[i*2], idxs[i*2+1], "failed index value for %d %v", i, ctxType)
@@ -72,10 +71,11 @@ func TestSpaceAllPyramids(t *testing.T) {
 	LogData.SetInfo()
 	m3path.Log.SetWarn()
 	Log.SetWarn()
-	m3space.LogStat.SetWarn()
-	m3space.LogRun.SetWarn()
+	LogStat.SetWarn()
+	LogRun.SetWarn()
 
 	env := getSpaceTestEnv()
+	spaceData := GetServerSpacePackData(env)
 
 	ctxs := [4]m3point.GrowthType{8, 8, 8, 8}
 
@@ -89,10 +89,10 @@ func TestSpaceAllPyramids(t *testing.T) {
 		nbFound := 0
 		allIndexes := createAllIndexesForContext(t, 8)
 		for i, idxs := range allIndexes {
-			found, originalPyramid, time, finalPyramid, nbPoss := m3space.RunSpacePyramidWithParams(env, pSize, ctxs, idxs, offsets)
+			found, originalPyramid, time, finalPyramid, nbPoss := RunSpacePyramidWithParams(spaceData, pSize, ctxs, idxs, offsets)
 			if found {
-				orgSize := m3space.GetPyramidSize(originalPyramid)
-				finalSize := m3space.GetPyramidSize(finalPyramid)
+				orgSize := GetPyramidSize(originalPyramid)
+				finalSize := GetPyramidSize(finalPyramid)
 				diff := m3point.AbsDInt(orgSize - finalSize)
 				ratio := float64(diff) / float64(orgSize)
 				LogData.Infof("%d %d %v %d %d %d %d %d %.5f",
@@ -108,49 +108,51 @@ func TestSpaceAllPyramids(t *testing.T) {
 
 func TestSpaceRunPySize5(t *testing.T) {
 	Log.SetWarn()
-	m3space.LogStat.SetInfo()
+	LogStat.SetInfo()
 	runSpaceTest(5)
 }
 
 func TestSpaceRunPySize4(t *testing.T) {
 	Log.SetWarn()
-	m3space.LogStat.SetInfo()
+	LogStat.SetInfo()
 
 	env := getSpaceTestEnv()
+	spaceData := GetServerSpacePackData(env)
 
-	found, originalPyramid, time, finalPyramid, nbPoss := m3space.RunSpacePyramidWithParams(env, 4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 0}, [4]int{0, 0, 0, 0})
+	found, originalPyramid, time, finalPyramid, nbPoss := RunSpacePyramidWithParams(spaceData, 4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 0}, [4]int{0, 0, 0, 0})
 	// TODO: Reactivate after space node fix
 	//assert.True(t, found)
-	orgSize := m3space.GetPyramidSize(originalPyramid)
-	finalSize := m3space.GetPyramidSize(finalPyramid)
+	orgSize := GetPyramidSize(originalPyramid)
+	finalSize := GetPyramidSize(finalPyramid)
 	diff := m3point.AbsDInt(orgSize - finalSize)
-	m3space.LogStat.Infof("%v %d %v %v %d %d %d %d", found, time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
+	LogStat.Infof("%v %d %v %v %d %d %d %d", found, time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
 
-	found, originalPyramid, time, finalPyramid, nbPoss = m3space.RunSpacePyramidWithParams(env, 4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 3}, [4]int{0, 0, 0, 0})
+	found, originalPyramid, time, finalPyramid, nbPoss = RunSpacePyramidWithParams(spaceData, 4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 3}, [4]int{0, 0, 0, 0})
 	// TODO: Reactivate after space node fix
 	//assert.True(t, found)
-	orgSize = m3space.GetPyramidSize(originalPyramid)
-	finalSize = m3space.GetPyramidSize(finalPyramid)
+	orgSize = GetPyramidSize(originalPyramid)
+	finalSize = GetPyramidSize(finalPyramid)
 	diff = m3point.AbsDInt(orgSize - finalSize)
-	m3space.LogStat.Infof("%v %d %v %v %d %d %d %d", found, time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
+	LogStat.Infof("%v %d %v %v %d %d %d %d", found, time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
 }
 
 func TestSpaceRunPySize3(t *testing.T) {
 	Log.SetWarn()
-	m3space.LogStat.SetInfo()
+	LogStat.SetInfo()
 	runSpaceTest(3)
 }
 
 func TestSpaceRunPySize2(t *testing.T) {
 	Log.SetWarn()
-	m3space.LogStat.SetInfo()
+	LogStat.SetInfo()
 	runSpaceTest(2)
 }
 
 func runSpaceTest(pSize m3point.CInt) {
 	env := getSpaceTestEnv()
+	spaceData := GetServerSpacePackData(env)
 	growthTypes := [4]m3point.GrowthType{8, 8, 8, 8}
 	indexes := [4]int{0, 4, 8, 10}
 	offsets := [4]int{0, 0, 0, 4}
-	m3space.RunSpacePyramidWithParams(env, pSize, growthTypes, indexes, offsets)
+	RunSpacePyramidWithParams(spaceData, pSize, growthTypes, indexes, offsets)
 }
