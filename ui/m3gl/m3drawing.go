@@ -46,24 +46,14 @@ type SpaceDrawingFilter struct {
 	// The outgrowth events with how many colors to display.
 	EventOutgrowthManyColorsThreshold uint8
 	// The space the filter apply to
-	Space *m3space.Space
+	SpaceTime m3space.SpaceTimeIfc
 }
 
 func (filter *SpaceDrawingFilter) DisplaySettings() {
-	fmt.Println("========= Space Settings =========")
+	fmt.Println("========= SpaceTime Settings =========")
 	fmt.Println("Empty Nodes [N]", filter.DisplayEmptyNodes, ", Empty Connections [C]", filter.DisplayEmptyConnections)
-	fmt.Println("Event Outgrowth Threshold [UP,DOWN]", filter.Space.EventOutgrowthThreshold, ", Event Outgrowth Many Colors Threshold [U,I]", filter.EventOutgrowthManyColorsThreshold)
+	fmt.Println("Event Outgrowth Threshold [UP,DOWN]", filter.SpaceTime.GetSpace().GetActivePathNodeThreshold(), ", Event Outgrowth Many Colors Threshold [U,I]", filter.EventOutgrowthManyColorsThreshold)
 	fmt.Println("Event Colors Mask [1,2,3,4]", filter.EventColorMask)
-}
-
-func (world *DisplayWorld) EventOutgrowthThresholdIncrease() {
-	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold + 1)
-	world.CreateDrawingElements()
-}
-
-func (world *DisplayWorld) EventOutgrowthThresholdDecrease() {
-	world.WorldSpace.SetEventOutgrowthThreshold(world.WorldSpace.EventOutgrowthThreshold - 1)
-	world.CreateDrawingElements()
 }
 
 func (filter *SpaceDrawingFilter) EventOutgrowthColorsIncrease() {
@@ -94,7 +84,7 @@ type SpaceDrawingColor struct {
 type NodeDrawingElement struct {
 	objectType ObjectType
 	sdc        SpaceDrawingColor
-	node       m3space.Node
+	node       m3space.SpaceTimeNodeIfc
 }
 
 type ConnectionDrawingElement struct {
@@ -245,10 +235,10 @@ func (sdc *SpaceDrawingColor) dimmer(blinkValue float64) float32 {
 	return defaultGreyDimmer
 }
 
-func MakeNodeDrawingElement(space *m3space.Space, node m3space.Node) *NodeDrawingElement {
+func MakeNodeDrawingElement(node m3space.SpaceTimeNodeIfc) *NodeDrawingElement {
 	// Collect all the colors of event outgrowth of this node. Dim if not latest
 	sdc := SpaceDrawingColor{}
-	sdc.objColors = node.GetColorMask(space)
+	sdc.objColors = node.GetColorMask()
 	// TODO: Another threshold for dim?
 	//if eo.state != EventOutgrowthLatest && !eo.IsRoot() {
 	//	sdc.dimColors |= 1 << uint8(eo.event.color)
@@ -266,12 +256,12 @@ func MakeNodeDrawingElement(space *m3space.Space, node m3space.Node) *NodeDrawin
 
 }
 
-func MakeConnectionDrawingElement(space *m3space.Space, point m3point.Point, connId m3point.ConnectionId) *ConnectionDrawingElement {
+func MakeConnectionDrawingElement(node m3space.SpaceTimeNodeIfc, point m3point.Point, connId m3point.ConnectionId) *ConnectionDrawingElement {
 	// Collect all the colors of latest event outgrowth of a node coming from the other node
 	sdc := SpaceDrawingColor{}
 	// Take the color of the source. TODO: Not true should be & on src and target
-	sdc.objColors = space.GetNode(point).GetColorMask(space)
-	return &ConnectionDrawingElement{getConnectionObjectType(connId), sdc, &point,}
+	sdc.objColors = node.GetColorMask()
+	return &ConnectionDrawingElement{getConnectionObjectType(connId), sdc, &point}
 }
 
 func getConnectionObjectType(cdId m3point.ConnectionId) ObjectType {
@@ -289,7 +279,7 @@ func (n NodeDrawingElement) Key() ObjectType {
 
 func (n NodeDrawingElement) Display(filter SpaceDrawingFilter) bool {
 	if n.objectType == NodeActive {
-		if n.node.HasRoot(filter.Space) {
+		if n.node.HasRoot() {
 			return true
 		}
 		return n.sdc.objColors&filter.EventColorMask != 0 && n.sdc.howManyColors() >= filter.EventOutgrowthManyColorsThreshold
@@ -306,7 +296,12 @@ func (n NodeDrawingElement) Dimmer(blinkValue float64) float32 {
 }
 
 func (n NodeDrawingElement) Pos() *m3point.Point {
-	return n.node.GetPoint()
+	p, err := n.node.GetPoint()
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+	return p
 }
 
 // ConnectionDrawingElement functions

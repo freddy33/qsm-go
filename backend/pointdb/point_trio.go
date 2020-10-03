@@ -315,7 +315,7 @@ func (t trio) getMinusZVector() m3point.Point {
 // Calculate Connections and trio Functions
 /***************************************************************/
 
-func (ppd *ServerPointPackData) calculateConnectionDetails() ([]*m3point.ConnectionDetails, map[m3point.Point]*m3point.ConnectionDetails) {
+func (pointData *ServerPointPackData) calculateConnectionDetails() ([]*m3point.ConnectionDetails, map[m3point.Point]*m3point.ConnectionDetails) {
 	connMap := make(map[m3point.Point]*m3point.ConnectionDetails)
 	// Going through all trio and all combination of trio, to aggregate connection details
 	for _, tr := range allBaseTrio {
@@ -395,11 +395,11 @@ func addConnDetail(connMap *map[m3point.Point]*m3point.ConnectionDetails, connVe
 	}
 }
 
-func (ppd *ServerPointPackData) calculateAllTrioDetails() TrioDetailList {
+func (pointData *ServerPointPackData) calculateAllTrioDetails() TrioDetailList {
 	res := TrioDetailList(make([]*m3point.TrioDetails, 0, 200))
 	// All base trio first
 	for i, tr := range allBaseTrio {
-		td := ppd.makeTrioDetails(tr[0], tr[1], tr[2])
+		td := pointData.makeTrioDetails(tr[0], tr[1], tr[2])
 		td.Id = m3point.TrioIndex(i)
 		res.addUnique(td)
 	}
@@ -408,7 +408,7 @@ func (ppd *ServerPointPackData) calculateAllTrioDetails() TrioDetailList {
 	for _, tA := range allBaseTrio {
 		for _, tB := range allBaseTrio {
 			for _, tC := range allBaseTrio {
-				for _, nextTrio := range ppd.getNextTriosDetails(tA, tB, tC) {
+				for _, nextTrio := range pointData.getNextTriosDetails(tA, tB, tC) {
 					res.addUnique(nextTrio)
 				}
 			}
@@ -437,11 +437,11 @@ func (ppd *ServerPointPackData) calculateAllTrioDetails() TrioDetailList {
 	return res
 }
 
-func (ppd *ServerPointPackData) makeTrioDetails(points ...m3point.Point) *m3point.TrioDetails {
+func (pointData *ServerPointPackData) makeTrioDetails(points ...m3point.Point) *m3point.TrioDetails {
 	// All m3point.Points should be a connection details
 	cds := make([]*m3point.ConnectionDetails, 3)
 	for i, p := range points {
-		cd := ppd.GetConnDetailsByVector(p)
+		cd := pointData.GetConnDetailsByVector(p)
 		if cd == nil {
 			Log.Fatalf("trying to create trio with vector not a connection %v", p)
 		}
@@ -472,7 +472,7 @@ func MakeVector(p1, p2 m3point.Point) m3point.Point {
 }
 
 // Return the new trio out of Origin + tA (with next tB or tB/tC)
-func (ppd *ServerPointPackData) getNextTriosDetails(tA, tB, tC trio) []*m3point.TrioDetails {
+func (pointData *ServerPointPackData) getNextTriosDetails(tA, tB, tC trio) []*m3point.TrioDetails {
 	// 0 z=0 for first element, x connector, y connector
 	// 1 y=0 for first element, x connector, z connector
 	// 2 x=0 for first element, y connector, z connector
@@ -505,10 +505,10 @@ func (ppd *ServerPointPackData) getNextTriosDetails(tA, tB, tC trio) []*m3point.
 		}
 	}
 	if sameBC {
-		res.addUnique(ppd.makeTrioDetails(noZ.Neg(), xConnB, yConnB))
+		res.addUnique(pointData.makeTrioDetails(noZ.Neg(), xConnB, yConnB))
 	} else {
-		res.addUnique(ppd.makeTrioDetails(noZ.Neg(), xConnB, yConnC))
-		res.addUnique(ppd.makeTrioDetails(noZ.Neg(), xConnC, yConnB))
+		res.addUnique(pointData.makeTrioDetails(noZ.Neg(), xConnB, yConnC))
+		res.addUnique(pointData.makeTrioDetails(noZ.Neg(), xConnC, yConnB))
 	}
 
 	noY := tA[1]
@@ -535,10 +535,10 @@ func (ppd *ServerPointPackData) getNextTriosDetails(tA, tB, tC trio) []*m3point.
 		}
 	}
 	if sameBC {
-		res.addUnique(ppd.makeTrioDetails(noY.Neg(), xConnB, zConnB))
+		res.addUnique(pointData.makeTrioDetails(noY.Neg(), xConnB, zConnB))
 	} else {
-		res.addUnique(ppd.makeTrioDetails(noY.Neg(), xConnB, zConnC))
-		res.addUnique(ppd.makeTrioDetails(noY.Neg(), xConnC, zConnB))
+		res.addUnique(pointData.makeTrioDetails(noY.Neg(), xConnB, zConnC))
+		res.addUnique(pointData.makeTrioDetails(noY.Neg(), xConnC, zConnB))
 	}
 
 	noX := tA[2]
@@ -565,10 +565,10 @@ func (ppd *ServerPointPackData) getNextTriosDetails(tA, tB, tC trio) []*m3point.
 		}
 	}
 	if sameBC {
-		res.addUnique(ppd.makeTrioDetails(noX.Neg(), yConnB, zConnB))
+		res.addUnique(pointData.makeTrioDetails(noX.Neg(), yConnB, zConnB))
 	} else {
-		res.addUnique(ppd.makeTrioDetails(noX.Neg(), yConnB, zConnC))
-		res.addUnique(ppd.makeTrioDetails(noX.Neg(), yConnC, zConnB))
+		res.addUnique(pointData.makeTrioDetails(noX.Neg(), yConnB, zConnC))
+		res.addUnique(pointData.makeTrioDetails(noX.Neg(), yConnC, zConnB))
 	}
 
 	return res
@@ -671,8 +671,8 @@ func (l TrioDetailList) Less(i, j int) bool {
 // trio Details Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadTrioDetails() error {
-	te := ppd.trioDetailsTe
+func (pointData *ServerPointPackData) loadTrioDetails() error {
+	te := pointData.trioDetailsTe
 	rows, err := te.SelectAllForLoad()
 	if err != nil {
 		return err
@@ -688,26 +688,26 @@ func (ppd *ServerPointPackData) loadTrioDetails() error {
 			return m3util.MakeWrapQsmErrorf(err, "failed to load trio details line %d", len(res))
 		} else {
 			for i, cId := range connIds {
-				td.Conns[i] = ppd.GetConnDetailsById(cId)
+				td.Conns[i] = pointData.GetConnDetailsById(cId)
 			}
 			res = append(res, &td)
 		}
 	}
 
-	ppd.AllTrioDetails = res
-	ppd.TrioDetailsLoaded = true
+	pointData.AllTrioDetails = res
+	pointData.TrioDetailsLoaded = true
 	return nil
 }
 
-func (ppd *ServerPointPackData) saveAllTrioDetails() (int, error) {
-	te := ppd.trioDetailsTe
+func (pointData *ServerPointPackData) saveAllTrioDetails() (int, error) {
+	te := pointData.trioDetailsTe
 	inserted, toFill, err := te.GetForSaveAll()
 	if te == nil {
 		return 0, err
 	}
 
 	if toFill {
-		trios := ppd.calculateAllTrioDetails()
+		trios := pointData.calculateAllTrioDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.GetFullTableName(), len(trios))
 		}

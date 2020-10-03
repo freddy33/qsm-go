@@ -37,10 +37,13 @@ const (
 )
 
 type DisplayWorld struct {
-	Max        m3point.CInt
-	WorldSpace *m3space.Space
-	Filter     SpaceDrawingFilter
-	Elements   []SpaceDrawingElement
+	env              *client.QsmApiEnvironment
+	pointData        *client.ClientPointPackData
+	Max              m3point.CInt
+	WorldSpace       m3space.SpaceIfc
+	CurrentSpaceTime m3space.SpaceTimeIfc
+	Filter           SpaceDrawingFilter
+	Elements         []SpaceDrawingElement
 
 	NbVertices         int
 	OpenGLBuffer       []float32
@@ -74,23 +77,30 @@ type OpenGLDrawingElement struct {
 	NbVertices   int32
 }
 
-func MakeWorld(env m3util.QsmEnvironment, Max int64, glfwTime float64) DisplayWorld {
+func MakeWorld(env *client.QsmApiEnvironment, Max m3point.CInt, glfwTime float64) DisplayWorld {
 	if Max%m3point.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}
 	verifyData()
-	space := m3space.MakeSpace(env, m3point.CInt(Max))
+	spaceData := client.GetClientSpacePackData(env)
+	space, err := spaceData.CreateSpace("ui", m3space.DistAndTime(0), 2, 4)
+	if err != nil {
+		Log.Fatal(err)
+	}
 	world := DisplayWorld{}
-	world.initialized(&space, glfwTime)
+	world.env = env
+	world.pointData = client.GetClientPointPackData(env)
+	world.initialized(space, glfwTime)
 	world.CheckMax()
 
 	return world
 }
 
-func (world *DisplayWorld) initialized(space *m3space.Space, glfwTime float64) {
+func (world *DisplayWorld) initialized(space m3space.SpaceIfc, glfwTime float64) {
 	world.Max = 0
 	world.WorldSpace = space
-	world.Filter = SpaceDrawingFilter{false, false, uint8(0xFF), 0, space}
+	world.CurrentSpaceTime = space.GetSpaceTimeAt(m3space.DistAndTime(0))
+	world.Filter = SpaceDrawingFilter{false, false, uint8(0xFF), 0, world.CurrentSpaceTime}
 	world.Elements = make([]SpaceDrawingElement, 0, 500)
 	world.NbVertices = 0
 	world.OpenGLBuffer = make([]float32, 0)
@@ -104,13 +114,13 @@ func (world *DisplayWorld) initialized(space *m3space.Space, glfwTime float64) {
 	world.Camera = mgl32.Ident4()
 	world.Model = mgl32.Ident4()
 	world.previousArea = 0
-	world.Angle = TimeAutoVar{false, 0.01, 0.3, glfwTime, 0.0,}
-	world.Blinker = TimeAutoVar{true, 0.5, 2.0, glfwTime, 0.0,}
+	world.Angle = TimeAutoVar{false, 0.01, 0.3, glfwTime, 0.0}
+	world.Blinker = TimeAutoVar{true, 0.5, 2.0, glfwTime, 0.0}
 }
 
 func (world *DisplayWorld) CheckMax() bool {
-	if world.WorldSpace.Max > world.Max {
-		max := world.WorldSpace.Max
+	if world.WorldSpace.GetMaxCoord() > world.Max {
+		max := world.WorldSpace.GetMaxCoord()
 		world.TopCornerDist = math.Sqrt(float64(3.0*max*max)) + 1.1
 		//previousVal := world.EyeDist.Val
 		world.EyeDist = SizeVar{float64(max), world.TopCornerDist * 2.0, world.TopCornerDist * 1.5}
@@ -164,7 +174,7 @@ func (world DisplayWorld) DisplaySettings() {
 	fmt.Println("Sphere Radius [P,L]", SphereRadius.Val)
 	fmt.Println("FOV Angle [Z,X]", world.FovAngle.Val)
 	fmt.Println("Eye Dist [Q,W]", world.EyeDist.Val)
-	world.WorldSpace.DisplayState()
+	fmt.Println(world.CurrentSpaceTime.GetDisplayState())
 	world.Filter.DisplaySettings()
 }
 
@@ -191,29 +201,29 @@ func (creator *DrawingElementsCreator) createAxes(max m3point.CInt) {
 	}
 }
 
-func (creator *DrawingElementsCreator) VisitNode(space *m3space.Space, node m3space.Node) {
-	creator.elements[creator.offset] = MakeNodeDrawingElement(space, node)
+func (creator *DrawingElementsCreator) VisitNode(node m3space.SpaceTimeNodeIfc) {
+	creator.elements[creator.offset] = MakeNodeDrawingElement(node)
 	creator.offset++
 }
 
-func (creator *DrawingElementsCreator) VisitLink(space *m3space.Space, srcPoint m3point.Point, connId m3point.ConnectionId) {
-	creator.elements[creator.offset] = MakeConnectionDrawingElement(space, srcPoint, connId)
+func (creator *DrawingElementsCreator) VisitLink(node m3space.SpaceTimeNodeIfc, srcPoint m3point.Point, connId m3point.ConnectionId) {
+	creator.elements[creator.offset] = MakeConnectionDrawingElement(node, srcPoint, connId)
 	creator.offset++
 }
 
 func (world *DisplayWorld) ForwardTime() {
-	world.WorldSpace.ForwardTime()
-	world.CreateDrawingElements()
+	world.CurrentSpaceTime = world.CurrentSpaceTime.Next()
+	world.Filter.SpaceTime = world.CurrentSpaceTime
 }
 
 func (world *DisplayWorld) CreateDrawingElements() {
-	space := world.WorldSpace
+	space := world.CurrentSpaceTime
 	dec := DrawingElementsCreator{}
 	dec.nbElements = 6 + space.GetNbActiveNodes() + space.GetNbActiveLinks()
 	dec.elements = make([]SpaceDrawingElement, dec.nbElements)
 	dec.offset = 0
 	dec.createAxes(world.Max)
-	space.VisitAll(&dec, true)
+	space.VisitAll(&dec)
 	if dec.offset != dec.nbElements {
 		fmt.Println("Created", dec.offset, "elements, but it should be", dec.nbElements)
 		return
@@ -229,8 +239,7 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 		fmt.Println("Creating OpenGL buffer for", nbTriangles, "triangles,", world.NbVertices, "vertices,", world.NbVertices*FloatPerVertices, "buffer size.")
 		world.OpenGLBuffer = make([]float32, world.NbVertices*FloatPerVertices)
 	}
-	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
-	triangleFiller := TriangleFiller{ppd, make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{world.pointData, make(map[ObjectType]OpenGLDrawingElement), 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	triangleFiller.drawNodes()
 	triangleFiller.drawConnections()
@@ -241,22 +250,19 @@ func (world *DisplayWorld) CreateDrawingElementsMap() int {
 }
 
 func (world *DisplayWorld) RedrawAxesElementsMap() {
-	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
-	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{world.pointData, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawAxes(world.Max)
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawNodesElementsMap() {
-	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
-	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{world.pointData, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawNodes()
 	world.DrawingElementsMap = triangleFiller.objMap
 }
 
 func (world *DisplayWorld) RedrawConnectionsElementsMap() {
-	ppd := client.GetClientPointPackData(world.WorldSpace.GetEnv())
-	triangleFiller := TriangleFiller{ppd, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
+	triangleFiller := TriangleFiller{world.pointData, world.DrawingElementsMap, 0, 0, &(world.OpenGLBuffer)}
 	triangleFiller.drawConnections()
 	world.DrawingElementsMap = triangleFiller.objMap
 }
@@ -304,14 +310,14 @@ func (world *DisplayWorld) Tick(glfwTime float64) {
 }
 
 func (world *DisplayWorld) SetMatrices() {
-	Eye := mgl32.Vec3{float32(world.EyeDist.Val), float32(world.EyeDist.Val), float32(world.EyeDist.Val),}
+	Eye := mgl32.Vec3{float32(world.EyeDist.Val), float32(world.EyeDist.Val), float32(world.EyeDist.Val)}
 	Far := Eye.Len() + float32(world.TopCornerDist)
 	world.Projection = mgl32.Perspective(mgl32.DegToRad(float32(world.FovAngle.Val)), float32(world.Width)/float32(world.Height), 1.0, Far)
 	world.Camera = mgl32.LookAtV(Eye, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 0, 1})
 }
 
 type TriangleFiller struct {
-	ppd            m3point.PointPackDataIfc
+	pointData      m3point.PointPackDataIfc
 	objMap         map[ObjectType]OpenGLDrawingElement
 	verticesOffset int32
 	bufferOffset   int
@@ -332,12 +338,12 @@ func (t *TriangleFiller) drawNodes() {
 }
 
 func (t *TriangleFiller) drawConnections() {
-	maxConnId := t.ppd.GetMaxConnId()
+	maxConnId := t.pointData.GetMaxConnId()
 	for connId := m3point.ConnectionId(1); connId <= maxConnId; connId++ {
-		posConn := t.ppd.GetConnDetailsById(connId)
+		posConn := t.pointData.GetConnDetailsById(connId)
 		t.fill(MakeSegment(m3point.Origin, posConn.Vector, getConnectionObjectType(connId)))
 		negConnId := connId.GetNegId()
-		negConn := t.ppd.GetConnDetailsById(negConnId)
+		negConn := t.pointData.GetConnDetailsById(negConnId)
 		t.fill(MakeSegment(m3point.Origin, negConn.Vector, getConnectionObjectType(negConnId)))
 	}
 }

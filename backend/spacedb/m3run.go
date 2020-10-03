@@ -1,4 +1,4 @@
-package m3space
+package spacedb
 
 import (
 	"github.com/freddy33/qsm-go/m3util"
@@ -123,25 +123,22 @@ func CreateAllIndexes(nbIndexes int) ([][4]int, [12]int) {
 	return res, [12]int{nbConbinations, idx, t1, nbT1, t2a, nbT2a, t2b, nbT2b, t3, nbT3, t4, nbT4}
 }
 
-func createPyramidWithParams(space *Space, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
-	space.CreateEventAtZeroTime(ctxTypes[0], indexes[0], offsets[0], m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
-	space.CreateEventAtZeroTime(ctxTypes[1], indexes[1], offsets[1], m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
-	space.CreateEventAtZeroTime(ctxTypes[2], indexes[2], offsets[2], m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
-	space.CreateEventAtZeroTime(ctxTypes[3], indexes[3], offsets[3], m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
+func createPyramidWithParams(space SpaceIfc, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
+	space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], DistAndTime(0), m3point.Point{3, 0, 3}.Mul(pyramidSize), RedEvent)
+	space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], DistAndTime(0), m3point.Point{-3, 3, 3}.Mul(pyramidSize), GreenEvent)
+	space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], DistAndTime(0), m3point.Point{-3, -3, 3}.Mul(pyramidSize), BlueEvent)
+	space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], DistAndTime(0), m3point.Point{0, 0, -3}.Mul(pyramidSize), YellowEvent)
 }
 
-func RunSpacePyramidWithParams(env m3util.QsmEnvironment, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
-	space := MakeSpace(env, 3 * 30)
-	space.MaxConnections = 3
-	space.BlockOnSameEvent = 3
-	space.SetEventOutgrowthThreshold(DistAndTime(0))
-	createPyramidWithParams(&space, pSize, ctxTypes, indexes, offsets)
+func RunSpacePyramidWithParams(spaceData SpacePackDataIfc, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, DistAndTime, Pyramid, int) {
+	space := spaceData.GetAllSpaces()[0]
+	createPyramidWithParams(space, pSize, ctxTypes, indexes, offsets)
 
 	originalPyramid := Pyramid{}
 	idx := 0
-	for _, evt := range space.events {
+	for _, evt := range space.GetActiveEventsAt(0) {
 		if evt != nil {
-			pa, err := evt.node.GetPoint()
+			pa, err := evt.GetCenterNode().GetPoint()
 			if err != nil {
 				Log.Error(err)
 				originalPyramid[idx] = m3point.Origin
@@ -163,12 +160,14 @@ func RunSpacePyramidWithParams(env m3util.QsmEnvironment, pSize m3point.CInt, ct
 	var bestPyramid Pyramid
 	var bestSize m3point.DInt
 	var nbPossibilities int
+	var spaceTime SpaceTimeIfc
 
 	for expectedTime < finalTime {
-		frwdRes := space.ForwardTime()
+		spaceTime = space.GetSpaceTimeAt(expectedTime)
+		frwdRes := spaceTime.ForwardTime()
 		expectedTime++
 		// This collection contains all the blocks of three events that have points activated at the same time
-		pointsPer3Ids := frwdRes.pointsPerThreeIds
+		pointsPer3Ids := frwdRes.PointsPerThreeIds
 		nbThreeIdsActive := len(pointsPer3Ids)
 		if nbThreeIdsActive >= 3 {
 			LogRun.Debugf("Found a 3 match with %d elements", nbThreeIdsActive)
@@ -195,7 +194,7 @@ func RunSpacePyramidWithParams(env m3util.QsmEnvironment, pSize m3point.CInt, ct
 			}
 		}
 	}
-	return found, originalPyramid, space.CurrentTime, bestPyramid, nbPossibilities
+	return found, originalPyramid, spaceTime.GetCurrentTime(), bestPyramid, nbPossibilities
 }
 
 // Builder to extract possible pyramids out of a list of ThreeIds that have common points
@@ -211,7 +210,7 @@ func (b *PyramidBuilder) createPyramids(currentPointsPer3Ids map[ThreeIds][]m3po
 	//   Stop Condition: If currentPos is 3:
 	//     - Create all the pyramids with the currentPos point being pickedPoint
 	//   Logic for next call:
-	//     - Recreate the map of pointsPerThreeIds removing the small3Ids and the pickedPoint from all the lists
+	//     - Recreate the map of PointsPerThreeIds removing the small3Ids and the pickedPoint from all the lists
 	//     - Recurse to createPyramids with params:
 	//       - the new maps filtered above
 	//       - new pyramid with the currentPos point being pickedPoint

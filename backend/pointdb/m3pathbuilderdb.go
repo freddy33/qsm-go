@@ -71,8 +71,8 @@ func createPathBuilderContextTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadPathBuilders() error {
-	te := ppd.pathBuildersTe
+func (pointData *ServerPointPackData) loadPathBuilders() error {
+	te := pointData.pathBuildersTe
 	rows, err := te.SelectAllForLoad()
 	if err != nil {
 		return err
@@ -98,10 +98,10 @@ func (ppd *ServerPointPackData) loadPathBuilders() error {
 		if err != nil {
 			return m3util.MakeWrapQsmErrorf(err, "failed to load path builder line %d", len(res))
 		} else {
-			pathBuilderCtx := PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(trioIndexId), CubeId: cubeId}
+			pathBuilderCtx := PathBuilderContext{GrowthCtx: pointData.GetGrowthContextById(trioIndexId), CubeId: cubeId}
 			builder := RootPathNodeBuilder{}
 			builder.Ctx = &pathBuilderCtx
-			rootTd := ppd.GetTrioDetails(m3point.TrioIndex(rootTrIdx))
+			rootTd := pointData.GetTrioDetails(m3point.TrioIndex(rootTrIdx))
 			builder.TrIdx = rootTd.GetId()
 			for i, interTrIdx := range intersTrIdx {
 				interPathNode := IntermediatePathNodeBuilder{}
@@ -122,20 +122,20 @@ func (ppd *ServerPointPackData) loadPathBuilders() error {
 		}
 	}
 
-	ppd.pathBuilders = res
-	ppd.pathBuildersLoaded = true
+	pointData.pathBuilders = res
+	pointData.pathBuildersLoaded = true
 
 	return nil
 }
 
-func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
-	te := ppd.pathBuildersTe
+func (pointData *ServerPointPackData) saveAllPathBuilders() (int, error) {
+	te := pointData.pathBuildersTe
 	inserted, toFill, err := te.GetForSaveAll()
 	if err != nil {
 		return 0, err
 	}
 	if toFill {
-		builders := ppd.calculateAllPathBuilders()
+		builders := pointData.calculateAllPathBuilders()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.GetFullTableName(), len(builders)-1)
 		}
@@ -181,25 +181,25 @@ func (ppd *ServerPointPackData) saveAllPathBuilders() (int, error) {
 	return inserted, nil
 }
 
-func (ppd *ServerPointPackData) calculateAllPathBuilders() []*RootPathNodeBuilder {
-	ppd.CheckCubesInitialized()
+func (pointData *ServerPointPackData) calculateAllPathBuilders() []*RootPathNodeBuilder {
+	pointData.CheckCubesInitialized()
 	res := make([]*RootPathNodeBuilder, TotalNumberOfCubes+1)
 	res[0] = nil
-	for cubeKey, cubeId := range ppd.cubeIdsPerKey {
+	for cubeKey, cubeId := range pointData.cubeIdsPerKey {
 		root := RootPathNodeBuilder{}
-		root.Ctx = &PathBuilderContext{GrowthCtx: ppd.GetGrowthContextById(cubeKey.GrowthCtxId), CubeId: cubeId}
-		ppd.Populate(&root)
+		root.Ctx = &PathBuilderContext{GrowthCtx: pointData.GetGrowthContextById(cubeKey.GrowthCtxId), CubeId: cubeId}
+		pointData.Populate(&root)
 		res[cubeId] = &root
 	}
 	return res
 }
 
-func (ppd *ServerPointPackData) Populate(rpnb *RootPathNodeBuilder) {
+func (pointData *ServerPointPackData) Populate(rpnb *RootPathNodeBuilder) {
 	growthCtx := rpnb.Ctx.GrowthCtx
-	cubeKey := ppd.GetCubeById(rpnb.Ctx.CubeId)
+	cubeKey := pointData.GetCubeById(rpnb.Ctx.CubeId)
 	cube := cubeKey.Cube
 	rpnb.TrIdx = cube.Center
-	td := ppd.GetTrioDetails(rpnb.TrIdx)
+	td := pointData.GetTrioDetails(rpnb.TrIdx)
 	for i, cd := range td.Conns {
 		// We are talking about the intermediate point here
 		ip := cd.Vector
@@ -211,7 +211,7 @@ func (ppd *ServerPointPackData) Populate(rpnb *RootPathNodeBuilder) {
 			nextMains[j].Ud = ud
 			nmp := ud.GetFirstPoint()
 			nextTrIdx := cube.GetCenterFaceTrio(ud)
-			nextTd := ppd.GetTrioDetails(nextTrIdx)
+			nextTd := pointData.GetTrioDetails(nextTrIdx)
 			backConn := ud.GetOpposite().FindConnection(nextTd)
 			nextMains[j].Lip = nmp.Add(backConn.Vector)
 			nextMains[j].BackConn = backConn
@@ -224,8 +224,8 @@ func (ppd *ServerPointPackData) Populate(rpnb *RootPathNodeBuilder) {
 		// We have all the last nodes let's create the intermediate one
 		// We have the three connections from ip to find the correct trio
 		var iTd *m3point.TrioDetails
-		ipConns := [2]*m3point.ConnectionDetails{ppd.GetConnDetailsByPoints(ip, nextMains[0].Lip), ppd.GetConnDetailsByPoints(ip, nextMains[1].Lip)}
-		for _, possTd := range ppd.AllTrioDetails {
+		ipConns := [2]*m3point.ConnectionDetails{pointData.GetConnDetailsByPoints(ip, nextMains[0].Lip), pointData.GetConnDetailsByPoints(ip, nextMains[1].Lip)}
+		for _, possTd := range pointData.AllTrioDetails {
 			if possTd.HasConnections(cd.GetNegId(), ipConns[0].GetId(), ipConns[1].GetId()) {
 				iTd = possTd
 				break
@@ -249,14 +249,14 @@ func (ppd *ServerPointPackData) Populate(rpnb *RootPathNodeBuilder) {
 					foundUd = true
 				} else {
 					nextInterTrIdx := cube.GetMiddleEdgeTrio(nm.Ud, backUd)
-					nextInterTd := ppd.GetTrioDetails(nextInterTrIdx)
+					nextInterTd := pointData.GetTrioDetails(nextInterTrIdx)
 					nextInterBackConn := backUd.GetOpposite().FindConnection(nextInterTd)
 					nextInterNearMainPoint := nm.Ud.GetFirstPoint().Add(backUd.GetFirstPoint()).Add(nextInterBackConn.Vector)
-					lipToOtherConn := ppd.GetConnDetailsByPoints(nm.Lip, nextInterNearMainPoint)
+					lipToOtherConn := pointData.GetConnDetailsByPoints(nm.Lip, nextInterNearMainPoint)
 					nm.Lipnb.NextInterConnId = lipToOtherConn.GetId()
 
 					var liTd *m3point.TrioDetails
-					for _, possTd := range ppd.AllTrioDetails {
+					for _, possTd := range pointData.AllTrioDetails {
 						if possTd.HasConnections(ipConns[j].GetNegId(), nm.Lipnb.NextInterConnId, nm.Lipnb.NextMainConnId) {
 							liTd = possTd
 							break

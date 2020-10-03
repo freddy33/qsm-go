@@ -50,14 +50,15 @@ func Play() {
 	// ******************************************************************
 	//    HERE CHANGE THE SIZE
 	// ******************************************************************
-	max := int64(9 * m3point.THREE)
+	max := m3space.MinMaxCoord
 	env := client.GetInitializedApiEnv(m3util.GetDefaultEnvId())
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
-	//world.WorldSpace.CreateSingleEventCenter()
-	world.WorldSpace.EventOutgrowthThreshold = m3space.DistAndTime(0)
-	world.WorldSpace.EventOutgrowthOldThreshold = m3space.DistAndTime(50)
-	world.WorldSpace.MaxConnections = 3
-	world.WorldSpace.CreateEventAtZeroTime(8, 0, 0, m3point.Origin, m3space.RedEvent)
+	_, err = world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.DistAndTime(0), m3point.Origin, m3space.RedEvent)
+	if err != nil {
+		Log.Fatal(err)
+		return
+	}
+	world.CurrentSpaceTime = world.WorldSpace.GetSpaceTimeAt(m3space.DistAndTime(0))
 	world.CreateDrawingElements()
 
 	// Configure the vertex and fragment shaders
@@ -155,7 +156,7 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 			displaySettings = false
 
 		case glfw.KeyRight:
-			world.WorldSpace.ForwardTime()
+			world.ForwardTime()
 			if world.CheckMax() {
 				gl.BufferData(gl.ARRAY_BUFFER, world.NbVertices*m3gl.FloatPerVertices*4, gl.Ptr(world.OpenGLBuffer), gl.STATIC_DRAW)
 			}
@@ -166,11 +167,6 @@ func onKey(win *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mod
 			world.Filter.DisplayEmptyNodes = !world.Filter.DisplayEmptyNodes
 		case glfw.KeyC:
 			world.Filter.DisplayEmptyConnections = !world.Filter.DisplayEmptyConnections
-
-		case glfw.KeyUp:
-			world.EventOutgrowthThresholdIncrease()
-		case glfw.KeyDown:
-			world.EventOutgrowthThresholdDecrease()
 
 		case glfw.KeyU:
 			world.Filter.EventOutgrowthColorsIncrease()

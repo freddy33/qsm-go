@@ -359,16 +359,19 @@ func (pn *PathNodeDb) updateInDb() error {
 
 func createPathNodeFromDbRows(rows *sql.Rows) (*PathNodeDb, error) {
 	pn := getNewPathNodeDb()
+	point := m3point.Point{}
 	pathNodeIds := [m3path.NbConnections]sql.NullInt64{}
 	err := rows.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.pathBuilderIdx, &pn.trioId, &pn.pointId, &pn.d,
 		&pn.connectionMask,
-		&pathNodeIds[0], &pathNodeIds[1], &pathNodeIds[2])
+		&pathNodeIds[0], &pathNodeIds[1], &pathNodeIds[2],
+		&point[0], &point[1], &point[2])
 	if err != nil {
 		pn.release()
 		return nil, err
 	}
 	pn.clearLinkNodes()
 	pn.SetLinkIdsFromDbData(pathNodeIds)
+	pn.point = &point
 	pn.state = SyncInDbPathNode
 	return pn, nil
 }

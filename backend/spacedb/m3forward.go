@@ -1,4 +1,4 @@
-package m3space
+package spacedb
 
 import (
 	"github.com/freddy33/qsm-go/m3util"
@@ -14,7 +14,7 @@ type ThreeIds [3]EventId
 var NilThreeIds = ThreeIds{NilEvent, NilEvent, NilEvent}
 
 type ForwardResult struct {
-	pointsPerThreeIds map[ThreeIds][]m3point.Point
+	PointsPerThreeIds map[ThreeIds][]m3point.Point
 }
 
 func MakeForwardResult() *ForwardResult {
@@ -24,14 +24,14 @@ func MakeForwardResult() *ForwardResult {
 
 func (fr *ForwardResult) addPoint(tIds []ThreeIds, p m3point.Point) {
 	for _, tid := range tIds {
-		pList, ok := fr.pointsPerThreeIds[tid]
+		pList, ok := fr.PointsPerThreeIds[tid]
 		if !ok {
 			pList = make([]m3point.Point, 1)
 			pList[0] = p
 		} else {
 			pList = append(pList, p)
 		}
-		fr.pointsPerThreeIds[tid] = pList
+		fr.PointsPerThreeIds[tid] = pList
 	}
 
 }

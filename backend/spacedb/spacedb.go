@@ -10,16 +10,10 @@ import (
 var Log = m3util.NewLogger("spacedb", m3util.INFO)
 
 const (
-	SpacesTable         = "spaces"
-	EventsTable         = "events"
-	NodesTable          = "nodes"
-	SelectSpacePerId    = 0
-	SelectEventPerId    = 0
-	SelectActiveEvents  = 1
-	SelectNodePerId     = 0
-	SelectNodesPerD     = 1
-	SelectNodesPerPoint = 2
-	SelectActiveNodes   = 3
+	SpacesTable      = "spaces"
+	EventsTable      = "events"
+	NodesTable       = "nodes"
+	SelectSpacePerId = 0
 )
 
 func init() {
@@ -48,6 +42,11 @@ func createSpacesTableDef() *m3db.TableDefinition {
 	return &res
 }
 
+const (
+	SelectEventPerId int = iota
+	SelectEventsPerSpace
+)
+
 func createEventsTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
 	res.Name = EventsTable
@@ -60,15 +59,24 @@ func createEventsTableDef() *m3db.TableDefinition {
 		" end_time integer NOT NULL)"
 	res.DdlColumnsRefs = []string{SpacesTable, pathdb.PathContextsTable}
 
-	allFields := "space_id, path_ctx_id, creation_time, color, end_time"
+	allFields := "id, space_id, path_ctx_id, creation_time, color, end_time"
 	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5) returning id"
-	res.SelectAll = "select id," + allFields + " from %s"
+	res.SelectAll = "select " + allFields + " from %s"
 	res.ExpectedCount = -1
 	res.Queries = make([]string, 1)
 	res.Queries[SelectEventPerId] = res.SelectAll + " where id=$1"
+	res.Queries[SelectEventsPerSpace] = res.SelectAll + " where space_id=$1"
 
 	return &res
 }
+
+const (
+	SelectNodePerId int = iota
+	SelectNodesPerD
+	SelectNodesPerPoint
+	SelectActiveNodes
+	SelectMaxCreationTime
+)
 
 /*
 How to query graph in PG: https://www.postgresql.org/docs/current/queries-with.html
@@ -92,31 +100,42 @@ func createNodesTableDef() *m3db.TableDefinition {
 	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id"
 	res.SelectAll = "select id," + allFields + " from %s"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 4)
+	res.Queries = make([]string, 5)
 	res.Queries[SelectNodePerId] = res.SelectAll + " where id=$1"
 	res.Queries[SelectNodesPerD] = res.SelectAll + " where event_id=$1 and d=$2"
 	res.Queries[SelectNodesPerPoint] = "select id, event_id, creation_time from %s where point_id=$1 and creation_time <= $2"
 	res.Queries[SelectActiveNodes] = "select id, event_id, point_id, creation_time from %s  where creation_time > $1 and creation_time <= $2"
+	res.Queries[SelectMaxCreationTime] = "select id, event_id, point_id, creation_time from %s  where creation_time > $1 and creation_time <= $2"
 	return &res
 }
 
-func (spd *ServerSpacePackData) createTables() {
+func (spaceData *ServerSpacePackData) createTables() {
+	tableNames := [3]string{SpacesTable, EventsTable, NodesTable}
+	spaceTableExecs := [3]*m3db.TableExec{}
+
+	// IMPORTANT: Create ALL the tables before preparing the queries
 	var err error
-	spd.spacesTe, err = spd.env.GetOrCreateTableExec(SpacesTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", SpacesTable, err)
-		return
+
+	for i := 0; i < len(spaceTableExecs); i++ {
+		spaceTableExecs[i], err = spaceData.env.GetOrCreateTableExec(tableNames[i])
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 	}
-	spd.eventsTe, err = spd.env.GetOrCreateTableExec(EventsTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", EventsTable, err)
-		return
+
+	for i := 0; i < len(spaceTableExecs); i++ {
+		err = spaceTableExecs[i].PrepareQueries()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 	}
-	spd.nodesTe, err = spd.env.GetOrCreateTableExec(NodesTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", NodesTable, err)
-		return
-	}
+
+	spaceData.spacesTe = spaceTableExecs[0]
+	spaceData.eventsTe = spaceTableExecs[1]
+	spaceData.nodesTe = spaceTableExecs[2]
+
 }
 
 var dbMutex sync.Mutex

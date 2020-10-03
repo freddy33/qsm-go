@@ -16,28 +16,28 @@ func TestPointsTable(t *testing.T) {
 	env := GetPathDbCleanEnv(m3util.PathTempEnv)
 
 	te, err := env.GetOrCreateTableExec(PointsTable)
-	assert.Nil(t, err)
-	if err != nil {
+	if !assert.NoError(t, err) {
+		return
+	}
+	err = te.PrepareQueries()
+	if !assert.NoError(t, err) {
 		return
 	}
 
 	// Insert and select [1,2,3]
 	pid, err := te.InsertReturnId(1, 2, 3)
-	assert.Nil(t, err)
-	if err != nil {
+	if !assert.NoError(t, err) {
 		return
 	}
 	assert.True(t, pid > 0)
 	rows, err := te.Query(FindPointIdPerCoord, 1, 2, 3)
-	assert.Nil(t, err)
-	if err != nil {
+	if !assert.NoError(t, err) {
 		return
 	}
 	assert.True(t, rows.Next())
 	var pid2 int64
 	err = rows.Scan(&pid2)
-	assert.Nil(t, err)
-	if err != nil {
+	if !assert.NoError(t, err) {
 		return
 	}
 	assert.Equal(t, pid2, pid)
@@ -53,16 +53,14 @@ func TestPointsTable(t *testing.T) {
 
 	// insert -1,2,3 and show next and new id from before
 	pid4, err := te.InsertReturnId(-1, 2, 3)
-	assert.Nil(t, err)
-	if err != nil {
+	if !assert.NoError(t, err) {
 		return
 	}
 	assert.True(t, pid4 > pid)
 
 	// select -1,-2,-3 should return no rows
 	rows2, err := te.Query(FindPointIdPerCoord, -1, -2, -3)
-	assert.Nil(t, err)
-	if err != nil {
+	if !assert.NoError(t, err) {
 		return
 	}
 	assert.False(t, rows2.Next())

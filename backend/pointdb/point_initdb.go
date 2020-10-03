@@ -4,130 +4,130 @@ import (
 	"github.com/freddy33/qsm-go/model/m3point"
 )
 
-func (ppd *ServerPointPackData) InitializeAll() {
-	ppd.initConnections()
-	ppd.initTrioDetails()
-	ppd.initGrowthContexts()
-	ppd.initContextCubes()
-	ppd.initPathBuilders()
+func (pointData *ServerPointPackData) InitializeAll() {
+	pointData.initConnections()
+	pointData.initTrioDetails()
+	pointData.initGrowthContexts()
+	pointData.initContextCubes()
+	pointData.initPathBuilders()
 }
 
-func (ppd *ServerPointPackData) GetValidNextTrio() [12][2]m3point.TrioIndex {
+func (pointData *ServerPointPackData) GetValidNextTrio() [12][2]m3point.TrioIndex {
 	return validNextTrio
 }
 
-func (ppd *ServerPointPackData) GetAllMod4Permutations() [12][4]m3point.TrioIndex {
+func (pointData *ServerPointPackData) GetAllMod4Permutations() [12][4]m3point.TrioIndex {
 	return allMod4Permutations
 }
 
-func (ppd *ServerPointPackData) GetAllMod8Permutations() [12][8]m3point.TrioIndex {
+func (pointData *ServerPointPackData) GetAllMod8Permutations() [12][8]m3point.TrioIndex {
 	return allMod8Permutations
 }
 
-func (ppd *ServerPointPackData) initConnections() {
-	if !ppd.ConnectionsLoaded {
-		err := ppd.loadConnectionDetails()
+func (pointData *ServerPointPackData) initConnections() {
+	if !pointData.ConnectionsLoaded {
+		err := pointData.loadConnectionDetails()
 		if err != nil {
 			Log.Fatal(err)
 			return
 		}
-		Log.Debugf("Environment %d has %d connection details", ppd.GetEnvId(), len(ppd.AllConnections))
+		Log.Debugf("Environment %d has %d connection details", pointData.GetEnvId(), len(pointData.AllConnections))
 	}
 }
 
-func (ppd *ServerPointPackData) initTrioDetails() {
-	if !ppd.TrioDetailsLoaded {
-		err := ppd.loadTrioDetails()
+func (pointData *ServerPointPackData) initTrioDetails() {
+	if !pointData.TrioDetailsLoaded {
+		err := pointData.loadTrioDetails()
 		if err != nil {
 			Log.Fatal(err)
 			return
 		}
-		Log.Debugf("Environment %d has %d trio details", ppd.GetEnvId(), len(ppd.AllTrioDetails))
+		Log.Debugf("Environment %d has %d trio details", pointData.GetEnvId(), len(pointData.AllTrioDetails))
 	}
 }
 
-func (ppd *ServerPointPackData) initGrowthContexts() {
-	if !ppd.GrowthContextsLoaded {
-		err := ppd.loadGrowthContexts()
+func (pointData *ServerPointPackData) initGrowthContexts() {
+	if !pointData.GrowthContextsLoaded {
+		err := pointData.loadGrowthContexts()
 		if err != nil {
 			Log.Fatal(err)
 			return
 		}
-		Log.Debugf("Environment %d has %d growth contexts", ppd.GetEnvId(), len(ppd.AllGrowthContexts))
+		Log.Debugf("Environment %d has %d growth contexts", pointData.GetEnvId(), len(pointData.AllGrowthContexts))
 	}
 }
 
-func (ppd *ServerPointPackData) initContextCubes() {
-	if !ppd.cubesLoaded {
-		err := ppd.loadContextCubes()
+func (pointData *ServerPointPackData) initContextCubes() {
+	if !pointData.cubesLoaded {
+		err := pointData.loadContextCubes()
 		if err != nil {
 			Log.Fatal(err)
 			return
 		}
-		Log.Debugf("Environment %d has %d cubes", ppd.GetEnvId(), len(ppd.cubeIdsPerKey))
+		Log.Debugf("Environment %d has %d cubes", pointData.GetEnvId(), len(pointData.cubeIdsPerKey))
 	}
 }
 
-func (ppd *ServerPointPackData) initPathBuilders() {
-	if !ppd.pathBuildersLoaded {
-		err := ppd.loadPathBuilders()
+func (pointData *ServerPointPackData) initPathBuilders() {
+	if !pointData.pathBuildersLoaded {
+		err := pointData.loadPathBuilders()
 		if err != nil {
 			Log.Fatal(err)
 			return
 		}
-		Log.Debugf("Environment %d has %d path builders", ppd.GetEnvId(), len(ppd.pathBuilders))
+		Log.Debugf("Environment %d has %d path builders", pointData.GetEnvId(), len(pointData.pathBuilders))
 	}
 }
 
-func (ppd *ServerPointPackData) FillDb() {
-	n, err := ppd.saveAllConnectionDetails()
+func (pointData *ServerPointPackData) FillDb() {
+	n, err := pointData.saveAllConnectionDetails()
 	if err != nil {
 		Log.Fatalf("could not save all connections due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d connection details", ppd.GetEnvId(), n)
+		Log.Infof("Environment %d has %d connection details", pointData.GetEnvId(), n)
 	}
 
-	ppd.initConnections()
+	pointData.initConnections()
 
-	n, err = ppd.saveAllTrioDetails()
+	n, err = pointData.saveAllTrioDetails()
 	if err != nil {
 		Log.Fatalf("could not save all trios due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d trio details", ppd.GetEnvId(), n)
+		Log.Infof("Environment %d has %d trio details", pointData.GetEnvId(), n)
 	}
-	ppd.initTrioDetails()
+	pointData.initTrioDetails()
 
-	n, err = ppd.saveAllGrowthContexts()
+	n, err = pointData.saveAllGrowthContexts()
 	if err != nil {
 		Log.Fatalf("could not save all growth contexts due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d growth contexts", ppd.GetEnvId(), n)
+		Log.Infof("Environment %d has %d growth contexts", pointData.GetEnvId(), n)
 	}
-	ppd.initGrowthContexts()
+	pointData.initGrowthContexts()
 
-	n, err = ppd.saveAllContextCubes()
+	n, err = pointData.saveAllContextCubes()
 	if err != nil {
 		Log.Fatalf("could not save all contexts cubes due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d contexts cubes", ppd.GetEnvId(), n)
+		Log.Infof("Environment %d has %d contexts cubes", pointData.GetEnvId(), n)
 	}
-	ppd.initContextCubes()
+	pointData.initContextCubes()
 
-	n, err = ppd.saveAllPathBuilders()
+	n, err = pointData.saveAllPathBuilders()
 	if err != nil {
 		Log.Fatalf("could not save all path builders due to %v", err)
 		return
 	}
 	if Log.IsInfo() {
-		Log.Infof("Environment %d has %d path builders", ppd.GetEnvId(), n)
+		Log.Infof("Environment %d has %d path builders", pointData.GetEnvId(), n)
 	}
-	ppd.initPathBuilders()
+	pointData.initPathBuilders()
 }

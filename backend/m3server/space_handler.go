@@ -75,7 +75,7 @@ func createEvent(w http.ResponseWriter, r *http.Request) {
 	spaceData := spacedb.GetServerSpacePackData(env)
 	space := spaceData.GetSpace(int(reqMsg.SpaceId))
 	if space == nil {
-		SendResponse(w, http.StatusNotFound, "Space id %d does not exists", reqMsg.SpaceId)
+		SendResponse(w, http.StatusNotFound, "SpaceTime id %d does not exists", reqMsg.SpaceId)
 		return
 	}
 	event, err := space.CreateEvent(m3point.GrowthType(reqMsg.GrowthType), int(reqMsg.GrowthIndex), int(reqMsg.GrowthOffset),

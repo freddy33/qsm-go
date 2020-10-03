@@ -37,7 +37,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())
 	assert.Equal(t, 0, growthCtx.GetGrowthIndex())
-	pathCtx, err := pathData.GetPathCtxDb(growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex(), 0)
+	pathCtx, err := pathData.GetPathCtxDbFromAttributes(growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex(), 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, pathCtx)
 	assert.Equal(t, 1, pathCtx.GetNumberOfNodesAt(0))

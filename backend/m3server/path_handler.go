@@ -18,7 +18,7 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 
 	env := GetEnvironment(r)
 	pathData := pathdb.GetServerPathPackData(env)
-	pathCtx, err := pathData.GetPathCtxDb(
+	pathCtx, err := pathData.GetPathCtxDbFromAttributes(
 		m3point.GrowthType(reqMsg.GetGrowthType()),
 		int(reqMsg.GetGrowthIndex()),
 		int(reqMsg.GetGrowthOffset()))

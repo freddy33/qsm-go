@@ -2,20 +2,16 @@ package m3space
 
 import (
 	"github.com/freddy33/qsm-go/m3util"
-	"github.com/freddy33/qsm-go/model/m3point"
 )
 
-type SpaceIfc interface {
-	GetId() int
-	GetName() string
-	CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int,
-		creationTime DistAndTime, center m3point.Point, color EventColor) (EventIfc, error)
-}
+var Log = m3util.NewLogger("m3space", m3util.INFO)
 
 type SpacePackDataIfc interface {
 	m3util.QsmDataPack
 	GetAllSpaces() []SpaceIfc
 	GetSpace(id int) SpaceIfc
+	CreateSpace(name string, activePathNodeThreshold DistAndTime,
+		maxTriosPerPoint int, maxPathNodesPerPoint int) (SpaceIfc, error)
 }
 
 type BaseSpacePackData struct {

@@ -14,22 +14,68 @@ type ServerSpacePackData struct {
 	eventsTe *m3db.TableExec
 	nodesTe  *m3db.TableExec
 
-	allSpaces map[int]*SpaceDb
+	allSpaces       map[int]*SpaceDb
+	allSpacesLoaded bool
 }
 
-func (spd *ServerSpacePackData) GetAllSpaces() []m3space.SpaceIfc {
-	res := make([]m3space.SpaceIfc, len(spd.allSpaces))
+func (spaceData *ServerSpacePackData) CreateSpace(name string, activePathNodeThreshold m3space.DistAndTime, maxTriosPerPoint int, maxPathNodesPerPoint int) (m3space.SpaceIfc, error) {
+	return CreateSpace(spaceData.env, name, activePathNodeThreshold, maxTriosPerPoint, maxPathNodesPerPoint)
+}
+
+func (spaceData *ServerSpacePackData) GetAllSpaces() []m3space.SpaceIfc {
+	err := spaceData.LoadAllSpaces()
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+	res := make([]m3space.SpaceIfc, len(spaceData.allSpaces))
 	i := 0
-	for _, s := range spd.allSpaces {
+	for _, s := range spaceData.allSpaces {
 		res[i] = s
 		i++
 	}
 	return res
 }
 
-func (spd *ServerSpacePackData) GetSpace(id int) m3space.SpaceIfc {
-	// TODO: if not in map look in DB
-	return spd.allSpaces[id]
+func (spaceData *ServerSpacePackData) LoadAllSpaces() error {
+	if spaceData.allSpacesLoaded {
+		return nil
+	}
+	rows, err := spaceData.spacesTe.SelectAllForLoad()
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		space := SpaceDb{spaceData: spaceData}
+		err := rows.Scan(&space.id, &space.name, &space.activePathNodeThreshold,
+			&space.maxTriosPerPoint, &space.maxPathNodesPerPoint, &space.maxCoord, &space.maxTime)
+		if err != nil {
+			return err
+		}
+		existingSpace, ok := spaceData.allSpaces[space.id]
+		if ok {
+			// Make sure same data
+			if existingSpace.name != space.name {
+				return m3util.MakeQsmErrorf("got different spaces in memory %v and DB %v", existingSpace, space)
+			}
+		} else {
+			err = space.finalInit()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	spaceData.allSpacesLoaded = true
+	return nil
+}
+
+func (spaceData *ServerSpacePackData) GetSpace(id int) m3space.SpaceIfc {
+	err := spaceData.LoadAllSpaces()
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+	return spaceData.allSpaces[id]
 }
 
 func makeServerSpacePackData(env m3util.QsmEnvironment) *ServerSpacePackData {

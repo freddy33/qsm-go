@@ -18,8 +18,9 @@ type ServerPathPackData struct {
 	pathNodesTe *m3db.TableExec
 
 	// All PathContexts centered at origin with growth type + offset
-	AllCenterContexts     map[m3point.GrowthType][]*PathContextDb
-	AllPathContextsLoaded bool
+	allPathContextsLoadMutex sync.Mutex
+	pathContextsLoaded       bool
+	AllCenterContexts        map[m3point.GrowthType][]*PathContextDb
 }
 
 func makeServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
@@ -27,7 +28,7 @@ func makeServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	res.env = env.(*m3db.QsmDbEnvironment)
 	res.pathCtxMap = make(map[int]*PathContextDb, 2^8)
 	res.AllCenterContexts = make(map[m3point.GrowthType][]*PathContextDb)
-	res.AllPathContextsLoaded = false
+	res.pathContextsLoaded = false
 	return res
 }
 
@@ -45,13 +46,21 @@ func (pathData *ServerPathPackData) GetEnvId() m3util.QsmEnvID {
 	return pathData.env.GetId()
 }
 
-func (pathData *ServerPathPackData) GetPathCtx(id int) m3path.PathContext {
+func (pathData *ServerPathPackData) GetPathCtxDb(id int) *PathContextDb {
+	if !pathData.pathContextsLoaded {
+		Log.Fatal("The path context should have been initialized with call to initAllPathContexts")
+		return nil
+	}
 	pathCtx, ok := pathData.pathCtxMap[id]
 	if ok {
 		return pathCtx
 	}
 	// TODO: Load from DB
 	return nil
+}
+
+func (pathData *ServerPathPackData) GetPathCtx(id int) m3path.PathContext {
+	return pathData.GetPathCtxDb(id)
 }
 
 func (pathData *ServerPathPackData) addPathContext(pathCtx *PathContextDb) {
@@ -71,17 +80,15 @@ func (pathData *ServerPathPackData) addPathContext(pathCtx *PathContextDb) {
 	contexts[allCtxIdx] = pathCtx
 }
 
-var allPathContextsLoadMutex sync.Mutex
-
 func (pathData *ServerPathPackData) initAllPathContexts() error {
-	if pathData.AllPathContextsLoaded {
+	if pathData.pathContextsLoaded {
 		return nil
 	}
 
-	allPathContextsLoadMutex.Lock()
-	defer allPathContextsLoadMutex.Unlock()
+	pathData.allPathContextsLoadMutex.Lock()
+	defer pathData.allPathContextsLoadMutex.Unlock()
 
-	if pathData.AllPathContextsLoaded {
+	if pathData.pathContextsLoaded {
 		return nil
 	}
 
@@ -123,15 +130,15 @@ func (pathData *ServerPathPackData) initAllPathContexts() error {
 
 	nbPathCtx = len(pathData.pathCtxMap)
 	Log.Infof("Environment %d has %d path contexts", pathData.env.GetId(), nbPathCtx)
-	pathData.AllPathContextsLoaded = true
+	pathData.pathContextsLoaded = true
 	return nil
 }
 
 func (pathData *ServerPathPackData) GetPathCtxFromAttributes(growthType m3point.GrowthType, growthIndex int, growthOffset int) (m3path.PathContext, error) {
-	return pathData.GetPathCtxDb(growthType, growthIndex, growthOffset)
+	return pathData.GetPathCtxDbFromAttributes(growthType, growthIndex, growthOffset)
 }
 
-func (pathData *ServerPathPackData) GetPathCtxDb(growthType m3point.GrowthType, growthIndex int, growthOffset int) (*PathContextDb, error) {
+func (pathData *ServerPathPackData) GetPathCtxDbFromAttributes(growthType m3point.GrowthType, growthIndex int, growthOffset int) (*PathContextDb, error) {
 	growthCtx := pointdb.GetPointPackData(pathData.env).GetGrowthContextByTypeAndIndex(growthType, growthIndex)
 	if growthCtx == nil {
 		return nil, m3util.MakeQsmErrorf("could not find Growth Context for %d %d", growthType, growthIndex)

@@ -30,8 +30,8 @@ func createGrowthContextsTableDef() *m3db.TableDefinition {
 // trio Contexts Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadGrowthContexts() error {
-	te := ppd.growthCtxTe
+func (pointData *ServerPointPackData) loadGrowthContexts() error {
+	te := pointData.growthCtxTe
 
 	rows, err := te.SelectAllForLoad()
 	if err != nil {
@@ -41,7 +41,7 @@ func (ppd *ServerPointPackData) loadGrowthContexts() error {
 
 	for rows.Next() {
 		growthCtx := m3point.BaseGrowthContext{}
-		growthCtx.Env = ppd.env
+		growthCtx.Env = pointData.env
 		err := rows.Scan(&growthCtx.Id, &growthCtx.GrowthType, &growthCtx.GrowthIndex)
 		if err != nil {
 			return m3util.MakeWrapQsmErrorf(err, "failed to load trio context line %d", len(res))
@@ -50,20 +50,20 @@ func (ppd *ServerPointPackData) loadGrowthContexts() error {
 		}
 	}
 
-	ppd.AllGrowthContexts = res
-	ppd.GrowthContextsLoaded = true
+	pointData.AllGrowthContexts = res
+	pointData.GrowthContextsLoaded = true
 
 	return nil
 }
 
-func (ppd *ServerPointPackData) saveAllGrowthContexts() (int, error) {
-	te := ppd.growthCtxTe
+func (pointData *ServerPointPackData) saveAllGrowthContexts() (int, error) {
+	te := pointData.growthCtxTe
 	inserted, toFill, err := te.GetForSaveAll()
 	if err != nil {
 		return 0, err
 	}
 	if toFill {
-		growthContexts := ppd.calculateAllGrowthContexts()
+		growthContexts := pointData.calculateAllGrowthContexts()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.GetFullTableName(), len(growthContexts))
 		}
@@ -80,13 +80,13 @@ func (ppd *ServerPointPackData) saveAllGrowthContexts() (int, error) {
 	return inserted, nil
 }
 
-func (ppd *ServerPointPackData) calculateAllGrowthContexts() []m3point.GrowthContext {
+func (pointData *ServerPointPackData) calculateAllGrowthContexts() []m3point.GrowthContext {
 	res := make([]m3point.GrowthContext, m3point.TotalNbContexts)
 	idx := 0
 	for _, ctxType := range m3point.GetAllGrowthTypes() {
 		nbIndexes := ctxType.GetNbIndexes()
 		for pIdx := 0; pIdx < nbIndexes; pIdx++ {
-			growthCtx := m3point.BaseGrowthContext{Env: ppd.env, Id: idx, GrowthType: ctxType, GrowthIndex: pIdx}
+			growthCtx := m3point.BaseGrowthContext{Env: pointData.env, Id: idx, GrowthType: ctxType, GrowthIndex: pIdx}
 			res[idx] = &growthCtx
 			idx++
 		}
