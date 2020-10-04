@@ -28,7 +28,7 @@ func TestSingleRedEvent(t *testing.T) {
 
 	assertEmptyWorld(t, &world, max)
 
-	world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.DistAndTime(0), m3point.Origin, m3space.RedEvent)
+	world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
 	world.CreateDrawingElements()
 
 	expectedState := map[m3space.DistAndTime]ExpectedSpaceState{
@@ -49,7 +49,7 @@ func assertEmptyWorld(t *testing.T, world *DisplayWorld, max m3point.CInt) {
 }
 
 func assertSpaceStates(t *testing.T, world *DisplayWorld, expectMap map[m3space.DistAndTime]ExpectedSpaceState, finalTime m3space.DistAndTime) {
-	expectedTime := m3space.DistAndTime(0)
+	expectedTime := m3space.ZeroDistAndTime
 	expect, ok := expectMap[expectedTime]
 	assert.True(t, ok, "Should have the 0 tick time map entry in %v", expectMap)
 	baseNodes := expect.baseNodes

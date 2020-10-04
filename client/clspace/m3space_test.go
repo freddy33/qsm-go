@@ -315,7 +315,7 @@ func assertEmptySpace(t *testing.T, space *m3space.Space, max m3point.CInt) {
 }
 
 func assertSpaceStates(t *testing.T, space *m3space.Space, expectMap map[m3space.DistAndTime]ExpectedSpaceState, finalTime m3space.DistAndTime, contextMsg string) {
-	expectedTime := m3space.DistAndTime(0)
+	expectedTime := m3space.ZeroDistAndTime
 	expect, ok := expectMap[expectedTime]
 	assert.True(t, ok, "%s: Should have the 0 tick time map entry in %v", contextMsg, expectMap)
 	baseNodes := expect.baseNodes

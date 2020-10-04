@@ -230,6 +230,15 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 }
 
 func (pathCtx *PathContextDb) GetPathNodesAt(dist int) ([]m3path.PathNode, error) {
+	if dist == 0 && pathCtx.rootNode != nil {
+		res := make([]m3path.PathNode, 1)
+		res[0] = pathCtx.rootNode
+		return res, nil
+	}
+
+	if dist > 0 {
+		Log.Debugf("Retrieving all path nodes of %s for dist %d", pathCtx.String(), dist)
+	}
 	te := pathCtx.pathData.pathNodesTe
 	rows, err := te.Query(SelectPathNodesByCtxAndDistance, pathCtx.GetId(), dist)
 	if err != nil {
@@ -249,6 +258,9 @@ func (pathCtx *PathContextDb) GetPathNodesAt(dist int) ([]m3path.PathNode, error
 			pn.pathCtx = pathCtx
 			res = append(res, pn)
 		}
+	}
+	if dist > 0 {
+		Log.Debugf("Returning %d path nodes of %s for dist %d", len(res), pathCtx.String(), dist)
 	}
 	return res, nil
 }
@@ -306,8 +318,8 @@ func (ec *RangeErrorCollector) listen() {
 			ec.lastError = err
 			Log.Error(err)
 		case nbDone := <-ec.done:
-			if Log.IsDebug() {
-				Log.Debugf("Done %d", nbDone)
+			if Log.IsTrace() {
+				Log.Tracef("Done %d", nbDone)
 			}
 			break
 		}
@@ -321,6 +333,7 @@ func (pathCtx *PathContextDb) RequestNewMaxDist(requestDist int) error {
 	if requestDist <= pathCtx.GetMaxDist() {
 		return nil
 	}
+	Log.Debugf("Path context %s will set to new dist %d from %d", pathCtx.String(), requestDist, pathCtx.GetMaxDist())
 	nbExecution := 0
 	for d := pathCtx.GetMaxDist() + 1; d <= requestDist; d++ {
 		err := pathCtx.calculateNextMaxDist()
@@ -333,6 +346,7 @@ func (pathCtx *PathContextDb) RequestNewMaxDist(requestDist int) error {
 		return m3util.MakeQsmErrorf("After executing %d next max dist on path context %d the max dist %d still not the requested value %d",
 			nbExecution, pathCtx.GetId(), pathCtx.GetMaxDist(), requestDist)
 	}
+	Log.Infof("Path context %s max dist set to %d", pathCtx.String(), pathCtx.GetMaxDist())
 	return nil
 }
 
@@ -342,6 +356,8 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 		return err
 	}
 	next := createNextNodeBuilder(current)
+
+	Log.Debugf("Moving %s from %d to %d", pathCtx.String(), current.d, next.d)
 
 	ec := MakeRangeErrorCollector()
 	go ec.listen()

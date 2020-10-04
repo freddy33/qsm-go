@@ -52,7 +52,7 @@ type SpaceDrawingFilter struct {
 func (filter *SpaceDrawingFilter) DisplaySettings() {
 	fmt.Println("========= SpaceTime Settings =========")
 	fmt.Println("Empty Nodes [N]", filter.DisplayEmptyNodes, ", Empty Connections [C]", filter.DisplayEmptyConnections)
-	fmt.Println("Event Outgrowth Threshold [UP,DOWN]", filter.SpaceTime.GetSpace().GetActivePathNodeThreshold(), ", Event Outgrowth Many Colors Threshold [U,I]", filter.EventOutgrowthManyColorsThreshold)
+	fmt.Println("Event Outgrowth Threshold [UP,DOWN]", filter.SpaceTime.GetSpace().GetActiveThreshold(), ", Event Outgrowth Many Colors Threshold [U,I]", filter.EventOutgrowthManyColorsThreshold)
 	fmt.Println("Event Colors Mask [1,2,3,4]", filter.EventColorMask)
 }
 

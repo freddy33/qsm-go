@@ -53,7 +53,7 @@ func Play() {
 	max := m3space.MinMaxCoord
 	env := client.GetInitializedApiEnv(m3util.GetDefaultEnvId())
 	world = m3gl.MakeWorld(env, max, glfw.GetTime())
-	_, err = world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.DistAndTime(0), m3point.Origin, m3space.RedEvent)
+	_, err = world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
 	if err != nil {
 		Log.Fatal(err)
 		return

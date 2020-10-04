@@ -83,7 +83,7 @@ func MakeWorld(env *client.QsmApiEnvironment, Max m3point.CInt, glfwTime float64
 	}
 	verifyData()
 	spaceData := client.GetClientSpacePackData(env)
-	space, err := spaceData.CreateSpace("ui", m3space.DistAndTime(0), 2, 4)
+	space, err := spaceData.CreateSpace("ui", m3space.ZeroDistAndTime, 2, 4)
 	if err != nil {
 		Log.Fatal(err)
 	}

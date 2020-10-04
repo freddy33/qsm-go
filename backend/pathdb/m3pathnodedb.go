@@ -219,23 +219,17 @@ func (cn *ConnectionsStateDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullIn
 	for i := 0; i < m3path.NbConnections; i++ {
 		switch cn.GetConnectionState(i) {
 		case m3path.ConnectionNotSet:
-			if Log.DoAssert() {
-				if cn.LinkIds[i] != LinkIdNotSet {
-					Log.Errorf("Linked id of %v not set correctly for %d since %d != %d",
-						cn, i, cn.LinkIds[i], LinkIdNotSet)
-				}
-				/*
-					if pn.linkNodeIds[i] != LinkIdNotSet && pn.linkNodeIds[i] != NextLinkIdNotAssigned {
-						Log.Errorf("Linked id of %s not set correctly for %d since %d not in ( %d , %d ) ",
-							pn.String(), i, pn.linkNodeIds[i], LinkIdNotSet, NextLinkIdNotAssigned)
-					}
-				*/
+			//if Log.DoAssert() {
+			if cn.LinkIds[i] != LinkIdNotSet {
+				Log.Errorf("Linked id of %v not set correctly for %d since %d != %d",
+					cn, i, cn.LinkIds[i], LinkIdNotSet)
 			}
+			//}
 			dbLinkIds[i].Valid = false
 			dbLinkIds[i].Int64 = 0
 		case m3path.ConnectionFrom:
 			if cn.LinkIds[i] <= 0 {
-				Log.Errorf("Linked id for from of %v not set correctly for %d since %d <= 0",
+				Log.Fatalf("Linked id for from of %v not set correctly for %d since %d <= 0",
 					cn, i, cn.LinkIds[i])
 			}
 			dbLinkIds[i].Valid = true
@@ -248,15 +242,13 @@ func (cn *ConnectionsStateDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullIn
 				dbLinkIds[i].Valid = true
 				dbLinkIds[i].Int64 = cn.LinkIds[i]
 			} else {
-				Log.Errorf("Linked id for next of %v not set correctly for %d since %d != %d && %d <= 0",
+				Log.Fatalf("Linked id for next of %v not set correctly for %d since %d != %d && %d <= 0",
 					cn, i, cn.LinkIds[i], NextLinkIdNotAssigned, cn.LinkIds[i])
 			}
 		case m3path.ConnectionBlocked:
-			if Log.DoAssert() {
-				if cn.LinkIds[i] != DeadEndId {
-					Log.Errorf("Linked id of %v not set correctly for %d since %d != %d",
-						cn, i, cn.LinkIds[i], DeadEndId)
-				}
+			if cn.LinkIds[i] != DeadEndId {
+				Log.Fatalf("Linked id of %v not set correctly for %d since %d != %d",
+					cn, i, cn.LinkIds[i], DeadEndId)
 			}
 			dbLinkIds[i].Valid = false
 			dbLinkIds[i].Int64 = 0

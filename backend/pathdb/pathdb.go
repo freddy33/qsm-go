@@ -126,7 +126,8 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 		" from %s where path_ctx_id = $1 and d = $2"
 	res.Queries[SelectPathNodesByCtxAndDistance] =
 		"select " + PathNodesTable + "." + selectAllFields + ", x, y, z" +
-			" from %s join %s on " + PointsTable + ".id = " + PathNodesTable + ".point_id" +
+			" from %s" +
+			" join %s on " + PointsTable + ".id = " + PathNodesTable + ".point_id" +
 			" where path_ctx_id = $1 and d = $2"
 	res.QueryTableRefs[SelectPathNodesByCtxAndDistance] = []string{PointsTable}
 

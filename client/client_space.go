@@ -45,6 +45,10 @@ func (spd *ClientSpacePackData) CreateSpace(name string, activePathNodeThreshold
 	panic("implement me")
 }
 
+func (spd *ClientSpacePackData) DeleteSpace(id int, name string) error {
+	panic("implement me")
+}
+
 /***************************************************************/
 // SpaceCl Functions
 /***************************************************************/

@@ -25,9 +25,9 @@ type SpaceDb struct {
 	maxTime  m3space.DistAndTime
 
 	// SpaceTime behavior configuration parameters
-	activePathNodeThreshold m3space.DistAndTime
-	maxTriosPerPoint        int
-	maxPathNodesPerPoint    int
+	activeThreshold  m3space.DistAndTime
+	maxTriosPerPoint int
+	maxNodesPerPoint int
 
 	events map[m3space.EventId]*EventDb
 }
@@ -55,9 +55,9 @@ func CreateSpace(env *m3db.QsmDbEnvironment,
 	space.pathData = pathdb.GetServerPathPackData(env)
 	space.pointData = pointdb.GetServerPointPackData(env)
 	space.name = name
-	space.activePathNodeThreshold = activePathNodeThreshold
+	space.activeThreshold = activePathNodeThreshold
 	space.maxTriosPerPoint = maxTriosPerPoint
-	space.maxPathNodesPerPoint = maxPathNodesPerPoint
+	space.maxNodesPerPoint = maxPathNodesPerPoint
 
 	// 2*9 is the minimum ;-)
 	space.maxCoord = m3space.MinMaxCoord
@@ -92,6 +92,10 @@ func (space *SpaceDb) finalInit() error {
 	return nil
 }
 
+func (space *SpaceDb) String() string {
+	return fmt.Sprintf("%d:%s-%d", space.id, space.name, len(space.events))
+}
+
 func (space *SpaceDb) GetId() int {
 	return space.id
 }
@@ -108,16 +112,16 @@ func (space *SpaceDb) GetMaxTime() m3space.DistAndTime {
 	return space.maxTime
 }
 
-func (space *SpaceDb) GetActivePathNodeThreshold() m3space.DistAndTime {
-	return space.activePathNodeThreshold
+func (space *SpaceDb) GetActiveThreshold() m3space.DistAndTime {
+	return space.activeThreshold
 }
 
 func (space *SpaceDb) GetMaxTriosPerPoint() int {
 	return space.maxTriosPerPoint
 }
 
-func (space *SpaceDb) GetMaxPathNodesPerPoint() int {
-	return space.maxPathNodesPerPoint
+func (space *SpaceDb) GetMaxNodesPerPoint() int {
+	return space.maxNodesPerPoint
 }
 
 func (space *SpaceDb) GetEvent(id m3space.EventId) m3space.EventIfc {
@@ -134,9 +138,16 @@ func (space *SpaceDb) GetEventIdsForMsg() []int32 {
 	return res
 }
 
+func (space *SpaceDb) GetNbNodesBetween(from, to m3space.DistAndTime) (int, error) {
+	row := space.spaceData.nodesTe.QueryRow(CountNodesPerSpaceBetween, space.GetId(), from, to)
+	var res int
+	err := row.Scan(&res)
+	return res, err
+}
+
 func (space *SpaceDb) insertInDb() error {
 	te := space.spaceData.spacesTe
-	id64, err := te.InsertReturnId(space.name, space.activePathNodeThreshold, space.maxTriosPerPoint, space.maxPathNodesPerPoint, space.maxCoord, space.maxTime)
+	id64, err := te.InsertReturnId(space.name, space.activeThreshold, space.maxTriosPerPoint, space.maxNodesPerPoint, space.maxCoord, space.maxTime)
 	if err != nil {
 		return m3util.MakeWrapQsmErrorf(err, "could not insert space %q in %q due to: %s", space.GetName(), te.GetFullTableName(), err.Error())
 	}
@@ -158,7 +169,7 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 		pathCtx:      pathCtx,
 		creationTime: creationTime,
 		color:        color,
-		maxNodeTime:  m3space.DistAndTime(0),
+		maxNodeTime:  m3space.ZeroDistAndTime,
 	}
 	evt.centerNode = &EventNodeDb{
 		event:        evt,
@@ -169,9 +180,12 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 		point:        &centerPoint,
 		pathNode:     rootPathNode,
 	}
-	evt.centerNode.SetConnStateToNil()
-	evt.centerNode.SetFullConnectionMask(rootPathNode.GetConnectionMask())
 	evt.centerNode.SetTrioDetails(rootPathNode.GetTrioDetails(space.pointData))
+	evt.centerNode.ConnectionMask = rootPathNode.GetConnectionMask()
+	evt.centerNode.LinkIds, err = evt.getNodeLinkIds(rootPathNode)
+	if err != nil {
+		return nil, err
+	}
 
 	err = evt.insertInDb()
 	if err != nil {
@@ -212,7 +226,7 @@ func (space *SpaceDb) CreatePyramid(pyramidSize m3point.CInt) {
 
 func (space *SpaceDb) CreateEventFromColor(p m3point.Point, k m3space.EventColor) *EventDb {
 	idx, offset := getIndexAndOffsetForColor(k)
-	evt, err := space.CreateEvent(m3point.GrowthType(8), idx, offset, m3space.DistAndTime(0), p, k)
+	evt, err := space.CreateEvent(m3point.GrowthType(8), idx, offset, m3space.ZeroDistAndTime, p, k)
 	if err != nil {
 		Log.Error(err)
 		return nil
@@ -275,11 +289,11 @@ Return fromDist, toDist, and use between flag for this event in this space time
 */
 func (st *SpaceTime) queryPathContext(evt *EventDb) (int, int, bool) {
 	toDist := st.currentTime - evt.GetCreationTime()
-	threshold := st.space.GetActivePathNodeThreshold()
+	threshold := st.space.GetActiveThreshold()
 	if threshold > 0 && toDist > 0 {
 		fromDist := toDist - threshold
 		if fromDist < 0 {
-			fromDist = m3space.DistAndTime(0)
+			fromDist = m3space.ZeroDistAndTime
 		}
 		return int(fromDist), int(toDist), true
 	} else {
@@ -304,8 +318,8 @@ func (st *SpaceTime) populate() error {
 	st.activeEvents = make([]*EventDb, len(events))
 	nodesMap := make(map[m3space.EventId][]*EventNodeDb, len(events))
 	nbPathNodes := 0
-	for i, evtIfc := range events {
-		evt := evtIfc.(*EventDb)
+	for i, _ := range events {
+		evt := events[i].(*EventDb)
 		st.activeEvents[i] = evt
 		nodeList, err := evt.GetActiveNodesAt(st.currentTime)
 		if err != nil {
@@ -364,7 +378,7 @@ func (st *SpaceTime) GetNbActiveLinks() int {
 		Log.Error(err)
 		return -1
 	}
-	threshold := st.space.GetActivePathNodeThreshold()
+	threshold := st.space.GetActiveThreshold()
 	if threshold == 0 {
 		return 0
 	}
@@ -392,27 +406,29 @@ func (st *SpaceTime) VisitAll(visitor m3space.SpaceTimeVisitor) {
 		Log.Error(err)
 		return
 	}
-	threshold := st.space.GetActivePathNodeThreshold()
-	if threshold == 0 {
-		return
-	}
+	threshold := st.space.GetActiveThreshold()
 	for _, stn := range st.stNodes {
+		// Visit all the nodes
 		visitor.VisitNode(stn)
-		point, err := stn.GetPoint()
-		if err != nil {
-			Log.Error(err)
-			return
-		}
-		connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
-		stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
-			if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
-				alreadyDone, ok := connIdsAlreadyDone[connId]
-				if !ok || !alreadyDone {
-					visitor.VisitLink(stn, *point, connId)
-				}
-				connIdsAlreadyDone[connId] = true
+
+		// Visit links only if threshold above 0
+		if threshold != 0 {
+			point, err := stn.GetPoint()
+			if err != nil {
+				Log.Error(err)
+				return
 			}
-		})
+			connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
+			stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+				if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
+					alreadyDone, ok := connIdsAlreadyDone[connId]
+					if !ok || !alreadyDone {
+						visitor.VisitLink(stn, *point, connId)
+					}
+					connIdsAlreadyDone[connId] = true
+				}
+			})
+		}
 	}
 
 }

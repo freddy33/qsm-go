@@ -7,9 +7,9 @@ import "m3point.proto";
 message SpaceMsg {
     int32 space_id = 1;
     string space_name = 2;
-    int32 active_path_node_threshold = 3;
+    int32 active_threshold = 3;
     int32 max_trios_per_point = 4;
-    int32 max_path_nodes_per_point = 5;
+    int32 max_nodes_per_point = 5;
     int32 max_time = 6;
     int32 max_coord = 8;
     repeated int32 event_ids = 9;

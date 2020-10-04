@@ -48,7 +48,7 @@ type EventNodeDb struct {
 /***************************************************************/
 
 func (evt *EventDb) String() string {
-	return fmt.Sprintf("Evt%02d:Sp%02d:T=%d:%d", evt.id, evt.space.id, evt.creationTime, evt.color)
+	return fmt.Sprintf("Evt%02d:Sp%02d:CT=%d:%d", evt.id, evt.space.id, evt.creationTime, evt.color)
 }
 
 func (evt *EventDb) GetId() m3space.EventId {
@@ -94,29 +94,65 @@ func (evt *EventDb) insertInDb() error {
 	return nil
 }
 
+func (evt *EventDb) getNodeLinkIds(pathNodeDb *pathdb.PathNodeDb) ([3]int64, error) {
+	evtNodeLinkIds := [3]int64{}
+	for i, pnLink := range pathNodeDb.LinkIds {
+		switch pathNodeDb.GetConnectionState(i) {
+		case m3path.ConnectionNotSet:
+			evtNodeLinkIds[i] = pathdb.LinkIdNotSet
+		case m3path.ConnectionNext:
+			// We do not link to next
+			evtNodeLinkIds[i] = pathdb.NextLinkIdNotAssigned
+		case m3path.ConnectionBlocked:
+			// We do not link to next
+			evtNodeLinkIds[i] = pathdb.DeadEndId
+		case m3path.ConnectionFrom:
+			row := evt.space.spaceData.nodesTe.QueryRow(GetNodeIdPerPathNodeId, evt.GetId(), pnLink)
+			var pathNodeId int64
+			err := row.Scan(&pathNodeId)
+			if err != nil {
+				return evtNodeLinkIds, err
+			}
+			evtNodeLinkIds[i] = pathNodeId
+		}
+	}
+	return evtNodeLinkIds, nil
+}
+
 func (evt *EventDb) increaseMaxNodeTime() error {
 	evt.increaseNodeMutex.Lock()
 	defer evt.increaseNodeMutex.Unlock()
 
 	nextTime := evt.maxNodeTime + 1
+	Log.Infof("Increasing event %s to %d", evt.String(), nextTime)
 
 	center, err := evt.GetCenterNode().GetPoint()
 	if err != nil {
 		return err
 	}
 	dTime := nextTime - evt.creationTime
+	err = evt.pathCtx.RequestNewMaxDist(int(dTime))
+	if err != nil {
+		return err
+	}
 	pathNodes, err := evt.pathCtx.GetPathNodesAt(int(dTime))
 	if err != nil {
 		return err
 	}
+	Log.Debugf("Event %s received %d path nodes to add for time %d", evt.String(), len(pathNodes), nextTime)
+	nbNodesCreated := 0
 	for _, pn := range pathNodes {
 		point := (*center).Add(pn.P())
 		pointId := evt.space.pathData.GetOrCreatePoint(point)
 		pathNodeDb := pn.(*pathdb.PathNodeDb)
+		linkIds, err := evt.getNodeLinkIds(pathNodeDb)
+		if err != nil {
+			return err
+		}
 		evtNode := &EventNodeDb{
 			ConnectionsStateDb: pathdb.ConnectionsStateDb{
 				ConnectionMask: pathNodeDb.ConnectionMask,
-				LinkIds:        [3]int64{pathNodeDb.LinkIds[0], pathNodeDb.LinkIds[1], pathNodeDb.LinkIds[2]},
+				LinkIds:        linkIds,
 				TrioId:         pathNodeDb.TrioId,
 				TrioDetails:    nil,
 			},
@@ -132,8 +168,10 @@ func (evt *EventDb) increaseMaxNodeTime() error {
 		if err != nil {
 			return err
 		}
+		nbNodesCreated++
 		evt.space.setMaxCoordAndTime(evtNode)
 	}
+	Log.Debugf("Event %s added %d nodes for time %d", evt.String(), nbNodesCreated, nextTime)
 
 	evt.maxNodeTime = nextTime
 	rowAffected, err := evt.space.spaceData.eventsTe.Update(UpdateMaxNodeTime, evt.id, evt.maxNodeTime)
@@ -144,7 +182,17 @@ func (evt *EventDb) increaseMaxNodeTime() error {
 		return m3util.MakeQsmErrorf("updating event %s with new max node time %d returned wrong rows %d", evt.String(), evt.maxNodeTime, rowAffected)
 	}
 	// TODO: Needs to update space maxCoord and maxTime also
+
+	Log.Infof("Event %s new max node time %d by adding %d new nodes",
+		evt.String(), evt.maxNodeTime, nbNodesCreated)
 	return nil
+}
+
+func (evt *EventDb) GetNbNodesBetween(from, to m3space.DistAndTime) (int, error) {
+	row := evt.space.spaceData.nodesTe.QueryRow(CountNodesPerEventBetween, evt.GetId(), from, to)
+	var res int
+	err := row.Scan(&res)
+	return res, err
 }
 
 func (evt *EventDb) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]*EventNodeDb, error) {
@@ -155,8 +203,18 @@ func (evt *EventDb) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]*EventN
 			return nil, err
 		}
 	}
+	from, to, useBetween, err := evt.getFromToTime(currentTime)
+	if err != nil {
+		return nil, err
+	}
+
+	if from == TimeOnlyRoot {
+		res := make([]*EventNodeDb, 1)
+		res[0] = evt.centerNode
+		return res, nil
+	}
+
 	te := evt.space.spaceData.nodesTe
-	from, to, useBetween := evt.getFromToTime(currentTime)
 	var rows *sql.Rows
 	var expectedNbNodes int
 	if useBetween {
@@ -169,7 +227,8 @@ func (evt *EventDb) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]*EventN
 	if err != nil {
 		return nil, err
 	}
-	res := make([]*EventNodeDb, 0, expectedNbNodes)
+	res := make([]*EventNodeDb, 1, expectedNbNodes+1)
+	res[0] = evt.centerNode
 	for rows.Next() {
 		evtNode, err := evt.CreateEventNodeFromDbRows(rows)
 		if err != nil {
@@ -180,28 +239,41 @@ func (evt *EventDb) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]*EventN
 	return res, nil
 }
 
+const (
+	TimeOnlyRoot = m3space.DistAndTime(-2)
+	TimeError    = m3space.DistAndTime(-3)
+)
+
 /*
-Return fromTime, toTime, and use between flag based on space threshold, current time passed and state of event
+Return fromTime, toTime, and use between flag based on space threshold, current time passed and state of event.
+The root node (distance 0 or creation time == from) should never be query or returned here since it is
+manually added all the time.
 */
-func (evt *EventDb) getFromToTime(currentTime m3space.DistAndTime) (m3space.DistAndTime, m3space.DistAndTime, bool) {
+func (evt *EventDb) getFromToTime(currentTime m3space.DistAndTime) (m3space.DistAndTime, m3space.DistAndTime, bool, error) {
 	availableDelta := currentTime - evt.creationTime
 	if availableDelta < 0 {
-		Log.Errorf("asking from and to time for inactive event %s at time %d", evt.String(), currentTime)
-		return -1, -1, false
+		return TimeError, TimeError, false, m3util.MakeQsmErrorf("asking from and to time for inactive event %s at time %d", evt.String(), currentTime)
 	}
 	if evt.endTime != evt.creationTime && evt.endTime < currentTime {
-		Log.Errorf("asking from and to time for event %s already dead at time %d", evt.String(), currentTime)
-		return -1, -1, false
+		return TimeError, TimeError, false, m3util.MakeQsmErrorf("asking from and to time for event %s already dead at time %d", evt.String(), currentTime)
 	}
 
-	threshold := evt.space.GetActivePathNodeThreshold()
-	if threshold == 0 || availableDelta == 0 {
-		return currentTime, currentTime, false
+	if availableDelta == 0 {
+		return TimeOnlyRoot, TimeOnlyRoot, false, nil
 	}
-	if availableDelta >= threshold {
-		return currentTime - threshold, currentTime, true
+
+	threshold := evt.space.GetActiveThreshold()
+	if threshold == 0 || availableDelta == 1 {
+		return currentTime, currentTime, false, nil
 	}
-	return evt.creationTime, currentTime, true
+	if availableDelta > threshold {
+		return currentTime - threshold, currentTime, true, nil
+	}
+	// Here since not enough delta to cover the whole threshold
+	// The starting point "from" is using the root node
+	// Also at this point the availableDelta and threshold is 2 or more here
+	newThreshold := threshold - 1
+	return currentTime - newThreshold, currentTime, true, nil
 }
 
 func CreateEventFromDbRows(rows *sql.Rows, space *SpaceDb) error {
@@ -223,7 +295,7 @@ func CreateEventFromDbRows(rows *sql.Rows, space *SpaceDb) error {
 		return m3util.MakeQsmErrorf("got event %d from db with wrong path context id %d", evt.id, pathCtxId)
 	}
 	rootNode.SetLinkIdsFromDbData(linkIds)
-	rootNode.d = m3space.DistAndTime(0)
+	rootNode.d = m3space.ZeroDistAndTime
 	rootNode.creationTime = evt.creationTime
 	rootNode.TrioDetails = nil
 	rootNode.pathNode = nil
@@ -322,7 +394,7 @@ func (en *EventNodeDb) GetD() m3space.DistAndTime {
 }
 
 func (en *EventNodeDb) IsRoot() bool {
-	return en.d == m3space.DistAndTime(0)
+	return en.d == m3space.ZeroDistAndTime
 }
 
 func (en *EventNodeDb) insertInDb() error {

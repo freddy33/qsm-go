@@ -12,6 +12,7 @@ type SpacePackDataIfc interface {
 	GetSpace(id int) SpaceIfc
 	CreateSpace(name string, activePathNodeThreshold DistAndTime,
 		maxTriosPerPoint int, maxPathNodesPerPoint int) (SpaceIfc, error)
+	DeleteSpace(id int, name string) error
 }
 
 type BaseSpacePackData struct {

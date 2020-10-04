@@ -19,7 +19,7 @@ var LogDataTest = m3util.NewDataLogger("DATA", m3util.DEBUG)
 /***************************************************************/
 
 func TestPopulateMaxAllPathCtx(t *testing.T) {
-	LogDataTest.SetInfo()
+	LogDataTest.SetWarn()
 	Log.SetInfo()
 	Log.SetAssert(true)
 	m3point.Log.SetWarn()
@@ -36,13 +36,13 @@ func TestPopulateMaxAllPathCtx(t *testing.T) {
 
 func runForPathCtxType(t *testing.T, env *m3db.QsmDbEnvironment, until int, growthType m3point.GrowthType, doPercent float32) bool {
 	pathData := GetServerPathPackData(env)
-	err := pathData.initAllPathContexts()
+	err := pathData.InitAllPathContexts()
 	if !assert.NoError(t, err) {
 		return false
 	}
 	for _, pathCtx := range pathData.AllCenterContexts[growthType] {
 		rf := rand.Float32()
-		Log.Infof("Comparing %f < %f for %s", rf, doPercent, pathCtx.String())
+		Log.Debugf("Comparing %f < %f for %s", rf, doPercent, pathCtx.String())
 		if rf < doPercent {
 			start := time.Now()
 			allNb, lastNb, err := runPathContext(pathCtx, until)
@@ -73,7 +73,7 @@ func runPathContext(pathCtx *PathContextDb, until int) (int, int, error) {
 			if predictedIntLen < finalLen && errorBar > 0.08 {
 				LogDataTest.Errorf("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)
 			} else {
-				LogDataTest.Infof("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)
+				LogDataTest.Debugf("%s: Distance %d finalLen=%d predictLen=%d errorBar=%f", pathCtx.String(), d, finalLen, predictedIntLen, errorBar)
 			}
 		}
 	}

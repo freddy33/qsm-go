@@ -1,6 +1,9 @@
 package spacedb
 
 import (
+	"fmt"
+	"github.com/freddy33/qsm-go/backend/pathdb"
+	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/stretchr/testify/assert"
@@ -8,60 +11,162 @@ import (
 )
 
 type ExpectedSpaceState struct {
-	baseNodes      int
-	newNodes       int
-	oldActiveNodes int
-	deadNodes      int
-	mainPoints     int
+	baseNodes  int
+	newNodes   int
+	mainPoints int
+	activeConn int
 }
 
 func simpleState(newNodes int, mainPoints int) ExpectedSpaceState {
-	return ExpectedSpaceState{1, newNodes, 0, 0, mainPoints}
+	return ExpectedSpaceState{baseNodes: 1, newNodes: newNodes, mainPoints: mainPoints}
 }
 
 func noMainState(newNodes int) ExpectedSpaceState {
-	return ExpectedSpaceState{1, newNodes, 0, 0, -1}
+	return ExpectedSpaceState{baseNodes: 1, newNodes: newNodes, mainPoints: -1}
 }
 
-func oldActiveState(newNodes int, oldActiveNodes int, mainPoints int) ExpectedSpaceState {
-	return ExpectedSpaceState{1, newNodes, oldActiveNodes, 0, mainPoints}
-}
-
-func deadState(newNodes int, deadNodes int) ExpectedSpaceState {
-	return ExpectedSpaceState{1, newNodes, 0, deadNodes, -1}
-}
-
-func getOrCreateSpace(t *testing.T, spaceName string, threshold m3space.DistAndTime) *SpaceDb {
+func createNewSpace(t *testing.T, spaceName string, threshold m3space.DistAndTime) *SpaceDb {
 	env := getSpaceTestEnv()
 	spaceData := GetServerSpacePackData(env)
-	allSpaces := spaceData.GetAllSpaces()
 	var space *SpaceDb
-	for _, sp := range allSpaces {
+	for _, sp := range spaceData.GetAllSpaces() {
 		if sp.GetName() == spaceName {
 			space = sp.(*SpaceDb)
 		}
 	}
-	if space == nil {
-		sp, err := spaceData.CreateSpace(spaceName, threshold, 4, 4)
+
+	if space != nil {
+		nbDelete, err := spaceData.DeleteSpace(space.GetId(), spaceName)
+		Log.Infof("Deleted %d from %s", nbDelete, space.String())
 		if !assert.NoError(t, err) {
 			return nil
 		}
-		space = sp.(*SpaceDb)
 	}
+
+	sp, err := spaceData.CreateSpace(spaceName, threshold, 4, 4)
+	if !assert.NoError(t, err) {
+		return nil
+	}
+	space = sp.(*SpaceDb)
+
 	return space
+}
+
+func Test_Basic_Space(t *testing.T) {
+	Log.SetDebug()
+	pathdb.Log.SetDebug()
+
+	space := createNewSpace(t, "Test_Basic_Space", m3space.ZeroDistAndTime)
+	if space == nil {
+		return
+	}
+	growthType := m3point.GrowthType(8)
+	center := m3point.Point{6, 18, -21}
+	creationTime := m3space.DistAndTime(3)
+	event, err := space.CreateEvent(growthType, 3, 4, creationTime, center, m3space.BlueEvent)
+	good := assert.NoError(t, err) && assert.NotNil(t, event, "event is nil") &&
+		assert.Equal(t, space.String(), event.GetSpace().String()) &&
+		assert.Equal(t, m3point.CInt(21), event.GetSpace().GetMaxCoord()) &&
+		assert.Equal(t, creationTime, event.GetSpace().GetMaxTime()) &&
+		assert.Equal(t, m3space.BlueEvent, event.GetColor()) &&
+		assert.Equal(t, growthType, event.GetPathContext().GetGrowthType()) &&
+		assert.Equal(t, 3, event.GetPathContext().GetGrowthIndex()) &&
+		assert.Equal(t, 4, event.GetPathContext().GetGrowthOffset()) &&
+		assert.NotNil(t, event.GetCenterNode(), "center node is nil")
+	if !good {
+		return
+	}
+	evt := event.(*EventDb)
+	evtNode := evt.centerNode
+	if !assert.NotNil(t, evtNode, "no root node") {
+		return
+	}
+	point, err := evtNode.GetPoint()
+	td := evtNode.GetTrioDetails(pointdb.GetServerPointPackData(space.spaceData.env))
+	good = assert.NoError(t, err) &&
+		assert.Equal(t, event.GetCenterNode().GetId(), evtNode.GetId(), "event ids do not match") &&
+		assert.Equal(t, center, *point) &&
+		assert.Equal(t, creationTime, evt.maxNodeTime) &&
+		assert.Equal(t, creationTime, evtNode.GetCreationTime()) &&
+		assert.Equal(t, m3point.TrioIndex(1), evtNode.GetTrioIndex()) &&
+		assert.Equal(t, m3point.TrioIndex(1), td.GetId())
+	if !good {
+		return
+	}
+
+	time := creationTime
+	from, to, useBetween, err := evt.getFromToTime(time)
+	good = assert.NoError(t, err) && assert.False(t, useBetween, "should not be between") &&
+		assert.Equal(t, TimeOnlyRoot, from, "failed on from") &&
+		assert.Equal(t, TimeOnlyRoot, to, "failed on to")
+	if !good {
+		return
+	}
+	time = creationTime + m3space.DistAndTime(1)
+	from, to, useBetween, err = evt.getFromToTime(time)
+	good = assert.NoError(t, err) && assert.False(t, useBetween, "should not be between") &&
+		assert.Equal(t, time, from, "failed on from") &&
+		assert.Equal(t, time, to, "failed on to")
+	if !good {
+		return
+	}
+	time = creationTime + m3space.DistAndTime(4)
+	from, to, useBetween, err = evt.getFromToTime(time)
+	good = assert.NoError(t, err) && assert.False(t, useBetween, "should not be between") &&
+		assert.Equal(t, time, from, "failed on from") &&
+		assert.Equal(t, time, to, "failed on to")
+	if !good {
+		return
+	}
+
+	nodes, err := evt.GetActiveNodesAt(creationTime)
+	good = assert.NoError(t, err) && assert.Equal(t, 1, len(nodes)) &&
+		assert.Equal(t, evt, nodes[0].event) &&
+		assert.Equal(t, evt.centerNode, nodes[0]) &&
+		assert.Equal(t, creationTime, evt.creationTime) &&
+		assert.Equal(t, creationTime, evt.maxNodeTime)
+	if !good {
+		return
+	}
+
+	time = creationTime + m3space.DistAndTime(1)
+	nodes, err = evt.GetActiveNodesAt(time)
+	good = assert.NoError(t, err) && assert.Equal(t, 4, len(nodes)) &&
+		assert.Equal(t, evt, nodes[0].event) &&
+		assert.Equal(t, evt.centerNode, nodes[0]) &&
+		assert.Equal(t, creationTime, evt.creationTime) &&
+		assert.Equal(t, time, evt.maxNodeTime) &&
+		assert.Equal(t, m3point.CInt(22), event.GetSpace().GetMaxCoord()) &&
+		assert.Equal(t, time, event.GetSpace().GetMaxTime())
+	if !good {
+		return
+	}
+
+	time = creationTime + m3space.DistAndTime(4)
+	nodes, err = evt.GetActiveNodesAt(time)
+	good = assert.NoError(t, err) && assert.Equal(t, 24-2+1, len(nodes)) &&
+		assert.Equal(t, evt, nodes[0].event) &&
+		assert.Equal(t, evt.centerNode, nodes[0]) &&
+		assert.Equal(t, creationTime, evt.creationTime) &&
+		assert.Equal(t, time, evt.maxNodeTime) &&
+		assert.Equal(t, m3point.CInt(25), event.GetSpace().GetMaxCoord()) &&
+		assert.Equal(t, time, event.GetSpace().GetMaxTime())
+	if !good {
+		return
+	}
 }
 
 func Test_Evt1_Type8_D0(t *testing.T) {
 	Log.SetWarn()
+	pathdb.Log.SetWarn()
 	LogStat.SetInfo()
 
-	space := getOrCreateSpace(t, "Test_Evt1_Type8_D0", m3space.DistAndTime(0))
-	if space == nil {
-		return
-	}
-
-	for gowthIdx := 0; gowthIdx < 12; gowthIdx++ {
-		evt, err := space.CreateEvent(m3point.GrowthType(8), gowthIdx, 0, m3space.DistAndTime(0), m3point.Origin, m3space.RedEvent)
+	for growthIdx := 0; growthIdx < 12; growthIdx++ {
+		space := createNewSpace(t, fmt.Sprintf("Test_TH0_Evt1_Type8_I%02d", growthIdx), m3space.DistAndTime(0))
+		if space == nil {
+			return
+		}
+		evt, err := space.CreateEvent(m3point.GrowthType(8), growthIdx, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -70,11 +175,11 @@ func Test_Evt1_Type8_D0(t *testing.T) {
 		deltaT9FromIdx0 := 0
 		deltaT10FromIdx0 := 0
 		deltaT11FromIdx0 := 0
-		if space.pointData.GetAllMod8Permutations()[gowthIdx][3] != 4 {
+		if space.pointData.GetAllMod8Permutations()[growthIdx][3] != 4 {
 			deltaT8FromIdx0 = 5
 			deltaT9FromIdx0 = -11
 			deltaT10FromIdx0 = -13
-			deltaT11FromIdx0 = -22
+			deltaT11FromIdx0 = 22
 		}
 
 		expectedState := map[m3space.DistAndTime]ExpectedSpaceState{
@@ -92,7 +197,9 @@ func Test_Evt1_Type8_D0(t *testing.T) {
 			11: noMainState(-131 + deltaT11FromIdx0),
 		}
 		// TODO: change back to 10 when #7 done
-		assertSpaceStates(t, space, expectedState, 4, space.GetName()+" "+evt.String())
+		if !assertSpaceStates(t, space, expectedState, 11, space.GetName()+" "+evt.String()) {
+			return
+		}
 	}
 }
 
@@ -321,30 +428,64 @@ func Test_Evt1_Type8_Idx0_D1_Old4_Same3(t *testing.T) {
 }
 */
 
-func assertSpaceStates(t *testing.T, space *SpaceDb, expectMap map[m3space.DistAndTime]ExpectedSpaceState, finalTime m3space.DistAndTime, contextMsg string) {
-	expectedTime := m3space.DistAndTime(0)
+func assertInitialSpace(t *testing.T, spaceData *ServerSpacePackData, spaceName string) bool {
+	var space *SpaceDb
+	for _, sp := range spaceData.GetAllSpaces() {
+		if sp.GetName() == spaceName {
+			space = sp.(*SpaceDb)
+			break
+		}
+	}
+	if space == nil {
+		return assert.Fail(t, "space not found", "Did not find any space with name %q", spaceName)
+	}
+
+	eventIds := space.GetEventIdsForMsg()
+	if !assert.Equal(t, 1, len(eventIds), "fail for %s", space.String()) {
+		return false
+	}
+	eventId := m3space.EventId(eventIds[0])
+	event := space.GetEvent(eventId)
+	if !assert.NotNil(t, event, "fail for space=%s eventId=%d", space.String(), eventId) {
+		return false
+	}
+	evt := event.(*EventDb)
+	msg := fmt.Sprintf("fail on space=%s event=%s", space.String(), evt.String())
+	good := assert.Equal(t, m3space.ZeroDistAndTime, evt.creationTime, msg) &&
+		assert.Equal(t, m3space.ZeroDistAndTime, evt.centerNode.d, msg)
+	if !good {
+		return false
+	}
+	return true
+}
+
+func assertSpaceStates(t *testing.T, space *SpaceDb, expectMap map[m3space.DistAndTime]ExpectedSpaceState, finalTime m3space.DistAndTime, contextMsg string) bool {
+	expectedTime := m3space.ZeroDistAndTime
 	expect, ok := expectMap[expectedTime]
 	if !assert.True(t, ok, "%s: Should have the 0 tick time map entry in %v", contextMsg, expectMap) {
-		return
+		return false
 	}
 	baseNodes := expect.baseNodes
 	newNodes := baseNodes
 	activeNodes := baseNodes
 	nbNodes := baseNodes
-	nbConnections := 0
+	nbActiveConnections := 0
 	nbMainPoints := baseNodes
-	nbActiveMainPoints := nbMainPoints
 	for {
 		spaceTime := space.GetSpaceTimeAt(expectedTime).(*SpaceTime)
-		if !assertSpaceSingleEvent(t, spaceTime, expectedTime, nbNodes, nbConnections, activeNodes, nbMainPoints, nbActiveMainPoints, contextMsg) {
-			return
+		err := spaceTime.populate()
+		if !assert.NoError(t, err) {
+			return false
+		}
+		if !assertSpaceSingleEvent(t, spaceTime, expectedTime, nbNodes, nbActiveConnections, activeNodes, nbMainPoints, contextMsg) {
+			return false
 		}
 		if expectedTime == finalTime {
 			break
 		}
 		fr := spaceTime.GetRuleAnalyzer()
 		if !assert.NotNil(t, fr) {
-			return
+			return false
 		}
 		expectedTime++
 
@@ -356,38 +497,29 @@ func assertSpaceStates(t *testing.T, space *SpaceDb, expectMap map[m3space.DistA
 			} else {
 				newNodes = expect.newNodes
 			}
-			activeNodes = newNodes + expect.oldActiveNodes + baseNodes
+			activeNodes = newNodes + baseNodes
 			if expect.mainPoints >= 0 {
-				nbMainPoints += expect.mainPoints
-				nbActiveMainPoints = baseNodes + expect.mainPoints
-				if expect.oldActiveNodes > 0 {
-					oldExpect, ok := expectMap[expectedTime-1]
-					if ok {
-						nbActiveMainPoints += oldExpect.mainPoints
-					}
-				}
+				nbMainPoints = baseNodes + expect.mainPoints
 			} else {
 				// Stop testing main points
 				nbMainPoints = -1
-				nbActiveMainPoints = -1
 			}
-			if expect.deadNodes > 0 {
-				nbNodes -= expect.deadNodes
-			}
+			nbActiveConnections += expect.activeConn
 		} else {
 			newNodes *= 2
 			activeNodes = newNodes + baseNodes
 		}
-		nbConnections += newNodes
 		nbNodes += newNodes
 	}
+	return true
 }
 
 type TestSpaceVisitor struct {
-	t                                                                   *testing.T
-	contextMsg                                                          string
-	time                                                                m3space.DistAndTime
-	totalRoots, totalNodeActive, totalMainPoints, totalMainPointsActive int
+	t                                       *testing.T
+	contextMsg                              string
+	time                                    m3space.DistAndTime
+	totalRoots, totalNodes, totalMainPoints int
+	totalConn                               int
 }
 
 func (t *TestSpaceVisitor) VisitNode(node m3space.SpaceTimeNodeIfc) {
@@ -395,7 +527,7 @@ func (t *TestSpaceVisitor) VisitNode(node m3space.SpaceTimeNodeIfc) {
 		t.totalRoots++
 	}
 
-	t.totalNodeActive++
+	t.totalNodes++
 	// Only one color since it's single event
 	assert.Equal(t.t, uint8(1), node.HowManyColors(), "%s: Number of colors of node %v wrong at time %d", t.contextMsg, node, t.time)
 	// The color should be red only
@@ -407,19 +539,19 @@ func (t *TestSpaceVisitor) VisitNode(node m3space.SpaceTimeNodeIfc) {
 	}
 	if point != nil && point.IsMainPoint() {
 		t.totalMainPoints++
-		t.totalMainPointsActive++
 	}
 }
 
 func (t *TestSpaceVisitor) VisitLink(node m3space.SpaceTimeNodeIfc, srcPoint m3point.Point, connId m3point.ConnectionId) {
+	t.totalConn++
 }
 
-func assertSpaceSingleEvent(t *testing.T, spaceTime *SpaceTime, time m3space.DistAndTime, nbNodes, nbConnections, nbActive, nbMainPoints, nbActiveMainPoints int, contextMsg string) bool {
-	good := assert.Equal(t, time, spaceTime.currentTime, contextMsg) &&
-		assert.Equal(t, nbNodes, spaceTime.GetNbActiveNodes(), "%s: nbNodes failed at %d", contextMsg, time) &&
-		// TODO: Change all test to use real active links when both sides are active
-		//assert.Equal(t, nbConnections, space.GetNbActiveLinks(), "%s: nbConnections failed at %d", contextMsg, time)
-		assert.Equal(t, 1, len(spaceTime.GetActiveEvents()), "%s: nbEvents failed at %d", contextMsg, time)
+func assertSpaceSingleEvent(t *testing.T, spaceTime *SpaceTime, time m3space.DistAndTime, nbNodes, nbActiveConnections, nbActive, nbMainPoints int, contextMsg string) bool {
+	totalNodes, err := spaceTime.space.GetNbNodesBetween(m3space.ZeroDistAndTime, time)
+	good := assert.NoError(t, err) && assert.Equal(t, time, spaceTime.currentTime, contextMsg) &&
+		assert.Equal(t, nbNodes, totalNodes, "%s nbNodes failed at %d", contextMsg, time) &&
+		assert.Equal(t, nbActive, spaceTime.GetNbActiveNodes(), "%s nbActive failed at %d", contextMsg, time) &&
+		assert.Equal(t, 1, len(spaceTime.GetActiveEvents()), "%s nbEvents failed at %d", contextMsg, time)
 	if !good {
 		return false
 	}
@@ -429,14 +561,14 @@ func assertSpaceSingleEvent(t *testing.T, spaceTime *SpaceTime, time m3space.Dis
 	tv.time = time
 	spaceTime.VisitAll(tv)
 
-	good = assert.Equal(t, 1, tv.totalRoots, "%s: nb roots failed at %d", contextMsg, time) &&
-		assert.Equal(t, nbActive, tv.totalNodeActive, "%s: nbActiveNodes failed at %d", contextMsg, time)
+	good = assert.Equal(t, 1, tv.totalRoots, "%s nb roots failed at %d", contextMsg, time) &&
+		assert.Equal(t, nbActive, tv.totalNodes, "%s nbActiveNodes failed at %d", contextMsg, time) &&
+		assert.Equal(t, nbActiveConnections, tv.totalConn, "%s nbActiveConnections failed at %d", contextMsg, time)
 	if !good {
 		return false
 	}
 	if nbMainPoints > 0 {
-		good = assert.Equal(t, nbMainPoints, tv.totalMainPoints, "%s: totalMainPoints failed at %d", contextMsg, time) &&
-			assert.Equal(t, nbActiveMainPoints, tv.totalMainPointsActive, "%s: totalMainPointsActive failed at %d", contextMsg, time)
+		good = assert.Equal(t, nbMainPoints, tv.totalMainPoints, "%s totalMainPoints failed at %d", contextMsg, time)
 		if !good {
 			return false
 		}

@@ -48,7 +48,7 @@ func (pathData *ServerPathPackData) GetEnvId() m3util.QsmEnvID {
 
 func (pathData *ServerPathPackData) GetPathCtxDb(id int) *PathContextDb {
 	if !pathData.pathContextsLoaded {
-		Log.Fatal("The path context should have been initialized with call to initAllPathContexts")
+		Log.Fatal("The path context should have been initialized with call to InitAllPathContexts")
 		return nil
 	}
 	pathCtx, ok := pathData.pathCtxMap[id]
@@ -80,7 +80,7 @@ func (pathData *ServerPathPackData) addPathContext(pathCtx *PathContextDb) {
 	contexts[allCtxIdx] = pathCtx
 }
 
-func (pathData *ServerPathPackData) initAllPathContexts() error {
+func (pathData *ServerPathPackData) InitAllPathContexts() error {
 	if pathData.pathContextsLoaded {
 		return nil
 	}
@@ -143,7 +143,7 @@ func (pathData *ServerPathPackData) GetPathCtxDbFromAttributes(growthType m3poin
 	if growthCtx == nil {
 		return nil, m3util.MakeQsmErrorf("could not find Growth Context for %d %d", growthType, growthIndex)
 	}
-	err := pathData.initAllPathContexts()
+	err := pathData.InitAllPathContexts()
 	if err != nil {
 		return nil, err
 	}

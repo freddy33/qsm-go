@@ -15,6 +15,8 @@ const (
 
 type DistAndTime int
 
+const ZeroDistAndTime = DistAndTime(0)
+
 type EventColor uint8
 
 const (
@@ -28,11 +30,12 @@ const (
 var AllColors = [4]EventColor{RedEvent, GreenEvent, BlueEvent, YellowEvent}
 
 type SpaceIfc interface {
+	fmt.Stringer
 	GetId() int
 	GetName() string
-	GetActivePathNodeThreshold() DistAndTime
+	GetActiveThreshold() DistAndTime
 	GetMaxTriosPerPoint() int
-	GetMaxPathNodesPerPoint() int
+	GetMaxNodesPerPoint() int
 	GetMaxTime() DistAndTime
 	GetMaxCoord() m3point.CInt
 	GetEvent(id EventId) EventIfc
@@ -97,4 +100,5 @@ type EventNodeIfc interface {
 	GetPoint() (*m3point.Point, error)
 	GetPathNode() (m3path.PathNode, error)
 }
+
 

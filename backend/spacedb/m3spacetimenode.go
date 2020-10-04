@@ -104,7 +104,7 @@ func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *EventNodeDb, 
 }
 
 func (stn *SpaceTimeNode) GetPoint() (*m3point.Point, error) {
-	if stn.head == nil || stn.head.cur == nil {
+	if stn.IsEmpty() {
 		return nil, m3util.MakeQsmErrorf("cannot get point id %d since not event node set here at time=%d",
 			stn.pointId, stn.spaceTime.GetCurrentTime())
 	}
@@ -131,7 +131,7 @@ func (stn *SpaceTimeNode) GetNodeEvent(id m3space.EventId) m3space.EventNodeIfc 
 }
 
 func (stn *SpaceTimeNode) GetLastAccessed() m3space.DistAndTime {
-	maxAccess := m3space.DistAndTime(0)
+	maxAccess := m3space.ZeroDistAndTime
 	nel := stn.head
 	for nel != nil {
 		a := nel.cur.GetCreationTime()
@@ -208,6 +208,6 @@ func (stn *SpaceTimeNode) GetConnections() []m3point.ConnectionId {
 }
 
 func (stn *SpaceTimeNode) HasFreeConnections() bool {
-	// TODO: Use GetMaxPathNodesPerPoint() and GetMaxTriosPerPoint()
+	// TODO: Use GetMaxNodesPerPoint() and GetMaxTriosPerPoint()
 	return true
 }

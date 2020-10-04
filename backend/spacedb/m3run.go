@@ -125,30 +125,29 @@ func CreateAllIndexes(nbIndexes int) ([][4]int, [12]int) {
 }
 
 func createPyramidWithParams(space *SpaceDb, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
-	_, err := space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], m3space.DistAndTime(0), m3point.Point{3, 0, 3}.Mul(pyramidSize), m3space.RedEvent)
+	_, err := space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], m3space.ZeroDistAndTime, m3point.Point{3, 0, 3}.Mul(pyramidSize), m3space.RedEvent)
 	if err != nil {
 		Log.Error(err)
 		return
 	}
-	_, err = space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], m3space.DistAndTime(0), m3point.Point{-3, 3, 3}.Mul(pyramidSize), m3space.GreenEvent)
+	_, err = space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], m3space.ZeroDistAndTime, m3point.Point{-3, 3, 3}.Mul(pyramidSize), m3space.GreenEvent)
 	if err != nil {
 		Log.Error(err)
 		return
 	}
-	_, err = space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], m3space.DistAndTime(0), m3point.Point{-3, -3, 3}.Mul(pyramidSize), m3space.BlueEvent)
+	_, err = space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], m3space.ZeroDistAndTime, m3point.Point{-3, -3, 3}.Mul(pyramidSize), m3space.BlueEvent)
 	if err != nil {
 		Log.Error(err)
 		return
 	}
-	_, err = space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], m3space.DistAndTime(0), m3point.Point{0, 0, -3}.Mul(pyramidSize), m3space.YellowEvent)
+	_, err = space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], m3space.ZeroDistAndTime, m3point.Point{0, 0, -3}.Mul(pyramidSize), m3space.YellowEvent)
 	if err != nil {
 		Log.Error(err)
 		return
 	}
 }
 
-func RunSpacePyramidWithParams(spaceData *ServerSpacePackData, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, m3space.DistAndTime, Pyramid, int) {
-	space := spaceData.GetAllSpaces()[0].(*SpaceDb)
+func RunSpacePyramidWithParams(space *SpaceDb, pSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) (bool, Pyramid, m3space.DistAndTime, Pyramid, int) {
 	createPyramidWithParams(space, pSize, ctxTypes, indexes, offsets)
 
 	originalPyramid := Pyramid{}
@@ -168,8 +167,8 @@ func RunSpacePyramidWithParams(spaceData *ServerSpacePackData, pSize m3point.CIn
 	originalPyramid = originalPyramid.ordered()
 	LogRun.Infof("Starting with pyramid %v : %d", originalPyramid, GetPyramidSize(originalPyramid))
 
-	expectedTime := m3space.DistAndTime(0)
-	finalTime := m3space.DistAndTime(3)
+	expectedTime := m3space.ZeroDistAndTime
+	finalTime := m3space.DistAndTime(9)
 	//if finalTime < DistAndTime(25) {
 	//	finalTime = DistAndTime(25)
 	//}
@@ -212,7 +211,7 @@ func RunSpacePyramidWithParams(spaceData *ServerSpacePackData, pSize m3point.CIn
 		}
 	}
 	if spaceTime == nil {
-		return false, originalPyramid, m3space.DistAndTime(0), Pyramid{}, 0
+		return false, originalPyramid, m3space.ZeroDistAndTime, Pyramid{}, 0
 	}
 	return found, originalPyramid, spaceTime.GetCurrentTime(), bestPyramid, nbPossibilities
 }

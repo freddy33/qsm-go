@@ -11,10 +11,9 @@ import (
 var Log = m3util.NewLogger("spacedb", m3util.INFO)
 
 const (
-	SpacesTable      = "spaces"
-	EventsTable      = "events"
-	NodesTable       = "nodes"
-	SelectSpacePerId = 0
+	SpacesTable = "spaces"
+	EventsTable = "events"
+	NodesTable  = "nodes"
 )
 
 func init() {
@@ -22,6 +21,11 @@ func init() {
 	m3db.AddTableDef(createEventsTableDef())
 	m3db.AddTableDef(createNodesTableDef())
 }
+
+const (
+	SelectSpacePerId int = iota
+	DeleteSpace
+)
 
 func createSpacesTableDef() *m3db.TableDefinition {
 	res := m3db.TableDefinition{}
@@ -37,8 +41,9 @@ func createSpacesTableDef() *m3db.TableDefinition {
 	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,$6) returning id"
 	res.SelectAll = "select id," + allFields + " from %s"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 1)
+	res.Queries = make([]string, 2)
 	res.Queries[SelectSpacePerId] = res.SelectAll + " where id=$1"
+	res.Queries[DeleteSpace] = "delete from %s where id=$1 and name=$2"
 
 	return &res
 }
@@ -47,6 +52,7 @@ const (
 	SelectEventPerId int = iota
 	SelectEventsPerSpace
 	UpdateMaxNodeTime
+	DeleteAllEvents
 )
 
 func createEventsTableDef() *m3db.TableDefinition {
@@ -65,7 +71,7 @@ func createEventsTableDef() *m3db.TableDefinition {
 	res.Insert = "(space_id, path_ctx_id, creation_time, color, end_time, max_node_time) values ($1,$2,$3,$4,$5,$6) returning id"
 	res.SelectAll = "no select all events"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 3)
+	res.Queries = make([]string, 4)
 	res.QueryTableRefs = make(map[int][]string, 1)
 	res.Queries[SelectEventPerId] = "select id, space_id, path_ctx_id, creation_time, color, end_time, max_node_time from %s where id=$1"
 	res.Queries[SelectEventsPerSpace] =
@@ -80,13 +86,18 @@ func createEventsTableDef() *m3db.TableDefinition {
 			" where " + EventsTable + ".space_id = $1 and " + NodesTable + ".d = 0"
 	res.QueryTableRefs[SelectEventsPerSpace] = []string{NodesTable, pathdb.PointsTable}
 	res.Queries[UpdateMaxNodeTime] = "update %s set max_node_time = $2 where id = $1"
+	res.Queries[DeleteAllEvents] = "delete from %s where space_id = $1"
 
 	return &res
 }
 
 const (
-	SelectNodesAt      int = iota
-	SelectNodesBetween int = iota
+	SelectNodesAt int = iota
+	SelectNodesBetween
+	DeleteAllNodes
+	GetNodeIdPerPathNodeId
+	CountNodesPerEventBetween
+	CountNodesPerSpaceBetween
 )
 
 /*
@@ -114,7 +125,7 @@ func createNodesTableDef() *m3db.TableDefinition {
 	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id"
 	res.SelectAll = "no select all for nodes"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 2)
+	res.Queries = make([]string, 6)
 	res.QueryTableRefs = make(map[int][]string, 2)
 	selAll := "select " + NodesTable + ".id," + allFields + ", x, y, z" +
 		" from %s" +
@@ -125,6 +136,15 @@ func createNodesTableDef() *m3db.TableDefinition {
 	res.Queries[SelectNodesBetween] = selAll +
 		" where event_id=$1 and creation_time >= $2 and creation_time <= $3"
 	res.QueryTableRefs[SelectNodesBetween] = []string{pathdb.PointsTable}
+	res.Queries[DeleteAllNodes] = "delete from %s where event_id = ANY ($1)"
+	res.Queries[GetNodeIdPerPathNodeId] = "select id from %s where event_id = $1 and path_node_id = $2"
+	res.Queries[CountNodesPerEventBetween] = "select count(*) from %s" +
+		" where event_id=$1 and creation_time >= $2 and creation_time <= $3"
+	res.Queries[CountNodesPerSpaceBetween] = "select count(distinct " + NodesTable + ".point_id) from %s" +
+		" join %s on " + EventsTable + ".id = " + NodesTable + ".event_id " +
+		" where space_id = $1" +
+		" and " + NodesTable + ".creation_time >= $2 and " + NodesTable + ".creation_time <= $3"
+	res.QueryTableRefs[CountNodesPerSpaceBetween] = []string{EventsTable}
 	return &res
 }
 
@@ -172,6 +192,11 @@ func checkEnv(env *m3db.QsmDbEnvironment) {
 	defer dbMutex.Unlock()
 	if !testDbFilled[envId] {
 		GetServerSpacePackData(env).createTables()
+		err := pathdb.GetServerPathPackData(env).InitAllPathContexts()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 		testDbFilled[envId] = true
 	}
 }
