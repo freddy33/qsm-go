@@ -20,10 +20,12 @@ const (
 	SpaceTestEnv                  // 7
 	GlTestEnv                     // 8
 	TestServerEnv                 // 9
-	PointTempEnv                  // 10
-	PathTempEnv                   // 11
-	PointLoadEnv                  // 12
-	TestClientEnv                 // 13
+	PointLoadTempEnv              // 10
+	PointTempEnv                  // 11
+	PathTempEnv                   // 12
+	SpaceTempEnv                  // 13
+	PointLoadEnv                  // 14
+	TestClientEnv                 // 15
 )
 
 const (

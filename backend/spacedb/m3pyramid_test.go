@@ -36,13 +36,17 @@ var envMutex sync.Mutex
 var spaceEnv m3util.QsmEnvironment
 
 func getSpaceTestEnv() m3util.QsmEnvironment {
+	if spaceEnv != nil {
+		return spaceEnv
+	}
+
 	envMutex.Lock()
 	defer envMutex.Unlock()
 	if spaceEnv != nil {
 		return spaceEnv
 	}
 	m3util.SetToTestMode()
-	spaceEnv := GetSpaceDbFullEnv(m3util.SpaceTestEnv)
+	spaceEnv := GetSpaceDbCleanEnv(m3util.SpaceTempEnv)
 	return spaceEnv
 }
 
@@ -60,8 +64,8 @@ func TestSpaceAllPyramids(t *testing.T) {
 	offsets := [4]int{0, 0, 0, 0}
 	doPercent := float32(0.002)
 
-	maxSize := m3point.CInt(10)
-	minSize := m3point.CInt(8)
+	maxSize := m3point.CInt(6)
+	minSize := m3point.CInt(5)
 	LogData.Infof("Going from min %d to max %d pyramid size", minSize, maxSize)
 	for pSize := minSize; pSize <= maxSize; pSize++ {
 		nbFound := 0

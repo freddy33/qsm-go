@@ -96,6 +96,10 @@ func getNewPathNodeDb() *PathNodeDb {
 }
 
 func (pn *PathNodeDb) release() {
+	// Cannot release a root node
+	if pn.id > 0 && pn.d == 0 {
+		return
+	}
 	// Make sure it's clean before resending to pool
 	pn.setToNil(InPoolId)
 	pathNodeDbPool.Put(pn)

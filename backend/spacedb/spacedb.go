@@ -68,6 +68,11 @@ func createEventsTableDef() *m3db.TableDefinition {
 		" max_node_time integer NOT NULL)"
 	res.DdlColumnsRefs = []string{SpacesTable, pathdb.PathContextsTable}
 
+	res.Indexes = make([]string, 3)
+	res.Indexes[0] = "create index " + EventsTable + "_space_id_index on %s ( space_id );"
+	res.Indexes[1] = "create index " + EventsTable + "_creation_time_index on %s ( space_id, creation_time );"
+	res.Indexes[2] = "create index " + EventsTable + "_end_time_index on %s ( space_id, end_time );"
+
 	res.Insert = "(space_id, path_ctx_id, creation_time, color, end_time, max_node_time) values ($1,$2,$3,$4,$5,$6) returning id"
 	res.SelectAll = "no select all events"
 	res.ExpectedCount = -1
@@ -119,6 +124,13 @@ func createNodesTableDef() *m3db.TableDefinition {
 	res.DdlColumnsRefs = []string{EventsTable, pathdb.PathNodesTable, pointdb.TrioDetailsTable, pathdb.PointsTable,
 		NodesTable, NodesTable, NodesTable}
 
+	res.Indexes = make([]string, 3)
+	// No need for event id only index since it's the leftmost entry in subsequent indexes
+	//res.Indexes[0] = "create index " + NodesTable + "_event_id_index on %s ( event_id );"
+	res.Indexes[0] = "create index " + NodesTable + "_creation_time_index on %s ( event_id, creation_time );"
+	res.Indexes[1] = "create index " + NodesTable + "_d_index on %s ( event_id, d );"
+	res.Indexes[2] = "create index " + NodesTable + "_path_node_id_index on %s ( event_id, path_node_id );"
+
 	allFields := "event_id, path_node_id, trio_id, point_id, d, creation_time," +
 		" connection_mask, node1, node2, node3"
 
@@ -136,7 +148,7 @@ func createNodesTableDef() *m3db.TableDefinition {
 	res.Queries[SelectNodesBetween] = selAll +
 		" where event_id=$1 and creation_time >= $2 and creation_time <= $3"
 	res.QueryTableRefs[SelectNodesBetween] = []string{pathdb.PointsTable}
-	res.Queries[DeleteAllNodes] = "delete from %s where event_id = ANY ($1)"
+	res.Queries[DeleteAllNodes] = "delete from %s where event_id = $1"
 	res.Queries[GetNodeIdPerPathNodeId] = "select id from %s where event_id = $1 and path_node_id = $2"
 	res.Queries[CountNodesPerEventBetween] = "select count(*) from %s" +
 		" where event_id=$1 and creation_time >= $2 and creation_time <= $3"
@@ -182,6 +194,12 @@ var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
 func GetSpaceDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	env := pathdb.GetPathDbFullEnv(envId)
+	checkEnv(env)
+	return env
+}
+
+func GetSpaceDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
+	env := pathdb.GetPathDbCleanEnv(envId)
 	checkEnv(env)
 	return env
 }

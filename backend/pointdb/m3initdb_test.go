@@ -82,7 +82,7 @@ func TestSaveAll(t *testing.T) {
 	Log.SetDebug()
 	m3util.SetToTestMode()
 
-	tempEnv := GetPointDbCleanEnv(m3util.PointTempEnv)
+	tempEnv := GetPointDbCleanEnv(m3util.PointLoadTempEnv)
 	ppd := GetServerPointPackData(tempEnv)
 
 	// ************ Connection Details

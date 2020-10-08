@@ -13,7 +13,7 @@ import (
 
 func TestPointsTable(t *testing.T) {
 	m3util.SetToTestMode()
-	env := GetPathDbCleanEnv(m3util.PathTempEnv)
+	env := GetPathDbCleanEnv(m3util.PointTempEnv)
 
 	te, err := env.GetOrCreateTableExec(PointsTable)
 	if !assert.NoError(t, err) {
@@ -80,12 +80,14 @@ func TestPointsTableConcurrency(t *testing.T) {
 	for r := 0; r < nbRoutines; r++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for i := 0; i < nbRound; i++ {
 				randomPoint := m3point.CreateRandomPoint(rdMax)
 				id := pathData.GetOrCreatePoint(randomPoint)
-				assert.True(t, id > 0)
+				if !assert.True(t, id > 0) {
+					return
+				}
 			}
-			wg.Done()
 		}()
 	}
 	wg.Wait()

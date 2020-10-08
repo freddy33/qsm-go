@@ -101,6 +101,10 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.ErrorFilter = func(err error) bool {
 		return err.Error() == "pq: duplicate key value violates unique constraint \"unique_point_per_path_ctx\""
 	}
+
+	res.Indexes = make([]string, 1)
+	res.Indexes[0] = "create index " + PathNodesTable + "_d_index on %s ( d );"
+
 	res.Insert = "(path_ctx_id, path_builders_id, path_builder_idx, trio_id, point_id, d," +
 		" connection_mask," +
 		" path_node1, path_node2, path_node3)" +

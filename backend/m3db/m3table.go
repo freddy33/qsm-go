@@ -10,6 +10,7 @@ type TableDefinition struct {
 	Name           string
 	DdlColumns     string
 	DdlColumnsRefs []string
+	Indexes        []string
 	Insert         string
 	SelectAll      string
 	Queries        []string

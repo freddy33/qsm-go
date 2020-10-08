@@ -120,7 +120,7 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	if !sendAndReceive(t, &requestTest{
 		router:      qsmApp.Router,
 		contentType: "proto",
-		typeName:    "EventResponseMsg",
+		typeName:    "EventMsg",
 		methodName:  "PUT",
 		uri:         "/event",
 	}, reqMsg, resMsg) {

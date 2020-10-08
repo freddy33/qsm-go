@@ -6,7 +6,6 @@ import (
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3space"
-	"github.com/lib/pq"
 )
 
 type ServerSpacePackData struct {
@@ -38,12 +37,15 @@ func (spaceData *ServerSpacePackData) DeleteSpace(id int, name string) (int, err
 		return 0, m3util.MakeQsmErrorf("Space id %d name is %q not %q!", id, space.GetName(), name)
 	}
 	totalDeleted := 0
-	nbNodes, err := spaceData.nodesTe.Update(DeleteAllNodes, pq.Array(space.GetEventIdsForMsg()))
-	totalDeleted += nbNodes
-	if err != nil {
-		return totalDeleted, m3util.MakeWrapQsmErrorf(err, "failed to delete nodes of %s due to %s", space.String(), err.Error())
+	eventIds := space.GetEventIdsForMsg()
+	for _, evtId := range eventIds {
+		nbNodes, err := spaceData.nodesTe.Update(DeleteAllNodes, evtId)
+		totalDeleted += nbNodes
+		if err != nil {
+			return totalDeleted, m3util.MakeWrapQsmErrorf(err, "failed to delete nodes of %s event id %d due to %s", space.String(), evtId, err.Error())
+		}
 	}
-	Log.Infof("Deleted %d nodes from space %s", nbNodes, space.String())
+	Log.Infof("Deleted %d nodes from space %s", totalDeleted, space.String())
 	nbEvents, err := spaceData.eventsTe.Update(DeleteAllEvents, space.GetId())
 	totalDeleted += nbEvents
 	if err != nil {

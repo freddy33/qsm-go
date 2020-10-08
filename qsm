@@ -3,28 +3,28 @@
 export LC_ALL="en_US.UTF-8"
 export LC_CTYPE="en_US.UTF-8"
 
-QSM_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )"
+QSM_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -e "$QSM_HOME/.git" ]; then
-    echo "INFO: Using root repo dir $QSM_HOME"
+  echo "INFO: Using root repo dir $QSM_HOME"
 else
-    echo "ERROR: Did not find root git repo dir at $QSM_HOME"
-    exit 2
+  echo "ERROR: Did not find root git repo dir at $QSM_HOME"
+  exit 2
 fi
 export QSM_HOME
 
 if [ -z "$1" ]; then
-    echo "INFO: Usage $0 [-env number] (db run test bench)"
-    exit 0
+  echo "INFO: Usage $0 [-env number] (db run test bench)"
+  exit 0
 fi
 
 if [ "$1" == "-env" ]; then
-    if [ -z "$2" ]; then
-        echo "ERROR: after -env need a number"
-        exit 4
-    fi
-    export QSM_ENV_NUMBER=$2
-    shift
-    shift
+  if [ -z "$2" ]; then
+    echo "ERROR: after -env need a number"
+    exit 4
+  fi
+  export QSM_ENV_NUMBER=$2
+  shift
+  shift
 fi
 
 script=$1

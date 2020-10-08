@@ -25,9 +25,9 @@ func TestPathContextMove(t *testing.T) {
 		return
 	}
 
-	good := callGetPathNodes(t, pathCtxId, maxDist, router, 3, 0, 12) &&
-		callGetPathNodes(t, pathCtxId, maxDist, router, 2, 0, 6) &&
-		callGetPathNodes(t, pathCtxId, maxDist, router, 4, 0, 22)
+	good := callGetPathNodes(t, pathCtxId, &maxDist, router, 3, 0, 12) &&
+		callGetPathNodes(t, pathCtxId, &maxDist, router, 2, 0, 6) &&
+		callGetPathNodes(t, pathCtxId, &maxDist, router, 4, 0, 22)
 	if !good {
 		Log.Info("failed!")
 	}
@@ -67,13 +67,13 @@ func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
 	return pathCtxId, maxDist
 }
 
-func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist int, router *mux.Router, dist int, toDist int, expectedActiveNodes int) bool {
+func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist *int, router *mux.Router, dist int, toDist int, expectedActiveNodes int) bool {
 	// Check and call increase max dist if needed
 	newMaxDist := dist
 	if toDist > 0 {
 		newMaxDist = toDist
 	}
-	if newMaxDist > origMaxDist {
+	if newMaxDist > *origMaxDist {
 		// Need to increase max dist
 		reqMaxMsg := &m3api.PathNodesRequestMsg{
 			PathCtxId: int32(pathCtxId),
@@ -93,15 +93,17 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist int, router *mux.
 		incMaxDist := int(resMaxMsg.MaxDist)
 
 		good := assert.Equal(t, int32(pathCtxId), resMaxMsg.GetPathCtxId()) &&
-			assert.Equal(t, int32(origMaxDist), resMaxMsg.GetDist()) &&
+			assert.Equal(t, int32(*origMaxDist), resMaxMsg.GetDist()) &&
 			assert.Equal(t, int32(newMaxDist), resMaxMsg.GetToDist()) &&
 			assert.True(t, incMaxDist >= toDist) &&
 			assert.True(t, incMaxDist >= dist) &&
-			assert.True(t, incMaxDist > origMaxDist) &&
+			assert.True(t, incMaxDist > *origMaxDist) &&
 			assert.True(t, nbPathNodes >= 3)
 		if !good {
 			return false
 		}
+	} else {
+		// Test we get accepted status code
 	}
 
 	// First call and check on the number of nodes
@@ -127,7 +129,7 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist int, router *mux.
 		assert.Equal(t, int32(toDist), resNbMsg.GetToDist()) &&
 		assert.True(t, maxDist >= toDist) &&
 		assert.True(t, maxDist >= dist) &&
-		assert.True(t, maxDist >= origMaxDist) &&
+		assert.True(t, maxDist >= *origMaxDist) &&
 		assert.Equal(t, expectedActiveNodes, nbPathNodes)
 	if !good {
 		return false
@@ -173,5 +175,6 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist int, router *mux.
 			return false
 		}
 	}
+	*origMaxDist = int(pathNodesResp.MaxDist)
 	return true
 }

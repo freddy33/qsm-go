@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -15,6 +16,16 @@ const (
 )
 
 type DInt int64
+
+func (D *DInt) String() string {
+	return strconv.FormatInt(int64(*D), 10)
+}
+
+func (D DInt) MurmurHash() uint32 {
+	c64 := uint64(D)
+	return MurmurHashUint32([]uint32{uint32(c64 & low), uint32(c64 & high >> 32)})
+}
+
 type CInt int32
 type Point [3]CInt
 
@@ -68,44 +79,12 @@ func MakeVector(p1, p2 Point) Point {
 	return p2.Sub(p1)
 }
 
-func (p Point) String() string {
-	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
+func (p Point) MurmurHash() uint32 {
+	return MurmurHashUint32([]uint32{uint32(p[0]), uint32(p[1]), uint32(p[2])})
 }
 
-const (
-	c1  = 0xcc9e2d51
-	c2  = 0x1b873593
-	r1a = 15
-	r1b = 17
-	r2a = 13
-	r2b = 19
-	m   = 4
-	n   = 0xe6546b64
-)
-
-func (p Point) Hash(size int) int {
-	// Using Murmur 3 implementation
-	// Found after research from https://softwareengineering.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed/145633#145633?newreg=fcc6e22e2d1647e29d38f8d710248230
-	h1 := uint32(0)
-	for _, c := range p {
-		k1 := uint32(c)
-		k1 *= c1
-		k1 = (k1 << r1a) | (k1 >> r1b)
-		k1 *= c2
-		h1 ^= k1
-		h1 = (h1 << r2a) | (h1 >> r2b)
-		h1 = h1*m + h1 + n
-	}
-	h1 ^= h1 >> 16
-	h1 *= 0x85ebca6b
-	h1 ^= h1 >> 13
-	h1 *= 0xc2b2ae35
-	h1 ^= h1 >> 16
-	res := int(h1) % size
-	if res < 0 {
-		return -res
-	}
-	return res
+func (p Point) String() string {
+	return fmt.Sprintf("[ % d, % d, % d ]", p[0], p[1], p[2])
 }
 
 func (p Point) X() CInt {

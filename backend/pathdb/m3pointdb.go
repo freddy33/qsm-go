@@ -95,14 +95,15 @@ func RunInsertRandomPoints() {
 	for r := 0; r < nbRoutines; r++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for i := 0; i < nbRound; i++ {
 				randomPoint := m3point.CreateRandomPoint(rdMax)
 				id := pathData.GetOrCreatePoint(randomPoint)
 				if id <= 0 {
 					Log.Errorf("failed to insert %v got %d id", randomPoint, id)
+					return
 				}
 			}
-			wg.Done()
 		}()
 	}
 	wg.Wait()
