@@ -10,22 +10,23 @@ import (
 type QsmEnvID int
 
 const (
-	NoEnv         QsmEnvID = iota // 0
-	MainEnv                       // 1
-	RunEnv                        // 2
-	PerfTestEnv                   // 3
-	ShellEnv                      // 4
-	PointTestEnv                  // 5
-	PathTestEnv                   // 6
-	SpaceTestEnv                  // 7
-	GlTestEnv                     // 8
-	TestServerEnv                 // 9
-	PointLoadTempEnv              // 10
-	PointTempEnv                  // 11
-	PathTempEnv                   // 12
-	SpaceTempEnv                  // 13
-	PointLoadEnv                  // 14
-	TestClientEnv                 // 15
+	NoEnv              QsmEnvID = iota // 0
+	MainEnv                            // 1
+	RunEnv                             // 2
+	PerfTestEnv                        // 3
+	ShellEnv                           // 4
+	PointTestEnv                       // 5
+	PathTestEnv                        // 6
+	SpaceTestEnv                       // 7
+	GlTestEnv                          // 8
+	TestServerEnv                      // 9
+	PointLoadTempEnv                   // 10
+	PointTempEnv                       // 11
+	PathTempEnv                        // 12
+	SpaceTempEnv                       // 13
+	PointLoadEnv                       // 14
+	TestClientEnv                      // 15
+	SpaceClientTempEnv                 // 16
 )
 
 const (

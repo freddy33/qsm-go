@@ -5,7 +5,7 @@ import (
 	"unsafe"
 )
 
-type PathNodeMap interface {
+type ServerPathNodeMap interface {
 	Size() int
 	GetPathNode(p m3point.Point) *PathNodeDb
 	AddPathNode(pathNode *PathNodeDb) (*PathNodeDb, bool)
@@ -15,7 +15,7 @@ type PathNodeMap interface {
 
 type SimplePathNodeMap map[m3point.Point]*PathNodeDb
 
-type PointHashPathNodeMap struct {
+type ServerPointHashPathNodeMap struct {
 	pointMap m3point.PointMap
 }
 
@@ -23,7 +23,7 @@ type PointHashPathNodeMap struct {
 // SimplePathNodeMap Functions
 /***************************************************************/
 
-func MakeSimplePathNodeMap(initSize int) PathNodeMap {
+func MakeSimplePathNodeMap(initSize int) ServerPathNodeMap {
 	res := SimplePathNodeMap(make(map[m3point.Point]*PathNodeDb, initSize))
 	return &res
 }
@@ -73,19 +73,19 @@ func (pnm *SimplePathNodeMap) Range(visit func(point m3point.Point, pn *PathNode
 }
 
 /***************************************************************/
-// PointHashPathNodeMap Functions
+// ServerPointHashPathNodeMap Functions
 /***************************************************************/
 
-func MakeHashPathNodeMap(initSize int) PathNodeMap {
-	res := PointHashPathNodeMap{m3point.MakePointHashMap(initSize)}
+func MakeHashPathNodeMap(initSize int) ServerPathNodeMap {
+	res := ServerPointHashPathNodeMap{m3point.MakePointHashMap(initSize)}
 	return &res
 }
 
-func (hnm *PointHashPathNodeMap) Size() int {
+func (hnm *ServerPointHashPathNodeMap) Size() int {
 	return hnm.pointMap.Size()
 }
 
-func (hnm *PointHashPathNodeMap) GetPathNode(p m3point.Point) *PathNodeDb {
+func (hnm *ServerPointHashPathNodeMap) GetPathNode(p m3point.Point) *PathNodeDb {
 	pn, ok := hnm.pointMap.Get(p)
 	if ok {
 		return (*PathNodeDb)(pn)
@@ -93,13 +93,13 @@ func (hnm *PointHashPathNodeMap) GetPathNode(p m3point.Point) *PathNodeDb {
 	return nil
 }
 
-func (hnm *PointHashPathNodeMap) AddPathNode(pathNode *PathNodeDb) (*PathNodeDb, bool) {
+func (hnm *ServerPointHashPathNodeMap) AddPathNode(pathNode *PathNodeDb) (*PathNodeDb, bool) {
 	p := pathNode.P()
 	pn, inserted := hnm.pointMap.LoadOrStore(p, unsafe.Pointer(pathNode))
 	return (*PathNodeDb)(pn), inserted
 }
 
-func (hnm *PointHashPathNodeMap) Clear() {
+func (hnm *ServerPointHashPathNodeMap) Clear() {
 	rc := m3point.MakeRangeContext(false, nbParallelProcesses, Log)
 	hnm.pointMap.Range(func(point m3point.Point, value unsafe.Pointer) bool {
 		pn := (*PathNodeDb)(value)
@@ -109,7 +109,7 @@ func (hnm *PointHashPathNodeMap) Clear() {
 	hnm.pointMap = m3point.MakePointHashMap(hnm.pointMap.InitSize())
 }
 
-func (hnm *PointHashPathNodeMap) Range(visit func(point m3point.Point, pn *PathNodeDb) bool, rc *m3point.RangeContext) {
+func (hnm *ServerPointHashPathNodeMap) Range(visit func(point m3point.Point, pn *PathNodeDb) bool, rc *m3point.RangeContext) {
 	hnm.pointMap.Range(func(point m3point.Point, value unsafe.Pointer) bool {
 		return visit(point, (*PathNodeDb)(value))
 	}, rc)

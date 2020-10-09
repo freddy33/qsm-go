@@ -119,7 +119,7 @@ func Test_Basic_Space(t *testing.T) {
 		return
 	}
 
-	nodes, err := evt.GetActiveNodesAt(creationTime)
+	nodes, err := evt.GetActiveNodesDbAt(creationTime)
 	good = assert.NoError(t, err) && assert.Equal(t, 1, len(nodes)) &&
 		assert.Equal(t, evt, nodes[0].event) &&
 		assert.Equal(t, evt.centerNode, nodes[0]) &&
@@ -130,7 +130,7 @@ func Test_Basic_Space(t *testing.T) {
 	}
 
 	time = creationTime + m3space.DistAndTime(1)
-	nodes, err = evt.GetActiveNodesAt(time)
+	nodes, err = evt.GetActiveNodesDbAt(time)
 	good = assert.NoError(t, err) && assert.Equal(t, 4, len(nodes)) &&
 		assert.Equal(t, evt, nodes[0].event) &&
 		assert.Equal(t, evt.centerNode, nodes[0]) &&
@@ -143,7 +143,7 @@ func Test_Basic_Space(t *testing.T) {
 	}
 
 	time = creationTime + m3space.DistAndTime(4)
-	nodes, err = evt.GetActiveNodesAt(time)
+	nodes, err = evt.GetActiveNodesDbAt(time)
 	good = assert.NoError(t, err) && assert.Equal(t, 24-2+1, len(nodes)) &&
 		assert.Equal(t, evt, nodes[0].event) &&
 		assert.Equal(t, evt.centerNode, nodes[0]) &&

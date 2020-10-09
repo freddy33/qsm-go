@@ -86,10 +86,12 @@ type EventIfc interface {
 	GetCreationTime() DistAndTime
 	GetColor() EventColor
 	GetCenterNode() EventNodeIfc
+	GetActiveNodesAt(currentTime DistAndTime) ([]EventNodeIfc, error)
 }
 
 type EventNodeIfc interface {
 	fmt.Stringer
+	m3path.ConnectionStateIfc
 	GetId() int64
 	GetEventId() EventId
 	GetPointId() int64

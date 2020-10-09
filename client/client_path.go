@@ -5,6 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
+	"sync"
 )
 
 type ClientPathPackData struct {
@@ -21,15 +22,14 @@ type PathContextCl struct {
 	growthOffset int
 
 	rootNode    *PathNodeCl
-	pathNodeMap m3path.PathNodeMap
-	pathNodes   map[int64]*PathNodeCl
+	pathNodeMap ClientPathNodeMap
 
 	maxDist int
 }
 
 type PathNodeCl struct {
 	pathCtx        *PathContextCl
-	id             int64
+	id             m3point.Int64Id
 	d              int
 	point          m3point.Point
 	trioDetails    *m3point.TrioDetails
@@ -40,6 +40,22 @@ type PathNodeCl struct {
 /***************************************************************/
 // PathContextCl Functions
 /***************************************************************/
+
+func MakePatchContextClient(pathData *ClientPathPackData, pMsg *m3api.PathContextResponseMsg) *PathContextCl {
+	pathCtx := new(PathContextCl)
+	pathCtx.id = int(pMsg.GetPathCtxId())
+	pathCtx.env = pathData.env
+	pointData := GetClientPointPackData(pathData.env)
+	pathCtx.pointData = pointData
+	pathCtx.growthCtx = pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId()))
+	pathCtx.growthOffset = int(pMsg.GetGrowthOffset())
+	pathCtx.pathNodeMap = MakeHashPathNodeMap(1024)
+	pathCtx.rootNode = pathCtx.addPathNodeFromMsg(pMsg.RootPathNode)
+
+	pathData.pathCtxMap[pathCtx.GetId()] = pathCtx
+
+	return pathCtx
+}
 
 func (pathCtx *PathContextCl) String() string {
 	return fmt.Sprintf("PathCL%d-%s-%d", pathCtx.id, pathCtx.growthCtx.String(), pathCtx.growthOffset)
@@ -65,17 +81,17 @@ func (pathCtx *PathContextCl) GetGrowthIndex() int {
 	return pathCtx.growthCtx.GetGrowthIndex()
 }
 
-func (pathCtx *PathContextCl) GetPathNodeMap() m3path.PathNodeMap {
+func (pathCtx *PathContextCl) GetPathNodeMap() ClientPathNodeMap {
 	return pathCtx.pathNodeMap
 }
 
 func (pathCtx *PathContextCl) CountAllPathNodes() int {
-	return len(pathCtx.pathNodes)
+	return pathCtx.pathNodeMap.Size()
 }
 
 func (pathCtx *PathContextCl) addPathNodeFromMsg(pMsg *m3api.PathNodeMsg) *PathNodeCl {
-	pn := new(PathNodeCl)
-	pn.id = pMsg.GetPathNodeId()
+	pn := getNewPathNodeCl()
+	pn.id = m3point.Int64Id(pMsg.GetPathNodeId())
 	pn.pathCtx = pathCtx
 	pn.d = int(pMsg.D)
 	pn.point = m3api.PointMsgToPoint(pMsg.GetPoint())
@@ -85,7 +101,6 @@ func (pathCtx *PathContextCl) addPathNodeFromMsg(pMsg *m3api.PathNodeMsg) *PathN
 		pn.linkNodes[i] = lnId
 	}
 	pathCtx.pathNodeMap.AddPathNode(pn)
-	pathCtx.pathNodes[pn.id] = pn
 	return pn
 }
 
@@ -93,24 +108,54 @@ func (pathCtx *PathContextCl) GetRootPathNode() m3path.PathNode {
 	return pathCtx.rootNode
 }
 
-func (pathCtx *PathContextCl) mapGetPathNodesAt(dist int) []m3path.PathNode {
+func (pathCtx *PathContextCl) filter(useFilter func(id m3point.Int64Id, pn *PathNodeCl) (bool, error)) []m3path.PathNode {
+	pns := make(chan m3path.PathNode)
 	res := make([]m3path.PathNode, 0, 100)
-	for _, pn := range pathCtx.pathNodes {
-		if dist == pn.d {
-			res = append(res, pn)
+	rc := m3point.MakeRangeContext(true, nbParallelProcesses, Log)
+	go func() {
+		for {
+			select {
+			case pn, ok := <-pns:
+				if !ok {
+					return
+				}
+				res = append(res, pn)
+			case <-rc.Done():
+				return
+			}
 		}
-	}
+	}()
+	pathCtx.pathNodeMap.RangePerId(func(id m3point.Int64Id, pn *PathNodeCl) bool {
+		use, err := useFilter(id, pn)
+		if err != nil {
+			rc.SendError(err)
+			return true
+		}
+		if use {
+			pns <- pn
+		}
+		return false
+	}, rc)
+	rc.Wait()
 	return res
 }
 
-func (pathCtx *PathContextCl) mapGetPathNodesBetween(fromDist, toDist int) []m3path.PathNode {
-	res := make([]m3path.PathNode, 0, 100)
-	for _, pn := range pathCtx.pathNodes {
-		if pn.d >= fromDist && pn.d <= toDist {
-			res = append(res, pn)
+func (pathCtx *PathContextCl) mapGetPathNodesAt(dist int) []m3path.PathNode {
+	return pathCtx.filter(func(id m3point.Int64Id, pn *PathNodeCl) (bool, error) {
+		if pn.d == dist {
+			return true, nil
 		}
-	}
-	return res
+		return false, nil
+	})
+}
+
+func (pathCtx *PathContextCl) mapGetPathNodesBetween(fromDist, toDist int) []m3path.PathNode {
+	return pathCtx.filter(func(id m3point.Int64Id, pn *PathNodeCl) (bool, error) {
+		if pn.d >= fromDist && pn.d <= toDist {
+			return true, nil
+		}
+		return false, nil
+	})
 }
 
 func (pathCtx *PathContextCl) GetMaxDist() int {
@@ -124,8 +169,8 @@ func (pathCtx *PathContextCl) RequestNewMaxDist(requestDist int) error {
 	}
 	uri := "max-dist"
 	reqMsg := &m3api.PathNodesRequestMsg{
-		PathCtxId:   int32(pathCtx.GetId()),
-		Dist: int32(requestDist),
+		PathCtxId: int32(pathCtx.GetId()),
+		Dist:      int32(requestDist),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
 	_, err := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg, pMsg)
@@ -140,9 +185,9 @@ func (pathCtx *PathContextCl) RequestNewMaxDist(requestDist int) error {
 func (pathCtx *PathContextCl) GetPathNodesAt(dist int) ([]m3path.PathNode, error) {
 	uri := "path-nodes"
 	reqMsg := &m3api.PathNodesRequestMsg{
-		PathCtxId:   int32(pathCtx.GetId()),
-		Dist: int32(dist),
-		ToDist: int32(0),
+		PathCtxId: int32(pathCtx.GetId()),
+		Dist:      int32(dist),
+		ToDist:    int32(0),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
 	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
@@ -161,9 +206,9 @@ func (pathCtx *PathContextCl) GetPathNodesAt(dist int) ([]m3path.PathNode, error
 func (pathCtx *PathContextCl) GetNumberOfNodesAt(dist int) int {
 	uri := "nb-path-nodes"
 	reqMsg := &m3api.PathNodesRequestMsg{
-		PathCtxId:   int32(pathCtx.GetId()),
-		Dist: int32(dist),
-		ToDist: int32(0),
+		PathCtxId: int32(pathCtx.GetId()),
+		Dist:      int32(dist),
+		ToDist:    int32(0),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
 	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
@@ -180,9 +225,9 @@ func (pathCtx *PathContextCl) GetNumberOfNodesAt(dist int) int {
 func (pathCtx *PathContextCl) GetNumberOfNodesBetween(fromDist int, toDist int) int {
 	uri := "nb-path-nodes"
 	reqMsg := &m3api.PathNodesRequestMsg{
-		PathCtxId:   int32(pathCtx.GetId()),
-		Dist: int32(fromDist),
-		ToDist: int32(toDist),
+		PathCtxId: int32(pathCtx.GetId()),
+		Dist:      int32(fromDist),
+		ToDist:    int32(toDist),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
 	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
@@ -199,9 +244,9 @@ func (pathCtx *PathContextCl) GetNumberOfNodesBetween(fromDist int, toDist int) 
 func (pathCtx *PathContextCl) GetPathNodesBetween(fromDist, toDist int) ([]m3path.PathNode, error) {
 	uri := "path-nodes"
 	reqMsg := &m3api.PathNodesRequestMsg{
-		PathCtxId:   int32(pathCtx.GetId()),
-		Dist: int32(fromDist),
-		ToDist: int32(toDist),
+		PathCtxId: int32(pathCtx.GetId()),
+		Dist:      int32(fromDist),
+		ToDist:    int32(toDist),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
 	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
@@ -225,12 +270,48 @@ func (pathCtx *PathContextCl) DumpInfo() string {
 // PathNodeCl Functions
 /***************************************************************/
 
+// Should be used only inside getNewPathNodeDb() and release() methods
+var pathNodeClPool = sync.Pool{
+	New: func() interface{} {
+		return new(PathNodeCl)
+	},
+}
+
+func getNewPathNodeCl() *PathNodeCl {
+	pn := pathNodeClPool.Get().(*PathNodeCl)
+	// Make sure all id are negative and pointer nil
+	pn.setToNil()
+	return pn
+}
+
+func (pn *PathNodeCl) setToNil() {
+	pn.pathCtx = nil
+	pn.id = -1
+	pn.d = -1
+	pn.point = m3point.Origin
+	pn.trioDetails = nil
+	pn.connectionMask = uint16(0)
+	for i := 0; i < m3path.NbConnections; i++ {
+		pn.linkNodes[i] = -1
+	}
+}
+
+func (pn *PathNodeCl) release() {
+	// Cannot release a root node
+	if pn.id > 0 && pn.d == 0 {
+		return
+	}
+	// Make sure it's clean before resending to pool
+	pn.setToNil()
+	pathNodeClPool.Put(pn)
+}
+
 func (pn *PathNodeCl) String() string {
 	return fmt.Sprintf("PNCL%d-%d-%d-%d-%v", pn.id, pn.pathCtx.id, pn.d, pn.trioDetails.GetId(), pn.point)
 }
 
 func (pn *PathNodeCl) GetId() int64 {
-	return pn.id
+	return int64(pn.id)
 }
 
 func (pn *PathNodeCl) GetPathContext() m3path.PathContext {
@@ -278,6 +359,6 @@ func (pn *PathNodeCl) IsDeadEnd(connIdx int) bool {
 	return pn.getConnectionState(connIdx) == m3path.ConnectionBlocked
 }
 
-func (pn *PathNodeCl) GetTrioDetails() *m3point.TrioDetails {
+func (pn *PathNodeCl) GetTrioDetails(pointData m3point.PointPackDataIfc) *m3point.TrioDetails {
 	return pn.trioDetails
 }

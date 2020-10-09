@@ -88,7 +88,6 @@ func (ec *RangeContext) SendError(err error) {
 	ec.collectErrors <- err
 }
 
-/*
 func (ec *RangeContext) ErrorChan() <-chan error {
 	return ec.collectErrors
 }
@@ -96,7 +95,6 @@ func (ec *RangeContext) ErrorChan() <-chan error {
 func (ec *RangeContext) Done() <-chan int32 {
 	return ec.done
 }
-*/
 
 func (ec *RangeContext) incrementDone() {
 	atomic.AddInt32(&ec.nbDone, 1)

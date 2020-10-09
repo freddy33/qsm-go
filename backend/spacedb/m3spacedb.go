@@ -321,7 +321,7 @@ func (st *SpaceTime) populate() error {
 	for i, _ := range events {
 		evt := events[i].(*EventDb)
 		st.activeEvents[i] = evt
-		nodeList, err := evt.GetActiveNodesAt(st.currentTime)
+		nodeList, err := evt.GetActiveNodesDbAt(st.currentTime)
 		if err != nil {
 			st.populatedError = err
 			st.populated = true

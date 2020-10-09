@@ -108,7 +108,7 @@ func (pathCtx *PathContextDb) GetMaxDist() int {
 	return pathCtx.maxDist
 }
 
-func (pathCtx *PathContextDb) GetPathNodeMap() PathNodeMap {
+func (pathCtx *PathContextDb) GetPathNodeMap() ServerPathNodeMap {
 	Log.Fatalf("in DB path context %s never call GetPathNodeMap", pathCtx.String())
 	return nil
 }

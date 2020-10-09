@@ -9,7 +9,7 @@ type OpenNodeBuilder struct {
 	pathCtx                        *PathContextDb
 	d                              int
 	expectedSize                   int
-	openNodesMap                   PathNodeMap
+	openNodesMap                   ServerPathNodeMap
 	selectConflict, insertConflict int
 }
 

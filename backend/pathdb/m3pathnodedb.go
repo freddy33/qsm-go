@@ -81,37 +81,9 @@ type PathNodeDb struct {
 	linkNodes [m3path.NbConnections]*PathNodeDb
 }
 
-// Should be used only inside getNewPathNodeDb() and release() methods
-var pathNodeDbPool = sync.Pool{
-	New: func() interface{} {
-		return new(PathNodeDb)
-	},
-}
-
-func getNewPathNodeDb() *PathNodeDb {
-	pn := pathNodeDbPool.Get().(*PathNodeDb)
-	// Make sure all id are negative and pointer nil
-	pn.setToNil(NewPathNodeId)
-	return pn
-}
-
-func (pn *PathNodeDb) release() {
-	// Cannot release a root node
-	if pn.id > 0 && pn.d == 0 {
-		return
-	}
-	// Make sure it's clean before resending to pool
-	pn.setToNil(InPoolId)
-	pathNodeDbPool.Put(pn)
-}
-
-func (pn *PathNodeDb) reduceSize() {
-	pn.point = nil
-	pn.pathBuilder = nil
-	for i := 0; i < m3path.NbConnections; i++ {
-		pn.linkNodes[i] = nil
-	}
-}
+/***************************************************************/
+// ConnectionsStateDb Functions
+/***************************************************************/
 
 // Set a connection state to nil empty state
 func (cn *ConnectionsStateDb) SetConnStateToNil() {
@@ -125,32 +97,6 @@ func (cn *ConnectionsStateDb) SetConnStateToNil() {
 
 func (cn *ConnectionsStateDb) GetTrioIndex() m3point.TrioIndex {
 	return cn.TrioId
-}
-
-func (pn *PathNodeDb) setToNil(id int64) {
-	if id == InPoolId {
-		pn.state = InPoolNode
-	} else {
-		pn.state = NewPathNode
-	}
-	pn.id = id
-	pn.pathCtxId = -1
-	pn.pathCtx = nil
-	pn.pathBuilderId = -1
-	pn.pathBuilder = nil
-	pn.pointId = -1
-	pn.point = nil
-	pn.d = -1
-	pn.SetConnStateToNil()
-	pn.clearLinkNodes()
-}
-
-func (pn *PathNodeDb) IsNew() bool {
-	return pn.id == NewPathNodeId
-}
-
-func (pn *PathNodeDb) IsInPool() bool {
-	return pn.id == InPoolId
 }
 
 func (cn *ConnectionsStateDb) GetConnectionMask() uint16 {
@@ -261,6 +207,105 @@ func (cn *ConnectionsStateDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullIn
 	return dbLinkIds
 }
 
+func (cn *ConnectionsStateDb) GetTrioDetails(pointData m3point.PointPackDataIfc) *m3point.TrioDetails {
+	if cn.TrioDetails == nil {
+		cn.TrioDetails = pointData.GetTrioDetails(cn.TrioId)
+	}
+	return cn.TrioDetails
+}
+
+func (cn *ConnectionsStateDb) SetTrioId(trioId m3point.TrioIndex) {
+	cn.TrioId = trioId
+	cn.TrioDetails = nil
+}
+
+func (cn *ConnectionsStateDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
+	cn.TrioId = trioDetails.GetId()
+	cn.TrioDetails = trioDetails
+}
+
+func (cn *ConnectionsStateDb) HasOpenConnections() bool {
+	for i := 0; i < m3path.NbConnections; i++ {
+		if cn.GetConnectionState(i) == m3path.ConnectionNotSet {
+			return true
+		}
+	}
+	return false
+}
+
+func (cn *ConnectionsStateDb) IsFrom(connIdx int) bool {
+	return cn.GetConnectionState(connIdx) == m3path.ConnectionFrom
+}
+
+func (cn *ConnectionsStateDb) IsNext(connIdx int) bool {
+	return cn.GetConnectionState(connIdx) == m3path.ConnectionNext
+}
+
+func (cn *ConnectionsStateDb) IsDeadEnd(connIdx int) bool {
+	return cn.GetConnectionState(connIdx) == m3path.ConnectionBlocked
+}
+
+/***************************************************************/
+// PathNodeDb Functions
+/***************************************************************/
+
+// Should be used only inside getNewPathNodeDb() and release() methods
+var pathNodeDbPool = sync.Pool{
+	New: func() interface{} {
+		return new(PathNodeDb)
+	},
+}
+
+func getNewPathNodeDb() *PathNodeDb {
+	pn := pathNodeDbPool.Get().(*PathNodeDb)
+	// Make sure all id are negative and pointer nil
+	pn.setToNil(NewPathNodeId)
+	return pn
+}
+
+func (pn *PathNodeDb) release() {
+	// Cannot release a root node
+	if pn.id > 0 && pn.d == 0 {
+		return
+	}
+	// Make sure it's clean before resending to pool
+	pn.setToNil(InPoolId)
+	pathNodeDbPool.Put(pn)
+}
+
+func (pn *PathNodeDb) reduceSize() {
+	pn.point = nil
+	pn.pathBuilder = nil
+	for i := 0; i < m3path.NbConnections; i++ {
+		pn.linkNodes[i] = nil
+	}
+}
+
+func (pn *PathNodeDb) setToNil(id int64) {
+	if id == InPoolId {
+		pn.state = InPoolNode
+	} else {
+		pn.state = NewPathNode
+	}
+	pn.id = id
+	pn.pathCtxId = -1
+	pn.pathCtx = nil
+	pn.pathBuilderId = -1
+	pn.pathBuilder = nil
+	pn.pointId = -1
+	pn.point = nil
+	pn.d = -1
+	pn.SetConnStateToNil()
+	pn.clearLinkNodes()
+}
+
+func (pn *PathNodeDb) IsNew() bool {
+	return pn.id == NewPathNodeId
+}
+
+func (pn *PathNodeDb) IsInPool() bool {
+	return pn.id == InPoolId
+}
 func (pn *PathNodeDb) syncInDb() error {
 	switch pn.state {
 	case InPoolNode:
@@ -402,23 +447,6 @@ func (pn *PathNodeDb) SetPathCtx(pathCtx *PathContextDb) {
 	pn.pathCtx = pathCtx
 }
 
-func (cn *ConnectionsStateDb) GetTrioDetails(pointData m3point.PointPackDataIfc) *m3point.TrioDetails {
-	if cn.TrioDetails == nil {
-		cn.TrioDetails = pointData.GetTrioDetails(cn.TrioId)
-	}
-	return cn.TrioDetails
-}
-
-func (cn *ConnectionsStateDb) SetTrioId(trioId m3point.TrioIndex) {
-	cn.TrioId = trioId
-	cn.TrioDetails = nil
-}
-
-func (cn *ConnectionsStateDb) SetTrioDetails(trioDetails *m3point.TrioDetails) {
-	cn.TrioId = trioDetails.GetId()
-	cn.TrioDetails = trioDetails
-}
-
 func (pn *PathNodeDb) PathBuilder() pointdb.PathNodeBuilder {
 	if pn.pathBuilder == nil {
 		rootPathBuilder := pn.PathCtx().pointData.GetRootPathNodeBuilderById(pn.pathBuilderId)
@@ -456,27 +484,6 @@ func (pn *PathNodeDb) GetPathContext() m3path.PathContext {
 func (pn *PathNodeDb) IsRoot() bool {
 	pn.check()
 	return pn.d == 0
-}
-
-func (cn *ConnectionsStateDb) HasOpenConnections() bool {
-	for i := 0; i < m3path.NbConnections; i++ {
-		if cn.GetConnectionState(i) == m3path.ConnectionNotSet {
-			return true
-		}
-	}
-	return false
-}
-
-func (cn *ConnectionsStateDb) IsFrom(connIdx int) bool {
-	return cn.GetConnectionState(connIdx) == m3path.ConnectionFrom
-}
-
-func (cn *ConnectionsStateDb) IsNext(connIdx int) bool {
-	return cn.GetConnectionState(connIdx) == m3path.ConnectionNext
-}
-
-func (cn *ConnectionsStateDb) IsDeadEnd(connIdx int) bool {
-	return cn.GetConnectionState(connIdx) == m3path.ConnectionBlocked
 }
 
 func (pn *PathNodeDb) setDeadEnd(connIdx int) {
@@ -576,6 +583,10 @@ func (pn *PathNodeDb) clearLinkNodes() {
 		pn.linkNodes[i] = nil
 	}
 }
+
+/***************************************************************/
+// ErrorType Functions
+/***************************************************************/
 
 type ErrorType int
 

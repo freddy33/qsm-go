@@ -195,7 +195,19 @@ func (evt *EventDb) GetNbNodesBetween(from, to m3space.DistAndTime) (int, error)
 	return res, err
 }
 
-func (evt *EventDb) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]*EventNodeDb, error) {
+func (evt *EventDb) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space.EventNodeIfc, error) {
+	evtNodes, err := evt.GetActiveNodesDbAt(currentTime)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]m3space.EventNodeIfc, len(evtNodes))
+	for i := 0; i < len(evtNodes); i++ {
+		res[i] = evtNodes[i]
+	}
+	return res, nil
+}
+
+func (evt *EventDb) GetActiveNodesDbAt(currentTime m3space.DistAndTime) ([]*EventNodeDb, error) {
 	var err error
 	for evt.maxNodeTime < currentTime {
 		err = evt.increaseMaxNodeTime()

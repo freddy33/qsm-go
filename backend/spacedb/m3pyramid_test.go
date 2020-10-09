@@ -24,7 +24,7 @@ func TestCreateAllIndexes(t *testing.T) {
 
 func createAllIndexesForContext(t assert.TestingT, ctxType m3point.GrowthType) [][4]int {
 	nbIndexes := ctxType.GetNbIndexes()
-	res, idxs := CreateAllIndexes(nbIndexes)
+	res, idxs := m3space.CreateAllIndexes(nbIndexes)
 	assert.NotNil(t, res)
 	for i := 0; i < len(idxs)/2; i++ {
 		assert.Equal(t, idxs[i*2], idxs[i*2+1], "failed index value for %d %v", i, ctxType)
