@@ -5,8 +5,9 @@ package m3api
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -226,9 +227,9 @@ func (m *PathContextResponseMsg) GetMaxDist() int32 {
 }
 
 type PathNodesRequestMsg struct {
-	PathCtxId            int32    `protobuf:"varint,1,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id"`
-	Dist                 int32    `protobuf:"varint,2,opt,name=dist,proto3" json:"dist"`
-	ToDist               int32    `protobuf:"varint,3,opt,name=to_dist,json=toDist,proto3" json:"to_dist"`
+	PathCtxId            int32    `protobuf:"varint,1,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id" query:"path_ctx_id"`
+	Dist                 int32    `protobuf:"varint,2,opt,name=dist,proto3" json:"dist" query:"dist"`
+	ToDist               int32    `protobuf:"varint,3,opt,name=to_dist,json=toDist,proto3" json:"to_dist" query:"to_dist"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

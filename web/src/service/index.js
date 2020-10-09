@@ -122,11 +122,12 @@ const getPathNodes = async (pathContextId, toDist) => {
   const resp = await axios({
     method: 'get',
     url: `${REACT_APP_BACKEND_URL}/path-nodes`,
-    data: {
+    params: {
       path_ctx_id: pathContextId,
       dist: 0,
       to_dist: toDist,
     },
+    data: null,
     headers: {
       'Content-Type': 'application/json',
     },

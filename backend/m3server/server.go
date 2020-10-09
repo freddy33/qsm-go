@@ -4,12 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/backend/spacedb"
-	"github.com/freddy33/qsm-go/m3util"
-	"github.com/freddy33/qsm-go/model/m3api"
-	"github.com/golang/protobuf/proto"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,6 +11,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/hetiansu5/urlquery"
+
+	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/backend/spacedb"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/golang/protobuf/proto"
+	"github.com/gorilla/mux"
 )
 
 type QsmApp struct {
@@ -73,14 +76,27 @@ func getRequestType(w http.ResponseWriter, r *http.Request) string {
 }
 
 func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
-	b, err := ioutil.ReadAll(r.Body)
+	var err error
+	var b []byte
+
+	// read data from query string for GET
+	if r.Method == http.MethodGet {
+		b = []byte(r.URL.Query().Encode())
+	} else {
+		b, err = ioutil.ReadAll(r.Body)
+	}
+
 	if err != nil {
 		SendResponse(w, http.StatusBadRequest, "req body could not be read req body due to: %s", err.Error())
 		return false
 	}
 	reqContentType := getRequestType(w, r)
 	if reqContentType == "json" {
-		err = json.Unmarshal(b, reqMsg)
+		if r.Method == http.MethodGet {
+			err = urlquery.Unmarshal(b, &reqMsg)
+		} else {
+			err = json.Unmarshal(b, reqMsg)
+		}
 	} else if reqContentType == "proto" {
 		err = proto.Unmarshal(b, reqMsg)
 	} else {
@@ -90,6 +106,23 @@ func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message
 		SendResponse(w, http.StatusBadRequest, "req body could not be parsed due to: %s", err.Error())
 		return false
 	}
+	return true
+}
+
+func UnmarshalGetRequest(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
+	reqContentType := getRequestType(w, r)
+	if reqContentType == "proto" {
+		return ReadRequestMsg(w, r, reqMsg)
+	}
+
+	bytes := []byte(r.URL.Query().Encode())
+
+	err := urlquery.Unmarshal(bytes, &reqMsg)
+	if err != nil {
+		SendResponse(w, http.StatusBadRequest, "req could not be parsed due to: %s", err.Error())
+		return false
+	}
+
 	return true
 }
 

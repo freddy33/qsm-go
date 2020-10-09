@@ -1,11 +1,12 @@
 package m3server
 
 import (
+	"net/http"
+
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"net/http"
 )
 
 func createPathContext(w http.ResponseWriter, r *http.Request) {
