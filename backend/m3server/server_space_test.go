@@ -63,11 +63,12 @@ func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
 	}
 	resMsg := &m3api.SpaceMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "SpaceMsg",
-		methodName:  "PUT",
-		uri:         "/space",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "SpaceMsg",
+		methodName:          "PUT",
+		uri:                 "/space",
 	}, reqMsg, resMsg) {
 		return -1, "failed"
 	}
@@ -89,11 +90,12 @@ func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
 func callGetAllSpaces(t *testing.T, router *mux.Router) []*m3api.SpaceMsg {
 	pMsg := &m3api.SpaceListMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "SpaceListMsg",
-		methodName:  "GET",
-		uri:         "/space",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "SpaceListMsg",
+		methodName:          "GET",
+		uri:                 "/space",
 	}, nil, pMsg) {
 		return nil
 	}
@@ -118,11 +120,12 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	}
 	resMsg := new(m3api.EventMsg)
 	if !sendAndReceive(t, &requestTest{
-		router:      qsmApp.Router,
-		contentType: "proto",
-		typeName:    "EventMsg",
-		methodName:  "PUT",
-		uri:         "/event",
+		router:              qsmApp.Router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "EventMsg",
+		methodName:          "PUT",
+		uri:                 "/event",
 	}, reqMsg, resMsg) {
 		return -1
 	}
@@ -151,11 +154,12 @@ func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activ
 	}
 	spaceTimeResponse := &m3api.SpaceTimeResponseMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "SpaceTimeResponseMsg",
-		methodName:  "POST",
-		uri:         "/space-time",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "SpaceTimeResponseMsg",
+		methodName:          "POST",
+		uri:                 "/space-time",
 	}, reqMsg, spaceTimeResponse) {
 		return false
 	}

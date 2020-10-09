@@ -42,11 +42,12 @@ func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
 	}
 	resMsg := &m3api.PathContextResponseMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      qsmApp.Router,
-		contentType: "proto",
-		typeName:    "PathContextResponseMsg",
-		methodName:  "POST",
-		uri:         "/path-context",
+		router:              qsmApp.Router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "PathContextResponseMsg",
+		methodName:          "POST",
+		uri:                 "/path-context",
 	}, reqMsg, resMsg) {
 		return -1, -1
 	}
@@ -81,11 +82,12 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist *int, router *mux
 		}
 		resMaxMsg := &m3api.PathNodesResponseMsg{}
 		if !sendAndReceive(t, &requestTest{
-			router:      router,
-			contentType: "proto",
-			typeName:    "PathNodesResponseMsg",
-			methodName:  "PUT",
-			uri:         "/max-dist",
+			router:              router,
+			requestContentType:  "proto",
+			responseContentType: "proto",
+			typeName:            "PathNodesResponseMsg",
+			methodName:          "PUT",
+			uri:                 "/max-dist",
 		}, reqMaxMsg, resMaxMsg) {
 			return false
 		}
@@ -114,11 +116,12 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist *int, router *mux
 	}
 	resNbMsg := &m3api.PathNodesResponseMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "PathNodesResponseMsg",
-		methodName:  "GET",
-		uri:         "/nb-path-nodes",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "PathNodesResponseMsg",
+		methodName:          "GET",
+		uri:                 "/nb-path-nodes",
 	}, reqNbMsg, resNbMsg) {
 		return false
 	}
@@ -143,11 +146,12 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist *int, router *mux
 	}
 	pathNodesResp := &m3api.PathNodesResponseMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "PathNodesResponseMsg",
-		methodName:  "GET",
-		uri:         "/path-nodes",
+		router:              router,
+		requestContentType:  "query",
+		responseContentType: "json",
+		typeName:            "PathNodesResponseMsg",
+		methodName:          "GET",
+		uri:                 "/path-nodes",
 	}, reqMsg, pathNodesResp) {
 		return false
 	}

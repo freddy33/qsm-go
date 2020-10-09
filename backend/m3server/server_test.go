@@ -17,11 +17,12 @@ import (
 )
 
 type requestTest struct {
-	router      *mux.Router
-	contentType string
-	typeName    string
-	methodName  string
-	uri         string
+	router              *mux.Router
+	requestContentType  string
+	responseContentType string
+	typeName            string
+	methodName          string
+	uri                 string
 }
 
 func (req *requestTest) String() string {
@@ -71,11 +72,12 @@ func TestReadPointData(t *testing.T) {
 	initDB(t, router)
 	pMsg := &m3api.PointPackDataMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "PointPackDataMsg",
-		methodName:  "GET",
-		uri:         "/point-data",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "PointPackDataMsg",
+		methodName:          "GET",
+		uri:                 "/point-data",
 	}, nil, pMsg) {
 		return
 	}
@@ -119,9 +121,9 @@ func verifyResponseContentType(t *testing.T, rr *httptest.ResponseRecorder, req 
 		return false
 	}
 	var firstPart string
-	if req.contentType == "json" {
+	if req.responseContentType == "json" {
 		firstPart = "application/json"
-	} else if req.contentType == "proto" {
+	} else if req.responseContentType == "proto" {
 		firstPart = "application/x-protobuf"
 	}
 	if !assert.Equal(t, contentTypeSplit[0], firstPart, "fail on %q for %v", contentType, req) {
@@ -141,12 +143,12 @@ func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg
 	var httpReq *http.Request
 	if reqMsg != nil {
 		var reqBytes []byte
-		if req.contentType == "json" {
+		if req.responseContentType == "json" {
 			reqBytes, err = json.Marshal(reqMsg)
-		} else if req.contentType == "proto" {
+		} else if req.responseContentType == "proto" {
 			reqBytes, err = proto.Marshal(reqMsg)
 		} else {
-			return assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
+			return assert.Fail(t, "Invalid content type %q for %v", req.responseContentType, req)
 		}
 		if !assert.NoError(t, err, "could not marshal %v", req) {
 			return false
@@ -159,12 +161,12 @@ func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg
 		return false
 	}
 
-	if req.contentType == "json" {
+	if req.responseContentType == "json" {
 		httpReq.Header.Set("Content-Type", "application/json")
-	} else if req.contentType == "proto" {
+	} else if req.responseContentType == "proto" {
 		httpReq.Header.Set("Content-Type", "application/x-protobuf")
 	} else {
-		return assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
+		return assert.Fail(t, "Invalid content type %q for %v", req.responseContentType, req)
 	}
 	rr := httptest.NewRecorder()
 	req.router.ServeHTTP(rr, httpReq)
@@ -177,12 +179,12 @@ func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg
 		if !assert.NoError(t, err, "Fail to read bytes for %v", req) {
 			return false
 		}
-		if req.contentType == "json" {
+		if req.responseContentType == "json" {
 			err = json.Unmarshal(b, resMsg)
-		} else if req.contentType == "proto" {
+		} else if req.responseContentType == "proto" {
 			err = proto.Unmarshal(b, resMsg)
 		} else {
-			return assert.Fail(t, "Invalid content type %q for %v", req.contentType, req)
+			return assert.Fail(t, "Invalid content type %q for %v", req.responseContentType, req)
 		}
 		return assert.NoError(t, err, "Fail to marshall bytes of %v", req)
 	} else {

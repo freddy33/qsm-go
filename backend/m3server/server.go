@@ -4,6 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/freddy33/qsm-go/backend/m3db"
+	"github.com/freddy33/qsm-go/backend/spacedb"
+	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/golang/protobuf/proto"
+	"github.com/gorilla/mux"
+	"github.com/hetiansu5/urlquery"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,15 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/hetiansu5/urlquery"
-
-	"github.com/freddy33/qsm-go/backend/m3db"
-	"github.com/freddy33/qsm-go/backend/spacedb"
-	"github.com/freddy33/qsm-go/m3util"
-	"github.com/freddy33/qsm-go/model/m3api"
-	"github.com/golang/protobuf/proto"
-	"github.com/gorilla/mux"
 )
 
 type QsmApp struct {
@@ -70,17 +68,20 @@ func getRequestType(w http.ResponseWriter, r *http.Request) string {
 	} else if strings.HasPrefix(reqContentType, "application/x-protobuf") {
 		return "proto"
 	} else {
-		SendResponse(w, http.StatusBadRequest, "unsupported content type %q", reqContentType)
-		return "error"
+		return "query"
+		//SendResponse(w, http.StatusBadRequest, "unsupported content type %q", reqContentType)
+		//return "error"
 	}
 }
 
 func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
+	reqContentType := getRequestType(w, r)
+
 	var err error
 	var b []byte
 
 	// read data from query string for GET
-	if r.Method == http.MethodGet {
+	if reqContentType == "query" {
 		b = []byte(r.URL.Query().Encode())
 	} else {
 		b, err = ioutil.ReadAll(r.Body)
@@ -90,13 +91,10 @@ func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message
 		SendResponse(w, http.StatusBadRequest, "req body could not be read req body due to: %s", err.Error())
 		return false
 	}
-	reqContentType := getRequestType(w, r)
-	if reqContentType == "json" {
-		if r.Method == http.MethodGet {
-			err = urlquery.Unmarshal(b, &reqMsg)
-		} else {
-			err = json.Unmarshal(b, reqMsg)
-		}
+	if reqContentType == "query" {
+		err = urlquery.Unmarshal(b, reqMsg)
+	} else if reqContentType == "json" {
+		err = json.Unmarshal(b, reqMsg)
 	} else if reqContentType == "proto" {
 		err = proto.Unmarshal(b, reqMsg)
 	} else {
@@ -131,7 +129,11 @@ func WriteResponseMsg(w http.ResponseWriter, r *http.Request, resMsg proto.Messa
 
 	reqContentType := getRequestType(w, r)
 	// Return same type has request payload by default
-	if reqContentType == "json" {
+	if reqContentType == "query" {
+		// return json payload by default on query params
+		useProtobuf = false
+		useJson = true
+	} else if reqContentType == "json" {
 		useProtobuf = false
 		useJson = true
 	} else if reqContentType == "proto" {
