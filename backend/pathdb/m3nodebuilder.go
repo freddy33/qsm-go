@@ -9,7 +9,7 @@ type OpenNodeBuilder struct {
 	pathCtx                        *PathContextDb
 	d                              int
 	expectedSize                   int
-	openNodesMap                   m3path.PathNodeMap
+	openNodesMap                   ServerPathNodeMap
 	selectConflict, insertConflict int
 }
 
@@ -28,9 +28,9 @@ func createCurrentNodeBuilder(pathCtx *PathContextDb) (*OpenNodeBuilder, error) 
 	res.d = lastNodes[0].D()
 	res.expectedSize = m3path.CalculatePredictedSize(pathCtx.GetGrowthType(), res.d)
 	if res.expectedSize > 32 {
-		res.openNodesMap = m3path.MakeHashPathNodeMap(res.expectedSize)
+		res.openNodesMap = MakeHashPathNodeMap(res.expectedSize)
 	} else {
-		res.openNodesMap = m3path.MakeSimplePathNodeMap(res.expectedSize)
+		res.openNodesMap = MakeSimplePathNodeMap(res.expectedSize)
 	}
 
 	for i := 0; i < len(lastNodes); i++ {
@@ -46,16 +46,16 @@ func createNextNodeBuilder(previous *OpenNodeBuilder) *OpenNodeBuilder {
 	res.d = previous.d + 1
 	res.expectedSize = m3path.CalculatePredictedSize(res.pathCtx.GetGrowthType(), res.d)
 	if res.expectedSize > 32 {
-		res.openNodesMap = m3path.MakeHashPathNodeMap(res.expectedSize)
+		res.openNodesMap = MakeHashPathNodeMap(res.expectedSize)
 	} else {
-		res.openNodesMap = m3path.MakeSimplePathNodeMap(res.expectedSize)
+		res.openNodesMap = MakeSimplePathNodeMap(res.expectedSize)
 	}
 	return res
 }
 
 func (onb *OpenNodeBuilder) addPathNode(pn *PathNodeDb) *PathNodeDb {
 	res, _ := onb.openNodesMap.AddPathNode(pn)
-	return res.(*PathNodeDb)
+	return res
 }
 
 func (onb *OpenNodeBuilder) openNodesSize() int {

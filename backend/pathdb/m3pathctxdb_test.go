@@ -15,7 +15,7 @@ func TestNodeSyncPool(t *testing.T) {
 	assert.Equal(t, int64(-1), pn.id)
 	assert.Equal(t, -1, pn.pathCtxId)
 	for i := 0; i < 3; i++ {
-		assert.Equal(t, int64(-3), pn.linkIds[1])
+		assert.Equal(t, int64(-3), pn.LinkIds[1])
 	}
 
 	pn.release()
@@ -29,7 +29,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	m3util.SetToTestMode()
 	env := GetPathDbFullEnv(m3util.PathTestEnv)
 
-	pointData := pointdb.GetPointPackData(env)
+	pointData := pointdb.GetServerPointPackData(env)
 	pathData := GetServerPathPackData(env)
 
 	growthCtx := pointData.GetGrowthContextById(40)
@@ -37,7 +37,7 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, 40, growthCtx.GetId())
 	assert.Equal(t, m3point.GrowthType(8), growthCtx.GetGrowthType())
 	assert.Equal(t, 0, growthCtx.GetGrowthIndex())
-	pathCtx, err := pathData.GetPathCtxDb(growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex(), 0)
+	pathCtx, err := pathData.GetPathCtxDbFromAttributes(growthCtx.GetGrowthType(), growthCtx.GetGrowthIndex(), 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, pathCtx)
 	assert.Equal(t, 1, pathCtx.GetNumberOfNodesAt(0))

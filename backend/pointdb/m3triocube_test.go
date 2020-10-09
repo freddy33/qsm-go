@@ -33,12 +33,12 @@ func TestTrioCubeMaps(t *testing.T) {
 	}
 }
 
-func (ppd *ServerPointPackData) findNbCubes(growthCtx m3point.GrowthContext) (m3point.CInt, map[CubeOfTrioIndex]int) {
+func (pointData *ServerPointPackData) findNbCubes(growthCtx m3point.GrowthContext) (m3point.CInt, map[CubeOfTrioIndex]int) {
 	nbCubes := 0
 	max := m3point.CInt(1)
 	var newCubes map[CubeOfTrioIndex]int
 	for ; max < 30; max++ {
-		newCubes = ppd.distinctCubes(growthCtx, max)
+		newCubes = pointData.distinctCubes(growthCtx, max)
 		if nbCubes == len(newCubes) {
 			Log.Debugf("Found max for %s = %d at %d", growthCtx.String(), nbCubes, max-1)
 			break
@@ -48,17 +48,17 @@ func (ppd *ServerPointPackData) findNbCubes(growthCtx m3point.GrowthContext) (m3
 	return max - 1, newCubes
 }
 
-func (ppd *ServerPointPackData) distinctCubes(growthCtx m3point.GrowthContext, max m3point.CInt) map[CubeOfTrioIndex]int {
+func (pointData *ServerPointPackData) distinctCubes(growthCtx m3point.GrowthContext, max m3point.CInt) map[CubeOfTrioIndex]int {
 	allCubes := make(map[CubeOfTrioIndex]int)
 	maxOffset := growthCtx.GetGrowthType().GetMaxOffset()
 	for offset := 0; offset < maxOffset; offset++ {
-		cube := CreateTrioCube(ppd, growthCtx, offset, m3point.Origin)
+		cube := CreateTrioCube(pointData, growthCtx, offset, m3point.Origin)
 		allCubes[cube]++
 	}
 	for x := -max; x <= max; x++ {
 		for y := -max; y <= max; y++ {
 			for z := -max; z <= max; z++ {
-				cube := CreateTrioCube(ppd, growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
+				cube := CreateTrioCube(pointData, growthCtx, 0, m3point.Point{x, y, z}.Mul(m3point.THREE))
 				allCubes[cube]++
 			}
 		}

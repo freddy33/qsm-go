@@ -10,6 +10,7 @@ import (
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
+	"github.com/hetiansu5/urlquery"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -67,19 +68,32 @@ func getRequestType(w http.ResponseWriter, r *http.Request) string {
 	} else if strings.HasPrefix(reqContentType, "application/x-protobuf") {
 		return "proto"
 	} else {
-		SendResponse(w, http.StatusBadRequest, "unsupported content type %q", reqContentType)
-		return "error"
+		return "query"
+		//SendResponse(w, http.StatusBadRequest, "unsupported content type %q", reqContentType)
+		//return "error"
 	}
 }
 
 func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
-	b, err := ioutil.ReadAll(r.Body)
+	reqContentType := getRequestType(w, r)
+
+	var err error
+	var b []byte
+
+	// read data from query string for GET
+	if reqContentType == "query" {
+		b = []byte(r.URL.Query().Encode())
+	} else {
+		b, err = ioutil.ReadAll(r.Body)
+	}
+
 	if err != nil {
 		SendResponse(w, http.StatusBadRequest, "req body could not be read req body due to: %s", err.Error())
 		return false
 	}
-	reqContentType := getRequestType(w, r)
-	if reqContentType == "json" {
+	if reqContentType == "query" {
+		err = urlquery.Unmarshal(b, reqMsg)
+	} else if reqContentType == "json" {
 		err = json.Unmarshal(b, reqMsg)
 	} else if reqContentType == "proto" {
 		err = proto.Unmarshal(b, reqMsg)
@@ -93,12 +107,33 @@ func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message
 	return true
 }
 
+func UnmarshalGetRequest(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
+	reqContentType := getRequestType(w, r)
+	if reqContentType == "proto" {
+		return ReadRequestMsg(w, r, reqMsg)
+	}
+
+	bytes := []byte(r.URL.Query().Encode())
+
+	err := urlquery.Unmarshal(bytes, &reqMsg)
+	if err != nil {
+		SendResponse(w, http.StatusBadRequest, "req could not be parsed due to: %s", err.Error())
+		return false
+	}
+
+	return true
+}
+
 func WriteResponseMsg(w http.ResponseWriter, r *http.Request, resMsg proto.Message) {
 	var useProtobuf, useJson bool
 
 	reqContentType := getRequestType(w, r)
 	// Return same type has request payload by default
-	if reqContentType == "json" {
+	if reqContentType == "query" {
+		// return json payload by default on query params
+		useProtobuf = false
+		useJson = true
+	} else if reqContentType == "json" {
 		useProtobuf = false
 		useJson = true
 	} else if reqContentType == "proto" {

@@ -108,7 +108,7 @@ func (pathCtx *PathContextDb) GetMaxDist() int {
 	return pathCtx.maxDist
 }
 
-func (pathCtx *PathContextDb) GetPathNodeMap() m3path.PathNodeMap {
+func (pathCtx *PathContextDb) GetPathNodeMap() ServerPathNodeMap {
 	Log.Fatalf("in DB path context %s never call GetPathNodeMap", pathCtx.String())
 	return nil
 }
@@ -139,7 +139,7 @@ func (pathCtx *PathContextDb) GetNumberOfNodesAt(dist int) int {
 	return count
 }
 
-func (pathCtx *PathContextDb) createConnection(currentD int, fromNode *PathNodeDb, cd *m3point.ConnectionDetails, connIdx int, nextPathNode *PathNodeDb) {
+func (pathCtx *PathContextDb) createConnection(fromNode *PathNodeDb, cd *m3point.ConnectionDetails, connIdx int, nextPathNode *PathNodeDb) {
 	if nextPathNode.d != fromNode.d+1 {
 		Log.Errorf("Got path node %s p=%v but not correct distance since %d != %d + 1!", nextPathNode.String(), nextPathNode.P(), nextPathNode.d, fromNode.d)
 		// Blocking link
@@ -155,9 +155,9 @@ func (pathCtx *PathContextDb) createConnection(currentD int, fromNode *PathNodeD
 		// Link the destination node to this link
 		fromNode.SetConnectionState(connIdx, m3path.ConnectionNext)
 		if nextPathNode.id <= 0 {
-			fromNode.linkIds[connIdx] = NextLinkIdNotAssigned
+			fromNode.LinkIds[connIdx] = NextLinkIdNotAssigned
 		} else {
-			fromNode.linkIds[connIdx] = nextPathNode.id
+			fromNode.LinkIds[connIdx] = nextPathNode.id
 		}
 		fromNode.linkNodes[connIdx] = nextPathNode
 	}
@@ -189,11 +189,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 				// point back to previous distance outgrowth so d + 1 != d => dead end
 				on.setDeadEnd(i)
 			} else {
-				var pn *PathNodeDb
-				pn1 := next.openNodesMap.GetPathNode(np)
-				if pn1 != nil {
-					pn = pn1.(*PathNodeDb)
-				}
+				pn := next.openNodesMap.GetPathNode(np)
 				if pn == nil {
 					// Find if there is a old path node
 					pnIdInDB := pathCtx.getPathNodeIdByPoint(pId)
@@ -208,7 +204,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 						pn.pathCtx = pathCtx
 						pn.SetPathBuilder(npnb)
 						pn.SetTrioId(npnb.GetTrioIndex())
-						pn.trioDetails = nil
+						pn.TrioDetails = nil
 						pn.point = &np
 						pn.pointId = pId
 						pn.d = next.d
@@ -216,13 +212,13 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 						fromMap, inserted := next.openNodesMap.AddPathNode(pn)
 						if !inserted {
 							pn.release()
-							pn = fromMap.(*PathNodeDb)
+							pn = fromMap
 						}
 					}
 				}
 				if pn != nil {
 					// The pn may not be in DB yet be careful using id
-					pathCtx.createConnection(next.d, on, cd, i, pn)
+					pathCtx.createConnection(on, cd, i, pn)
 				}
 			}
 		}
@@ -230,6 +226,15 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 }
 
 func (pathCtx *PathContextDb) GetPathNodesAt(dist int) ([]m3path.PathNode, error) {
+	if dist == 0 && pathCtx.rootNode != nil {
+		res := make([]m3path.PathNode, 1)
+		res[0] = pathCtx.rootNode
+		return res, nil
+	}
+
+	if dist > 0 {
+		Log.Debugf("Retrieving all path nodes of %s for dist %d", pathCtx.String(), dist)
+	}
 	te := pathCtx.pathData.pathNodesTe
 	rows, err := te.Query(SelectPathNodesByCtxAndDistance, pathCtx.GetId(), dist)
 	if err != nil {
@@ -249,6 +254,9 @@ func (pathCtx *PathContextDb) GetPathNodesAt(dist int) ([]m3path.PathNode, error
 			pn.pathCtx = pathCtx
 			res = append(res, pn)
 		}
+	}
+	if dist > 0 {
+		Log.Debugf("Returning %d path nodes of %s for dist %d", len(res), pathCtx.String(), dist)
 	}
 	return res, nil
 }
@@ -281,39 +289,6 @@ func (pathCtx *PathContextDb) GetPathNodesBetween(fromDist, toDist int) ([]m3pat
 	return res, nil
 }
 
-type RangeErrorCollector struct {
-	lastError     error
-	collectErrors chan error
-	done          chan int
-}
-
-func MakeRangeErrorCollector() *RangeErrorCollector {
-	return &RangeErrorCollector{
-		lastError:     nil,
-		collectErrors: make(chan error),
-		done:          make(chan int),
-	}
-}
-
-func (ec *RangeErrorCollector) reset() {
-	ec.lastError = nil
-}
-
-func (ec *RangeErrorCollector) listen() {
-	for {
-		select {
-		case err := <-ec.collectErrors:
-			ec.lastError = err
-			Log.Error(err)
-		case nbDone := <-ec.done:
-			if Log.IsDebug() {
-				Log.Debugf("Done %d", nbDone)
-			}
-			break
-		}
-	}
-}
-
 // TODO: This should be in path data entry of the env
 var nbParallelProcesses = 8
 
@@ -321,6 +296,7 @@ func (pathCtx *PathContextDb) RequestNewMaxDist(requestDist int) error {
 	if requestDist <= pathCtx.GetMaxDist() {
 		return nil
 	}
+	Log.Debugf("Path context %s will set to new dist %d from %d", pathCtx.String(), requestDist, pathCtx.GetMaxDist())
 	nbExecution := 0
 	for d := pathCtx.GetMaxDist() + 1; d <= requestDist; d++ {
 		err := pathCtx.calculateNextMaxDist()
@@ -333,6 +309,7 @@ func (pathCtx *PathContextDb) RequestNewMaxDist(requestDist int) error {
 		return m3util.MakeQsmErrorf("After executing %d next max dist on path context %d the max dist %d still not the requested value %d",
 			nbExecution, pathCtx.GetId(), pathCtx.GetMaxDist(), requestDist)
 	}
+	Log.Infof("Path context %s max dist set to %d", pathCtx.String(), pathCtx.GetMaxDist())
 	return nil
 }
 
@@ -343,17 +320,18 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 	}
 	next := createNextNodeBuilder(current)
 
-	ec := MakeRangeErrorCollector()
-	go ec.listen()
+	Log.Debugf("Moving %s from %d to %d", pathCtx.String(), current.d, next.d)
 
-	current.openNodesMap.Range(func(point m3point.Point, pn m3path.PathNode) bool {
-		on := pn.(*PathNodeDb)
+	rc := m3point.MakeRangeContext(false, nbParallelProcesses, Log)
+	defer rc.Close()
+
+	current.openNodesMap.Range(func(point m3point.Point, on *PathNodeDb) bool {
 		if on.id < 0 {
-			ec.collectErrors <- m3util.MakeQsmErrorf("An open end path node %s is a not saved node", on.String())
+			rc.SendError(m3util.MakeQsmErrorf("An open end path node %s is a not saved node", on.String()))
 			return false
 		}
 		if on.IsNew() {
-			ec.collectErrors <- m3util.MakeQsmErrorf("An open end path node %s is new!", on.String())
+			rc.SendError(m3util.MakeQsmErrorf("An open end path node %s is new!", on.String()))
 			return false
 		}
 		if !on.HasOpenConnections() {
@@ -362,67 +340,61 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 			}
 			return false
 		}
-		if on.trioId == m3point.NilTrioIndex {
-			ec.collectErrors <- m3util.MakeQsmErrorf("reached a node without trio id %s", on.String())
+		if on.TrioId == m3point.NilTrioIndex {
+			rc.SendError(m3util.MakeQsmErrorf("reached a node without trio id %s", on.String()))
 			return true
 		}
-		td := on.GetTrioDetails()
+		td := on.GetTrioDetails(pathCtx.pointData)
 		if td == nil {
-			ec.collectErrors <- m3util.MakeQsmErrorf("reached a node without trio %s %s", on.String(), on.GetTrioIndex())
+			rc.SendError(m3util.MakeQsmErrorf("reached a node without trio %s %s", on.String(), on.GetTrioIndex()))
 			return true
 		}
 		pathCtx.makeNewNodes(current, next, on, td)
 		return false
-	}, nbParallelProcesses)
-
-	ec.done <- next.openNodesMap.Size()
-	if ec.lastError != nil {
-		return ec.lastError
+	}, rc)
+	if rc.GetFirstError() != nil {
+		return rc.GetFirstError()
 	}
-	ec.reset()
 
+	rc.Reset()
 	// Save all the new path node to DB
-	next.openNodesMap.Range(func(point m3point.Point, pn m3path.PathNode) bool {
-		on := pn.(*PathNodeDb)
+	next.openNodesMap.Range(func(point m3point.Point, on *PathNodeDb) bool {
 		err := on.syncInDb()
 		if err != nil {
-			ec.collectErrors <- err
+			rc.SendError(err)
+			return true
 		} else {
 			if on.state == InConflictNode {
 				next.insertConflict++
 			}
 		}
 		return false
-	}, nbParallelProcesses)
-
-	ec.done <- next.openNodesMap.Size()
-	if ec.lastError != nil {
-		return ec.lastError
+	}, rc)
+	if rc.GetFirstError() != nil {
+		return rc.GetFirstError()
 	}
-	ec.reset()
 
+	rc.Reset()
 	// Update all the previous path node to DB
 	// TODO: The update nodes may not be those only
-	current.openNodesMap.Range(func(point m3point.Point, pn m3path.PathNode) bool {
-		on := pn.(*PathNodeDb)
+	current.openNodesMap.Range(func(point m3point.Point, on *PathNodeDb) bool {
 		err := on.syncInDb()
 		if err != nil {
-			ec.collectErrors <- err
+			rc.SendError(err)
+			return true
 		} else {
 			if on.state == InConflictNode {
-				ec.collectErrors <- m3util.MakeQsmErrorf("current path node %s cannot be in conflict!", on.String())
+				rc.SendError(m3util.MakeQsmErrorf("current path node %s cannot be in conflict!", on.String()))
 				current.insertConflict++
 			}
 		}
 		return false
-	}, nbParallelProcesses)
+	}, rc)
 
-	ec.done <- next.openNodesMap.Size()
-	if ec.lastError != nil {
-		return ec.lastError
+	// Don't care much about errors for theses
+	if rc.GetFirstError() != nil {
+		Log.Warn("Got error while saving old nodes: %v", rc.GetFirstError())
 	}
-	ec.reset()
-
 	Log.Infof("%s from=%d to=%d : move from %d to %d nodes with %d %d conflicts", pathCtx.String(), current.d, next.d, current.openNodesSize(), next.openNodesSize(), next.selectConflict, next.insertConflict)
 
 	pathCtx.maxDist = next.d
@@ -433,6 +405,9 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 	if rowAffected != 1 {
 		return m3util.MakeQsmErrorf("updating path context %s with new max dist %d returned wrong rows %d", pathCtx.String(), pathCtx.maxDist, rowAffected)
 	}
+
+	current.openNodesMap.Clear()
+	next.openNodesMap.Clear()
 	return nil
 }
 
@@ -468,7 +443,7 @@ func (pathCtx *PathContextDb) GetPathNodeDb(id int64) (*PathNodeDb, error) {
 func createPathCtxFromDbRows(rows *sql.Rows, pathData *ServerPathPackData) (*PathContextDb, error) {
 	pathCtx := new(PathContextDb)
 	pathCtx.pathData = pathData
-	pathCtx.pointData = pointdb.GetPointPackData(pathData.env)
+	pathCtx.pointData = pointdb.GetServerPointPackData(pathData.env)
 	var growthCtxId, pathBuilderId int
 	err := rows.Scan(&pathCtx.id, &growthCtxId, &pathCtx.growthOffset, &pathBuilderId, &pathCtx.maxDist)
 	if err != nil {

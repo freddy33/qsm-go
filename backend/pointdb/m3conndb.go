@@ -48,8 +48,8 @@ func createTrioDetailsTableDef() *m3db.TableDefinition {
 // Connection Details Load and Save
 /***************************************************************/
 
-func (ppd *ServerPointPackData) loadConnectionDetails() error {
-	te := ppd.connDetailsTe
+func (pointData *ServerPointPackData) loadConnectionDetails() error {
+	te := pointData.connDetailsTe
 	rows, err := te.SelectAllForLoad()
 	if err != nil {
 		return err
@@ -69,20 +69,20 @@ func (ppd *ServerPointPackData) loadConnectionDetails() error {
 		}
 	}
 
-	ppd.AllConnections = res
-	ppd.AllConnectionsByVector = connMap
-	ppd.ConnectionsLoaded = true
+	pointData.AllConnections = res
+	pointData.AllConnectionsByVector = connMap
+	pointData.ConnectionsLoaded = true
 	return nil
 }
 
-func (ppd *ServerPointPackData) saveAllConnectionDetails() (int, error) {
-	te := ppd.connDetailsTe
+func (pointData *ServerPointPackData) saveAllConnectionDetails() (int, error) {
+	te := pointData.connDetailsTe
 	inserted, toFill, err := te.GetForSaveAll()
 	if err != nil {
 		return 0, err
 	}
 	if toFill {
-		connections, _ := ppd.calculateConnectionDetails()
+		connections, _ := pointData.calculateConnectionDetails()
 		if Log.IsDebug() {
 			Log.Debugf("Populating table %s with %d elements", te.GetFullTableName(), len(connections))
 		}

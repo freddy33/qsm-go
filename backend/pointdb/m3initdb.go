@@ -25,7 +25,7 @@ func GetPointDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	if err != nil {
 		Log.Fatal(err)
 	}
-	pointData := GetPointPackData(env)
+	pointData := GetServerPointPackData(env)
 	pointData.createTables()
 
 	testDbFilled[envId] = true
@@ -56,7 +56,7 @@ func GetPointDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 		Log.Fatal(err)
 	}
 
-	pointData := GetPointPackData(env)
+	pointData := GetServerPointPackData(env)
 	pointData.createTables()
 
 	return env

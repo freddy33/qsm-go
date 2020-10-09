@@ -18,6 +18,8 @@ type PointPackDataIfc interface {
 	GetGrowthContextByTypeAndIndex(growthType GrowthType, index int) GrowthContext
 	GetGrowthContextById(id int) GrowthContext
 
+	GetTrioDetails(trIdx TrioIndex) *TrioDetails
+
 	// Follow should be used by UI
 	GetAllGrowthContexts() []GrowthContext
 

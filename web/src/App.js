@@ -1,51 +1,99 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import _ from 'lodash';
+import Select from 'react-select';
 
 import Service from './service';
 import Renderer from './renderer';
 
-const convertPointPackDataMsgToState = (pointPackDataMsg) => {
-  const connections = {};
-  const trios = {};
-  pointPackDataMsg.getAllConnectionsList().forEach((conn) => {
-    connections[conn.getConnId()] = {
-      connId: conn.getConnId(),
-      ds: conn.getDs(),
-      vector: {
-        x: conn.getVector().getX(),
-        y: conn.getVector().getY(),
-        z: conn.getVector().getZ(),
-      },
-    };
-  });
-
-  pointPackDataMsg.getAllTriosList().forEach((trio) => {
-    trios[trio.getTrioId()] = {
-      trioId: trio.getTrioId(),
-      connIds: trio.getConnIdsList(),
-    };
-  });
-
-  return { connections, trios };
-};
+const growthTypeOptions = [1, 2, 3, 4, 8].map((v) => ({ value: v, label: v }));
+const growthIndexOptions = [...Array(12).keys()].map((v) => ({ value: v, label: v }));
+const growthOffsetOptions = [...Array(12).keys()].map((v) => ({ value: v, label: v }));
 
 const App = () => {
   const mount = useRef(null);
 
-  const [rotating, setRotating] = useState(true);
   const [scene, setScene] = useState();
   const [camera, setCamera] = useState();
   const [renderer, setRenderer] = useState();
   const [pointPackDataMsg, setPointPackDataMsg] = useState();
-  const [dataInput, setDataInput] = useState('');
+  const [growthTypeOption, setGrowthTypeOption] = useState(_.last(growthTypeOptions));
+  const [growthIndexOption, setGrowthIndexOption] = useState(_.first(growthIndexOptions));
+  const [growthOffsetOption, setGrowthOffsetOption] = useState(_.first(growthOffsetOptions));
+  const [currentPathContextId, setCurrentPathContextId] = useState();
+  const [maxDist, setMaxDist] = useState(0);
+  const [tree, setTree] = useState();
+
+  const fetchPointPackDataMsg = () => {
+    Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
+      setPointPackDataMsg(pointPackDataMsg);
+    });
+  };
+
+  const createPathContext = async () => {
+    const resp = await Service.createPathContext(
+      growthTypeOption.value,
+      growthIndexOption.value,
+      growthOffsetOption.value
+    );
+
+    const point = _.get(resp, 'root_path_node.point');
+    if (!point) return;
+    Renderer.addPoint(scene, point);
+
+    const pathContextId = _.get(resp, 'path_ctx_id');
+    setCurrentPathContextId(pathContextId);
+
+    const maxDist = _.get(resp, 'max_dist', 0);
+    setMaxDist(maxDist);
+  };
+
+  const updateMaxDist = async () => {
+    const resp = await Service.updateMaxDist(currentPathContextId, parseInt(maxDist));
+
+    const dist = _.get(resp, 'max_dist');
+    if (!dist) {
+      alert(resp);
+    }
+
+    setMaxDist(dist);
+    await getPathNodes();
+  };
+
+  const getPathNodes = async () => {
+    const resp = await Service.getPathNodes(currentPathContextId, maxDist);
+    const pathNodes = _.get(resp, 'path_nodes', []);
+
+    const sortByDist = _.sortBy(pathNodes, ['d']);
+
+    const nodeMap = {};
+    sortByDist.forEach((node) => {
+      const linkedPathNodeIds = _.get(node, 'linked_path_node_ids', []);
+
+      linkedPathNodeIds.forEach((precedingNodeId) => {
+        const precedingNode = nodeMap[precedingNodeId];
+
+        if (!precedingNode) {
+          return;
+        }
+
+        const childNodes = _.get(precedingNode, 'childNodes', []);
+        childNodes.push(node);
+        precedingNode.childNodes = childNodes;
+      });
+
+      const pathNodeId = node.path_node_id;
+      nodeMap[pathNodeId] = node;
+    });
+
+    const nodeTree = nodeMap[sortByDist[0].path_node_id];
+
+    setTree(nodeTree);
+  };
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
-    Service.fetchPointPackDataMsg().then((response) => {
-      const pointPackDataMsg = convertPointPackDataMsgToState(response);
-      setPointPackDataMsg(pointPackDataMsg);
-    });
+    fetchPointPackDataMsg();
 
     const { clientWidth: width, clientHeight: height } = mount.current;
 
@@ -65,13 +113,27 @@ const App = () => {
     };
 
     window.addEventListener('resize', handleResize);
-
-    setDataInput(JSON.stringify(Renderer.mockPoints));
   }, []);
 
+  // useEffect(() => {
+  //   Renderer.draw(scene, Renderer.mockPoints, pointPackDataMsg);
+  // }, [pointPackDataMsg]);
+
   useEffect(() => {
-    Renderer.draw(scene, Renderer.mockPoints, pointPackDataMsg);
-  }, [pointPackDataMsg]);
+    if (!renderer) return;
+
+    const { clientWidth: width, clientHeight: height } = mount.current;
+
+    const { scene, camera, renderer: newRenderer } = Renderer.init(width, height);
+    setScene(scene);
+    setCamera(camera);
+    setRenderer(newRenderer);
+
+    mount.current.replaceChild(newRenderer.domElement, renderer.domElement);
+
+    debugger;
+    Renderer.draw(scene, tree);
+  }, [tree]);
 
   // called for every button clicks to update how the UI should render
   useEffect(() => {
@@ -79,51 +141,59 @@ const App = () => {
 
     const cameraPivot = Renderer.addCameraPivot(scene, camera);
     const animate = () => {
-      if (rotating) {
-        cameraPivot.rotateOnAxis(new THREE.Vector3(0, 1, 0), 0.01);
-      }
+      cameraPivot.rotateOnAxis(new THREE.Vector3(0, 1, 0), 0.01);
 
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
     };
 
     animate();
-  }, [rotating, scene, camera, renderer]);
+  }, [scene, camera, renderer]);
 
   return (
     <div className="main">
       <div className="panel">
         <div>
-          <textarea
+          <span>Growth Type</span>
+          <Select defaultValue={growthTypeOption} onChange={setGrowthTypeOption} options={growthTypeOptions} />
+          <span>Growth Index</span>
+          <Select defaultValue={growthIndexOption} onChange={setGrowthIndexOption} options={growthIndexOptions} />
+          <span>Growth Offset</span>
+          <Select defaultValue={growthOffsetOption} onChange={setGrowthOffsetOption} options={growthOffsetOptions} />
+        </div>
+        <div>
+          <button onClick={() => createPathContext()}>Create Path Context</button>
+        </div>
+
+        <hr />
+        <div>
+          <span>Max Dist: </span>
+          <input
+            type="number"
+            value={maxDist}
             onChange={(evt) => {
-              setDataInput(_.get(evt, 'target.value', ''));
+              debugger;
+              setMaxDist(evt.target.value);
             }}
-            rows="30"
-            value={dataInput}
           />
         </div>
         <div>
-          <button
-            onClick={() => {
-              const data = JSON.parse(dataInput);
-
-              const { clientWidth: width, clientHeight: height } = mount.current;
-
-              const { scene, camera, renderer: newRenderer } = Renderer.init(width, height);
-              setScene(scene);
-              setCamera(camera);
-              setRenderer(newRenderer);
-
-              mount.current.replaceChild(newRenderer.domElement, renderer.domElement);
-              Renderer.draw(scene, data, pointPackDataMsg);
-            }}
-          >
-            Load data
+          <button disabled={!currentPathContextId} onClick={() => updateMaxDist()}>
+            Update Max Dist
           </button>
         </div>
+        <hr />
         <div>
-          <button onClick={() => setRotating(!rotating)}>Rotate</button>
+          <button disabled={!currentPathContextId} onClick={() => getPathNodes()}>
+            Get Path Nodes (Redraw)
+          </button>
         </div>
+        {/* <div>
+          <button onClick={() => Service.initEnv()}>Init Env</button>
+        </div>
+        <div>
+          <button onClick={() => fetchPointPackDataMsg()}>Fetch PointPackDataMsg</button>
+        </div> */}
       </div>
       <div className="vis" ref={mount} />
     </div>

@@ -203,18 +203,5 @@ func (pathData *ClientPathPackData) GetPathCtxFromAttributes(growthType m3point.
 		return nil, nil
 	}
 
-	pathCtx := new(PathContextCl)
-	pathCtx.id = int(pMsg.GetPathCtxId())
-	pathCtx.env = pathData.env
-	pointData := GetClientPointPackData(pathData.env)
-	pathCtx.pointData = pointData
-	pathCtx.growthCtx = pointData.GetGrowthContextById(int(pMsg.GetGrowthContextId()))
-	pathCtx.growthOffset = int(pMsg.GetGrowthOffset())
-	pathCtx.pathNodeMap = m3path.MakeHashPathNodeMap(100)
-	pathCtx.pathNodes = make(map[int64]*PathNodeCl, 100)
-	pathCtx.rootNode = pathCtx.addPathNodeFromMsg(pMsg.RootPathNode)
-
-	pathData.pathCtxMap[pathCtx.GetId()] = pathCtx
-
-	return pathCtx, nil
+	return MakePatchContextClient(pathData, pMsg), nil
 }

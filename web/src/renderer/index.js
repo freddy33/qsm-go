@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import _ from 'lodash';
 
 const init = (width, height) => {
   const camera = new THREE.PerspectiveCamera(45, width / height, 1, 500);
@@ -71,27 +72,33 @@ const mockPoints = [...Array(10).keys()].map((i) => {
   };
 });
 
-const draw = (scene, points, pointPackDataMsg) => {
-  if (!pointPackDataMsg) {
+const draw = (scene, root) => {
+  // const connections = _.get(pointPackDataMsg, 'connections', {});
+  // const trios = _.get(pointPackDataMsg, 'trios', {});
+
+  // debugger;
+  // if (!_.size(connections) || !_.size(trios)) {
+  //   return;
+  // }
+
+  if (!root) {
     return;
   }
 
-  const { connections, trios } = pointPackDataMsg;
+  const rootPoint = _.get(root, 'point');
+  addPoint(scene, rootPoint);
 
-  points.forEach((point) => {
-    const startingPoint = { x: point.x, y: point.y, z: point.z };
-    addPoint(scene, startingPoint);
-    const trio = trios[point.trioId];
-    trio.connIds.forEach((connId) => {
-      const trio = connections[connId];
-      const connPoint = {
-        x: startingPoint.x + trio.vector.x,
-        y: startingPoint.y + trio.vector.y,
-        z: startingPoint.z + trio.vector.z,
-      };
-      addPoint(scene, connPoint);
-      addLine(scene, startingPoint, connPoint);
-    });
+  const childNodes = _.get(root, 'childNodes', []);
+
+  if (!childNodes.length) {
+    return;
+  }
+
+  childNodes.forEach((child) => {
+    const childPoint = _.get(child, 'point');
+    addPoint(scene, childPoint);
+    addLine(scene, rootPoint, childPoint);
+    draw(scene, child);
   });
 };
 

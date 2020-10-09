@@ -7,22 +7,19 @@ import "m3point.proto";
 message SpaceMsg {
     int32 space_id = 1;
     string space_name = 2;
-    int32 active_path_node_threshold = 3;
+    int32 active_threshold = 3;
     int32 max_trios_per_point = 4;
-    int32 max_path_nodes_per_point = 5;
+    int32 max_nodes_per_point = 5;
     int32 max_time = 6;
-    int32 current_time = 7;
     int32 max_coord = 8;
     repeated int32 event_ids = 9;
-    int32 nb_active_nodes = 10;
 }
 
 message SpaceListMsg {
     repeated SpaceMsg spaces = 1;
 }
 
-message EventMsg {
-    int32 event_id = 1;
+message EventRequestMsg {
     int32 space_id = 2;
     int32 growth_type = 3;
     int32 growth_index = 4;
@@ -42,10 +39,16 @@ message NodeEventMsg {
     uint32 connection_mask = 7;
 }
 
-message EventResponseMsg {
+message EventMsg {
     int32 event_id = 1;
-    int32 path_ctx_id = 2;
-    NodeEventMsg root_node = 3;
+    int32 space_id = 2;
+    int32 growth_type = 3;
+    int32 growth_index = 4;
+    int32 growth_offset = 5;
+    int32 creation_time = 6;
+    int32 path_ctx_id = 7;
+    uint32 color = 8;
+    NodeEventMsg root_node = 9;
 }
 
 message SpaceTimeRequestMsg {
@@ -56,6 +59,8 @@ message SpaceTimeRequestMsg {
 message SpaceTimeResponseMsg {
     int32 space_id = 1;
     int32 current_time = 2;
-    repeated NodeEventMsg active_nodes = 3;
+    repeated EventMsg active_events = 3;
+    int32 nb_active_nodes = 4;
+    repeated NodeEventMsg active_nodes = 5;
 }
 

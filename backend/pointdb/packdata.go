@@ -25,7 +25,7 @@ type ServerPointPackData struct {
 	pathBuildersTe *m3db.TableExec
 }
 
-func GetPointPackData(env m3util.QsmEnvironment) *ServerPointPackData {
+func GetServerPointPackData(env m3util.QsmEnvironment) *ServerPointPackData {
 	if env.GetData(m3util.PointIdx) == nil {
 		ppd := new(ServerPointPackData)
 		ppd.EnvId = env.GetId()
@@ -36,38 +36,38 @@ func GetPointPackData(env m3util.QsmEnvironment) *ServerPointPackData {
 	return env.GetData(m3util.PointIdx).(*ServerPointPackData)
 }
 
-func (ppd *ServerPointPackData) ResetFlags() {
-	ppd.ConnectionsLoaded = false
-	ppd.TrioDetailsLoaded = false
-	ppd.GrowthContextsLoaded = false
-	ppd.cubesLoaded = false
-	ppd.pathBuildersLoaded = false
+func (pointData *ServerPointPackData) ResetFlags() {
+	pointData.ConnectionsLoaded = false
+	pointData.TrioDetailsLoaded = false
+	pointData.GrowthContextsLoaded = false
+	pointData.cubesLoaded = false
+	pointData.pathBuildersLoaded = false
 }
 
-func (ppd *ServerPointPackData) CheckCubesInitialized() {
-	if !ppd.cubesLoaded {
-		Log.Fatalf("Cubes should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
+func (pointData *ServerPointPackData) CheckCubesInitialized() {
+	if !pointData.cubesLoaded {
+		Log.Fatalf("Cubes should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", pointData.GetEnvId())
 	}
 }
 
-func (ppd *ServerPointPackData) CheckPathBuildersInitialized() {
-	if !ppd.pathBuildersLoaded {
-		Log.Fatalf("Path Builders should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", ppd.GetEnvId())
+func (pointData *ServerPointPackData) CheckPathBuildersInitialized() {
+	if !pointData.pathBuildersLoaded {
+		Log.Fatalf("Path Builders should have been initialized! Please call m3point.InitializeDBEnv(envId=%d) method before this!", pointData.GetEnvId())
 	}
 }
 
-func (ppd *ServerPointPackData) GetNbPathBuilders() int {
-	ppd.CheckPathBuildersInitialized()
-	return len(ppd.pathBuilders)
+func (pointData *ServerPointPackData) GetNbPathBuilders() int {
+	pointData.CheckPathBuildersInitialized()
+	return len(pointData.pathBuilders)
 }
 
-func (ppd *ServerPointPackData) GetRootPathNodeBuilderById(cubeId int) PathNodeBuilder {
-	return ppd.pathBuilders[cubeId]
+func (pointData *ServerPointPackData) GetRootPathNodeBuilderById(cubeId int) PathNodeBuilder {
+	return pointData.pathBuilders[cubeId]
 }
 
-func (ppd *ServerPointPackData) GetCubeById(cubeId int) CubeKeyId {
-	ppd.CheckCubesInitialized()
-	for cubeKey, id := range ppd.cubeIdsPerKey {
+func (pointData *ServerPointPackData) GetCubeById(cubeId int) CubeKeyId {
+	pointData.CheckCubesInitialized()
+	for cubeKey, id := range pointData.cubeIdsPerKey {
 		if id == cubeId {
 			return cubeKey
 		}
@@ -76,9 +76,9 @@ func (ppd *ServerPointPackData) GetCubeById(cubeId int) CubeKeyId {
 	return CubeKeyId{-1, CubeOfTrioIndex{}}
 }
 
-func (ppd *ServerPointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
-	ppd.CheckCubesInitialized()
-	id, ok := ppd.cubeIdsPerKey[cubeKey]
+func (pointData *ServerPointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
+	pointData.CheckCubesInitialized()
+	id, ok := pointData.cubeIdsPerKey[cubeKey]
 	if !ok {
 		Log.Fatalf("trying to find cube %v which does not exists", cubeKey)
 		return -1
@@ -86,39 +86,40 @@ func (ppd *ServerPointPackData) GetCubeIdByKey(cubeKey CubeKeyId) int {
 	return id
 }
 
-func (ppd *ServerPointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthContext, offset int, c m3point.Point) PathNodeBuilder {
-	ppd.CheckPathBuildersInitialized()
+func (pointData *ServerPointPackData) GetPathNodeBuilder(growthCtx m3point.GrowthContext, offset int, c m3point.Point) PathNodeBuilder {
+	pointData.CheckPathBuildersInitialized()
 	// TODO: Verify the key below stay local and is not staying in memory
-	key := CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: CreateTrioCube(ppd, growthCtx, offset, c)}
-	cubeId := ppd.GetCubeIdByKey(key)
-	return ppd.GetRootPathNodeBuilderById(cubeId)
+	key := CubeKeyId{GrowthCtxId: growthCtx.GetId(), Cube: CreateTrioCube(pointData, growthCtx, offset, c)}
+	cubeId := pointData.GetCubeIdByKey(key)
+	return pointData.GetRootPathNodeBuilderById(cubeId)
 }
 
-func (ppd *ServerPointPackData) createTables() {
+func (pointData *ServerPointPackData) createTables() {
+	tableNames := [5]string{ConnectionDetailsTable, TrioDetailsTable, GrowthContextsTable, TrioCubesTable, PathBuildersTable}
+	pointTableExecs := [5]*m3db.TableExec{}
+
+	// IMPORTANT: Create ALL the tables before preparing the queries
 	var err error
-	ppd.connDetailsTe, err = ppd.env.GetOrCreateTableExec(ConnectionDetailsTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", ConnectionDetailsTable, err)
-		return
+
+	for i := 0; i < len(pointTableExecs); i++ {
+		pointTableExecs[i], err = pointData.env.GetOrCreateTableExec(tableNames[i])
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 	}
-	ppd.trioDetailsTe, err = ppd.env.GetOrCreateTableExec(TrioDetailsTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", TrioDetailsTable, err)
-		return
+
+	for i := 0; i < len(pointTableExecs); i++ {
+		err = pointTableExecs[i].PrepareQueries()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 	}
-	ppd.growthCtxTe, err = ppd.env.GetOrCreateTableExec(GrowthContextsTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", GrowthContextsTable, err)
-		return
-	}
-	ppd.trioCubesTe, err = ppd.env.GetOrCreateTableExec(TrioCubesTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", TrioCubesTable, err)
-		return
-	}
-	ppd.pathBuildersTe, err = ppd.env.GetOrCreateTableExec(PathBuildersTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", PathBuildersTable, err)
-		return
-	}
+
+	pointData.connDetailsTe = pointTableExecs[0]
+	pointData.trioDetailsTe = pointTableExecs[1]
+	pointData.growthCtxTe = pointTableExecs[2]
+	pointData.trioCubesTe = pointTableExecs[3]
+	pointData.pathBuildersTe = pointTableExecs[4]
 }

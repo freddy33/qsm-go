@@ -47,7 +47,7 @@ func getPointTestData() *ServerPointPackData {
 
 	env := GetPointDbFullEnv(m3util.PointTestEnv)
 
-	return GetPointPackData(env)
+	return GetServerPointPackData(env)
 }
 
 func TestAllTrioDetails(t *testing.T) {

@@ -56,6 +56,10 @@ func (env *QsmApiEnvironment) InternalClose() error {
 }
 
 func GetInitializedApiEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
+	return GetOrCreateInitializedApiEnv(envId, false, m3util.TestMode)
+}
+
+func GetOrCreateInitializedApiEnv(envId m3util.QsmEnvID, callDrop, callInit bool) *QsmApiEnvironment {
 	env := m3util.GetEnvironmentWithCreator(envId, createNewApiEnv).(*QsmApiEnvironment)
 	cl := env.clConn
 
@@ -64,7 +68,27 @@ func GetInitializedApiEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
 		return nil
 	}
 
-	if m3util.TestMode {
+	if callDrop {
+		// Equivalent of calling filldb job
+		uri := "drop-env"
+		response, err := cl.ExecReq(http.MethodDelete, uri, nil, nil)
+		if err != nil {
+			Log.Fatal(err)
+			return nil
+		}
+		substr := fmt.Sprintf("env id %d was dropped", cl.envId)
+		if strings.Contains(response, substr) {
+			Log.Debugf("All good on home response %q", response)
+		} else {
+			Log.Fatalf("The response from REST API end point %q did not have %s in %q", uri, substr, response)
+			return nil
+		}
+		env.SetData(m3util.PointIdx, nil)
+		env.SetData(m3util.PathIdx, nil)
+		env.SetData(m3util.SpaceIdx, nil)
+	}
+
+	if callInit {
 		// Equivalent of calling filldb job
 		uri := "init-env"
 		response, err := cl.ExecReq(http.MethodPost, uri, nil, nil)

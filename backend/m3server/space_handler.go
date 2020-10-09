@@ -38,8 +38,8 @@ func createSpace(w http.ResponseWriter, r *http.Request) {
 
 	env := GetEnvironment(r)
 
-	space, err := spacedb.CreateSpace(env, reqMsg.SpaceName, m3space.DistAndTime(reqMsg.ActivePathNodeThreshold),
-		int(reqMsg.MaxTriosPerPoint), int(reqMsg.MaxPathNodesPerPoint))
+	space, err := spacedb.CreateSpace(env, reqMsg.SpaceName, m3space.DistAndTime(reqMsg.ActiveThreshold),
+		int(reqMsg.MaxTriosPerPoint), int(reqMsg.MaxNodesPerPoint))
 	if err != nil {
 		SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -50,23 +50,21 @@ func createSpace(w http.ResponseWriter, r *http.Request) {
 
 func spaceDbToMsg(space *spacedb.SpaceDb) *m3api.SpaceMsg {
 	return &m3api.SpaceMsg{
-		SpaceId:                 int32(space.GetId()),
-		SpaceName:               space.GetName(),
-		ActivePathNodeThreshold: int32(space.GetActivePathNodeThreshold()),
-		MaxTriosPerPoint:        int32(space.GetMaxTriosPerPoint()),
-		MaxPathNodesPerPoint:    int32(space.GetMaxPathNodesPerPoint()),
-		MaxTime:                 int32(space.GetMaxTime()),
-		CurrentTime:             int32(space.GetCurrentTime()),
-		MaxCoord:                int32(space.GetMaxCoord()),
-		EventIds:                space.GetEventIdsForMsg(),
-		NbActiveNodes:           int32(space.GetNbActiveNodes()),
+		SpaceId:          int32(space.GetId()),
+		SpaceName:        space.GetName(),
+		ActiveThreshold:  int32(space.GetActiveThreshold()),
+		MaxTriosPerPoint: int32(space.GetMaxTriosPerPoint()),
+		MaxNodesPerPoint: int32(space.GetMaxNodesPerPoint()),
+		MaxTime:          int32(space.GetMaxTime()),
+		MaxCoord:         int32(space.GetMaxCoord()),
+		EventIds:         space.GetEventIdsForMsg(),
 	}
 }
 
 func createEvent(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive createEvent")
 
-	reqMsg := &m3api.EventMsg{}
+	reqMsg := &m3api.EventRequestMsg{}
 	if !ReadRequestMsg(w, r, reqMsg) {
 		return
 	}
@@ -75,7 +73,7 @@ func createEvent(w http.ResponseWriter, r *http.Request) {
 	spaceData := spacedb.GetServerSpacePackData(env)
 	space := spaceData.GetSpace(int(reqMsg.SpaceId))
 	if space == nil {
-		SendResponse(w, http.StatusNotFound, "Space id %d does not exists", reqMsg.SpaceId)
+		SendResponse(w, http.StatusNotFound, "SpaceTime id %d does not exists", reqMsg.SpaceId)
 		return
 	}
 	event, err := space.CreateEvent(m3point.GrowthType(reqMsg.GrowthType), int(reqMsg.GrowthIndex), int(reqMsg.GrowthOffset),
@@ -97,9 +95,16 @@ func createEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pathNodeDb := pathNode.(*pathdb.PathNodeDb)
-	resMsg := &m3api.EventResponseMsg{
-		EventId:   eventId,
-		PathCtxId: int32(event.GetPathContext().GetId()),
+	pathContext := event.GetPathContext()
+	resMsg := &m3api.EventMsg{
+		EventId:      eventId,
+		SpaceId:      int32(space.GetId()),
+		GrowthType:   int32(pathContext.GetGrowthType()),
+		GrowthIndex:  int32(pathContext.GetGrowthIndex()),
+		GrowthOffset: int32(pathContext.GetGrowthOffset()),
+		CreationTime: int32(event.GetCreationTime()),
+		PathCtxId:    int32(pathContext.GetId()),
+		Color:        uint32(event.GetColor()),
 		RootNode: &m3api.NodeEventMsg{
 			EventNodeId:    eventNode.GetId(),
 			EventId:        eventId,

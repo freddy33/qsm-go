@@ -56,18 +56,19 @@ func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
 	}
 	spaceName := fmt.Sprintf("SpaceTest%02d", rand100)
 	reqMsg := &m3api.SpaceMsg{
-		SpaceName:               spaceName,
-		ActivePathNodeThreshold: 0,
-		MaxTriosPerPoint:        1,
-		MaxPathNodesPerPoint:    4,
+		SpaceName:        spaceName,
+		ActiveThreshold:  0,
+		MaxTriosPerPoint: 1,
+		MaxNodesPerPoint: 4,
 	}
 	resMsg := &m3api.SpaceMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "SpaceMsg",
-		methodName:  "PUT",
-		uri:         "/space",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "SpaceMsg",
+		methodName:          "PUT",
+		uri:                 "/space",
 	}, reqMsg, resMsg) {
 		return -1, "failed"
 	}
@@ -75,9 +76,9 @@ func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
 	spaceId := int(resMsg.SpaceId)
 	good := assert.True(t, spaceId > 0, "Did not get space id id but "+strconv.Itoa(spaceId)) &&
 		assert.Equal(t, spaceName, resMsg.SpaceName) &&
-		assert.Equal(t, int32(0), resMsg.ActivePathNodeThreshold) &&
+		assert.Equal(t, int32(0), resMsg.ActiveThreshold) &&
 		assert.Equal(t, int32(1), resMsg.MaxTriosPerPoint) &&
-		assert.Equal(t, int32(4), resMsg.MaxPathNodesPerPoint) &&
+		assert.Equal(t, int32(4), resMsg.MaxNodesPerPoint) &&
 		assert.Equal(t, int32(0), resMsg.MaxTime)
 	if !good {
 		return -2, "failed"
@@ -89,11 +90,12 @@ func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
 func callGetAllSpaces(t *testing.T, router *mux.Router) []*m3api.SpaceMsg {
 	pMsg := &m3api.SpaceListMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "SpaceListMsg",
-		methodName:  "GET",
-		uri:         "/space",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "SpaceListMsg",
+		methodName:          "GET",
+		uri:                 "/space",
 	}, nil, pMsg) {
 		return nil
 	}
@@ -107,7 +109,7 @@ func callDeleteSpace(t *testing.T, router *mux.Router) (int, string) {
 func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	time m3space.DistAndTime, point m3point.Point, color m3space.EventColor,
 	growthType m3point.GrowthType, growthIndex int, growthOffset int) int {
-	reqMsg := &m3api.EventMsg{
+	reqMsg := &m3api.EventRequestMsg{
 		SpaceId:      int32(spaceId),
 		GrowthType:   int32(growthType),
 		GrowthIndex:  int32(growthIndex),
@@ -116,13 +118,14 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 		Center:       m3api.PointToPointMsg(point),
 		Color:        uint32(color),
 	}
-	resMsg := new(m3api.EventResponseMsg)
+	resMsg := new(m3api.EventMsg)
 	if !sendAndReceive(t, &requestTest{
-		router:      qsmApp.Router,
-		contentType: "proto",
-		typeName:    "EventResponseMsg",
-		methodName:  "PUT",
-		uri:         "/event",
+		router:              qsmApp.Router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "EventMsg",
+		methodName:          "PUT",
+		uri:                 "/event",
 	}, reqMsg, resMsg) {
 		return -1
 	}
@@ -151,11 +154,12 @@ func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activ
 	}
 	spaceTimeResponse := &m3api.SpaceTimeResponseMsg{}
 	if !sendAndReceive(t, &requestTest{
-		router:      router,
-		contentType: "proto",
-		typeName:    "SpaceTimeResponseMsg",
-		methodName:  "POST",
-		uri:         "/space-time",
+		router:              router,
+		requestContentType:  "proto",
+		responseContentType: "proto",
+		typeName:            "SpaceTimeResponseMsg",
+		methodName:          "POST",
+		uri:                 "/space-time",
 	}, reqMsg, spaceTimeResponse) {
 		return false
 	}

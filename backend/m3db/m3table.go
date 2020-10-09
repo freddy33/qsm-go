@@ -10,19 +10,21 @@ type TableDefinition struct {
 	Name           string
 	DdlColumns     string
 	DdlColumnsRefs []string
+	Indexes        []string
 	Insert         string
 	SelectAll      string
 	Queries        []string
+	QueryTableRefs map[int][]string
 	ExpectedCount  int
 
 	ErrorFilter func(err error) bool
 }
 
 type TableExec struct {
-	envId     m3util.QsmEnvID
-	tableName string
-	checked   bool
-	created   bool
+	tableName       string
+	checked         bool
+	created         bool
+	queriesPrepared bool
 
 	env         *QsmDbEnvironment
 	TableDef    *TableDefinition
@@ -55,7 +57,7 @@ func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec,
 		}
 		if tableExec.checked {
 			// Now the table exists
-			tableExec.created = false
+			tableExec.SetFilled()
 			return tableExec, nil
 		}
 		if Log.IsDebug() {
@@ -66,8 +68,8 @@ func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec,
 			Log.Debugf("Creating table execution for environment %d tableName=%s", env.GetId(), tableName)
 		}
 		tableExec = new(TableExec)
-		tableExec.envId = env.GetId()
 		tableExec.env = env
+		env.tableExecs[tableName] = tableExec
 	}
 
 	err := env.CheckSchema()
@@ -86,17 +88,7 @@ func (env *QsmDbEnvironment) GetOrCreateTableExec(tableName string) (*TableExec,
 		return nil, err
 	}
 
-	nbQueries := len(tableExec.TableDef.Queries)
-	if nbQueries > 0 {
-		tableExec.QueriesStmt = make([]*sql.Stmt, nbQueries)
-		for i, query := range tableExec.TableDef.Queries {
-			err = tableExec.fillQuery(i, fmt.Sprintf(query, tableExec.GetFullTableName()))
-			if err != nil {
-				Log.Error(err)
-				return nil, err
-			}
-		}
-	}
+	tableExec.queriesPrepared = false
 
 	return tableExec, nil
 }
@@ -240,7 +232,15 @@ func (te *TableExec) InsertReturnId(args ...interface{}) (int64, error) {
 	return id, nil
 }
 
+func (te *TableExec) checkQueriesPrepared() {
+	if !te.queriesPrepared {
+		err := m3util.MakeQsmErrorf("Table exec %q did not prepare queries! Please call PrepareQueries()", te.GetFullTableName())
+		Log.Fatal(err)
+	}
+}
+
 func (te *TableExec) Update(queryId int, args ...interface{}) (int, error) {
+	te.checkQueriesPrepared()
 	res, err := te.QueriesStmt[queryId].Exec(args...)
 	if err != nil {
 		return 0, m3util.MakeWrapQsmErrorf(err, "executing update for table %s for query %d with args %v got error '%s'", te.tableName, queryId, args, err.Error())
@@ -256,6 +256,7 @@ func (te *TableExec) Update(queryId int, args ...interface{}) (int, error) {
 }
 
 func (te *TableExec) Query(queryId int, args ...interface{}) (*sql.Rows, error) {
+	te.checkQueriesPrepared()
 	rows, err := te.QueriesStmt[queryId].Query(args...)
 	if err != nil {
 		return nil, m3util.MakeWrapQsmErrorf(err, "executing query %d for table %s with args %v got error %v", queryId, te.tableName, args, err)
@@ -267,6 +268,7 @@ func (te *TableExec) Query(queryId int, args ...interface{}) (*sql.Rows, error) 
 }
 
 func (te *TableExec) QueryRow(queryId int, args ...interface{}) *sql.Row {
+	te.checkQueriesPrepared()
 	row := te.QueriesStmt[queryId].QueryRow(args...)
 	if Log.IsTrace() {
 		Log.Tracef("query row %d on table %s with args %v", queryId, te.tableName, args)
@@ -290,17 +292,6 @@ func (te *TableExec) fillStmt() error {
 		return err
 	}
 	te.InsertStmt = stmt
-	return nil
-}
-
-func (te *TableExec) fillQuery(i int, query string) error {
-	db := te.env.GetConnection()
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		Log.Errorf("for table %s preparing query %d with '%s' got error %v", te.tableName, i, query, err)
-		return err
-	}
-	te.QueriesStmt[i] = stmt
 	return nil
 }
 
@@ -353,18 +344,8 @@ func (te *TableExec) initForTable(tableName string) error {
 	if Log.IsDebug() {
 		Log.Debugf("Creating table %s", fullTableName)
 	}
-	var createQuery string
-	nbRefs := len(te.TableDef.DdlColumnsRefs)
-	if nbRefs > 0 {
-		params := make([]interface{}, nbRefs+1)
-		params[0] = fullTableName
-		for i, r := range te.TableDef.DdlColumnsRefs {
-			params[i+1] = te.env.GetSchemaName() + "." + r
-		}
-		createQuery = fmt.Sprintf("create table %s "+te.TableDef.DdlColumns, params...)
-	} else {
-		createQuery = fmt.Sprintf("create table %s "+te.TableDef.DdlColumns, fullTableName)
-	}
+	params := te.convertTableNames(te.TableDef.DdlColumnsRefs)
+	createQuery := fmt.Sprintf("create table %s "+te.TableDef.DdlColumns, params...)
 	_, err = db.Exec(createQuery)
 	if err != nil {
 		return m3util.MakeWrapQsmErrorf(err, "could not create table %s using '%s' due to error %v", fullTableName, createQuery, err)
@@ -375,4 +356,60 @@ func (te *TableExec) initForTable(tableName string) error {
 	te.created = true
 	te.checked = true
 	return nil
+}
+
+func (te *TableExec) PrepareQueries() error {
+	env := te.env
+
+	env.createTableMutex.Lock()
+	defer env.createTableMutex.Unlock()
+
+	teInMap, ok := env.tableExecs[te.tableName]
+	if !ok {
+		return m3util.MakeQsmErrorf("cannot populate queries of not created table exec %s", te.tableName)
+	}
+	if teInMap != te {
+		return m3util.MakeQsmErrorf("The table exec %s in map %v != %v", te.tableName, teInMap, te)
+	}
+	if te.queriesPrepared {
+		Log.Debugf("table %q already prepared queries", te.GetFullTableName())
+		return nil
+	}
+
+	nbQueries := len(te.TableDef.Queries)
+	if nbQueries > 0 {
+		db := te.env.GetConnection()
+		te.QueriesStmt = make([]*sql.Stmt, nbQueries)
+		for i, queryFormatSql := range te.TableDef.Queries {
+			var extraTableNames []string
+			if len(te.TableDef.QueryTableRefs) > 0 {
+				extraTableNames, ok = te.TableDef.QueryTableRefs[i]
+				if !ok {
+					extraTableNames = nil
+				}
+			}
+			params := te.convertTableNames(extraTableNames)
+			querySql := fmt.Sprintf(queryFormatSql, params...)
+			stmt, err := db.Prepare(querySql)
+			if err != nil {
+				return m3util.MakeWrapQsmErrorf(err, "for table %s preparing query %d with '%s' got error: %s", te.GetFullTableName(), i, querySql, err.Error())
+			}
+			te.QueriesStmt[i] = stmt
+		}
+	}
+
+	te.queriesPrepared = true
+	return nil
+}
+
+func (te *TableExec) convertTableNames(tableNames []string) []interface{} {
+	fullTableName := te.GetFullTableName()
+	params := make([]interface{}, len(tableNames)+1)
+	params[0] = fullTableName
+	if tableNames != nil {
+		for i, r := range tableNames {
+			params[i+1] = te.env.GetSchemaName() + "." + r
+		}
+	}
+	return params
 }

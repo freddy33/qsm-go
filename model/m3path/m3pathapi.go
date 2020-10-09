@@ -46,21 +46,26 @@ type PathContext interface {
 	DumpInfo() string
 }
 
+type ConnectionStateIfc interface {
+	GetTrioIndex() m3point.TrioIndex
+	GetTrioDetails(pointData m3point.PointPackDataIfc) *m3point.TrioDetails
+
+	HasOpenConnections() bool
+	IsFrom(connIdx int) bool
+	IsNext(connIdx int) bool
+	IsDeadEnd(connIdx int) bool
+}
+
 type PathNode interface {
 	fmt.Stringer
+	ConnectionStateIfc
+
 	GetId() int64
 	GetPathContext() PathContext
 
 	IsRoot() bool
 	P() m3point.Point
 	D() int
-	GetTrioIndex() m3point.TrioIndex
-
-	IsFrom(connIdx int) bool
-	IsNext(connIdx int) bool
-	IsDeadEnd(connIdx int) bool
-
-	GetTrioDetails() *m3point.TrioDetails
 }
 
 func GetConnectionMaskValue(connectionMask uint16, connIdx int) uint16 {

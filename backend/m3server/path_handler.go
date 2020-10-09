@@ -1,11 +1,12 @@
 package m3server
 
 import (
+	"net/http"
+
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
-	"net/http"
 )
 
 func createPathContext(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +19,7 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 
 	env := GetEnvironment(r)
 	pathData := pathdb.GetServerPathPackData(env)
-	pathCtx, err := pathData.GetPathCtxDb(
+	pathCtx, err := pathData.GetPathCtxDbFromAttributes(
 		m3point.GrowthType(reqMsg.GetGrowthType()),
 		int(reqMsg.GetGrowthIndex()),
 		int(reqMsg.GetGrowthOffset()))

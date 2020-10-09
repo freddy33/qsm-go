@@ -13,7 +13,7 @@ func retrievePointData(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive retrievePointData")
 
 	env := GetEnvironment(r)
-	pointData := pointdb.GetPointPackData(env)
+	pointData := pointdb.GetServerPointPackData(env)
 	msg := m3api.PointPackDataMsg{}
 
 	msg.AllConnections = make([]*m3api.ConnectionMsg, len(pointData.AllConnections))

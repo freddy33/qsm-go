@@ -101,6 +101,10 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.ErrorFilter = func(err error) bool {
 		return err.Error() == "pq: duplicate key value violates unique constraint \"unique_point_per_path_ctx\""
 	}
+
+	res.Indexes = make([]string, 1)
+	res.Indexes[0] = "create index " + PathNodesTable + "_d_index on %s ( d );"
+
 	res.Insert = "(path_ctx_id, path_builders_id, path_builder_idx, trio_id, point_id, d," +
 		" connection_mask," +
 		" path_node1, path_node2, path_node3)" +
@@ -110,7 +114,8 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 	res.SelectAll = "not to call select all on node path"
 	res.ExpectedCount = -1
 	res.Queries = make([]string, 8)
-	selectAllFields := " id, path_ctx_id, path_builders_id, path_builder_idx, trio_id, point_id, d," +
+	res.QueryTableRefs = make(map[int][]string, 1)
+	selectAllFields := "id, path_ctx_id, path_builders_id, path_builder_idx, trio_id, point_id, d," +
 		" connection_mask," +
 		" path_node1, path_node2, path_node3"
 	res.Queries[SelectPathNodesById] = "select " +
@@ -123,15 +128,20 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 
 	res.Queries[CountPathNodesByCtxAndDistance] = "select count(id)" +
 		" from %s where path_ctx_id = $1 and d = $2"
-	res.Queries[SelectPathNodesByCtxAndDistance] = "select " +
-		selectAllFields +
-		" from %s where path_ctx_id = $1 and d = $2"
+	res.Queries[SelectPathNodesByCtxAndDistance] =
+		"select " + PathNodesTable + "." + selectAllFields + ", x, y, z" +
+			" from %s" +
+			" join %s on " + PointsTable + ".id = " + PathNodesTable + ".point_id" +
+			" where path_ctx_id = $1 and d = $2"
+	res.QueryTableRefs[SelectPathNodesByCtxAndDistance] = []string{PointsTable}
 
 	res.Queries[CountPathNodesByCtxAndBetweenDistance] = "select count(id)" +
 		" from %s where path_ctx_id = $1 and d >= $2 and d <= $3"
-	res.Queries[SelectPathNodesByCtxAndBetweenDistance] = "select " +
-		selectAllFields +
-		" from %s where path_ctx_id = $1 and d >= $2 and d <= $3"
+	res.Queries[SelectPathNodesByCtxAndBetweenDistance] =
+		"select " + PathNodesTable + "." + selectAllFields + ", x, y, z" +
+			" from %s join %s on " + PointsTable + ".id = " + PathNodesTable + ".point_id" +
+			" where path_ctx_id = $1 and d >= $2 and d <= $3"
+	res.QueryTableRefs[SelectPathNodesByCtxAndBetweenDistance] = []string{PointsTable}
 
 	res.Queries[CountPathNodesByCtx] = "select count(*)" +
 		" from %s where path_ctx_id = $1"
@@ -143,22 +153,31 @@ func creatPathNodesTableDef() *m3db.TableDefinition {
 }
 
 func (pathData *ServerPathPackData) createTables() {
+	tableNames := [3]string{PointsTable, PathContextsTable, PathNodesTable}
+	pathTableExecs := [3]*m3db.TableExec{}
+
+	// IMPORTANT: Create ALL the tables before preparing the queries
 	var err error
-	pathData.pointsTe, err = pathData.env.GetOrCreateTableExec(PointsTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", PointsTable, err)
-		return
+
+	for i := 0; i < len(pathTableExecs); i++ {
+		pathTableExecs[i], err = pathData.env.GetOrCreateTableExec(tableNames[i])
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 	}
-	pathData.pathCtxTe, err = pathData.env.GetOrCreateTableExec(PathContextsTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", PathContextsTable, err)
-		return
+
+	for i := 0; i < len(pathTableExecs); i++ {
+		err = pathTableExecs[i].PrepareQueries()
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 	}
-	pathData.pathNodesTe, err = pathData.env.GetOrCreateTableExec(PathNodesTable)
-	if err != nil {
-		Log.Fatalf("could not create table %s due to %v", PathNodesTable, err)
-		return
-	}
+
+	pathData.pointsTe = pathTableExecs[0]
+	pathData.pathCtxTe = pathTableExecs[1]
+	pathData.pathNodesTe = pathTableExecs[2]
 }
 
 var dbMutex sync.Mutex
@@ -181,7 +200,7 @@ func checkEnv(env *m3db.QsmDbEnvironment) {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if !testDbFilled[envId] {
-		pointData := pointdb.GetPointPackData(env)
+		pointData := pointdb.GetServerPointPackData(env)
 		pointData.FillDb()
 		GetServerPathPackData(env).createTables()
 		testDbFilled[envId] = true
