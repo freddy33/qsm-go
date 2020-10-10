@@ -21,17 +21,17 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type SpaceMsg struct {
-	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
-	SpaceName            string   `protobuf:"bytes,2,opt,name=space_name,json=spaceName,proto3" json:"space_name,omitempty"`
-	ActiveThreshold      int32    `protobuf:"varint,3,opt,name=active_threshold,json=activeThreshold,proto3" json:"active_threshold,omitempty"`
-	MaxTriosPerPoint     int32    `protobuf:"varint,4,opt,name=max_trios_per_point,json=maxTriosPerPoint,proto3" json:"max_trios_per_point,omitempty"`
-	MaxNodesPerPoint     int32    `protobuf:"varint,5,opt,name=max_nodes_per_point,json=maxNodesPerPoint,proto3" json:"max_nodes_per_point,omitempty"`
-	MaxTime              int32    `protobuf:"varint,6,opt,name=max_time,json=maxTime,proto3" json:"max_time"`
-	MaxCoord             int32    `protobuf:"varint,8,opt,name=max_coord,json=maxCoord,proto3" json:"max_coord,omitempty"`
+	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id" query:"space_id"`
+	SpaceName            string   `protobuf:"bytes,2,opt,name=space_name,json=spaceName,proto3" json:"space_name" query:"space_name"`
+	ActiveThreshold      int32    `protobuf:"varint,3,opt,name=active_threshold,json=activeThreshold,proto3" json:"active_threshold" query:"active_threshold"`
+	MaxTriosPerPoint     int32    `protobuf:"varint,4,opt,name=max_trios_per_point,json=maxTriosPerPoint,proto3" json:"max_trios_per_point" query:"max_trios_per_point"`
+	MaxNodesPerPoint     int32    `protobuf:"varint,5,opt,name=max_nodes_per_point,json=maxNodesPerPoint,proto3" json:"max_nodes_per_point" query:"max_nodes_per_point"`
+	MaxTime              int32    `protobuf:"varint,6,opt,name=max_time,json=maxTime,proto3" json:"max_time" query:"max_time"`
+	MaxCoord             int32    `protobuf:"varint,8,opt,name=max_coord,json=maxCoord,proto3" json:"max_coord" query:"max_coord"`
 	EventIds             []int32  `protobuf:"varint,9,rep,packed,name=event_ids,json=eventIds,proto3" json:"event_ids,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" query:"-"`
+	XXX_unrecognized     []byte   `json:"-" query:"-"`
+	XXX_sizecache        int32    `json:"-" query:"-"`
 }
 
 func (m *SpaceMsg) Reset()         { *m = SpaceMsg{} }
@@ -117,9 +117,9 @@ func (m *SpaceMsg) GetEventIds() []int32 {
 
 type SpaceListMsg struct {
 	Spaces               []*SpaceMsg `protobuf:"bytes,1,rep,name=spaces,proto3" json:"spaces,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-" query:"-"`
+	XXX_unrecognized     []byte      `json:"-" query:"-"`
+	XXX_sizecache        int32       `json:"-" query:"-"`
 }
 
 func (m *SpaceListMsg) Reset()         { *m = SpaceListMsg{} }
@@ -155,16 +155,16 @@ func (m *SpaceListMsg) GetSpaces() []*SpaceMsg {
 }
 
 type EventRequestMsg struct {
-	SpaceId              int32     `protobuf:"varint,2,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
-	GrowthType           int32     `protobuf:"varint,3,opt,name=growth_type,json=growthType,proto3" json:"growth_type"`
-	GrowthIndex          int32     `protobuf:"varint,4,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index"`
-	GrowthOffset         int32     `protobuf:"varint,5,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset"`
-	CreationTime         int32     `protobuf:"varint,6,opt,name=creation_time,json=creationTime,proto3" json:"creation_time"`
+	SpaceId              int32     `protobuf:"varint,2,opt,name=space_id,json=spaceId,proto3" json:"space_id" query:"space_id"`
+	GrowthType           int32     `protobuf:"varint,3,opt,name=growth_type,json=growthType,proto3" json:"growth_type" query:"growth_type"`
+	GrowthIndex          int32     `protobuf:"varint,4,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index" query:"growth_index"`
+	GrowthOffset         int32     `protobuf:"varint,5,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset" query:"growth_offset"`
+	CreationTime         int32     `protobuf:"varint,6,opt,name=creation_time,json=creationTime,proto3" json:"creation_time" query:"creation_time"`
 	Center               *PointMsg `protobuf:"bytes,7,opt,name=center,proto3" json:"center,omitempty"`
-	Color                uint32    `protobuf:"varint,8,opt,name=color,proto3" json:"color,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	Color                uint32    `protobuf:"varint,8,opt,name=color,proto3" json:"color" query:"color"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-" query:"-"`
+	XXX_unrecognized     []byte    `json:"-" query:"-"`
+	XXX_sizecache        int32     `json:"-" query:"-"`
 }
 
 func (m *EventRequestMsg) Reset()         { *m = EventRequestMsg{} }
@@ -242,16 +242,16 @@ func (m *EventRequestMsg) GetColor() uint32 {
 }
 
 type NodeEventMsg struct {
-	EventNodeId          int64     `protobuf:"varint,1,opt,name=event_node_id,json=eventNodeId,proto3" json:"event_node_id"`
-	EventId              int32     `protobuf:"varint,2,opt,name=event_id,json=eventId,proto3" json:"event_id"`
+	EventNodeId          int64     `protobuf:"varint,1,opt,name=event_node_id,json=eventNodeId,proto3" json:"event_node_id" query:"event_node_id"`
+	EventId              int32     `protobuf:"varint,2,opt,name=event_id,json=eventId,proto3" json:"event_id" query:"event_id"`
 	Point                *PointMsg `protobuf:"bytes,3,opt,name=point,proto3" json:"point,omitempty"`
-	CreationTime         int32     `protobuf:"varint,4,opt,name=creation_time,json=creationTime,proto3" json:"creation_time"`
-	D                    int32     `protobuf:"varint,5,opt,name=d,proto3" json:"d"`
-	TrioId               int32     `protobuf:"varint,6,opt,name=trio_id,json=trioId,proto3" json:"trio_id"`
-	ConnectionMask       uint32    `protobuf:"varint,7,opt,name=connection_mask,json=connectionMask,proto3" json:"connection_mask,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	CreationTime         int32     `protobuf:"varint,4,opt,name=creation_time,json=creationTime,proto3" json:"creation_time" query:"creation_time"`
+	D                    int32     `protobuf:"varint,5,opt,name=d,proto3" json:"d" query:"d"`
+	TrioId               int32     `protobuf:"varint,6,opt,name=trio_id,json=trioId,proto3" json:"trio_id" query:"trio_id"`
+	ConnectionMask       uint32    `protobuf:"varint,7,opt,name=connection_mask,json=connectionMask,proto3" json:"connection_mask" query:"connection_mask"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-" query:"-"`
+	XXX_unrecognized     []byte    `json:"-" query:"-"`
+	XXX_sizecache        int32     `json:"-" query:"-"`
 }
 
 func (m *NodeEventMsg) Reset()         { *m = NodeEventMsg{} }
@@ -329,18 +329,18 @@ func (m *NodeEventMsg) GetConnectionMask() uint32 {
 }
 
 type EventMsg struct {
-	EventId              int32         `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id"`
-	SpaceId              int32         `protobuf:"varint,2,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
-	GrowthType           int32         `protobuf:"varint,3,opt,name=growth_type,json=growthType,proto3" json:"growth_type"`
-	GrowthIndex          int32         `protobuf:"varint,4,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index"`
-	GrowthOffset         int32         `protobuf:"varint,5,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset"`
-	CreationTime         int32         `protobuf:"varint,6,opt,name=creation_time,json=creationTime,proto3" json:"creation_time"`
-	PathCtxId            int32         `protobuf:"varint,7,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id"`
-	Color                uint32        `protobuf:"varint,8,opt,name=color,proto3" json:"color,omitempty"`
+	EventId              int32         `protobuf:"varint,1,opt,name=event_id,json=eventId,proto3" json:"event_id" query:"event_id"`
+	SpaceId              int32         `protobuf:"varint,2,opt,name=space_id,json=spaceId,proto3" json:"space_id" query:"space_id"`
+	GrowthType           int32         `protobuf:"varint,3,opt,name=growth_type,json=growthType,proto3" json:"growth_type" query:"growth_type"`
+	GrowthIndex          int32         `protobuf:"varint,4,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index" query:"growth_index"`
+	GrowthOffset         int32         `protobuf:"varint,5,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset" query:"growth_offset"`
+	CreationTime         int32         `protobuf:"varint,6,opt,name=creation_time,json=creationTime,proto3" json:"creation_time" query:"creation_time"`
+	PathCtxId            int32         `protobuf:"varint,7,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id" query:"path_ctx_id"`
+	Color                uint32        `protobuf:"varint,8,opt,name=color,proto3" json:"color" query:"color"`
 	RootNode             *NodeEventMsg `protobuf:"bytes,9,opt,name=root_node,json=rootNode,proto3" json:"root_node,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
-	XXX_unrecognized     []byte        `json:"-"`
-	XXX_sizecache        int32         `json:"-"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-" query:"-"`
+	XXX_unrecognized     []byte        `json:"-" query:"-"`
+	XXX_sizecache        int32         `json:"-" query:"-"`
 }
 
 func (m *EventMsg) Reset()         { *m = EventMsg{} }
@@ -432,11 +432,11 @@ func (m *EventMsg) GetRootNode() *NodeEventMsg {
 }
 
 type SpaceTimeRequestMsg struct {
-	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
-	CurrentTime          int32    `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	SpaceId              int32    `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id" query:"space_id"`
+	CurrentTime          int32    `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time" query:"current_time"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" query:"-"`
+	XXX_unrecognized     []byte   `json:"-" query:"-"`
+	XXX_sizecache        int32    `json:"-" query:"-"`
 }
 
 func (m *SpaceTimeRequestMsg) Reset()         { *m = SpaceTimeRequestMsg{} }
@@ -479,14 +479,14 @@ func (m *SpaceTimeRequestMsg) GetCurrentTime() int32 {
 }
 
 type SpaceTimeResponseMsg struct {
-	SpaceId              int32           `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id"`
-	CurrentTime          int32           `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time"`
+	SpaceId              int32           `protobuf:"varint,1,opt,name=space_id,json=spaceId,proto3" json:"space_id" query:"space_id"`
+	CurrentTime          int32           `protobuf:"varint,2,opt,name=current_time,json=currentTime,proto3" json:"current_time" query:"current_time"`
 	ActiveEvents         []*EventMsg     `protobuf:"bytes,3,rep,name=active_events,json=activeEvents,proto3" json:"active_events,omitempty"`
-	NbActiveNodes        int32           `protobuf:"varint,4,opt,name=nb_active_nodes,json=nbActiveNodes,proto3" json:"nb_active_nodes,omitempty"`
+	NbActiveNodes        int32           `protobuf:"varint,4,opt,name=nb_active_nodes,json=nbActiveNodes,proto3" json:"nb_active_nodes" query:"nb_active_nodes"`
 	ActiveNodes          []*NodeEventMsg `protobuf:"bytes,5,rep,name=active_nodes,json=activeNodes,proto3" json:"active_nodes,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-" query:"-"`
+	XXX_unrecognized     []byte          `json:"-" query:"-"`
+	XXX_sizecache        int32           `json:"-" query:"-"`
 }
 
 func (m *SpaceTimeResponseMsg) Reset()         { *m = SpaceTimeResponseMsg{} }

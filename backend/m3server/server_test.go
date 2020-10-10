@@ -8,6 +8,7 @@ import (
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
+	"github.com/hetiansu5/urlquery"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
@@ -26,7 +27,7 @@ type requestTest struct {
 }
 
 func (req *requestTest) String() string {
-	return fmt.Sprintf("%s:%q", req.methodName, req.uri)
+	return fmt.Sprintf("%s:%q %s->%s", req.methodName, req.uri, req.requestContentType, req.responseContentType)
 }
 
 var apps = make(map[m3util.QsmEnvID]*QsmApp, 20)
@@ -73,7 +74,7 @@ func TestReadPointData(t *testing.T) {
 	pMsg := &m3api.PointPackDataMsg{}
 	if !sendAndReceive(t, &requestTest{
 		router:              router,
-		requestContentType:  "proto",
+		requestContentType:  "",
 		responseContentType: "proto",
 		typeName:            "PointPackDataMsg",
 		methodName:          "GET",
@@ -126,7 +127,7 @@ func verifyResponseContentType(t *testing.T, rr *httptest.ResponseRecorder, req 
 	} else if req.responseContentType == "proto" {
 		firstPart = "application/x-protobuf"
 	}
-	if !assert.Equal(t, contentTypeSplit[0], firstPart, "fail on %q for %v", contentType, req) {
+	if !assert.Equal(t, firstPart, contentTypeSplit[0], "fail on %q for %v", contentType, req) {
 		return false
 	}
 
@@ -141,33 +142,60 @@ func verifyResponseContentType(t *testing.T, rr *httptest.ResponseRecorder, req 
 func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg proto.Message) bool {
 	var err error
 	var httpReq *http.Request
+
 	if reqMsg != nil {
 		var reqBytes []byte
-		if req.responseContentType == "json" {
+		if req.requestContentType == "query" {
+			reqBytes, err = urlquery.Marshal(reqMsg)
+		} else if req.requestContentType == "json" {
 			reqBytes, err = json.Marshal(reqMsg)
-		} else if req.responseContentType == "proto" {
+		} else if req.requestContentType == "proto" {
 			reqBytes, err = proto.Marshal(reqMsg)
 		} else {
 			return assert.Fail(t, "Invalid content type %q for %v", req.responseContentType, req)
 		}
+
 		if !assert.NoError(t, err, "could not marshal %v", req) {
 			return false
 		}
-		httpReq, err = http.NewRequest(req.methodName, req.uri, bytes.NewReader(reqBytes))
+
+		if req.requestContentType == "query" {
+			httpReq, err = http.NewRequest(req.methodName, req.uri, nil)
+			if !assert.NoError(t, err, "Could create request %v", req) {
+				return false
+			}
+			httpReq.URL.RawQuery = string(reqBytes)
+		} else {
+			httpReq, err = http.NewRequest(req.methodName, req.uri, bytes.NewReader(reqBytes))
+			if !assert.NoError(t, err, "Could create request %v", req) {
+				return false
+			}
+			if req.requestContentType == "json" {
+				httpReq.Header.Set("Content-Type", "application/json")
+			} else if req.requestContentType == "proto" {
+				httpReq.Header.Set("Content-Type", "application/x-protobuf")
+			}
+		}
 	} else {
+		if !assert.Equal(t, "", req.requestContentType, "The request %v should have empty request content type", req) {
+			return false
+		}
 		httpReq, err = http.NewRequest(req.methodName, req.uri, nil)
 	}
 	if !assert.NoError(t, err, "Could create request %v", req) {
 		return false
 	}
 
-	if req.responseContentType == "json" {
-		httpReq.Header.Set("Content-Type", "application/json")
-	} else if req.responseContentType == "proto" {
-		httpReq.Header.Set("Content-Type", "application/x-protobuf")
-	} else {
-		return assert.Fail(t, "Invalid content type %q for %v", req.responseContentType, req)
+	if resMsg != nil && req.responseContentType != req.requestContentType {
+		if req.responseContentType == "json" {
+			httpReq.Header.Set("Accept", "application/json")
+		} else if req.responseContentType == "proto" {
+			httpReq.Header.Set("Accept", "application/x-protobuf")
+		} else {
+			return assert.Fail(t, "Invalid content type %q for %v", req.responseContentType, req)
+		}
 	}
+
 	rr := httptest.NewRecorder()
 	req.router.ServeHTTP(rr, httpReq)
 
