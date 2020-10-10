@@ -91,7 +91,7 @@ func callGetAllSpaces(t *testing.T, router *mux.Router) []*m3api.SpaceMsg {
 	pMsg := &m3api.SpaceListMsg{}
 	if !sendAndReceive(t, &requestTest{
 		router:              router,
-		requestContentType:  "proto",
+		requestContentType:  "",
 		responseContentType: "proto",
 		typeName:            "SpaceListMsg",
 		methodName:          "GET",

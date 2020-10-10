@@ -21,12 +21,12 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type PointMsg struct {
-	X                    int32    `protobuf:"zigzag32,2,opt,name=x,proto3" json:"x"`
-	Y                    int32    `protobuf:"zigzag32,3,opt,name=y,proto3" json:"y"`
-	Z                    int32    `protobuf:"zigzag32,4,opt,name=z,proto3" json:"z"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	X                    int32    `protobuf:"zigzag32,2,opt,name=x,proto3" json:"x" query:"x"`
+	Y                    int32    `protobuf:"zigzag32,3,opt,name=y,proto3" json:"y" query:"y"`
+	Z                    int32    `protobuf:"zigzag32,4,opt,name=z,proto3" json:"z" query:"z"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" query:"-"`
+	XXX_unrecognized     []byte   `json:"-" query:"-"`
+	XXX_sizecache        int32    `json:"-" query:"-"`
 }
 
 func (m *PointMsg) Reset()         { *m = PointMsg{} }
@@ -76,12 +76,12 @@ func (m *PointMsg) GetZ() int32 {
 }
 
 type ConnectionMsg struct {
-	ConnId               int32     `protobuf:"zigzag32,1,opt,name=conn_id,json=connId,proto3" json:"conn_id"`
+	ConnId               int32     `protobuf:"zigzag32,1,opt,name=conn_id,json=connId,proto3" json:"conn_id" query:"conn_id"`
 	Vector               *PointMsg `protobuf:"bytes,2,opt,name=vector,proto3" json:"vector,omitempty"`
-	Ds                   int64     `protobuf:"varint,3,opt,name=ds,proto3" json:"ds,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	Ds                   int64     `protobuf:"varint,3,opt,name=ds,proto3" json:"ds" query:"ds"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-" query:"-"`
+	XXX_unrecognized     []byte    `json:"-" query:"-"`
+	XXX_sizecache        int32     `json:"-" query:"-"`
 }
 
 func (m *ConnectionMsg) Reset()         { *m = ConnectionMsg{} }
@@ -131,11 +131,11 @@ func (m *ConnectionMsg) GetDs() int64 {
 }
 
 type TrioMsg struct {
-	TrioId               int32    `protobuf:"varint,1,opt,name=trio_id,json=trioId,proto3" json:"trio_id"`
+	TrioId               int32    `protobuf:"varint,1,opt,name=trio_id,json=trioId,proto3" json:"trio_id" query:"trio_id"`
 	ConnIds              []int32  `protobuf:"zigzag32,2,rep,packed,name=conn_ids,json=connIds,proto3" json:"conn_ids,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" query:"-"`
+	XXX_unrecognized     []byte   `json:"-" query:"-"`
+	XXX_sizecache        int32    `json:"-" query:"-"`
 }
 
 func (m *TrioMsg) Reset()         { *m = TrioMsg{} }
@@ -178,12 +178,12 @@ func (m *TrioMsg) GetConnIds() []int32 {
 }
 
 type GrowthContextMsg struct {
-	GrowthContextId      int32    `protobuf:"varint,1,opt,name=growth_context_id,json=growthContextId,proto3" json:"growth_context_id"`
-	GrowthType           int32    `protobuf:"varint,2,opt,name=growth_type,json=growthType,proto3" json:"growth_type"`
-	GrowthIndex          int32    `protobuf:"varint,3,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	GrowthContextId      int32    `protobuf:"varint,1,opt,name=growth_context_id,json=growthContextId,proto3" json:"growth_context_id" query:"growth_context_id"`
+	GrowthType           int32    `protobuf:"varint,2,opt,name=growth_type,json=growthType,proto3" json:"growth_type" query:"growth_type"`
+	GrowthIndex          int32    `protobuf:"varint,3,opt,name=growth_index,json=growthIndex,proto3" json:"growth_index" query:"growth_index"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" query:"-"`
+	XXX_unrecognized     []byte   `json:"-" query:"-"`
+	XXX_sizecache        int32    `json:"-" query:"-"`
 }
 
 func (m *GrowthContextMsg) Reset()         { *m = GrowthContextMsg{} }
@@ -239,9 +239,9 @@ type PointPackDataMsg struct {
 	ValidNextTrioIds        []int32             `protobuf:"varint,6,rep,packed,name=valid_next_trio_ids,json=validNextTrioIds,proto3" json:"valid_next_trio_ids,omitempty"`
 	Mod4PermutationsTrioIds []int32             `protobuf:"varint,7,rep,packed,name=mod4_permutations_trio_ids,json=mod4PermutationsTrioIds,proto3" json:"mod4_permutations_trio_ids,omitempty"`
 	Mod8PermutationsTrioIds []int32             `protobuf:"varint,8,rep,packed,name=mod8_permutations_trio_ids,json=mod8PermutationsTrioIds,proto3" json:"mod8_permutations_trio_ids,omitempty"`
-	XXX_NoUnkeyedLiteral    struct{}            `json:"-"`
-	XXX_unrecognized        []byte              `json:"-"`
-	XXX_sizecache           int32               `json:"-"`
+	XXX_NoUnkeyedLiteral    struct{}            `json:"-" query:"-"`
+	XXX_unrecognized        []byte              `json:"-" query:"-"`
+	XXX_sizecache           int32               `json:"-" query:"-"`
 }
 
 func (m *PointPackDataMsg) Reset()         { *m = PointPackDataMsg{} }

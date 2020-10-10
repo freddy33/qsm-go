@@ -83,7 +83,7 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist *int, router *mux
 		resMaxMsg := &m3api.PathNodesResponseMsg{}
 		if !sendAndReceive(t, &requestTest{
 			router:              router,
-			requestContentType:  "proto",
+			requestContentType:  "query",
 			responseContentType: "proto",
 			typeName:            "PathNodesResponseMsg",
 			methodName:          "PUT",
@@ -117,7 +117,7 @@ func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist *int, router *mux
 	resNbMsg := &m3api.PathNodesResponseMsg{}
 	if !sendAndReceive(t, &requestTest{
 		router:              router,
-		requestContentType:  "proto",
+		requestContentType:  "query",
 		responseContentType: "proto",
 		typeName:            "PathNodesResponseMsg",
 		methodName:          "GET",
