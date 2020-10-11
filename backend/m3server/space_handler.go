@@ -48,6 +48,28 @@ func createSpace(w http.ResponseWriter, r *http.Request) {
 	WriteResponseMsg(w, r, spaceDbToMsg(space))
 }
 
+func deleteSpace(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive deleteSpace")
+
+	reqMsg := &m3api.SpaceMsg{}
+	if !ReadRequestMsg(w, r, reqMsg) {
+		return
+	}
+
+	env := GetEnvironment(r)
+	spaceData := spacedb.GetServerSpacePackData(env)
+
+	spaceId := int(reqMsg.SpaceId)
+	spaceName := reqMsg.SpaceName
+	nbDeleted, err := spaceData.DeleteSpace(spaceId, spaceName)
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, "Trying to delete %d %q got: %s", spaceId, spaceName, err.Error())
+		return
+	}
+
+	SendResponse(w, http.StatusOK, "Space ID %d %q deleted %d elements", spaceId, spaceName, nbDeleted)
+}
+
 func spaceDbToMsg(space *spacedb.SpaceDb) *m3api.SpaceMsg {
 	return &m3api.SpaceMsg{
 		SpaceId:          int32(space.GetId()),
@@ -64,7 +86,7 @@ func spaceDbToMsg(space *spacedb.SpaceDb) *m3api.SpaceMsg {
 func createEvent(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive createEvent")
 
-	reqMsg := &m3api.EventRequestMsg{}
+	reqMsg := &m3api.CreateEventRequestMsg{}
 	if !ReadRequestMsg(w, r, reqMsg) {
 		return
 	}

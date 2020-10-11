@@ -77,11 +77,11 @@ func (m *PathContextRequestMsg) GetGrowthOffset() int32 {
 
 type PathNodeMsg struct {
 	PathNodeId           int64     `protobuf:"varint,1,opt,name=path_node_id,json=pathNodeId,proto3" json:"path_node_id" query:"path_node_id"`
-	Point                *PointMsg `protobuf:"bytes,2,opt,name=point,proto3" json:"point,omitempty"`
+	Point                *PointMsg `protobuf:"bytes,2,opt,name=point,proto3" json:"point,omitempty" query:"point"`
 	D                    int32     `protobuf:"varint,3,opt,name=d,proto3" json:"d" query:"d"`
 	TrioId               int32     `protobuf:"varint,4,opt,name=trio_id,json=trioId,proto3" json:"trio_id" query:"trio_id"`
 	ConnectionMask       uint32    `protobuf:"varint,5,opt,name=connection_mask,json=connectionMask,proto3" json:"connection_mask" query:"connection_mask"`
-	LinkedPathNodeIds    []int64   `protobuf:"varint,6,rep,packed,name=linked_path_node_ids,json=linkedPathNodeIds,proto3" json:"linked_path_node_ids,omitempty"`
+	LinkedPathNodeIds    []int64   `protobuf:"varint,6,rep,packed,name=linked_path_node_ids,json=linkedPathNodeIds,proto3" json:"linked_path_node_ids,omitempty" query:"linked_path_node_ids"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-" query:"-"`
 	XXX_unrecognized     []byte    `json:"-" query:"-"`
 	XXX_sizecache        int32     `json:"-" query:"-"`
@@ -158,7 +158,7 @@ type PathContextResponseMsg struct {
 	PathCtxId            int32        `protobuf:"varint,1,opt,name=path_ctx_id,json=pathCtxId,proto3" json:"path_ctx_id" query:"path_ctx_id"`
 	GrowthContextId      int32        `protobuf:"varint,2,opt,name=growth_context_id,json=growthContextId,proto3" json:"growth_context_id" query:"growth_context_id"`
 	GrowthOffset         int32        `protobuf:"varint,3,opt,name=growth_offset,json=growthOffset,proto3" json:"growth_offset" query:"growth_offset"`
-	RootPathNode         *PathNodeMsg `protobuf:"bytes,4,opt,name=root_path_node,json=rootPathNode,proto3" json:"root_path_node,omitempty"`
+	RootPathNode         *PathNodeMsg `protobuf:"bytes,4,opt,name=root_path_node,json=rootPathNode,proto3" json:"root_path_node,omitempty" query:"-"`
 	MaxDist              int32        `protobuf:"varint,5,opt,name=max_dist,json=maxDist,proto3" json:"max_dist" query:"max_dist"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-" query:"-"`
 	XXX_unrecognized     []byte       `json:"-" query:"-"`
@@ -286,7 +286,7 @@ type PathNodesResponseMsg struct {
 	ToDist               int32          `protobuf:"varint,4,opt,name=to_dist,json=toDist,proto3" json:"to_dist" query:"to_dist"`
 	MaxDist              int32          `protobuf:"varint,5,opt,name=max_dist,json=maxDist,proto3" json:"max_dist" query:"max_dist"`
 	NbPathNodes          int32          `protobuf:"varint,6,opt,name=nb_path_nodes,json=nbPathNodes,proto3" json:"nb_path_nodes" query:"nb_path_nodes"`
-	PathNodes            []*PathNodeMsg `protobuf:"bytes,3,rep,name=path_nodes,json=pathNodes,proto3" json:"path_nodes,omitempty"`
+	PathNodes            []*PathNodeMsg `protobuf:"bytes,3,rep,name=path_nodes,json=pathNodes,proto3" json:"path_nodes,omitempty" query:"-"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-" query:"-"`
 	XXX_unrecognized     []byte         `json:"-" query:"-"`
 	XXX_sizecache        int32          `json:"-" query:"-"`

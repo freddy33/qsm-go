@@ -3,7 +3,7 @@ name: QSM
 on: [push]
 
 env:
-  GOPROXY: https://fredsimon.jfrog.io/fredsimon/api/go/go
+  GOPROXY: https://fredsimon.jfrog.io/artifactory/api/go/go
 
 jobs:
   qsm:

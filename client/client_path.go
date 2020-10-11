@@ -173,7 +173,7 @@ func (pathCtx *PathContextCl) RequestNewMaxDist(requestDist int) error {
 		Dist:      int32(requestDist),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
-	_, err := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg, pMsg)
+	_, err := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg, pMsg, true)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (pathCtx *PathContextCl) GetPathNodesAt(dist int) ([]m3path.PathNode, error
 		ToDist:    int32(0),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
-	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg, true)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func (pathCtx *PathContextCl) GetNumberOfNodesAt(dist int) int {
 		ToDist:    int32(0),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
-	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg, true)
 	if err != nil {
 		Log.Error(err)
 		return -1
@@ -230,7 +230,7 @@ func (pathCtx *PathContextCl) GetNumberOfNodesBetween(fromDist int, toDist int) 
 		ToDist:    int32(toDist),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
-	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg, true)
 	if err != nil {
 		Log.Error(err)
 		return -1
@@ -249,7 +249,7 @@ func (pathCtx *PathContextCl) GetPathNodesBetween(fromDist, toDist int) ([]m3pat
 		ToDist:    int32(toDist),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
-	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg)
+	_, err := pathCtx.env.clConn.ExecReq("GET", uri, reqMsg, pMsg, true)
 	if err != nil {
 		return nil, err
 	}
