@@ -77,7 +77,7 @@ func (m *PointMsg) GetZ() int32 {
 
 type ConnectionMsg struct {
 	ConnId               int32     `protobuf:"zigzag32,1,opt,name=conn_id,json=connId,proto3" json:"conn_id" query:"conn_id"`
-	Vector               *PointMsg `protobuf:"bytes,2,opt,name=vector,proto3" json:"vector,omitempty"`
+	Vector               *PointMsg `protobuf:"bytes,2,opt,name=vector,proto3" json:"vector,omitempty" query:"vector"`
 	Ds                   int64     `protobuf:"varint,3,opt,name=ds,proto3" json:"ds" query:"ds"`
 	XXX_NoUnkeyedLiteral struct{}  `json:"-" query:"-"`
 	XXX_unrecognized     []byte    `json:"-" query:"-"`
@@ -132,7 +132,7 @@ func (m *ConnectionMsg) GetDs() int64 {
 
 type TrioMsg struct {
 	TrioId               int32    `protobuf:"varint,1,opt,name=trio_id,json=trioId,proto3" json:"trio_id" query:"trio_id"`
-	ConnIds              []int32  `protobuf:"zigzag32,2,rep,packed,name=conn_ids,json=connIds,proto3" json:"conn_ids,omitempty"`
+	ConnIds              []int32  `protobuf:"zigzag32,2,rep,packed,name=conn_ids,json=connIds,proto3" json:"conn_ids,omitempty" query:"conn_ids"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-" query:"-"`
 	XXX_unrecognized     []byte   `json:"-" query:"-"`
 	XXX_sizecache        int32    `json:"-" query:"-"`
@@ -233,10 +233,10 @@ func (m *GrowthContextMsg) GetGrowthIndex() int32 {
 }
 
 type PointPackDataMsg struct {
-	AllConnections          []*ConnectionMsg    `protobuf:"bytes,1,rep,name=all_connections,json=allConnections,proto3" json:"all_connections,omitempty"`
-	AllTrios                []*TrioMsg          `protobuf:"bytes,2,rep,name=all_trios,json=allTrios,proto3" json:"all_trios,omitempty"`
-	AllGrowthContexts       []*GrowthContextMsg `protobuf:"bytes,3,rep,name=all_growth_contexts,json=allGrowthContexts,proto3" json:"all_growth_contexts,omitempty"`
-	ValidNextTrioIds        []int32             `protobuf:"varint,6,rep,packed,name=valid_next_trio_ids,json=validNextTrioIds,proto3" json:"valid_next_trio_ids,omitempty"`
+	AllConnections          []*ConnectionMsg    `protobuf:"bytes,1,rep,name=all_connections,json=allConnections,proto3" json:"all_connections,omitempty" query:"-"`
+	AllTrios                []*TrioMsg          `protobuf:"bytes,2,rep,name=all_trios,json=allTrios,proto3" json:"all_trios,omitempty" query:"-"`
+	AllGrowthContexts       []*GrowthContextMsg `protobuf:"bytes,3,rep,name=all_growth_contexts,json=allGrowthContexts,proto3" json:"all_growth_contexts,omitempty" query:"-"`
+	ValidNextTrioIds        []int32             `protobuf:"varint,6,rep,packed,name=valid_next_trio_ids,json=validNextTrioIds,proto3" json:"valid_next_trio_ids,omitempty" query:"valid_next_trio_ids"`
 	Mod4PermutationsTrioIds []int32             `protobuf:"varint,7,rep,packed,name=mod4_permutations_trio_ids,json=mod4PermutationsTrioIds,proto3" json:"mod4_permutations_trio_ids,omitempty"`
 	Mod8PermutationsTrioIds []int32             `protobuf:"varint,8,rep,packed,name=mod8_permutations_trio_ids,json=mod8PermutationsTrioIds,proto3" json:"mod8_permutations_trio_ids,omitempty"`
 	XXX_NoUnkeyedLiteral    struct{}            `json:"-" query:"-"`

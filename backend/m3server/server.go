@@ -8,9 +8,9 @@ import (
 	"github.com/freddy33/qsm-go/backend/spacedb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/freddy33/urlquery"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
-	"github.com/hetiansu5/urlquery"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -282,6 +282,9 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 
 	app.AddHandler("/space", createSpace).Methods("PUT")
 	app.AddHandler("/space", getSpaces).Methods("GET")
+	app.AddHandler("/space", deleteSpace).Methods("DELETE")
+
+	app.AddHandler("/event", createEvent).Methods("GET")
 	app.AddHandler("/event", createEvent).Methods("PUT")
 
 	return app

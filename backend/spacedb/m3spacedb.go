@@ -93,7 +93,7 @@ func (space *SpaceDb) finalInit() error {
 }
 
 func (space *SpaceDb) String() string {
-	return fmt.Sprintf("%d:%s-%d", space.id, space.name, len(space.events))
+	return fmt.Sprintf("SpaceDb:%d:%s-%d", space.id, space.name, len(space.events))
 }
 
 func (space *SpaceDb) GetId() int {

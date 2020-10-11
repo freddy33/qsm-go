@@ -71,7 +71,7 @@ func GetOrCreateInitializedApiEnv(envId m3util.QsmEnvID, callDrop, callInit bool
 	if callDrop {
 		// Equivalent of calling filldb job
 		uri := "drop-env"
-		response, err := cl.ExecReq(http.MethodDelete, uri, nil, nil)
+		response, err := cl.ExecReq(http.MethodDelete, uri, nil, nil, false)
 		if err != nil {
 			Log.Fatal(err)
 			return nil
@@ -91,7 +91,7 @@ func GetOrCreateInitializedApiEnv(envId m3util.QsmEnvID, callDrop, callInit bool
 	if callInit {
 		// Equivalent of calling filldb job
 		uri := "init-env"
-		response, err := cl.ExecReq(http.MethodPost, uri, nil, nil)
+		response, err := cl.ExecReq(http.MethodPost, uri, nil, nil, false)
 		if err != nil {
 			Log.Fatal(err)
 			return nil

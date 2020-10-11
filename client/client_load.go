@@ -6,60 +6,76 @@ import (
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
+	"github.com/freddy33/urlquery"
 	"github.com/golang/protobuf/proto"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 )
 
-const(
+const (
 	ExecOK     = "OK"
 	ExecFailed = "FAIL"
 )
 
-func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Message, respMsg proto.Message) (string, error) {
+func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Message, respMsg proto.Message, useQueryParams bool) (string, error) {
 	uri = strings.TrimPrefix(uri, "/")
 
-	var reqBody io.Reader
+	var err error
+	var reqBytes []byte
 	if reqMsg != nil {
-		reqBytes, err := proto.Marshal(reqMsg)
-		if err != nil {
-			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Failed marshalling message in %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
+		if useQueryParams {
+			reqBytes, err = urlquery.Marshal(reqMsg)
+		} else {
+			reqBytes, err = proto.Marshal(reqMsg)
 		}
-		reqBody = bytes.NewReader(reqBytes)
+		if err != nil {
+			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Failed marshalling message using query %v in %s:%s for REST API end point %q due to: %v", useQueryParams, method, uri, cl.backendRootURL, err)
+		}
 	}
-	req, err := http.NewRequest(method, cl.backendRootURL+uri, reqBody)
+	req, err := http.NewRequest(method, cl.backendRootURL+uri, bytes.NewReader(reqBytes))
 	if err != nil {
-		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not request %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Could not request %s:%s for REST API end point %q due to: %v", method, uri, cl.backendRootURL, err)
 	}
 	if req == nil {
 		return ExecFailed, m3util.MakeQsmErrorf("Got a nil request %s:%s for REST API end point %q", method, uri, cl.backendRootURL)
 	}
 	req.Header.Add(m3api.HttpEnvIdKey, cl.envId.String())
-	req.Header.Add("Content-Type", "application/x-protobuf")
-
+	if reqMsg != nil {
+		if useQueryParams {
+			req.URL.RawQuery = string(reqBytes)
+		} else {
+			req.Header.Add("Content-Type", "application/x-protobuf")
+		}
+	}
+	if respMsg != nil {
+		req.Header.Add("Accept", "application/x-protobuf")
+	}
 	resp, err := cl.httpClient.Do(req)
 	if err != nil {
-		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not retrieve data from REST API %s:%s end point %q due to: %v", method, uri, cl.backendRootURL, err)
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Could not retrieve data from REST API %s:%s end point %q due to: %v", method, uri, cl.backendRootURL, err)
 	}
 	if resp == nil {
 		return ExecFailed, m3util.MakeQsmErrorf("Got a nil response from REST API %s:%s end point %q", method, uri, cl.backendRootURL)
 	}
 
-	// TODO: Need to read the status code!
-
+	// Always read the whole body even on error
 	respBody := resp.Body
 	defer m3util.CloseBody(respBody)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusCreated {
+		return ExecFailed, m3util.MakeQsmErrorf("Query %s:%s received wrong status %d", method, uri, resp.StatusCode)
+	}
+
 	respBytes, err := ioutil.ReadAll(respBody)
 	if err != nil {
-		return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not read body from REST API end point %q due to %v", uri, err)
+		return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Could not read body from REST API end point %q due to %v", uri, err)
 	}
 	if respMsg != nil {
 		// TODO: Verify content type and resp object type match
 		err = proto.Unmarshal(respBytes, respMsg)
 		if err != nil {
-			return ExecFailed, m3util.MakeWrapQsmErrorf(err,"Could not unmarshal from REST API end point %q due to %v", uri, err)
+			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Could not unmarshal from REST API end point %q due to %v", uri, err)
 		}
 		return ExecOK, nil
 	}
@@ -67,7 +83,7 @@ func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Mess
 }
 
 func (cl *ClientConnection) CheckServerUp() bool {
-	response, err := cl.ExecReq(http.MethodGet, "", nil, nil)
+	response, err := cl.ExecReq(http.MethodGet, "", nil, nil, false)
 	if err != nil {
 		Log.Error(err)
 		return false
@@ -114,7 +130,7 @@ func (env *QsmApiEnvironment) initializePointData() {
 		return
 	}
 	pMsg := &m3api.PointPackDataMsg{}
-	_, err := env.clConn.ExecReq(http.MethodGet, "point-data", nil, pMsg)
+	_, err := env.clConn.ExecReq(http.MethodGet, "point-data", nil, pMsg, false)
 	if err != nil {
 		Log.Fatal(err)
 		return
@@ -192,12 +208,12 @@ func (pathData *ClientPathPackData) GetPathCtx(id int) m3path.PathContext {
 func (pathData *ClientPathPackData) GetPathCtxFromAttributes(growthType m3point.GrowthType, growthIndex int, offset int) (m3path.PathContext, error) {
 	uri := "path-context"
 	reqMsg := &m3api.PathContextRequestMsg{
-		GrowthType: int32(growthType),
-		GrowthIndex: int32(growthIndex),
-		GrowthOffset:    int32(offset),
+		GrowthType:   int32(growthType),
+		GrowthIndex:  int32(growthIndex),
+		GrowthOffset: int32(offset),
 	}
 	pMsg := new(m3api.PathContextResponseMsg)
-	_, err := pathData.env.clConn.ExecReq(http.MethodPost, uri, reqMsg, pMsg)
+	_, err := pathData.env.clConn.ExecReq(http.MethodPost, uri, reqMsg, pMsg, true)
 	if err != nil {
 		Log.Fatal(err)
 		return nil, nil

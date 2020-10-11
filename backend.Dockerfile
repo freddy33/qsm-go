@@ -5,7 +5,7 @@ COPY backend/go.mod backend/go.sum /app/backend/
 WORKDIR /app/backend
 RUN go mod download
 COPY . /app
-RUN GOPROXY="https://fredsimon.jfrog.io/fredsimon/api/go/go" GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o main
+RUN GOPROXY="https://fredsimon.jfrog.io/artifactory/api/go/go" GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o main
 
 FROM fredsimon-docker.jfrog.io/alpine:3.12
 WORKDIR /app

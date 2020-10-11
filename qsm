@@ -30,7 +30,7 @@ fi
 script=$1
 shift
 
-#export GOPROXY="https://fredsimon.jfrog.io/fredsimon/api/go/go"
-export GOPROXY="https://gocenter.io"
+export GOPROXY="https://fredsimon.jfrog.io/artifactory/api/go/go"
+#export GOPROXY="https://gocenter.io"
 
 cd "$QSM_HOME" && ./scripts/${script}.sh $@

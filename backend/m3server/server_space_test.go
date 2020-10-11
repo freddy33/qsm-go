@@ -38,13 +38,17 @@ func TestSpaceNextTime(t *testing.T) {
 		return
 	}
 	for i, space := range allSpaces {
-		fmt.Printf("Index %d : Id=%d Name=%q\n", i, space.SpaceId, space.SpaceName)
+		Log.Infof("Index %d : Id=%d Name=%q\n", i, space.SpaceId, space.SpaceName)
 	}
 
 	eventId := callCreateEvent(t, qsmApp, spaceId, 0, m3point.Point{-3, 3, 6}, m3space.RedEvent, 8, 0, 0)
 	fmt.Printf("Created %d for %d\n", eventId, spaceId)
 	if eventId < 0 {
 		// failed
+		return
+	}
+
+	if !callDeleteSpace(t, router, spaceId, spaceName) {
 		return
 	}
 }
@@ -102,14 +106,26 @@ func callGetAllSpaces(t *testing.T, router *mux.Router) []*m3api.SpaceMsg {
 	return pMsg.Spaces
 }
 
-func callDeleteSpace(t *testing.T, router *mux.Router) (int, string) {
-	return -1, ""
+func callDeleteSpace(t *testing.T, router *mux.Router, spaceId int, spaceName string) bool {
+	reqMsg := &m3api.SpaceMsg{
+		SpaceId:   int32(spaceId),
+		SpaceName: spaceName,
+	}
+	return sendAndReceive(t, &requestTest{
+		router:              router,
+		requestContentType:  "query",
+		responseContentType: "",
+		typeName:            "string",
+		methodName:          "DELETE",
+		uri:                 "/space",
+	}, reqMsg, nil)
 }
 
 func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	time m3space.DistAndTime, point m3point.Point, color m3space.EventColor,
 	growthType m3point.GrowthType, growthIndex int, growthOffset int) int {
-	reqMsg := &m3api.EventRequestMsg{
+
+	reqMsg := &m3api.CreateEventRequestMsg{
 		SpaceId:      int32(spaceId),
 		GrowthType:   int32(growthType),
 		GrowthIndex:  int32(growthIndex),
