@@ -10,8 +10,8 @@ import (
 )
 
 type ClientSpacePackData struct {
-	Env       *QsmApiEnvironment
-	allSpaces map[int]*SpaceCl
+	Env             *QsmApiEnvironment
+	allSpaces       map[int]*SpaceCl
 	allSpacesLoaded bool
 }
 
@@ -48,11 +48,15 @@ type EventNodeCl struct {
 	Event *EventCl
 	id    int64
 
-	pointId int64
-	point   m3point.Point
+	point m3point.Point
 
 	creationTime m3space.DistAndTime
 	d            m3space.DistAndTime
+
+	pathNodeId     int64
+	trioDetails    *m3point.TrioDetails
+	connectionMask uint16
+	linkNodes      [m3path.NbConnections]int64
 }
 
 /***************************************************************/
@@ -131,10 +135,10 @@ func (spaceData *ClientSpacePackData) GetSpace(id int) m3space.SpaceIfc {
 func (spaceData *ClientSpacePackData) CreateSpace(name string, activePathNodeThreshold m3space.DistAndTime, maxTriosPerPoint int, maxPathNodesPerPoint int) (m3space.SpaceIfc, error) {
 	uri := "space"
 	reqMsg := &m3api.SpaceMsg{
-		SpaceName:            name,
-		ActiveThreshold:      int32(activePathNodeThreshold),
-		MaxTriosPerPoint:     int32(maxTriosPerPoint),
-		MaxNodesPerPoint:     int32(maxPathNodesPerPoint),
+		SpaceName:        name,
+		ActiveThreshold:  int32(activePathNodeThreshold),
+		MaxTriosPerPoint: int32(maxTriosPerPoint),
+		MaxNodesPerPoint: int32(maxPathNodesPerPoint),
 	}
 	resMsg := &m3api.SpaceMsg{}
 	_, err := spaceData.Env.clConn.ExecReq("PUT", uri, reqMsg, resMsg, false)
@@ -149,8 +153,8 @@ func (spaceData *ClientSpacePackData) CreateSpace(name string, activePathNodeThr
 func (spaceData *ClientSpacePackData) DeleteSpace(id int, name string) (int, error) {
 	uri := "space"
 	reqMsg := &m3api.SpaceMsg{
-		SpaceId:            int32(id),
-		SpaceName:            name,
+		SpaceId:   int32(id),
+		SpaceName: name,
 	}
 	_, err := spaceData.Env.clConn.ExecReq("DELETE", uri, reqMsg, nil, true)
 	if err != nil {
@@ -197,12 +201,62 @@ func (space *SpaceCl) GetMaxCoord() m3point.CInt {
 }
 
 func (space *SpaceCl) GetEvent(id m3space.EventId) m3space.EventIfc {
-
-	return
+	uri := "event"
+	reqMsg := &m3api.FindEventsMsg{
+		EventId:              int32(id),
+		SpaceId:              int32(space.id),
+		AtTime:               0,
+	}
+	resMsg := new(m3api.EventListMsg)
+	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, true)
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+	if len(resMsg.Events) != 1 {
+		Log.Errorf("Did not find 1 single event id %d at %s but %d array", id, space.String(), len(resMsg.Events))
+		return nil
+	}
+	pathData := GetClientPathPackData(space.SpaceData.Env)
+	pointData := GetClientPointPackData(space.SpaceData.Env)
+	evtMsg := resMsg.Events[0]
+	event, err := space.createEventFromMsg(pathData, pointData, evtMsg)
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+	return event
 }
 
-func (space *SpaceCl) GetActiveEventsAt(time m3space.DistAndTime) []m3space.EventIfc {
-	panic("implement me")
+func (space *SpaceCl) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.EventIfc {
+	uri := "event"
+	reqMsg := &m3api.FindEventsMsg{
+		EventId:              int32(-1),
+		SpaceId:              int32(space.id),
+		AtTime:               int32(atTime),
+	}
+	resMsg := new(m3api.EventListMsg)
+	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, true)
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+	if len(resMsg.Events) > 0 {
+		Log.Infof("Did not find a single event at time %d for %s", atTime, space.String())
+		return nil
+	}
+
+	res := make([]m3space.EventIfc, len(resMsg.Events))
+	pathData := GetClientPathPackData(space.SpaceData.Env)
+	pointData := GetClientPointPackData(space.SpaceData.Env)
+	for i, evtMsg := range resMsg.Events {
+		res[i], err = space.createEventFromMsg(pathData, pointData, evtMsg)
+		if err != nil {
+			Log.Error(err)
+			return nil
+		}
+	}
+	return res
 }
 
 func (space *SpaceCl) GetSpaceTimeAt(time m3space.DistAndTime) m3space.SpaceTimeIfc {
@@ -225,43 +279,122 @@ func (space *SpaceCl) CreateEvent(growthType m3point.GrowthType, growthIndex int
 	}
 	resMsg := new(m3api.EventMsg)
 	_, err := space.SpaceData.Env.clConn.ExecReq("PUT", uri, reqMsg, resMsg, false)
+	if err != nil {
+		return nil, err
+	}
 
+	pathData := GetClientPathPackData(space.SpaceData.Env)
+	pointData := GetClientPointPackData(space.SpaceData.Env)
+	evt, err := space.createEventFromMsg(pathData, pointData, resMsg)
+	if err != nil {
+		return nil, err
+	}
+	space.eventIds = append(space.eventIds, evt.id)
+
+	return evt, nil
+}
+
+func (space *SpaceCl) createEventFromMsg(pathData *ClientPathPackData, pointData *ClientPointPackData, resMsg *m3api.EventMsg) (*EventCl, error) {
+	pathCtx := pathData.GetPathCtx(int(resMsg.PathCtxId))
+	if pathCtx == nil {
+		return nil, m3util.MakeQsmErrorf("Received path context id %d which does exists", resMsg.PathCtxId)
+	}
+	event := &EventCl{
+		space:        space,
+		id:           m3space.EventId(resMsg.EventId),
+		pathCtx:      pathCtx.(*PathContextCl),
+		CreationTime: m3space.DistAndTime(resMsg.CreationTime),
+		color:        m3space.EventColor(resMsg.Color),
+		endTime:      0,
+		MaxNodeTime:  0,
+	}
+	var err error
+	event.CenterNode, err = event.createNodeFromMsg(pointData, resMsg.RootNode)
+	if err != nil {
+		return nil, err
+	}
+	return event, nil
 }
 
 /***************************************************************/
 // EventCl Functions
 /***************************************************************/
 
+func (evt *EventCl) createNodeFromMsg(pointData *ClientPointPackData, neMsg *m3api.NodeEventMsg) (*EventNodeCl, error) {
+	td := pointData.GetTrioDetails(m3point.TrioIndex(neMsg.TrioId))
+	if td == nil {
+		return nil, m3util.MakeQsmErrorf("Cannot create node %d since trio index %d does not exists", neMsg.EventNodeId, neMsg.TrioId)
+	}
+	ne := &EventNodeCl{
+		Event:          evt,
+		id:             neMsg.EventNodeId,
+		point:          m3api.PointMsgToPoint(neMsg.Point),
+		creationTime:   m3space.DistAndTime(neMsg.CreationTime),
+		d:              m3space.DistAndTime(neMsg.D),
+		pathNodeId:     neMsg.PathNodeId,
+		trioDetails:    td,
+		connectionMask: uint16(neMsg.ConnectionMask),
+	}
+	for i, nodeId := range neMsg.LinkedNodeIds {
+		ne.linkNodes[i] = nodeId
+	}
+	return ne, nil
+}
+
 func (evt *EventCl) String() string {
-	panic("implement me")
+	return fmt.Sprintf("Evt%02d:Sp%02d:CT=%d:%d", evt.id, evt.space.id, evt.CreationTime, evt.color)
 }
 
 func (evt *EventCl) GetId() m3space.EventId {
-	panic("implement me")
+	return evt.id
 }
 
 func (evt *EventCl) GetSpace() m3space.SpaceIfc {
-	panic("implement me")
+	return evt.space
 }
 
 func (evt *EventCl) GetPathContext() m3path.PathContext {
-	panic("implement me")
+	return evt.pathCtx
 }
 
 func (evt *EventCl) GetCreationTime() m3space.DistAndTime {
-	panic("implement me")
+	return evt.CreationTime
 }
 
 func (evt *EventCl) GetColor() m3space.EventColor {
-	panic("implement me")
+	return evt.color
 }
 
-func (evt *EventCl) GetCenterNode() m3space.EventNodeIfc {
-	panic("implement me")
+func (evt *EventCl) GetCenterNode() m3space.NodeEventIfc {
+	return evt.CenterNode
 }
 
-func (evt *EventCl) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space.EventNodeIfc, error) {
-	panic("implement me")
+func (evt *EventCl) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space.NodeEventIfc, error) {
+	uri := "event-nodes"
+	reqMsg := &m3api.FindNodeEventsMsg{
+		EventId:              int32(evt.id),
+		SpaceId:              int32(evt.space.id),
+		AtTime:               int32(currentTime),
+	}
+	resMsg := new(m3api.NodeEventListMsg)
+	env := evt.space.SpaceData.Env
+	_, err := env.clConn.ExecReq("GET", uri, reqMsg, resMsg, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resMsg.Nodes) > 0 {
+		return nil, m3util.MakeQsmErrorf("Did not find a single node event at time %d for %s", currentTime, evt.String())
+	}
+
+	res := make([]m3space.NodeEventIfc, len(resMsg.Nodes))
+	pointData := GetClientPointPackData(env)
+	for i, nodeMsg := range resMsg.Nodes {
+		res[i], err = evt.createNodeFromMsg(pointData, nodeMsg)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 /***************************************************************/
@@ -269,66 +402,75 @@ func (evt *EventCl) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space
 /***************************************************************/
 
 func (en *EventNodeCl) String() string {
-	panic("implement me")
+	return fmt.Sprintf("EvtNode%02d:Evt%02d:P=%v:T=%d:%d", en.id, en.Event.id,
+		en.point, en.creationTime, en.d)
 }
 
 func (en *EventNodeCl) GetId() int64 {
-	panic("implement me")
+	return en.id
 }
 
 func (en *EventNodeCl) GetEventId() m3space.EventId {
-	panic("implement me")
+	return en.Event.GetId()
 }
 
 func (en *EventNodeCl) GetPointId() int64 {
-	panic("implement me")
+	panic("There is no point id on client side")
 }
 
 func (en *EventNodeCl) GetPathNodeId() int64 {
-	panic("implement me")
+	return en.pathNodeId
 }
 
 func (en *EventNodeCl) GetCreationTime() m3space.DistAndTime {
-	panic("implement me")
+	return en.creationTime
 }
 
 func (en *EventNodeCl) GetD() m3space.DistAndTime {
-	panic("implement me")
+	return en.d
 }
 
 func (en *EventNodeCl) GetColor() m3space.EventColor {
-	panic("implement me")
+	return en.Event.color
 }
 
 func (en *EventNodeCl) GetPoint() (*m3point.Point, error) {
-	panic("implement me")
+	return &en.point, nil
 }
 
 func (en *EventNodeCl) GetPathNode() (m3path.PathNode, error) {
-	panic("implement me")
+	return en.Event.pathCtx.pathNodeMap.GetPathNodeById(m3point.Int64Id(en.pathNodeId)), nil
 }
 
 func (en *EventNodeCl) GetTrioIndex() m3point.TrioIndex {
-	panic("implement me")
+	return en.trioDetails.Id
 }
 
 func (en *EventNodeCl) GetTrioDetails(pointData m3point.PointPackDataIfc) *m3point.TrioDetails {
-	panic("implement me")
+	return en.trioDetails
+}
+
+func (en *EventNodeCl) GetConnectionState(connIdx int) m3path.ConnectionState {
+	return m3path.GetConnectionState(en.connectionMask, connIdx)
 }
 
 func (en *EventNodeCl) HasOpenConnections() bool {
-	panic("implement me")
+	for i := 0; i < m3path.NbConnections; i++ {
+		if en.GetConnectionState(i) == m3path.ConnectionNotSet {
+			return true
+		}
+	}
+	return false
 }
 
 func (en *EventNodeCl) IsFrom(connIdx int) bool {
-	panic("implement me")
+	return en.GetConnectionState(connIdx) == m3path.ConnectionFrom
 }
 
 func (en *EventNodeCl) IsNext(connIdx int) bool {
-	panic("implement me")
+	return en.GetConnectionState(connIdx) == m3path.ConnectionNext
 }
 
 func (en *EventNodeCl) IsDeadEnd(connIdx int) bool {
-	panic("implement me")
+	return en.GetConnectionState(connIdx) == m3path.ConnectionBlocked
 }
-

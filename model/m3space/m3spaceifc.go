@@ -39,8 +39,8 @@ type SpaceIfc interface {
 	GetMaxTime() DistAndTime
 	GetMaxCoord() m3point.CInt
 	GetEvent(id EventId) EventIfc
-	GetActiveEventsAt(time DistAndTime) []EventIfc
-	GetSpaceTimeAt(time DistAndTime) SpaceTimeIfc
+	GetActiveEventsAt(atTime DistAndTime) []EventIfc
+	GetSpaceTimeAt(atTime DistAndTime) SpaceTimeIfc
 	CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int,
 		creationTime DistAndTime, center m3point.Point, color EventColor) (EventIfc, error)
 }
@@ -67,7 +67,7 @@ type SpaceTimeNodeIfc interface {
 	GetPoint() (*m3point.Point, error)
 	IsEmpty() bool
 	GetNbEventNodes() int
-	GetEventNodes() []EventNodeIfc
+	GetEventNodes() []NodeEventIfc
 	GetEventIds() []EventId
 
 	HasRoot() bool
@@ -85,11 +85,11 @@ type EventIfc interface {
 	GetPathContext() m3path.PathContext
 	GetCreationTime() DistAndTime
 	GetColor() EventColor
-	GetCenterNode() EventNodeIfc
-	GetActiveNodesAt(currentTime DistAndTime) ([]EventNodeIfc, error)
+	GetCenterNode() NodeEventIfc
+	GetActiveNodesAt(currentTime DistAndTime) ([]NodeEventIfc, error)
 }
 
-type EventNodeIfc interface {
+type NodeEventIfc interface {
 	fmt.Stringer
 	m3path.ConnectionStateIfc
 	GetId() int64

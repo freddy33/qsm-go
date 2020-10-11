@@ -14,11 +14,11 @@ type SpaceTimeNode struct {
 }
 
 type NodeEventList struct {
-	cur  *EventNodeDb
+	cur  *NodeEventDb
 	next *NodeEventList
 }
 
-func (nel *NodeEventList) Add(en *EventNodeDb) {
+func (nel *NodeEventList) Add(en *NodeEventDb) {
 	if nel.cur == nil {
 		nel.cur = en
 	} else if nel.next == nil {
@@ -61,8 +61,8 @@ func (stn *SpaceTimeNode) GetNbEventNodes() int {
 	return stn.head.Size()
 }
 
-func (stn *SpaceTimeNode) GetEventNodes() []m3space.EventNodeIfc {
-	res := make([]m3space.EventNodeIfc, 0, stn.GetNbEventNodes())
+func (stn *SpaceTimeNode) GetEventNodes() []m3space.NodeEventIfc {
+	res := make([]m3space.NodeEventIfc, 0, stn.GetNbEventNodes())
 	nel := stn.head
 	for nel != nil {
 		res = append(res, nel.cur)
@@ -87,7 +87,7 @@ func (stn *SpaceTimeNode) GetEventIds() []m3space.EventId {
 	return res
 }
 
-func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64)) {
+func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId int64)) {
 	pointData := stn.spaceTime.space.pointData
 	nel := stn.head
 	for nel != nil {
@@ -119,7 +119,7 @@ func (stn *SpaceTimeNode) IsEventAlreadyPresent(id m3space.EventId) bool {
 	return stn.GetNodeEvent(id) != nil
 }
 
-func (stn *SpaceTimeNode) GetNodeEvent(id m3space.EventId) m3space.EventNodeIfc {
+func (stn *SpaceTimeNode) GetNodeEvent(id m3space.EventId) m3space.NodeEventIfc {
 	nel := stn.head
 	for nel != nil {
 		if nel.cur.GetEventId() == id {
@@ -196,7 +196,7 @@ func (stn *SpaceTimeNode) GetStateString() string {
 
 func (stn *SpaceTimeNode) GetConnections() []m3point.ConnectionId {
 	res := make([]m3point.ConnectionId, 0, 5)
-	stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+	stn.VisitConnections(func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId int64) {
 		for _, cId := range res {
 			if cId == connId {
 				return

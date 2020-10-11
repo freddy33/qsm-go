@@ -33,4 +33,4 @@ shift
 export GOPROXY="https://fredsimon.jfrog.io/artifactory/api/go/go"
 #export GOPROXY="https://gocenter.io"
 
-cd "$QSM_HOME" && ./scripts/${script}.sh $@
+cd "$QSM_HOME" && ./scripts/${script}.sh "$@"
