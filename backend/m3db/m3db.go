@@ -70,7 +70,10 @@ func createNewDbEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
 	env.schemaName = "qsm" + envId.String()
 	env.tableExecs = make(map[string]*TableExec)
 
-	env.openDb()
+	err := env.OpenDb()
+	if err != nil {
+		Log.Fatalf("Env %d failed to open DB: %v", envId, err)
+	}
 
 	if !env.Ping() {
 		Log.Fatalf("Could not ping DB %d", envId)
@@ -83,7 +86,7 @@ func GetEnvironment(envId m3util.QsmEnvID) *QsmDbEnvironment {
 	return m3util.GetEnvironmentWithCreator(envId, createNewDbEnv).(*QsmDbEnvironment)
 }
 
-func (env *QsmDbEnvironment) openDb() {
+func (env *QsmDbEnvironment) OpenDb() error {
 	connDetails := env.GetDbConf()
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		connDetails.Host, connDetails.Port, connDetails.User, connDetails.Password, connDetails.DbName)
@@ -93,14 +96,26 @@ func (env *QsmDbEnvironment) openDb() {
 	var err error
 	env.db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
-		Log.Fatalf("fail to open DB for environment %d with user=%s and dbName=%s due to %v", env.GetId(), env.dbDetails.User, env.dbDetails.DbName, err)
+		return m3util.MakeWrapQsmErrorf(err, "fail to open DB for environment %d with user=%s and dbName=%s due to %v", env.GetId(), env.dbDetails.User, env.dbDetails.DbName, err)
 	}
 	if Log.IsDebug() {
 		Log.Debugf("DB opened for environment %d is user=%s dbName=%s", env.GetId(), env.dbDetails.User, env.dbDetails.DbName)
 	}
+	return nil
 }
 
-func (env *QsmDbEnvironment) InternalClose() error {
+func (env *QsmDbEnvironment) CloseDb() {
+	db := env.db
+	env.db = nil
+	if db != nil {
+		err := db.Close()
+		if err != nil {
+			Log.Errorf("Error while closing environment %d : %v", env.Id, err)
+		}
+	}
+}
+
+func (env *QsmDbEnvironment) Close() {
 	envId := env.GetId()
 	Log.Infof("Closing DB environment %d", envId)
 	defer m3util.RemoveEnvFromMap(envId)
@@ -113,12 +128,6 @@ func (env *QsmDbEnvironment) InternalClose() error {
 		}
 		delete(env.tableExecs, tn)
 	}
-	db := env.db
-	env.db = nil
-	if db != nil {
-		return db.Close()
-	}
-	return nil
 }
 
 func (env *QsmDbEnvironment) CheckSchema() error {
@@ -191,10 +200,7 @@ func (env *QsmDbEnvironment) dropSchema() {
 
 func (env *QsmDbEnvironment) Destroy() {
 	env.dropSchema()
-	err := env.InternalClose()
-	if err != nil {
-		Log.Error(err)
-	}
+	env.Close()
 }
 
 func (env *QsmDbEnvironment) Ping() bool {

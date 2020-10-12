@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package m3api;
+
+message EnvMsg {
+    int32 env_id = 1;
+    string schema_name = 2;
+    int64 schema_size = 3;
+    float schema_size_percent = 4;
+}
+
+message EnvListMsg {
+    repeated EnvMsg envs = 1;
+}

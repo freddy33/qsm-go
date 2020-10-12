@@ -1,6 +1,7 @@
 module github.com/freddy33/qsm-go/backend
 
 require (
+	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
 	github.com/freddy33/qsm-go/m3util v0.0.0-latest
 	github.com/freddy33/qsm-go/model v0.0.0-20200626140801-6f9a15bc7381
 	github.com/freddy33/urlquery v1.2.4

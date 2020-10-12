@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/c2h5oh/datasize"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/urlquery"
@@ -65,6 +66,30 @@ func TestLogLevelSetter(t *testing.T) {
 
 	assert.False(t, Log.IsDebug())
 	assert.True(t, Log.IsInfo())
+}
+
+func TestListEnv(t *testing.T) {
+	Log.SetInfo()
+	router := getApp(m3util.PointTestEnv).Router
+	pMsg := &m3api.EnvListMsg{}
+	if !sendAndReceive(t, &requestTest{
+		router:              router,
+		requestContentType:  "",
+		responseContentType: "proto",
+		typeName:            "EnvListMsg",
+		methodName:          "GET",
+		uri:                 "/list-env",
+	}, nil, pMsg) {
+		return
+	}
+
+	assert.True(t, len(pMsg.Envs) > 0)
+	for i, envMsg := range pMsg.Envs {
+		Log.Infof("Index %d : Env %d %q %s %02.2f", i, envMsg.EnvId,
+			envMsg.SchemaName,
+			datasize.ByteSize(envMsg.SchemaSize).HR(),
+			envMsg.SchemaSizePercent)
+	}
 }
 
 func TestReadPointData(t *testing.T) {

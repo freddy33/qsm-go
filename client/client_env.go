@@ -49,10 +49,9 @@ func (cl *ClientConnection) validate() {
 	cl.httpClient = http.Client{Timeout: 20 * time.Second}
 }
 
-func (env *QsmApiEnvironment) InternalClose() error {
+func (env *QsmApiEnvironment) Close() {
 	Log.Infof("Closing API environment %d", env.GetId())
 	env.clConn.httpClient.CloseIdleConnections()
-	return nil
 }
 
 func GetInitializedApiEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
