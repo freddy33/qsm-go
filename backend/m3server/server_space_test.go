@@ -22,10 +22,8 @@ func init() {
 func TestSpaceNextTime(t *testing.T) {
 	m3util.SetToTestMode()
 	Log.SetInfo()
-	qsmApp := getApp(m3util.TestServerEnv)
+	qsmApp := getTestServerApp(t)
 	router := qsmApp.Router
-
-	initDB(t, router)
 
 	spaceId, spaceName := callCreateSpace(t, router)
 	fmt.Printf("Created %d = %q\n", spaceId, spaceName)

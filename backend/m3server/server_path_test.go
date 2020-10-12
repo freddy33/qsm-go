@@ -1,6 +1,7 @@
 package m3server
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
@@ -12,15 +13,30 @@ import (
 	"testing"
 )
 
-func TestPathContextMove(t *testing.T) {
+func TestGetAllPathContext(t *testing.T) {
 	m3util.SetToTestMode()
 	Log.SetInfo()
-	qsmApp := getApp(m3util.TestServerEnv)
+	qsmApp := getTestServerApp(t)
+
+	pathCtxId, _ := callCreatePathContext(t, qsmApp, 2, 0, 0, 8, 0)
+	if pathCtxId <= 0 {
+		return
+	}
+
+	nbFound, passed := callGetAllPathContext(t, qsmApp)
+	if nbFound <= 0 || !passed {
+		return
+	}
+	Log.Infof("Found %d path context", nbFound)
+}
+
+func TestPathContextCreateAndIncrease(t *testing.T) {
+	m3util.SetToTestMode()
+	Log.SetInfo()
+	qsmApp := getTestServerApp(t)
 	router := qsmApp.Router
 
-	initDB(t, router)
-
-	pathCtxId, maxDist := callCreatePathContext(t, qsmApp, 8, 2, 1, 42)
+	pathCtxId, maxDist := callCreatePathContext(t, qsmApp, 8, 2, 1, 42, 5)
 	if pathCtxId <= 0 {
 		return
 	}
@@ -33,39 +49,109 @@ func TestPathContextMove(t *testing.T) {
 	}
 }
 
+func callGetAllPathContext(t *testing.T, qsmApp *QsmApp) (int, bool) {
+	resMsg := &m3api.PathContextListMsg{}
+	if !sendAndReceive(t, &requestTest{
+		router:              qsmApp.Router,
+		requestContentType:  "",
+		responseContentType: "proto",
+		typeName:            "PathContextListMsg",
+		methodName:          "GET",
+		uri:                 "/path-context",
+	}, nil, resMsg) {
+		return -1, false
+	}
+
+	pointData := pointdb.GetServerPointPackData(qsmApp.Env)
+
+	nbFound := 0
+	for i, pathMsg := range resMsg.PathContexts {
+		jsonBytes, err := json.Marshal(pathMsg)
+		if !assert.NoError(t, err, "fail at index %d", i) {
+			return nbFound, false
+		}
+		msg := string(jsonBytes)
+		growthType := m3point.GrowthType(pathMsg.GrowthType)
+		growthIndex := int(pathMsg.GrowthIndex)
+		growthOffset := int(pathMsg.GrowthOffset)
+		growthContextFromDb := pointData.GetGrowthContextByTypeAndIndex(growthType, growthIndex)
+		expectedTrioId := growthContextFromDb.GetBaseTrioIndex(pointData, 0, growthOffset)
+		pathCtxId, maxDist := assertPathContextMsg(t, qsmApp, pathMsg, growthType, growthIndex, growthOffset, growthContextFromDb.GetId(), expectedTrioId)
+		if pathCtxId <= 0 || maxDist < 0 {
+			return nbFound, assert.Fail(t, "path context wrong", "fail for index %d : %q", i, msg)
+		}
+		nbFound++
+	}
+	return nbFound, true
+}
+
 func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
-	growthType m3point.GrowthType, growthIndex int, growthOffset int, expectedId int) (int, int) {
+	growthType m3point.GrowthType, growthIndex int, growthOffset int, expectedGrowthContextId int, expectedTrioId m3point.TrioIndex) (int, int) {
 	reqMsg := &m3api.PathContextRequestMsg{
 		GrowthType:   int32(growthType),
 		GrowthIndex:  int32(growthIndex),
 		GrowthOffset: int32(growthOffset),
 	}
-	resMsg := &m3api.PathContextResponseMsg{}
+	resMsg := &m3api.PathContextMsg{}
 	if !sendAndReceive(t, &requestTest{
 		router:              qsmApp.Router,
 		requestContentType:  "proto",
 		responseContentType: "proto",
-		typeName:            "PathContextResponseMsg",
+		typeName:            "PathContextMsg",
 		methodName:          "POST",
 		uri:                 "/path-context",
 	}, reqMsg, resMsg) {
 		return -1, -1
 	}
 
-	pathCtxId := int(resMsg.PathCtxId)
-	maxDist := int(resMsg.MaxDist)
-	assert.True(t, resMsg.PathCtxId > 0, "Did not get path ctx id but "+strconv.Itoa(pathCtxId))
-	assert.Equal(t, int32(expectedId), resMsg.GrowthContextId)
+	return assertPathContextMsg(t, qsmApp, resMsg, growthType, growthIndex, growthOffset, expectedGrowthContextId, expectedTrioId)
+}
+
+func assertPathContextMsg(t *testing.T, qsmApp *QsmApp, pathMsg *m3api.PathContextMsg,
+	growthType m3point.GrowthType, growthIndex int, growthOffset int,
+	expectedGrowthContextId int, expectedTrioId m3point.TrioIndex) (int, int) {
 	pointData := pointdb.GetServerPointPackData(qsmApp.Env)
-	growthContextFromDb := pointData.GetGrowthContextById(int(resMsg.GrowthContextId))
-	assert.Equal(t, growthType, growthContextFromDb.GetGrowthType())
-	assert.Equal(t, growthIndex, growthContextFromDb.GetGrowthIndex())
-	assert.Equal(t, int32(1), resMsg.GrowthOffset)
-	assert.Equal(t, m3point.Point{0, 0, 0}, m3api.PointMsgToPoint(resMsg.RootPathNode.Point))
-	assert.Equal(t, int32(0), resMsg.RootPathNode.D)
-	assert.Equal(t, int32(5), resMsg.RootPathNode.TrioId)
-	assert.True(t, resMsg.RootPathNode.PathNodeId > 0, "Did not get path node id id but "+strconv.Itoa(int(resMsg.RootPathNode.PathNodeId)))
+	pathCtxId := int(pathMsg.PathCtxId)
+	maxDist := int(pathMsg.MaxDist)
+	growthContextId := int(pathMsg.GrowthContextId)
+
+	assert.True(t, pathMsg.PathCtxId > 0, "Did not get path ctx id but "+strconv.Itoa(pathCtxId))
+	assert.Equal(t, growthType, m3point.GrowthType(pathMsg.GrowthType))
+
+	if growthIndex > 0 {
+		if !assert.Equal(t, growthIndex, int(pathMsg.GrowthIndex)) ||
+			!assert.Equal(t, growthOffset, int(pathMsg.GrowthOffset)) {
+			return -1, -1
+		}
+	}
+
+	if expectedGrowthContextId > 0 {
+		if !assert.Equal(t, expectedGrowthContextId, growthContextId) {
+			return -1, -1
+		}
+	}
+	growthContextFromDb := pointData.GetGrowthContextById(growthContextId)
+	good := assert.NotNil(t, growthContextFromDb, "did not find growth context id %d", pathMsg.GrowthContextId) &&
+		assert.Equal(t, m3point.Point{0, 0, 0}, m3api.PointMsgToPoint(pathMsg.RootPathNode.Point)) &&
+		assert.Equal(t, growthType, growthContextFromDb.GetGrowthType()) &&
+		assert.Equal(t, int32(0), pathMsg.RootPathNode.D) &&
+		assert.True(t, pathMsg.RootPathNode.PathNodeId > 0, "Did not get path node id id but "+strconv.Itoa(int(pathMsg.RootPathNode.PathNodeId)))
+	if !good {
+		return -1, -1
+	}
+	if growthIndex > 0 {
+		if !assert.Equal(t, growthIndex, growthContextFromDb.GetGrowthIndex()) {
+			return -1, -1
+		}
+	}
+	if expectedTrioId != m3point.NilTrioIndex {
+		if !assert.Equal(t, expectedTrioId, m3point.TrioIndex(pathMsg.RootPathNode.TrioId)) {
+			return -1, -1
+		}
+	}
+
 	return pathCtxId, maxDist
+
 }
 
 func callGetPathNodes(t *testing.T, pathCtxId int, origMaxDist *int, router *mux.Router, dist int, toDist int, expectedActiveNodes int) bool {

@@ -9,6 +9,35 @@ import (
 	"github.com/freddy33/qsm-go/model/m3point"
 )
 
+func getPathContexts(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive getPathContexts")
+
+	env := GetEnvironment(r)
+	pathData := pathdb.GetServerPathPackData(env)
+
+	nbContext := 0
+	for _, pathContextList := range pathData.AllCenterContexts {
+		for _, pathContext := range pathContextList {
+			if pathContext != nil {
+				nbContext++
+			}
+		}
+	}
+	resMsg := &m3api.PathContextListMsg{}
+	resMsg.PathContexts = make([]*m3api.PathContextMsg, nbContext)
+	i := 0
+	for _, pathContextList := range pathData.AllCenterContexts {
+		for _, pathContext := range pathContextList {
+			if pathContext != nil {
+				resMsg.PathContexts[i] = pathContextToMsg(pathContext)
+				i++
+			}
+		}
+	}
+
+	WriteResponseMsg(w, r, resMsg)
+}
+
 func createPathContext(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive createPathContext")
 
@@ -28,15 +57,20 @@ func createPathContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	WriteResponseMsg(w, r, pathContextToMsg(pathCtx))
+}
+
+func pathContextToMsg(pathCtx *pathdb.PathContextDb) *m3api.PathContextMsg {
 	pathNodeDb := pathCtx.GetRootPathNode().(*pathdb.PathNodeDb)
-	resMsg := &m3api.PathContextResponseMsg{
+	return &m3api.PathContextMsg{
 		PathCtxId:       int32(pathCtx.GetId()),
 		GrowthContextId: int32(pathCtx.GetGrowthCtx().GetId()),
+		GrowthType:      int32(pathCtx.GetGrowthType()),
+		GrowthIndex:     int32(pathCtx.GetGrowthIndex()),
 		GrowthOffset:    int32(pathCtx.GetGrowthOffset()),
 		RootPathNode:    pathNodeToMsg(pathNodeDb),
 		MaxDist:         int32(pathCtx.GetMaxDist()),
 	}
-	WriteResponseMsg(w, r, resMsg)
 }
 
 func increaseMaxDist(w http.ResponseWriter, r *http.Request) {

@@ -275,6 +275,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/init-env", initialize).Methods("POST")
 	app.AddHandler("/drop-env", drop).Methods("DELETE")
 
+	app.AddHandler("/path-context", getPathContexts).Methods("GET")
 	app.AddHandler("/path-context", createPathContext).Methods("POST")
 	app.AddHandler("/max-dist", increaseMaxDist).Methods("PUT")
 	app.AddHandler("/path-nodes", getPathNodes).Methods("GET")
@@ -284,8 +285,10 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/space", getSpaces).Methods("GET")
 	app.AddHandler("/space", deleteSpace).Methods("DELETE")
 
-	app.AddHandler("/event", createEvent).Methods("GET")
+	app.AddHandler("/event", getEvents).Methods("GET")
 	app.AddHandler("/event", createEvent).Methods("PUT")
+
+	app.AddHandler("/event-nodes", getNodeEvents).Methods("GET")
 
 	return app
 }

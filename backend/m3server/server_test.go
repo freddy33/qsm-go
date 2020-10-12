@@ -220,12 +220,31 @@ func sendAndReceive(t *testing.T, req *requestTest, reqMsg proto.Message, resMsg
 	}
 }
 
-func initDB(t *testing.T, router *mux.Router) {
+func initDB(t *testing.T, router *mux.Router) bool {
 	req, err := http.NewRequest("POST", "/init-env", nil)
-	assert.NoError(t, err, "Could create request")
+	if !assert.NoError(t, err, "Could create request") {
+		return false
+	}
+
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusCreated, rr.Result().StatusCode, "Fail to call /init-env")
 	contentType := rr.Header().Get("Content-Type")
-	assert.Equal(t, "text/plain", contentType, "fail on "+contentType)
+
+	good := assert.Equal(t, http.StatusCreated, rr.Result().StatusCode, "Fail to call /init-env") &&
+		assert.Equal(t, "text/plain", contentType, "fail on "+contentType)
+
+	return good
+}
+
+var testServerAlreadyInit = false
+
+func getTestServerApp(t *testing.T) *QsmApp {
+	qsmApp := getApp(m3util.TestServerEnv)
+	if !testServerAlreadyInit {
+		if !initDB(t, qsmApp.Router) {
+			return nil
+		}
+		testServerAlreadyInit = true
+	}
+	return qsmApp
 }

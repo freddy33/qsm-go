@@ -171,7 +171,7 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 		color:        color,
 		maxNodeTime:  m3space.ZeroDistAndTime,
 	}
-	evt.centerNode = &EventNodeDb{
+	evt.centerNode = &NodeEventDb{
 		event:        evt,
 		pointId:      pointId,
 		pathNodeId:   rootPathNode.GetId(),
@@ -197,7 +197,7 @@ func (space *SpaceDb) CreateEvent(growthType m3point.GrowthType, growthIndex int
 	return evt, nil
 }
 
-func (space *SpaceDb) setMaxCoordAndTime(evtNode *EventNodeDb) {
+func (space *SpaceDb) setMaxCoordAndTime(evtNode *NodeEventDb) {
 	if evtNode.creationTime > space.maxTime {
 		space.maxTime = evtNode.creationTime
 	}
@@ -241,18 +241,26 @@ func (space *SpaceDb) GetSpaceTimeAt(time m3space.DistAndTime) m3space.SpaceTime
 	return st
 }
 
-func (space *SpaceDb) GetActiveEventsAt(time m3space.DistAndTime) []m3space.EventIfc {
+func (space *SpaceDb) GetAllEvents() []m3space.EventIfc {
 	res := make([]m3space.EventIfc, 0, len(space.events))
 	for _, evt := range space.events {
-		if evt.creationTime <= time {
+		res = append(res, evt)
+	}
+	return res
+}
+
+func (space *SpaceDb) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.EventIfc {
+	res := make([]m3space.EventIfc, 0, len(space.events))
+	for _, evt := range space.events {
+		if evt.creationTime <= atTime {
 			res = append(res, evt)
 		}
 	}
 	return res
 }
 
-func (space *SpaceDb) GetNbEventsAt(time m3space.DistAndTime) int {
-	return len(space.GetActiveEventsAt(time))
+func (space *SpaceDb) GetNbEventsAt(atTime m3space.DistAndTime) int {
+	return len(space.GetActiveEventsAt(atTime))
 }
 
 func getIndexAndOffsetForColor(k m3space.EventColor) (int, int) {
@@ -301,7 +309,6 @@ func (st *SpaceTime) queryPathContext(evt *EventDb) (int, int, bool) {
 	}
 }
 
-
 func (st *SpaceTime) populate() error {
 	if st.populated {
 		return st.populatedError
@@ -316,7 +323,7 @@ func (st *SpaceTime) populate() error {
 
 	events := st.GetActiveEvents()
 	st.activeEvents = make([]*EventDb, len(events))
-	nodesMap := make(map[m3space.EventId][]*EventNodeDb, len(events))
+	nodesMap := make(map[m3space.EventId][]*NodeEventDb, len(events))
 	nbPathNodes := 0
 	for i, _ := range events {
 		evt := events[i].(*EventDb)
@@ -387,7 +394,7 @@ func (st *SpaceTime) GetNbActiveLinks() int {
 	nbActiveLinks := 0
 	for _, stn := range st.stNodes {
 		connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
-		stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+		stn.VisitConnections(func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId int64) {
 			if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
 				alreadyDone, ok := connIdsAlreadyDone[connId]
 				if !ok || !alreadyDone {
@@ -419,7 +426,7 @@ func (st *SpaceTime) VisitAll(visitor m3space.SpaceTimeVisitor) {
 				return
 			}
 			connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
-			stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+			stn.VisitConnections(func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId int64) {
 				if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
 					alreadyDone, ok := connIdsAlreadyDone[connId]
 					if !ok || !alreadyDone {

@@ -83,6 +83,51 @@ func spaceDbToMsg(space *spacedb.SpaceDb) *m3api.SpaceMsg {
 	}
 }
 
+func getEvents(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive getEvents")
+
+	reqMsg := &m3api.FindEventsMsg{}
+	if !ReadRequestMsg(w, r, reqMsg) {
+		return
+	}
+
+	env := GetEnvironment(r)
+	spaceData := spacedb.GetServerSpacePackData(env)
+	space := spaceData.GetSpace(int(reqMsg.SpaceId)).(*spacedb.SpaceDb)
+	if space == nil {
+		SendResponse(w, http.StatusNotFound, "Space id %d does not exists", reqMsg.SpaceId)
+		return
+	}
+
+	var events []m3space.EventIfc
+	if reqMsg.EventId > 0 {
+		Log.Debugf("Using event id %d to find event in space %s", reqMsg.EventId, space.String())
+		events = make([]m3space.EventIfc, 1)
+		events[0] = space.GetEvent(m3space.EventId(reqMsg.EventId))
+	} else {
+		Log.Debugf("Using time %d to find events in space %s", reqMsg.AtTime, space.String())
+		if reqMsg.AtTime < 0 {
+			// Get all events
+			events = space.GetAllEvents()
+		} else {
+			events = space.GetActiveEventsAt(m3space.DistAndTime(reqMsg.AtTime))
+		}
+	}
+
+	var err error
+	resMsg := new(m3api.EventListMsg)
+	resMsg.Events = make([]*m3api.EventMsg, len(events))
+	for i, evt := range events {
+		resMsg.Events[i], err = createEventMsg(evt)
+		if err != nil {
+			SendResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	WriteResponseMsg(w, r, resMsg)
+}
+
 func createEvent(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Receive createEvent")
 
@@ -95,7 +140,7 @@ func createEvent(w http.ResponseWriter, r *http.Request) {
 	spaceData := spacedb.GetServerSpacePackData(env)
 	space := spaceData.GetSpace(int(reqMsg.SpaceId))
 	if space == nil {
-		SendResponse(w, http.StatusNotFound, "SpaceTime id %d does not exists", reqMsg.SpaceId)
+		SendResponse(w, http.StatusNotFound, "Space id %d does not exists", reqMsg.SpaceId)
 		return
 	}
 	event, err := space.CreateEvent(m3point.GrowthType(reqMsg.GrowthType), int(reqMsg.GrowthIndex), int(reqMsg.GrowthOffset),
@@ -104,22 +149,49 @@ func createEvent(w http.ResponseWriter, r *http.Request) {
 		SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	eventNode := event.GetCenterNode()
-	eventId := int32(event.GetId())
-	point, err := eventNode.GetPoint()
+
+	resMsg, err := createEventMsg(event)
 	if err != nil {
 		SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	pathNode, err := eventNode.GetPathNode()
+
+	WriteResponseMsg(w, r, resMsg)
+}
+
+func createNodeEventMsg(node m3space.NodeEventIfc) (*m3api.NodeEventMsg, error) {
+	point, err := node.GetPoint()
 	if err != nil {
-		SendResponse(w, http.StatusInternalServerError, err.Error())
-		return
+		return nil, err
 	}
+
+	pathNode, err := node.GetPathNode()
+	if err != nil {
+		return nil, err
+	}
+
 	pathNodeDb := pathNode.(*pathdb.PathNodeDb)
+
+	return &m3api.NodeEventMsg{
+		EventNodeId:    node.GetId(),
+		EventId:        int32(node.GetEventId()),
+		Point:          m3api.PointToPointMsg(*point),
+		CreationTime:   int32(node.GetCreationTime()),
+		D:              int32(node.GetD()),
+		TrioId:         int32(pathNode.GetTrioIndex()),
+		ConnectionMask: uint32(pathNodeDb.GetConnectionMask()),
+	}, nil
+}
+
+func createEventMsg(event m3space.EventIfc) (*m3api.EventMsg, error) {
+	space := event.GetSpace()
+	rootNode, err := createNodeEventMsg(event.GetCenterNode())
+	if err != nil {
+		return nil, err
+	}
 	pathContext := event.GetPathContext()
 	resMsg := &m3api.EventMsg{
-		EventId:      eventId,
+		EventId:      int32(event.GetId()),
 		SpaceId:      int32(space.GetId()),
 		GrowthType:   int32(pathContext.GetGrowthType()),
 		GrowthIndex:  int32(pathContext.GetGrowthIndex()),
@@ -127,15 +199,47 @@ func createEvent(w http.ResponseWriter, r *http.Request) {
 		CreationTime: int32(event.GetCreationTime()),
 		PathCtxId:    int32(pathContext.GetId()),
 		Color:        uint32(event.GetColor()),
-		RootNode: &m3api.NodeEventMsg{
-			EventNodeId:    eventNode.GetId(),
-			EventId:        eventId,
-			Point:          m3api.PointToPointMsg(*point),
-			CreationTime:   int32(eventNode.GetCreationTime()),
-			D:              int32(eventNode.GetD()),
-			TrioId:         int32(pathNode.GetTrioIndex()),
-			ConnectionMask: uint32(pathNodeDb.GetConnectionMask()),
-		},
+		RootNode:     rootNode,
 	}
+	return resMsg, nil
+}
+
+func getNodeEvents(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive getNodeEvents")
+
+	reqMsg := &m3api.FindNodeEventsMsg{}
+	if !ReadRequestMsg(w, r, reqMsg) {
+		return
+	}
+
+	env := GetEnvironment(r)
+	spaceData := spacedb.GetServerSpacePackData(env)
+	space := spaceData.GetSpace(int(reqMsg.SpaceId)).(*spacedb.SpaceDb)
+	if space == nil {
+		SendResponse(w, http.StatusNotFound, "Space id %d does not exists", reqMsg.SpaceId)
+		return
+	}
+	event := space.GetEvent(m3space.EventId(reqMsg.EventId))
+	if event == nil {
+		SendResponse(w, http.StatusNotFound, "Space id %d does not have events %d", reqMsg.SpaceId, reqMsg.EventId)
+		return
+	}
+
+	nodes, err := event.GetActiveNodesAt(m3space.DistAndTime(reqMsg.AtTime))
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	resMsg := new(m3api.NodeEventListMsg)
+	resMsg.Nodes = make([]*m3api.NodeEventMsg, len(nodes))
+	for i, node := range nodes {
+		resMsg.Nodes[i], err = createNodeEventMsg(node)
+		if err != nil {
+			SendResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
 	WriteResponseMsg(w, r, resMsg)
 }
