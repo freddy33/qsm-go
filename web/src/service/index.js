@@ -127,10 +127,6 @@ const getPathNodes = async (pathContextId, toDist) => {
       dist: 0,
       to_dist: toDist,
     },
-    data: null,
-    headers: {
-      'Content-Type': 'application/json',
-    },
   });
 
   return resp.data;
