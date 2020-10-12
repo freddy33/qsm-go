@@ -352,7 +352,11 @@ func (evt *EventCl) createNodeFromMsg(pointData *ClientPointPackData, neMsg *m3a
 	for i, nodeId := range neMsg.LinkedNodeIds {
 		ne.linkNodes[i] = nodeId
 	}
-	evt.space.setMaxCoordAndTime(ne)
+
+	if evt.MaxNodeTime < ne.creationTime {
+		evt.MaxNodeTime = ne.creationTime
+	}
+ 	evt.space.setMaxCoordAndTime(ne)
 
 	return ne, nil
 }
@@ -398,7 +402,7 @@ func (evt *EventCl) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space
 	if err != nil {
 		return nil, err
 	}
-	if len(resMsg.Nodes) > 0 {
+	if len(resMsg.Nodes) <= 0 {
 		return nil, m3util.MakeQsmErrorf("Did not find a single node event at time %d for %s", currentTime, evt.String())
 	}
 
