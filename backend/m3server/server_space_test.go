@@ -69,7 +69,7 @@ func callCreateSpace(t *testing.T, router *mux.Router) (int, string) {
 		requestContentType:  "proto",
 		responseContentType: "proto",
 		typeName:            "SpaceMsg",
-		methodName:          "PUT",
+		methodName:          "POST",
 		uri:                 "/space",
 	}, reqMsg, resMsg) {
 		return -1, "failed"
@@ -120,7 +120,7 @@ func callDeleteSpace(t *testing.T, router *mux.Router, spaceId int, spaceName st
 }
 
 func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
-	time m3space.DistAndTime, point m3point.Point, color m3space.EventColor,
+	creationTime m3space.DistAndTime, point m3point.Point, color m3space.EventColor,
 	growthType m3point.GrowthType, growthIndex int, growthOffset int) int {
 
 	reqMsg := &m3api.CreateEventRequestMsg{
@@ -128,7 +128,7 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 		GrowthType:   int32(growthType),
 		GrowthIndex:  int32(growthIndex),
 		GrowthOffset: int32(growthOffset),
-		CreationTime: int32(time),
+		CreationTime: int32(creationTime),
 		Center:       m3api.PointToPointMsg(point),
 		Color:        uint32(color),
 	}
@@ -138,7 +138,7 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 		requestContentType:  "proto",
 		responseContentType: "proto",
 		typeName:            "EventMsg",
-		methodName:          "PUT",
+		methodName:          "POST",
 		uri:                 "/event",
 	}, reqMsg, resMsg) {
 		return -1
@@ -151,6 +151,7 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 		assert.Equal(t, growthIndex, pathCtx.GetGrowthIndex()) &&
 		assert.Equal(t, growthOffset, pathCtx.GetGrowthOffset()) &&
 		assert.Equal(t, resMsg.EventId, resMsg.RootNode.EventId) &&
+		assert.Equal(t, creationTime, m3space.DistAndTime(resMsg.MaxNodeTime)) &&
 		assert.Equal(t, point, m3api.PointMsgToPoint(resMsg.RootNode.Point)) &&
 		assert.Equal(t, int32(0), resMsg.RootNode.D)
 	fmt.Println("TrioID=", resMsg.RootNode.TrioId, "ConnectionMask=", resMsg.RootNode.ConnectionMask)

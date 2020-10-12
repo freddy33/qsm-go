@@ -9,3 +9,5 @@ sed -i '' -E '/( \*PointMsg | \[\]int32 | \[\]int64 ).*json:/ s/json:\"([a-z_]+)
 # Make sure all other types are not sent via query params
 sed -i '' -E '/( \*PointMsg | \[\]int32 | \[\]int64 | [u]*int32 | int64 | string )/! s/json:\"([a-z_]+)(,omitempty)*\"/json:\"\1\2\" query:\"-\"/g;' m3api/*.pb.go
 sed -i '' -E 's/json:\"-\"/json:\"-\" query:\"-\"/g;' m3api/*.pb.go
+
+mv -f m3*_pb.js ../web/src/grpc/

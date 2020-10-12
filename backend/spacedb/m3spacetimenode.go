@@ -14,11 +14,11 @@ type SpaceTimeNode struct {
 }
 
 type NodeEventList struct {
-	cur  *NodeEventDb
+	cur  *EventNodeDb
 	next *NodeEventList
 }
 
-func (nel *NodeEventList) Add(en *NodeEventDb) {
+func (nel *NodeEventList) Add(en *EventNodeDb) {
 	if nel.cur == nil {
 		nel.cur = en
 	} else if nel.next == nil {
@@ -87,7 +87,7 @@ func (stn *SpaceTimeNode) GetEventIds() []m3space.EventId {
 	return res
 }
 
-func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId int64)) {
+func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64)) {
 	pointData := stn.spaceTime.space.pointData
 	nel := stn.head
 	for nel != nil {
@@ -196,7 +196,7 @@ func (stn *SpaceTimeNode) GetStateString() string {
 
 func (stn *SpaceTimeNode) GetConnections() []m3point.ConnectionId {
 	res := make([]m3point.ConnectionId, 0, 5)
-	stn.VisitConnections(func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId int64) {
+	stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
 		for _, cId := range res {
 			if cId == connId {
 				return

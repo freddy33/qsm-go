@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	config "github.com/freddy33/qsm-go/backend/conf"
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/spacedb"
 	"github.com/freddy33/qsm-go/m3util"
@@ -46,7 +47,11 @@ func GetEnvId(r *http.Request) m3util.QsmEnvID {
 }
 
 func GetEnvironment(r *http.Request) *m3db.QsmDbEnvironment {
-	return m3db.GetEnvironment(GetEnvId(r))
+	env := m3db.GetEnvironment(GetEnvId(r))
+	if !env.DataChecked(m3util.SpaceIdx) {
+		spacedb.GetSpaceDbFullEnv(env.GetId())
+	}
+	return env
 }
 
 func SendResponse(w http.ResponseWriter, status int, format string, args ...interface{}) {
@@ -104,23 +109,6 @@ func ReadRequestMsg(w http.ResponseWriter, r *http.Request, reqMsg proto.Message
 		SendResponse(w, http.StatusBadRequest, "req body could not be parsed due to: %s", err.Error())
 		return false
 	}
-	return true
-}
-
-func UnmarshalGetRequest(w http.ResponseWriter, r *http.Request, reqMsg proto.Message) bool {
-	reqContentType := getRequestType(w, r)
-	if reqContentType == "proto" {
-		return ReadRequestMsg(w, r, reqMsg)
-	}
-
-	bytes := []byte(r.URL.Query().Encode())
-
-	err := urlquery.Unmarshal(bytes, &reqMsg)
-	if err != nil {
-		SendResponse(w, http.StatusBadRequest, "req could not be parsed due to: %s", err.Error())
-		return false
-	}
-
 	return true
 }
 
@@ -182,17 +170,82 @@ func home(w http.ResponseWriter, r *http.Request) {
 	SendResponse(w, http.StatusOK, "Using env id=%d\nMethod=%s\n", r.Context().Value(m3api.HttpEnvIdKey), r.Method)
 }
 
-func drop(w http.ResponseWriter, r *http.Request) {
-	env := GetEnvironment(r)
-	envId := env.GetId()
-	env.Destroy()
-	SendResponse(w, http.StatusOK, "Test env id %d was deleted", envId)
+func listEnv(w http.ResponseWriter, r *http.Request) {
+	// Need direct DB connection no schema
+	dbConf := config.NewDBConfig()
+	env := m3db.NewQsmDbEnvironment(dbConf)
+	defer env.CloseDb()
+
+	if env.GetConnection() == nil {
+		err := env.OpenDb()
+		if err != nil {
+			SendResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if !env.Ping() {
+		SendResponse(w, http.StatusInternalServerError, fmt.Sprintf("Could not open DB connection to %s:%d %q", dbConf.DBHost, dbConf.DBPort, dbConf.DBName))
+		return
+	}
+
+	db := env.GetConnection()
+	rows, err := db.Query("SELECT schema_name," +
+		" sum(table_size)::bigint as schema_size," +
+		" pg_database_size(current_database())" +
+		" FROM (" +
+		"    SELECT ns.nspname as schema_name," +
+		"       pg_relation_size(pg_catalog.pg_class.oid) as table_size" +
+		"    FROM pg_catalog.pg_class" +
+		"       JOIN pg_catalog.pg_namespace AS ns ON relnamespace = ns.oid" +
+		"    WHERE ns.nspname like 'qsm%') t" +
+		" GROUP BY schema_name ORDER BY schema_size DESC")
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	resMsg := &m3api.EnvListMsg{}
+	resMsg.Envs = make([]*m3api.EnvMsg, 0, 10)
+
+	for rows.Next() {
+		envMsg := m3api.EnvMsg{}
+		var schemaName string
+		var schemaSize, totDbSize int64
+		err = rows.Scan(&schemaName, &schemaSize, &totDbSize)
+		if err != nil {
+			SendResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		envId, err := strconv.Atoi(strings.TrimPrefix(schemaName, "qsm"))
+		if err != nil {
+			SendResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		envMsg.SchemaName = schemaName
+		envMsg.EnvId = int32(envId)
+		envMsg.SchemaSize = schemaSize
+		envMsg.SchemaSizePercent = float32(schemaSize) * 100.0 / float32(totDbSize)
+
+		resMsg.Envs = append(resMsg.Envs, &envMsg)
+	}
+
+	WriteResponseMsg(w, r, resMsg)
 }
 
-func initialize(w http.ResponseWriter, r *http.Request) {
+func initializeEnv(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive initializeEnv")
 	envId := GetEnvId(r)
 	spacedb.GetSpaceDbFullEnv(envId)
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
+}
+
+func dropEnv(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive dropEnv")
+	env := m3db.GetEnvironment(GetEnvId(r))
+	envId := env.GetId()
+	env.Destroy()
+	SendResponse(w, http.StatusOK, "Test env id %d was deleted", envId)
 }
 
 func logLevel(w http.ResponseWriter, r *http.Request) {
@@ -270,10 +323,11 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	// TODO: MAke also a getter to list current log level
 	app.AddHandler("/log", logLevel).Methods("POST")
 
-	app.AddHandler("/point-data", retrievePointData).Methods("GET")
+	app.AddHandler("/list-env", listEnv).Methods("GET")
+	app.AddHandler("/init-env", initializeEnv).Methods("POST")
+	app.AddHandler("/drop-env", dropEnv).Methods("DELETE")
 
-	app.AddHandler("/init-env", initialize).Methods("POST")
-	app.AddHandler("/drop-env", drop).Methods("DELETE")
+	app.AddHandler("/point-data", retrievePointData).Methods("GET")
 
 	app.AddHandler("/path-context", getPathContexts).Methods("GET")
 	app.AddHandler("/path-context", createPathContext).Methods("POST")
@@ -281,12 +335,12 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/path-nodes", getPathNodes).Methods("GET")
 	app.AddHandler("/nb-path-nodes", getNbPathNodes).Methods("GET")
 
-	app.AddHandler("/space", createSpace).Methods("PUT")
 	app.AddHandler("/space", getSpaces).Methods("GET")
+	app.AddHandler("/space", createSpace).Methods("POST")
 	app.AddHandler("/space", deleteSpace).Methods("DELETE")
 
 	app.AddHandler("/event", getEvents).Methods("GET")
-	app.AddHandler("/event", createEvent).Methods("PUT")
+	app.AddHandler("/event", createEvent).Methods("POST")
 
 	app.AddHandler("/event-nodes", getNodeEvents).Methods("GET")
 

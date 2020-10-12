@@ -28,6 +28,12 @@ func TestGetAllPathContext(t *testing.T) {
 		return
 	}
 	Log.Infof("Found %d path context", nbFound)
+
+	id, pass := callGetPathContext(t, qsmApp, pathCtxId, 2, 0, 0, 8, 0)
+	if id <= 0 || !pass {
+		return
+	}
+
 }
 
 func TestPathContextCreateAndIncrease(t *testing.T) {
@@ -53,12 +59,12 @@ func callGetAllPathContext(t *testing.T, qsmApp *QsmApp) (int, bool) {
 	resMsg := &m3api.PathContextListMsg{}
 	if !sendAndReceive(t, &requestTest{
 		router:              qsmApp.Router,
-		requestContentType:  "",
+		requestContentType:  "query",
 		responseContentType: "proto",
 		typeName:            "PathContextListMsg",
 		methodName:          "GET",
 		uri:                 "/path-context",
-	}, nil, resMsg) {
+	}, &m3api.PathContextIdMsg{PathCtxId: int32(-1)}, resMsg) {
 		return -1, false
 	}
 
@@ -85,8 +91,30 @@ func callGetAllPathContext(t *testing.T, qsmApp *QsmApp) (int, bool) {
 	return nbFound, true
 }
 
+func callGetPathContext(t *testing.T, qsmApp *QsmApp, pathContextId int,
+	growthType m3point.GrowthType, growthIndex int, growthOffset int,
+	expectedGrowthContextId int, expectedTrioId m3point.TrioIndex) (int, bool) {
+	resMsg := &m3api.PathContextMsg{}
+	if !sendAndReceive(t, &requestTest{
+		router:              qsmApp.Router,
+		requestContentType:  "query",
+		responseContentType: "proto",
+		typeName:            "PathContextMsg",
+		methodName:          "GET",
+		uri:                 "/path-context",
+	}, &m3api.PathContextIdMsg{PathCtxId: int32(pathContextId)}, resMsg) {
+		return -1, false
+	}
+	pathCtxId, maxDist := assertPathContextMsg(t, qsmApp, resMsg, growthType, growthIndex, growthOffset, expectedGrowthContextId, expectedTrioId)
+	if pathCtxId <= 0 || maxDist < 0 {
+		return -1, assert.Fail(t, "path context wrong", "fail for index %d", pathContextId)
+	}
+	return pathCtxId, true
+}
+
 func callCreatePathContext(t *testing.T, qsmApp *QsmApp,
-	growthType m3point.GrowthType, growthIndex int, growthOffset int, expectedGrowthContextId int, expectedTrioId m3point.TrioIndex) (int, int) {
+	growthType m3point.GrowthType, growthIndex int, growthOffset int,
+	expectedGrowthContextId int, expectedTrioId m3point.TrioIndex) (int, int) {
 	reqMsg := &m3api.PathContextRequestMsg{
 		GrowthType:   int32(growthType),
 		GrowthIndex:  int32(growthIndex),

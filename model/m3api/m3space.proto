@@ -57,6 +57,7 @@ message EventMsg {
     int32 path_ctx_id = 7;
     uint32 color = 8;
     NodeEventMsg root_node = 9;
+    int32 max_node_time = 10;
 }
 
 message EventListMsg {

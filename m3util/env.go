@@ -30,7 +30,7 @@ const (
 )
 
 const (
-	MaxNumberOfEnvironments = 15
+	MaxNumberOfEnvironments = 17
 	QsmEnvNumberKey         = "QSM_ENV_NUMBER"
 )
 
@@ -49,9 +49,8 @@ type QsmDataPack interface {
 type QsmEnvironment interface {
 	GetId() QsmEnvID
 	GetData(dataIdx int) QsmDataPack
-	// TODO: This should move tho the env creator
 	SetData(dataIdx int, dataPack QsmDataPack)
-	InternalClose() error
+	Close()
 }
 
 type BaseQsmEnvironment struct {
@@ -150,20 +149,8 @@ func CloseAll() {
 		}
 	}
 	for _, env := range toClose {
-		id := env.GetId()
-		err := env.InternalClose()
-		if err != nil {
-			Log.Errorf("Error while closing environment %d", id)
-		}
+		env.Close()
 	}
-}
-
-func RunQsm(id QsmEnvID, params ...string) {
-	osQsmCmd(id, params...)
-}
-
-func StartQsmBackend(id QsmEnvID, params ...string) *os.Process {
-	return osStartBackend(id, params...)
 }
 
 func GetCompulsoryEnv(key string) string {

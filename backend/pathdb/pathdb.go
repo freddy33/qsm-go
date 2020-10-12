@@ -4,7 +4,6 @@ import (
 	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
-	"sync"
 )
 
 var Log = m3util.NewLogger("pathdb", m3util.INFO)
@@ -180,9 +179,6 @@ func (pathData *ServerPathPackData) createTables() {
 	pathData.pathNodesTe = pathTableExecs[2]
 }
 
-var dbMutex sync.Mutex
-var testDbFilled [m3util.MaxNumberOfEnvironments]bool
-
 func GetPathDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	env := pointdb.GetPointDbFullEnv(envId)
 	checkEnv(env)
@@ -196,13 +192,10 @@ func GetPathDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 }
 
 func checkEnv(env *m3db.QsmDbEnvironment) {
-	envId := env.GetId()
-	dbMutex.Lock()
-	defer dbMutex.Unlock()
-	if !testDbFilled[envId] {
+	_ = env.ExecOnce(m3util.PathIdx, func() error {
 		pointData := pointdb.GetServerPointPackData(env)
 		pointData.FillDb()
 		GetServerPathPackData(env).createTables()
-		testDbFilled[envId] = true
-	}
+		return nil
+	})
 }

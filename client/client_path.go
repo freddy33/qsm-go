@@ -41,7 +41,7 @@ type PathNodeCl struct {
 // PathContextCl Functions
 /***************************************************************/
 
-func MakePatchContextClient(pathData *ClientPathPackData, pMsg *m3api.PathContextResponseMsg) *PathContextCl {
+func MakePatchContextClient(pathData *ClientPathPackData, pMsg *m3api.PathContextMsg) *PathContextCl {
 	pathCtx := new(PathContextCl)
 	pathCtx.id = int(pMsg.GetPathCtxId())
 	pathCtx.env = pathData.env
@@ -173,11 +173,19 @@ func (pathCtx *PathContextCl) RequestNewMaxDist(requestDist int) error {
 		Dist:      int32(requestDist),
 	}
 	pMsg := new(m3api.PathNodesResponseMsg)
-	_, err := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg, pMsg, true)
+	response, err := pathCtx.env.clConn.ExecReq("PUT", uri, reqMsg, pMsg, true)
 	if err != nil {
 		return err
 	}
-	pathCtx.maxDist = int(pMsg.MaxDist)
+
+	if response != ExecOK {
+		// We got status accepted meaning already done
+		if requestDist > pathCtx.maxDist {
+			pathCtx.maxDist = requestDist
+		}
+	} else {
+		pathCtx.maxDist = int(pMsg.MaxDist)
+	}
 	Log.Infof("New max dist is %d for %d", pathCtx.GetMaxDist(), pathCtx.GetId())
 	return nil
 }

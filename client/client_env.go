@@ -49,10 +49,9 @@ func (cl *ClientConnection) validate() {
 	cl.httpClient = http.Client{Timeout: 20 * time.Second}
 }
 
-func (env *QsmApiEnvironment) InternalClose() error {
+func (env *QsmApiEnvironment) Close() {
 	Log.Infof("Closing API environment %d", env.GetId())
 	env.clConn.httpClient.CloseIdleConnections()
-	return nil
 }
 
 func GetInitializedApiEnv(envId m3util.QsmEnvID) *QsmApiEnvironment {
@@ -75,8 +74,9 @@ func GetOrCreateInitializedApiEnv(envId m3util.QsmEnvID, callDrop, callInit bool
 		if err != nil {
 			Log.Fatal(err)
 			return nil
+
 		}
-		substr := fmt.Sprintf("env id %d was dropped", cl.envId)
+		substr := fmt.Sprintf("env id %d was deleted", cl.envId)
 		if strings.Contains(response, substr) {
 			Log.Debugf("All good on home response %q", response)
 		} else {
@@ -107,6 +107,7 @@ func GetOrCreateInitializedApiEnv(envId m3util.QsmEnvID, callDrop, callInit bool
 
 	env.initializePointData()
 	env.initializePathData()
+	env.initializeSpaceData()
 	return env
 }
 
