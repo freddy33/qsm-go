@@ -10,6 +10,10 @@ message PathContextRequestMsg {
     int32 growth_offset = 3;
 }
 
+message PathContextIdMsg {
+    int32 path_ctx_id = 1;
+}
+
 message PathContextMsg {
     int32 path_ctx_id = 1;
     int32 growth_context_id = 2;

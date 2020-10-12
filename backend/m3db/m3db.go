@@ -34,6 +34,9 @@ type QsmDbEnvironment struct {
 	db               *sql.DB
 	createTableMutex sync.Mutex
 	tableExecs       map[string]*TableExec
+
+	dataCheckMutex [m3util.MaxDataEntry]sync.Mutex
+	dataChecked    [m3util.MaxDataEntry]bool
 }
 
 func NewQsmDbEnvironment(config config.Config) *QsmDbEnvironment {
@@ -199,6 +202,8 @@ func (env *QsmDbEnvironment) dropSchema() {
 }
 
 func (env *QsmDbEnvironment) Destroy() {
+	env.resetAllCheck()
+	defer env.releaseAllCheck()
 	env.dropSchema()
 	env.Close()
 }
@@ -223,3 +228,35 @@ func (env *QsmDbEnvironment) Ping() bool {
 	}
 
 }
+
+func (env *QsmDbEnvironment) DataChecked(dataIdx int) bool {
+	return env.dataChecked[dataIdx]
+}
+
+func (env *QsmDbEnvironment) releaseAllCheck() {
+	for i, _ := range env.dataCheckMutex {
+		env.dataCheckMutex[i].Unlock()
+	}
+}
+
+func (env *QsmDbEnvironment) resetAllCheck() {
+	for i, _ := range env.dataCheckMutex {
+		env.dataCheckMutex[i].Lock()
+		env.dataChecked[i] = false
+	}
+}
+
+func (env *QsmDbEnvironment) ExecOnce(dataIdx int, doInit func() error) error {
+	if env.dataChecked[dataIdx] {
+		return nil
+	}
+	env.dataCheckMutex[dataIdx].Lock()
+	defer env.dataCheckMutex[dataIdx].Unlock()
+	if env.dataChecked[dataIdx] {
+		return nil
+	}
+	err := doInit()
+	env.dataChecked[dataIdx] = true
+	return err
+}
+

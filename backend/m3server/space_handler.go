@@ -200,6 +200,7 @@ func createEventMsg(event m3space.EventIfc) (*m3api.EventMsg, error) {
 		PathCtxId:    int32(pathContext.GetId()),
 		Color:        uint32(event.GetColor()),
 		RootNode:     rootNode,
+		MaxNodeTime:  int32(event.(*spacedb.EventDb).GetMaxNodeTime()),
 	}
 	return resMsg, nil
 }

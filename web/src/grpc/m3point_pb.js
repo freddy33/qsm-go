@@ -978,10 +978,10 @@ proto.m3api.PointPackDataMsg.deserializeBinary = function(bytes) {
  */
 proto.m3api.PointPackDataMsg.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
+      if (reader.isEndGroup()) {
+          break;
+      }
+      var field = reader.getFieldNumber();
       switch (field) {
           case 1:
               var value = new proto.m3api.ConnectionMsg;
@@ -1007,13 +1007,13 @@ proto.m3api.PointPackDataMsg.deserializeBinaryFromReader = function(msg, reader)
               msg.setMod4PermutationsTrioIdsList(value);
               break;
           case 8:
-      var value = /** @type {!Array<number>} */ (reader.readPackedInt32());
-      msg.setMod8PermutationsTrioIdsList(value);
-      break;
-    default:
-      reader.skipField();
-      break;
-    }
+              var value = /** @type {!Array<number>} */ (reader.readPackedInt32());
+              msg.setMod8PermutationsTrioIdsList(value);
+              break;
+          default:
+              reader.skipField();
+              break;
+      }
   }
   return msg;
 };
@@ -1038,15 +1038,15 @@ proto.m3api.PointPackDataMsg.prototype.serializeBinary = function() {
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
 proto.m3api.PointPackDataMsg.serializeBinaryToWriter = function(message, writer) {
-  var f = undefined;
-  f = message.getAllConnectionsList();
-  if (f.length > 0) {
-    writer.writeRepeatedMessage(
-      1,
-      f,
-      proto.m3api.ConnectionMsg.serializeBinaryToWriter
-    );
-  }
+    var f = undefined;
+    f = message.getAllConnectionsList();
+    if (f.length > 0) {
+        writer.writeRepeatedMessage(
+            1,
+            f,
+            proto.m3api.ConnectionMsg.serializeBinaryToWriter
+        );
+    }
     f = message.getAllTriosList();
     if (f.length > 0) {
         writer.writeRepeatedMessage(
@@ -1073,16 +1073,16 @@ proto.m3api.PointPackDataMsg.serializeBinaryToWriter = function(message, writer)
     f = message.getMod4PermutationsTrioIdsList();
     if (f.length > 0) {
         writer.writePackedInt32(
-      7,
-      f
-    );
-  }
-  f = message.getMod8PermutationsTrioIdsList();
-  if (f.length > 0) {
-    writer.writePackedInt32(
-      8,
-      f
-    );
+            7,
+            f
+        );
+    }
+    f = message.getMod8PermutationsTrioIdsList();
+    if (f.length > 0) {
+        writer.writePackedInt32(
+            8,
+            f
+        );
   }
 };
 

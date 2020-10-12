@@ -55,6 +55,7 @@ func (pathData *ServerPathPackData) GetPathCtxDb(id int) *PathContextDb {
 	if ok {
 		return pathCtx
 	}
+
 	// TODO: Load from DB
 	return nil
 }

@@ -12,13 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/backend/spacedb"
 	"github.com/rs/cors"
 
 	config "github.com/freddy33/qsm-go/backend/conf"
 
-	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/backend/m3server"
 	"github.com/freddy33/qsm-go/m3util"
 )
@@ -106,18 +104,11 @@ func main() {
 			runServer = true
 			didSomething = true
 		case "gentxt":
+			// TODO: Make a REST API and UI for retrieving this data
 			m3server.GenerateTextFilesEnv(spacedb.GetSpaceDbFullEnv(m3util.GetDefaultEnvId()))
-			didSomething = true
-		case "filldb":
-			envID := m3util.GetDefaultEnvId()
-			env := m3db.GetEnvironment(envID)
-			pointData := pointdb.GetServerPointPackData(env)
-			pointData.FillDb()
 			didSomething = true
 		case "-env":
 			m3util.SetDefaultEnvId(m3util.ReadEnvId("backend main", others[i+1]))
-		case "-test":
-			m3util.SetToTestMode()
 		}
 	}
 	if !didSomething {
@@ -126,8 +117,8 @@ func main() {
 	}
 	if runServer {
 		go listenSignals()
-		config := config.NewServerConfig()
-		createAppAndListen(config.ServerPort)
+		serverConfig := config.NewServerConfig()
+		createAppAndListen(serverConfig.ServerPort)
 		fmt.Println("Exiting main")
 	}
 }

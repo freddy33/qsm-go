@@ -265,6 +265,7 @@ if (goog.DEBUG && !COMPILED) {
 proto.m3api.SpaceMsg.repeatedFields_ = [9];
 
 
+
 if (jspb.Message.GENERATE_TO_OBJECT) {
     /**
      * Creates an object representation of this proto.
@@ -621,12 +622,14 @@ proto.m3api.SpaceMsg.prototype.clearEventIdsList = function () {
 };
 
 
+
 /**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
 proto.m3api.SpaceListMsg.repeatedFields_ = [1];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -1107,12 +1110,14 @@ proto.m3api.CreateEventRequestMsg.prototype.setColor = function (value) {
 };
 
 
+
 /**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
 proto.m3api.NodeEventMsg.repeatedFields_ = [9];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -1746,7 +1751,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
             creationTime: jspb.Message.getFieldWithDefault(msg, 6, 0),
             pathCtxId: jspb.Message.getFieldWithDefault(msg, 7, 0),
             color: jspb.Message.getFieldWithDefault(msg, 8, 0),
-            rootNode: (f = msg.getRootNode()) && proto.m3api.NodeEventMsg.toObject(includeInstance, f)
+            rootNode: (f = msg.getRootNode()) && proto.m3api.NodeEventMsg.toObject(includeInstance, f),
+            maxNodeTime: jspb.Message.getFieldWithDefault(msg, 10, 0)
         };
 
         if (includeInstance) {
@@ -1819,6 +1825,10 @@ proto.m3api.EventMsg.deserializeBinaryFromReader = function (msg, reader) {
                 var value = new proto.m3api.NodeEventMsg;
                 reader.readMessage(value, proto.m3api.NodeEventMsg.deserializeBinaryFromReader);
                 msg.setRootNode(value);
+                break;
+            case 10:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setMaxNodeTime(value);
                 break;
             default:
                 reader.skipField();
@@ -1911,6 +1921,13 @@ proto.m3api.EventMsg.serializeBinaryToWriter = function (message, writer) {
             9,
             f,
             proto.m3api.NodeEventMsg.serializeBinaryToWriter
+        );
+    }
+    f = message.getMaxNodeTime();
+    if (f !== 0) {
+        writer.writeInt32(
+            10,
+            f
         );
     }
 };
@@ -2098,11 +2115,30 @@ proto.m3api.EventMsg.prototype.hasRootNode = function () {
 
 
 /**
+ * optional int32 max_node_time = 10;
+ * @return {number}
+ */
+proto.m3api.EventMsg.prototype.getMaxNodeTime = function () {
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 10, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.m3api.EventMsg} returns this
+ */
+proto.m3api.EventMsg.prototype.setMaxNodeTime = function (value) {
+    return jspb.Message.setProto3IntField(this, 10, value);
+};
+
+
+/**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
 proto.m3api.EventListMsg.repeatedFields_ = [1];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -2442,12 +2478,14 @@ proto.m3api.FindNodeEventsMsg.prototype.setAtTime = function (value) {
 };
 
 
+
 /**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
 proto.m3api.NodeEventListMsg.repeatedFields_ = [1];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -2763,6 +2801,7 @@ proto.m3api.SpaceTimeRequestMsg.prototype.setCurrentTime = function (value) {
  * @const
  */
 proto.m3api.SpaceTimeResponseMsg.repeatedFields_ = [3, 5];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {

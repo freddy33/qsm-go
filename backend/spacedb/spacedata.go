@@ -39,6 +39,7 @@ func (spaceData *ServerSpacePackData) DeleteSpace(id int, name string) (int, err
 	totalDeleted := 0
 	eventIds := space.GetEventIdsForMsg()
 	for _, evtId := range eventIds {
+		// TODO: Needs to go distance by distance backwards to avoid dead locks on node links
 		nbNodes, err := spaceData.nodesTe.Update(DeleteAllNodes, evtId)
 		totalDeleted += nbNodes
 		if err != nil {
@@ -78,6 +79,10 @@ func (spaceData *ServerSpacePackData) GetAllSpaces() []m3space.SpaceIfc {
 		i++
 	}
 	return res
+}
+
+func (spaceData *ServerSpacePackData) TableInited() bool {
+	return spaceData.spacesTe != nil && spaceData.eventsTe != nil && spaceData.nodesTe != nil
 }
 
 func (spaceData *ServerSpacePackData) LoadAllSpaces() error {

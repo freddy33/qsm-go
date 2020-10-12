@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3path"
@@ -14,8 +15,10 @@ import (
 )
 
 const (
-	ExecOK     = "OK"
-	ExecFailed = "FAIL"
+	ExecOK              = "OK"
+	ExecFailed          = "FAIL"
+	ContentTypeProtobuf = "application/x-protobuf"
+	ContentTypeJson     = "application/json"
 )
 
 func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Message, respMsg proto.Message, useQueryParams bool) (string, error) {
@@ -45,11 +48,11 @@ func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Mess
 		if useQueryParams {
 			req.URL.RawQuery = string(reqBytes)
 		} else {
-			req.Header.Add("Content-Type", "application/x-protobuf")
+			req.Header.Add("Content-Type", ContentTypeProtobuf)
 		}
 	}
 	if respMsg != nil {
-		req.Header.Add("Accept", "application/x-protobuf")
+		req.Header.Add("Accept", ContentTypeProtobuf)
 	}
 	resp, err := cl.httpClient.Do(req)
 	if err != nil {
@@ -71,14 +74,27 @@ func (cl *ClientConnection) ExecReq(method string, uri string, reqMsg proto.Mess
 	if err != nil {
 		return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Could not read body from REST API end point %q due to %v", uri, err)
 	}
+
+	responseContentType := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(responseContentType, "text/plain") {
+		return string(respBytes), nil
+	}
+
 	if respMsg != nil {
 		// TODO: Verify content type and resp object type match
-		err = proto.Unmarshal(respBytes, respMsg)
+		if strings.HasPrefix(responseContentType, ContentTypeJson) {
+			err = json.Unmarshal(respBytes, respMsg)
+		} else if strings.HasPrefix(responseContentType, ContentTypeProtobuf) {
+			err = proto.Unmarshal(respBytes, respMsg)
+		} else {
+			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "REST API end point %q returned unknown content type %q", uri, responseContentType)
+		}
 		if err != nil {
 			return ExecFailed, m3util.MakeWrapQsmErrorf(err, "Could not unmarshal from REST API end point %q due to %v", uri, err)
 		}
 		return ExecOK, nil
 	}
+
 	return string(respBytes), nil
 }
 
@@ -90,6 +106,22 @@ func (cl *ClientConnection) CheckServerUp() bool {
 	}
 	Log.Debugf("All good on home response %q", response)
 	return true
+}
+
+func (env *QsmApiEnvironment) initializeSpaceData() {
+	var spaceData *ClientSpacePackData
+	spaceIfc := env.GetData(m3util.SpaceIdx)
+	if spaceIfc == nil {
+		spaceData = new(ClientSpacePackData)
+		spaceData.Env = env
+		spaceData.allSpaces = make(map[int]*SpaceCl)
+		env.SetData(m3util.SpaceIdx, spaceData)
+	} else {
+		spaceData = spaceIfc.(*ClientSpacePackData)
+		if spaceData.Env != env {
+			Log.Fatalf("Something wrong with env setup")
+		}
+	}
 }
 
 func (env *QsmApiEnvironment) initializePathData() {
@@ -201,8 +233,16 @@ func (pathData *ClientPathPackData) GetPathCtx(id int) m3path.PathContext {
 	if ok {
 		return pathCtx
 	}
-	// TODO: Load from DB
-	return nil
+
+	uri := "path-context"
+	reqMsg := &m3api.PathContextIdMsg{PathCtxId: int32(id)}
+	pMsg := new(m3api.PathContextMsg)
+	_, err := pathData.env.clConn.ExecReq(http.MethodGet, uri, reqMsg, pMsg, true)
+	if err != nil {
+		Log.Fatal(err)
+		return nil
+	}
+	return MakePatchContextClient(pathData, pMsg)
 }
 
 func (pathData *ClientPathPackData) GetPathCtxFromAttributes(growthType m3point.GrowthType, growthIndex int, offset int) (m3path.PathContext, error) {
@@ -212,7 +252,7 @@ func (pathData *ClientPathPackData) GetPathCtxFromAttributes(growthType m3point.
 		GrowthIndex:  int32(growthIndex),
 		GrowthOffset: int32(offset),
 	}
-	pMsg := new(m3api.PathContextResponseMsg)
+	pMsg := new(m3api.PathContextMsg)
 	_, err := pathData.env.clConn.ExecReq(http.MethodPost, uri, reqMsg, pMsg, true)
 	if err != nil {
 		Log.Fatal(err)

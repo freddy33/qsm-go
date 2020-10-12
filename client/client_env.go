@@ -74,8 +74,9 @@ func GetOrCreateInitializedApiEnv(envId m3util.QsmEnvID, callDrop, callInit bool
 		if err != nil {
 			Log.Fatal(err)
 			return nil
+
 		}
-		substr := fmt.Sprintf("env id %d was dropped", cl.envId)
+		substr := fmt.Sprintf("env id %d was deleted", cl.envId)
 		if strings.Contains(response, substr) {
 			Log.Debugf("All good on home response %q", response)
 		} else {
@@ -106,6 +107,7 @@ func GetOrCreateInitializedApiEnv(envId m3util.QsmEnvID, callDrop, callInit bool
 
 	env.initializePointData()
 	env.initializePathData()
+	env.initializeSpaceData()
 	return env
 }
 

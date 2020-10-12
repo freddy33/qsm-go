@@ -47,7 +47,11 @@ func GetEnvId(r *http.Request) m3util.QsmEnvID {
 }
 
 func GetEnvironment(r *http.Request) *m3db.QsmDbEnvironment {
-	return m3db.GetEnvironment(GetEnvId(r))
+	env := m3db.GetEnvironment(GetEnvId(r))
+	if !env.DataChecked(m3util.SpaceIdx) {
+		spacedb.GetSpaceDbFullEnv(env.GetId())
+	}
+	return env
 }
 
 func SendResponse(w http.ResponseWriter, status int, format string, args ...interface{}) {
@@ -230,13 +234,15 @@ func listEnv(w http.ResponseWriter, r *http.Request) {
 }
 
 func initializeEnv(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive initializeEnv")
 	envId := GetEnvId(r)
 	spacedb.GetSpaceDbFullEnv(envId)
 	SendResponse(w, http.StatusCreated, "Test env id %d was initialized", envId)
 }
 
 func dropEnv(w http.ResponseWriter, r *http.Request) {
-	env := GetEnvironment(r)
+	Log.Infof("Receive dropEnv")
+	env := m3db.GetEnvironment(GetEnvId(r))
 	envId := env.GetId()
 	env.Destroy()
 	SendResponse(w, http.StatusOK, "Test env id %d was deleted", envId)
@@ -329,12 +335,12 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/path-nodes", getPathNodes).Methods("GET")
 	app.AddHandler("/nb-path-nodes", getNbPathNodes).Methods("GET")
 
-	app.AddHandler("/space", createSpace).Methods("PUT")
 	app.AddHandler("/space", getSpaces).Methods("GET")
+	app.AddHandler("/space", createSpace).Methods("POST")
 	app.AddHandler("/space", deleteSpace).Methods("DELETE")
 
 	app.AddHandler("/event", getEvents).Methods("GET")
-	app.AddHandler("/event", createEvent).Methods("PUT")
+	app.AddHandler("/event", createEvent).Methods("POST")
 
 	app.AddHandler("/event-nodes", getNodeEvents).Methods("GET")
 

@@ -58,6 +58,7 @@ if (goog.DEBUG && !COMPILED) {
 }
 
 
+
 if (jspb.Message.GENERATE_TO_OBJECT) {
     /**
      * Creates an object representation of this proto.
@@ -275,12 +276,14 @@ proto.m3api.EnvMsg.prototype.setSchemaSizePercent = function (value) {
 };
 
 
+
 /**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
 proto.m3api.EnvListMsg.repeatedFields_ = [1];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {

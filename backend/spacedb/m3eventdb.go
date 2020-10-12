@@ -17,7 +17,7 @@ type EventDb struct {
 	pathCtx      *pathdb.PathContextDb
 	creationTime m3space.DistAndTime
 	color        m3space.EventColor
-	centerNode   *NodeEventDb
+	centerNode   *EventNodeDb
 
 	// End time set equal to creation time when alive
 	endTime m3space.DistAndTime
@@ -27,7 +27,7 @@ type EventDb struct {
 	increaseNodeMutex sync.Mutex
 }
 
-type NodeEventDb struct {
+type EventNodeDb struct {
 	pathdb.ConnectionsStateDb
 
 	event *EventDb
@@ -74,6 +74,10 @@ func (evt *EventDb) GetColor() m3space.EventColor {
 
 func (evt *EventDb) GetCenterNode() m3space.NodeEventIfc {
 	return evt.centerNode
+}
+
+func (evt *EventDb) GetMaxNodeTime() m3space.DistAndTime {
+	return evt.maxNodeTime
 }
 
 func (evt *EventDb) insertInDb() error {
@@ -150,7 +154,7 @@ func (evt *EventDb) increaseMaxNodeTime() error {
 		if err != nil {
 			return err
 		}
-		evtNode := &NodeEventDb{
+		evtNode := &EventNodeDb{
 			ConnectionsStateDb: pathdb.ConnectionsStateDb{
 				ConnectionMask: pathNodeDb.ConnectionMask,
 				LinkIds:        linkIds,
@@ -182,7 +186,11 @@ func (evt *EventDb) increaseMaxNodeTime() error {
 	if rowAffected != 1 {
 		return m3util.MakeQsmErrorf("updating event %s with new max node time %d returned wrong rows %d", evt.String(), evt.maxNodeTime, rowAffected)
 	}
-	// TODO: Needs to update space maxCoord and maxTime also
+
+	err = evt.space.updateMaxCoordAndTime()
+	if err != nil {
+		return err
+	}
 
 	Log.Infof("Event %s new max node time %d by adding %d new nodes",
 		evt.String(), evt.maxNodeTime, nbNodesCreated)
@@ -208,7 +216,7 @@ func (evt *EventDb) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space
 	return res, nil
 }
 
-func (evt *EventDb) GetActiveNodesDbAt(currentTime m3space.DistAndTime) ([]*NodeEventDb, error) {
+func (evt *EventDb) GetActiveNodesDbAt(currentTime m3space.DistAndTime) ([]*EventNodeDb, error) {
 	var err error
 	for evt.maxNodeTime < currentTime {
 		err = evt.increaseMaxNodeTime()
@@ -222,7 +230,7 @@ func (evt *EventDb) GetActiveNodesDbAt(currentTime m3space.DistAndTime) ([]*Node
 	}
 
 	if from == TimeOnlyRoot {
-		res := make([]*NodeEventDb, 1)
+		res := make([]*EventNodeDb, 1)
 		res[0] = evt.centerNode
 		return res, nil
 	}
@@ -240,7 +248,7 @@ func (evt *EventDb) GetActiveNodesDbAt(currentTime m3space.DistAndTime) ([]*Node
 	if err != nil {
 		return nil, err
 	}
-	res := make([]*NodeEventDb, 1, expectedNbNodes+1)
+	res := make([]*EventNodeDb, 1, expectedNbNodes+1)
 	res[0] = evt.centerNode
 	for rows.Next() {
 		evtNode, err := evt.CreateEventNodeFromDbRows(rows)
@@ -291,7 +299,7 @@ func (evt *EventDb) getFromToTime(currentTime m3space.DistAndTime) (m3space.Dist
 
 func CreateEventFromDbRows(rows *sql.Rows, space *SpaceDb) error {
 	evt := EventDb{space: space}
-	rootNode := NodeEventDb{event: &evt}
+	rootNode := EventNodeDb{event: &evt}
 	point := m3point.Point{}
 	linkIds := [m3path.NbConnections]sql.NullInt64{}
 	var pathCtxId int
@@ -318,8 +326,8 @@ func CreateEventFromDbRows(rows *sql.Rows, space *SpaceDb) error {
 	return nil
 }
 
-func (evt *EventDb) CreateEventNodeFromDbRows(rows *sql.Rows) (*NodeEventDb, error) {
-	evtNode := NodeEventDb{event: evt}
+func (evt *EventDb) CreateEventNodeFromDbRows(rows *sql.Rows) (*EventNodeDb, error) {
+	evtNode := EventNodeDb{event: evt}
 	point := m3point.Point{}
 	linkIds := [m3path.NbConnections]sql.NullInt64{}
 	var eventId m3space.EventId
@@ -340,31 +348,31 @@ func (evt *EventDb) CreateEventNodeFromDbRows(rows *sql.Rows) (*NodeEventDb, err
 }
 
 /***************************************************************/
-// NodeEventDb Functions
+// EventNodeDb Functions
 /***************************************************************/
 
-func (en *NodeEventDb) String() string {
+func (en *EventNodeDb) String() string {
 	return fmt.Sprintf("EvtNode%02d:Evt%02d:P=%04d,%v:T=%d:%d", en.id, en.event.id,
 		en.pointId, en.point, en.creationTime, en.d)
 }
 
-func (en *NodeEventDb) GetId() int64 {
+func (en *EventNodeDb) GetId() int64 {
 	return en.id
 }
 
-func (en *NodeEventDb) GetEventId() m3space.EventId {
+func (en *EventNodeDb) GetEventId() m3space.EventId {
 	return en.event.GetId()
 }
 
-func (en *NodeEventDb) GetColor() m3space.EventColor {
+func (en *EventNodeDb) GetColor() m3space.EventColor {
 	return en.event.GetColor()
 }
 
-func (en *NodeEventDb) GetPointId() int64 {
+func (en *EventNodeDb) GetPointId() int64 {
 	return en.pointId
 }
 
-func (en *NodeEventDb) GetPoint() (*m3point.Point, error) {
+func (en *EventNodeDb) GetPoint() (*m3point.Point, error) {
 	if en.pointId < 0 {
 		return nil, m3util.MakeQsmErrorf("No point id in event %s", en.String())
 	}
@@ -379,11 +387,11 @@ func (en *NodeEventDb) GetPoint() (*m3point.Point, error) {
 	return en.point, nil
 }
 
-func (en *NodeEventDb) GetPathNodeId() int64 {
+func (en *EventNodeDb) GetPathNodeId() int64 {
 	return en.pathNodeId
 }
 
-func (en *NodeEventDb) GetPathNode() (m3path.PathNode, error) {
+func (en *EventNodeDb) GetPathNode() (m3path.PathNode, error) {
 	if en.pathNodeId < 0 {
 		return nil, m3util.MakeQsmErrorf("No path node id in event %s", en.String())
 	}
@@ -398,19 +406,19 @@ func (en *NodeEventDb) GetPathNode() (m3path.PathNode, error) {
 	return en.pathNode, nil
 }
 
-func (en *NodeEventDb) GetCreationTime() m3space.DistAndTime {
+func (en *EventNodeDb) GetCreationTime() m3space.DistAndTime {
 	return en.creationTime
 }
 
-func (en *NodeEventDb) GetD() m3space.DistAndTime {
+func (en *EventNodeDb) GetD() m3space.DistAndTime {
 	return en.d
 }
 
-func (en *NodeEventDb) IsRoot() bool {
+func (en *EventNodeDb) IsRoot() bool {
 	return en.d == m3space.ZeroDistAndTime
 }
 
-func (en *NodeEventDb) insertInDb() error {
+func (en *EventNodeDb) insertInDb() error {
 	evt := en.event
 	linkForDb := en.GetLinkIdsForDb()
 	var err error

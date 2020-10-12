@@ -141,7 +141,7 @@ func (spaceData *ClientSpacePackData) CreateSpace(name string, activePathNodeThr
 		MaxNodesPerPoint: int32(maxPathNodesPerPoint),
 	}
 	resMsg := &m3api.SpaceMsg{}
-	_, err := spaceData.Env.clConn.ExecReq("PUT", uri, reqMsg, resMsg, false)
+	_, err := spaceData.Env.clConn.ExecReq("POST", uri, reqMsg, resMsg, false)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func (space *SpaceCl) CreateEvent(growthType m3point.GrowthType, growthIndex int
 		Color:        uint32(color),
 	}
 	resMsg := new(m3api.EventMsg)
-	_, err := space.SpaceData.Env.clConn.ExecReq("PUT", uri, reqMsg, resMsg, false)
+	_, err := space.SpaceData.Env.clConn.ExecReq("POST", uri, reqMsg, resMsg, false)
 	if err != nil {
 		return nil, err
 	}
@@ -294,6 +294,20 @@ func (space *SpaceCl) CreateEvent(growthType m3point.GrowthType, growthIndex int
 	return evt, nil
 }
 
+func (space *SpaceCl) setMaxCoordAndTime(evtNode *EventNodeCl) {
+	if evtNode.creationTime > space.maxTime {
+		space.maxTime = evtNode.creationTime
+	}
+	for _, c := range evtNode.point {
+		if c > space.maxCoord {
+			space.maxCoord = c
+		}
+		if -c > space.maxCoord {
+			space.maxCoord = -c
+		}
+	}
+}
+
 func (space *SpaceCl) createEventFromMsg(pathData *ClientPathPackData, pointData *ClientPointPackData, resMsg *m3api.EventMsg) (*EventCl, error) {
 	pathCtx := pathData.GetPathCtx(int(resMsg.PathCtxId))
 	if pathCtx == nil {
@@ -306,7 +320,7 @@ func (space *SpaceCl) createEventFromMsg(pathData *ClientPathPackData, pointData
 		CreationTime: m3space.DistAndTime(resMsg.CreationTime),
 		color:        m3space.EventColor(resMsg.Color),
 		endTime:      0,
-		MaxNodeTime:  0,
+		MaxNodeTime:  m3space.DistAndTime(resMsg.MaxNodeTime),
 	}
 	var err error
 	event.CenterNode, err = event.createNodeFromMsg(pointData, resMsg.RootNode)
@@ -338,6 +352,8 @@ func (evt *EventCl) createNodeFromMsg(pointData *ClientPointPackData, neMsg *m3a
 	for i, nodeId := range neMsg.LinkedNodeIds {
 		ne.linkNodes[i] = nodeId
 	}
+	evt.space.setMaxCoordAndTime(ne)
+
 	return ne, nil
 }
 

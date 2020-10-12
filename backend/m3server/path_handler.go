@@ -1,6 +1,7 @@
 package m3server
 
 import (
+	"github.com/golang/protobuf/proto"
 	"net/http"
 
 	"github.com/freddy33/qsm-go/backend/pathdb"
@@ -15,27 +16,42 @@ func getPathContexts(w http.ResponseWriter, r *http.Request) {
 	env := GetEnvironment(r)
 	pathData := pathdb.GetServerPathPackData(env)
 
-	nbContext := 0
-	for _, pathContextList := range pathData.AllCenterContexts {
-		for _, pathContext := range pathContextList {
-			if pathContext != nil {
-				nbContext++
-			}
-		}
-	}
-	resMsg := &m3api.PathContextListMsg{}
-	resMsg.PathContexts = make([]*m3api.PathContextMsg, nbContext)
-	i := 0
-	for _, pathContextList := range pathData.AllCenterContexts {
-		for _, pathContext := range pathContextList {
-			if pathContext != nil {
-				resMsg.PathContexts[i] = pathContextToMsg(pathContext)
-				i++
-			}
-		}
+	reqMsg := &m3api.PathContextIdMsg{}
+	if !ReadRequestMsg(w, r, reqMsg) {
+		return
 	}
 
-	WriteResponseMsg(w, r, resMsg)
+	var toSendMsg proto.Message
+	if reqMsg.PathCtxId < 0 {
+		nbContext := 0
+		for _, pathContextList := range pathData.AllCenterContexts {
+			for _, pathContext := range pathContextList {
+				if pathContext != nil {
+					nbContext++
+				}
+			}
+		}
+		resMsg := &m3api.PathContextListMsg{}
+		resMsg.PathContexts = make([]*m3api.PathContextMsg, nbContext)
+		i := 0
+		for _, pathContextList := range pathData.AllCenterContexts {
+			for _, pathContext := range pathContextList {
+				if pathContext != nil {
+					resMsg.PathContexts[i] = pathContextToMsg(pathContext)
+					i++
+				}
+			}
+		}
+		toSendMsg = resMsg
+	} else {
+		pathCtx := pathData.GetPathCtxDb(int(reqMsg.PathCtxId))
+		if pathCtx == nil {
+			SendResponse(w, http.StatusNotFound, "Path context with ID %d does not exists", reqMsg.PathCtxId)
+			return
+		}
+		toSendMsg = pathContextToMsg(pathCtx)
+	}
+	WriteResponseMsg(w, r, toSendMsg)
 }
 
 func createPathContext(w http.ResponseWriter, r *http.Request) {

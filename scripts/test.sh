@@ -19,12 +19,10 @@ curDir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 test_model() {
   cd ${rootDir}/model && go test ./m3point/
-  #./m3path/ ./m3space/
 }
 
 test_client() {
   cd ${rootDir}/client && go test ./clpoint/ ./clpath/ ./clspace/
-  #./m3path/ ./m3space/
 }
 
 test_backend() {
@@ -59,7 +57,9 @@ model | client | ui | backend | perf)
   test_${pack}
   ;;
 all)
-  test_model && test_backend && test_client && test_ui
+  ${rootDir}/qsm server stop
+  test_model && test_backend && ${rootDir}/qsm server launch && test_client && test_ui
+  ${rootDir}/qsm server stop
   ;;
 *)
   usage

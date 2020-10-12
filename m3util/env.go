@@ -30,7 +30,7 @@ const (
 )
 
 const (
-	MaxNumberOfEnvironments = 15
+	MaxNumberOfEnvironments = 17
 	QsmEnvNumberKey         = "QSM_ENV_NUMBER"
 )
 

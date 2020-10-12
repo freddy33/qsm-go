@@ -26,12 +26,13 @@ func getSpaceTestEnv() m3util.QsmEnvironment {
 		return spaceEnv
 	}
 	m3util.SetToTestMode()
-	spaceEnv := client.GetOrCreateInitializedApiEnv(m3util.SpaceClientTempEnv, true, true)
+	spaceEnv := client.GetOrCreateInitializedApiEnv(m3util.SpaceClientTempEnv, false, true)
 	return spaceEnv
 }
 
 func createNewSpace(t *testing.T, spaceName string, threshold m3space.DistAndTime) *client.SpaceCl {
 	env := getSpaceTestEnv()
+
 	spaceData := client.GetClientSpacePackData(env)
 	var space *client.SpaceCl
 	for _, sp := range spaceData.GetAllSpaces() {

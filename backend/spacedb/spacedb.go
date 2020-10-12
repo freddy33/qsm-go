@@ -5,7 +5,6 @@ import (
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
-	"sync"
 )
 
 var Log = m3util.NewLogger("spacedb", m3util.INFO)
@@ -25,6 +24,7 @@ func init() {
 const (
 	SelectSpacePerId int = iota
 	DeleteSpace
+	UpdateMaxTimeAndCoord
 )
 
 func createSpacesTableDef() *m3db.TableDefinition {
@@ -41,9 +41,10 @@ func createSpacesTableDef() *m3db.TableDefinition {
 	res.Insert = "(" + allFields + ") values ($1,$2,$3,$4,$5,$6) returning id"
 	res.SelectAll = "select id," + allFields + " from %s"
 	res.ExpectedCount = -1
-	res.Queries = make([]string, 2)
+	res.Queries = make([]string, 3)
 	res.Queries[SelectSpacePerId] = res.SelectAll + " where id=$1"
 	res.Queries[DeleteSpace] = "delete from %s where id=$1 and name=$2"
+	res.Queries[UpdateMaxTimeAndCoord] = "update %s set max_coord = $2, max_node_time = $3 where id = $1"
 
 	return &res
 }
@@ -160,7 +161,7 @@ func createNodesTableDef() *m3db.TableDefinition {
 	return &res
 }
 
-func (spaceData *ServerSpacePackData) createTables() {
+func (spaceData *ServerSpacePackData) CreateTables() {
 	tableNames := [3]string{SpacesTable, EventsTable, NodesTable}
 	spaceTableExecs := [3]*m3db.TableExec{}
 
@@ -186,11 +187,7 @@ func (spaceData *ServerSpacePackData) createTables() {
 	spaceData.spacesTe = spaceTableExecs[0]
 	spaceData.eventsTe = spaceTableExecs[1]
 	spaceData.nodesTe = spaceTableExecs[2]
-
 }
-
-var dbMutex sync.Mutex
-var testDbFilled [m3util.MaxNumberOfEnvironments]bool
 
 func GetSpaceDbFullEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 	env := pathdb.GetPathDbFullEnv(envId)
@@ -205,16 +202,13 @@ func GetSpaceDbCleanEnv(envId m3util.QsmEnvID) *m3db.QsmDbEnvironment {
 }
 
 func checkEnv(env *m3db.QsmDbEnvironment) {
-	envId := env.GetId()
-	dbMutex.Lock()
-	defer dbMutex.Unlock()
-	if !testDbFilled[envId] {
-		GetServerSpacePackData(env).createTables()
-		err := pathdb.GetServerPathPackData(env).InitAllPathContexts()
-		if err != nil {
-			Log.Fatal(err)
-			return
-		}
-		testDbFilled[envId] = true
+	err := env.ExecOnce(m3util.SpaceIdx, func() error {
+		spaceData := GetServerSpacePackData(env)
+		spaceData.CreateTables()
+		return pathdb.GetServerPathPackData(env).InitAllPathContexts()
+	})
+	if err != nil {
+		Log.Fatal(err)
+		return
 	}
 }
