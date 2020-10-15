@@ -22,7 +22,19 @@
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
-    "extends": "react-app"
+    "extends": ["react-app"],
+    "overrides": [
+      {
+        "files": ["**/*_pb.js"],
+        "rules": {
+          "no-undef": "off",
+          "no-new-func": "off",
+          "no-unused-vars": "off",
+          "new-parens": "off",
+          "no-redeclare": "off"
+        }
+      }
+    ]
   },
   "browserslist": {
     "production": [

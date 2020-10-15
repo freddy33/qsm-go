@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import _ from 'lodash';
 import Select from 'react-select';
 
@@ -57,7 +58,6 @@ const App = () => {
     }
 
     setMaxDist(dist);
-    await getPathNodes();
   };
 
   const getPathNodes = async () => {
@@ -112,12 +112,10 @@ const App = () => {
       renderer.render(scene, camera);
     };
 
+    const controls = new OrbitControls(camera, renderer.domElement);
+
     window.addEventListener('resize', handleResize);
   }, []);
-
-  // useEffect(() => {
-  //   Renderer.draw(scene, Renderer.mockPoints, pointPackDataMsg);
-  // }, [pointPackDataMsg]);
 
   useEffect(() => {
     if (!renderer) return;
@@ -130,8 +128,8 @@ const App = () => {
     setRenderer(newRenderer);
 
     mount.current.replaceChild(newRenderer.domElement, renderer.domElement);
+    const controls = new OrbitControls(camera, newRenderer.domElement);
 
-    debugger;
     Renderer.draw(scene, tree);
   }, [tree]);
 
@@ -141,7 +139,7 @@ const App = () => {
 
     const cameraPivot = Renderer.addCameraPivot(scene, camera);
     const animate = () => {
-      cameraPivot.rotateOnAxis(new THREE.Vector3(0, 1, 0), 0.01);
+      // cameraPivot.rotateOnAxis(new THREE.Vector3(0, 1, 0), 0.01);
 
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
@@ -172,7 +170,6 @@ const App = () => {
             type="number"
             value={maxDist}
             onChange={(evt) => {
-              debugger;
               setMaxDist(evt.target.value);
             }}
           />
