@@ -162,7 +162,7 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	return int(resMsg.EventId)
 }
 
-func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activeNodes int) bool {
+func callGetSpaceTime(t *testing.T, spaceId int, router *mux.Router, time int, activeNodes int) bool {
 	reqMsg := &m3api.SpaceTimeRequestMsg{
 		SpaceId:     int32(spaceId),
 		CurrentTime: int32(time),
@@ -173,7 +173,7 @@ func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activ
 		requestContentType:  "proto",
 		responseContentType: "proto",
 		typeName:            "SpaceTimeResponseMsg",
-		methodName:          "POST",
+		methodName:          "GET",
 		uri:                 "/space-time",
 	}, reqMsg, spaceTimeResponse) {
 		return false
@@ -181,5 +181,5 @@ func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activ
 
 	return assert.Equal(t, int32(spaceId), spaceTimeResponse.GetSpaceId()) &&
 		assert.Equal(t, int32(time), spaceTimeResponse.GetCurrentTime()) &&
-		assert.Equal(t, activeNodes, len(spaceTimeResponse.GetActiveNodes()))
+		assert.Equal(t, activeNodes, int(spaceTimeResponse.GetNbActiveNodes()))
 }

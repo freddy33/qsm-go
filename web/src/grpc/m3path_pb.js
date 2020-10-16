@@ -32,7 +32,7 @@ goog.exportSymbol('proto.m3api.PathNodesResponseMsg', null, global);
  * @constructor
  */
 proto.m3api.PathContextRequestMsg = function (opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+    jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
 goog.inherits(proto.m3api.PathContextRequestMsg, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -53,7 +53,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.m3api.PathContextIdMsg = function (opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+    jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
 goog.inherits(proto.m3api.PathContextIdMsg, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -74,7 +74,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.m3api.PathContextMsg = function (opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+    jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
 goog.inherits(proto.m3api.PathContextMsg, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -95,7 +95,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.m3api.PathContextListMsg = function (opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, proto.m3api.PathContextListMsg.repeatedFields_, null);
+    jspb.Message.initialize(this, opt_data, 0, -1, proto.m3api.PathContextListMsg.repeatedFields_, null);
 };
 goog.inherits(proto.m3api.PathContextListMsg, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -116,7 +116,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.m3api.PathNodeMsg = function (opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, proto.m3api.PathNodeMsg.repeatedFields_, null);
+    jspb.Message.initialize(this, opt_data, 0, -1, proto.m3api.PathNodeMsg.repeatedFields_, null);
 };
 goog.inherits(proto.m3api.PathNodeMsg, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -137,7 +137,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.m3api.PathNodesRequestMsg = function (opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+    jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
 goog.inherits(proto.m3api.PathNodesRequestMsg, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -158,7 +158,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.m3api.PathNodesResponseMsg = function (opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, proto.m3api.PathNodesResponseMsg.repeatedFields_, null);
+    jspb.Message.initialize(this, opt_data, 0, -1, proto.m3api.PathNodesResponseMsg.repeatedFields_, null);
 };
 goog.inherits(proto.m3api.PathNodesResponseMsg, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -172,44 +172,44 @@ if (goog.DEBUG && !COMPILED) {
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
-  /**
-   * Creates an object representation of this proto.
-   * Field names that are reserved in JavaScript and will be renamed to pb_name.
-   * Optional fields that are not set will be set to undefined.
-   * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
-   * For the list of reserved names please see:
-   *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
-   * @param {boolean=} opt_includeInstance Deprecated. whether to include the
-   *     JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @return {!Object}
-   */
-  proto.m3api.PathContextRequestMsg.prototype.toObject = function (opt_includeInstance) {
-    return proto.m3api.PathContextRequestMsg.toObject(opt_includeInstance, this);
-  };
-
-
-  /**
-   * Static version of the {@see toObject} method.
-   * @param {boolean|undefined} includeInstance Deprecated. Whether to include
-   *     the JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @param {!proto.m3api.PathContextRequestMsg} msg The msg instance to transform.
-   * @return {!Object}
-   * @suppress {unusedLocalVariables} f is only used for nested messages
-   */
-  proto.m3api.PathContextRequestMsg.toObject = function (includeInstance, msg) {
-    var f, obj = {
-      growthType: jspb.Message.getFieldWithDefault(msg, 1, 0),
-      growthIndex: jspb.Message.getFieldWithDefault(msg, 2, 0),
-      growthOffset: jspb.Message.getFieldWithDefault(msg, 3, 0)
+    /**
+     * Creates an object representation of this proto.
+     * Field names that are reserved in JavaScript and will be renamed to pb_name.
+     * Optional fields that are not set will be set to undefined.
+     * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+     * For the list of reserved names please see:
+     *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
+     * @param {boolean=} opt_includeInstance Deprecated. whether to include the
+     *     JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @return {!Object}
+     */
+    proto.m3api.PathContextRequestMsg.prototype.toObject = function (opt_includeInstance) {
+        return proto.m3api.PathContextRequestMsg.toObject(opt_includeInstance, this);
     };
 
-    if (includeInstance) {
-      obj.$jspbMessageInstance = msg;
-    }
-    return obj;
-  };
+
+    /**
+     * Static version of the {@see toObject} method.
+     * @param {boolean|undefined} includeInstance Deprecated. Whether to include
+     *     the JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @param {!proto.m3api.PathContextRequestMsg} msg The msg instance to transform.
+     * @return {!Object}
+     * @suppress {unusedLocalVariables} f is only used for nested messages
+     */
+    proto.m3api.PathContextRequestMsg.toObject = function (includeInstance, msg) {
+        var f, obj = {
+            growthType: jspb.Message.getFieldWithDefault(msg, 1, 0),
+            growthIndex: jspb.Message.getFieldWithDefault(msg, 2, 0),
+            growthOffset: jspb.Message.getFieldWithDefault(msg, 3, 0)
+        };
+
+        if (includeInstance) {
+            obj.$jspbMessageInstance = msg;
+        }
+        return obj;
+    };
 }
 
 
@@ -219,9 +219,9 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  * @return {!proto.m3api.PathContextRequestMsg}
  */
 proto.m3api.PathContextRequestMsg.deserializeBinary = function (bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.m3api.PathContextRequestMsg;
-  return proto.m3api.PathContextRequestMsg.deserializeBinaryFromReader(msg, reader);
+    var reader = new jspb.BinaryReader(bytes);
+    var msg = new proto.m3api.PathContextRequestMsg;
+    return proto.m3api.PathContextRequestMsg.deserializeBinaryFromReader(msg, reader);
 };
 
 
@@ -233,28 +233,28 @@ proto.m3api.PathContextRequestMsg.deserializeBinary = function (bytes) {
  * @return {!proto.m3api.PathContextRequestMsg}
  */
 proto.m3api.PathContextRequestMsg.deserializeBinaryFromReader = function (msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-      case 1:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setGrowthType(value);
-        break;
-      case 2:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setGrowthIndex(value);
-        break;
-      case 3:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setGrowthOffset(value);
-        break;
-      default:
-        reader.skipField();
-        break;
-    }
+    while (reader.nextField()) {
+        if (reader.isEndGroup()) {
+            break;
+        }
+        var field = reader.getFieldNumber();
+        switch (field) {
+            case 1:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setGrowthType(value);
+                break;
+            case 2:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setGrowthIndex(value);
+                break;
+            case 3:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setGrowthOffset(value);
+                break;
+            default:
+                reader.skipField();
+                break;
+        }
   }
   return msg;
 };
@@ -265,9 +265,9 @@ proto.m3api.PathContextRequestMsg.deserializeBinaryFromReader = function (msg, r
  * @return {!Uint8Array}
  */
 proto.m3api.PathContextRequestMsg.prototype.serializeBinary = function () {
-  var writer = new jspb.BinaryWriter();
-  proto.m3api.PathContextRequestMsg.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
+    var writer = new jspb.BinaryWriter();
+    proto.m3api.PathContextRequestMsg.serializeBinaryToWriter(this, writer);
+    return writer.getResultBuffer();
 };
 
 
@@ -279,16 +279,16 @@ proto.m3api.PathContextRequestMsg.prototype.serializeBinary = function () {
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
 proto.m3api.PathContextRequestMsg.serializeBinaryToWriter = function (message, writer) {
-  var f = undefined;
-  f = message.getGrowthType();
-  if (f !== 0) {
-    writer.writeInt32(
-        1,
-        f
-    );
-  }
-  f = message.getGrowthIndex();
-  if (f !== 0) {
+    var f = undefined;
+    f = message.getGrowthType();
+    if (f !== 0) {
+        writer.writeInt32(
+            1,
+            f
+        );
+    }
+    f = message.getGrowthIndex();
+    if (f !== 0) {
     writer.writeInt32(
         2,
         f
@@ -309,7 +309,7 @@ proto.m3api.PathContextRequestMsg.serializeBinaryToWriter = function (message, w
  * @return {number}
  */
 proto.m3api.PathContextRequestMsg.prototype.getGrowthType = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
@@ -318,7 +318,7 @@ proto.m3api.PathContextRequestMsg.prototype.getGrowthType = function () {
  * @return {!proto.m3api.PathContextRequestMsg} returns this
  */
 proto.m3api.PathContextRequestMsg.prototype.setGrowthType = function (value) {
-  return jspb.Message.setProto3IntField(this, 1, value);
+    return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -327,7 +327,7 @@ proto.m3api.PathContextRequestMsg.prototype.setGrowthType = function (value) {
  * @return {number}
  */
 proto.m3api.PathContextRequestMsg.prototype.getGrowthIndex = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
 };
 
 
@@ -336,7 +336,7 @@ proto.m3api.PathContextRequestMsg.prototype.getGrowthIndex = function () {
  * @return {!proto.m3api.PathContextRequestMsg} returns this
  */
 proto.m3api.PathContextRequestMsg.prototype.setGrowthIndex = function (value) {
-  return jspb.Message.setProto3IntField(this, 2, value);
+    return jspb.Message.setProto3IntField(this, 2, value);
 };
 
 
@@ -345,7 +345,7 @@ proto.m3api.PathContextRequestMsg.prototype.setGrowthIndex = function (value) {
  * @return {number}
  */
 proto.m3api.PathContextRequestMsg.prototype.getGrowthOffset = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
 };
 
 
@@ -354,47 +354,47 @@ proto.m3api.PathContextRequestMsg.prototype.getGrowthOffset = function () {
  * @return {!proto.m3api.PathContextRequestMsg} returns this
  */
 proto.m3api.PathContextRequestMsg.prototype.setGrowthOffset = function (value) {
-  return jspb.Message.setProto3IntField(this, 3, value);
+    return jspb.Message.setProto3IntField(this, 3, value);
 };
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
-  /**
-   * Creates an object representation of this proto.
-   * Field names that are reserved in JavaScript and will be renamed to pb_name.
-   * Optional fields that are not set will be set to undefined.
-   * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
-   * For the list of reserved names please see:
-   *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
-   * @param {boolean=} opt_includeInstance Deprecated. whether to include the
-   *     JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @return {!Object}
-   */
-  proto.m3api.PathContextIdMsg.prototype.toObject = function (opt_includeInstance) {
-    return proto.m3api.PathContextIdMsg.toObject(opt_includeInstance, this);
-  };
-
-
-  /**
-   * Static version of the {@see toObject} method.
-   * @param {boolean|undefined} includeInstance Deprecated. Whether to include
-   *     the JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @param {!proto.m3api.PathContextIdMsg} msg The msg instance to transform.
-   * @return {!Object}
-   * @suppress {unusedLocalVariables} f is only used for nested messages
-   */
-  proto.m3api.PathContextIdMsg.toObject = function (includeInstance, msg) {
-    var f, obj = {
-      pathCtxId: jspb.Message.getFieldWithDefault(msg, 1, 0)
+    /**
+     * Creates an object representation of this proto.
+     * Field names that are reserved in JavaScript and will be renamed to pb_name.
+     * Optional fields that are not set will be set to undefined.
+     * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+     * For the list of reserved names please see:
+     *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
+     * @param {boolean=} opt_includeInstance Deprecated. whether to include the
+     *     JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @return {!Object}
+     */
+    proto.m3api.PathContextIdMsg.prototype.toObject = function (opt_includeInstance) {
+        return proto.m3api.PathContextIdMsg.toObject(opt_includeInstance, this);
     };
 
-    if (includeInstance) {
-      obj.$jspbMessageInstance = msg;
-    }
-    return obj;
-  };
+
+    /**
+     * Static version of the {@see toObject} method.
+     * @param {boolean|undefined} includeInstance Deprecated. Whether to include
+     *     the JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @param {!proto.m3api.PathContextIdMsg} msg The msg instance to transform.
+     * @return {!Object}
+     * @suppress {unusedLocalVariables} f is only used for nested messages
+     */
+    proto.m3api.PathContextIdMsg.toObject = function (includeInstance, msg) {
+        var f, obj = {
+            pathCtxId: jspb.Message.getFieldWithDefault(msg, 1, 0)
+        };
+
+        if (includeInstance) {
+            obj.$jspbMessageInstance = msg;
+        }
+        return obj;
+    };
 }
 
 
@@ -404,9 +404,9 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  * @return {!proto.m3api.PathContextIdMsg}
  */
 proto.m3api.PathContextIdMsg.deserializeBinary = function (bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.m3api.PathContextIdMsg;
-  return proto.m3api.PathContextIdMsg.deserializeBinaryFromReader(msg, reader);
+    var reader = new jspb.BinaryReader(bytes);
+    var msg = new proto.m3api.PathContextIdMsg;
+    return proto.m3api.PathContextIdMsg.deserializeBinaryFromReader(msg, reader);
 };
 
 
@@ -418,20 +418,20 @@ proto.m3api.PathContextIdMsg.deserializeBinary = function (bytes) {
  * @return {!proto.m3api.PathContextIdMsg}
  */
 proto.m3api.PathContextIdMsg.deserializeBinaryFromReader = function (msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-      case 1:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setPathCtxId(value);
-        break;
-      default:
-        reader.skipField();
-        break;
-    }
+    while (reader.nextField()) {
+        if (reader.isEndGroup()) {
+            break;
+        }
+        var field = reader.getFieldNumber();
+        switch (field) {
+            case 1:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setPathCtxId(value);
+                break;
+            default:
+                reader.skipField();
+                break;
+        }
   }
   return msg;
 };
@@ -442,9 +442,9 @@ proto.m3api.PathContextIdMsg.deserializeBinaryFromReader = function (msg, reader
  * @return {!Uint8Array}
  */
 proto.m3api.PathContextIdMsg.prototype.serializeBinary = function () {
-  var writer = new jspb.BinaryWriter();
-  proto.m3api.PathContextIdMsg.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
+    var writer = new jspb.BinaryWriter();
+    proto.m3api.PathContextIdMsg.serializeBinaryToWriter(this, writer);
+    return writer.getResultBuffer();
 };
 
 
@@ -456,14 +456,14 @@ proto.m3api.PathContextIdMsg.prototype.serializeBinary = function () {
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
 proto.m3api.PathContextIdMsg.serializeBinaryToWriter = function (message, writer) {
-  var f = undefined;
-  f = message.getPathCtxId();
-  if (f !== 0) {
-    writer.writeInt32(
-        1,
-        f
-    );
-  }
+    var f = undefined;
+    f = message.getPathCtxId();
+    if (f !== 0) {
+        writer.writeInt32(
+            1,
+            f
+        );
+    }
 };
 
 
@@ -472,7 +472,7 @@ proto.m3api.PathContextIdMsg.serializeBinaryToWriter = function (message, writer
  * @return {number}
  */
 proto.m3api.PathContextIdMsg.prototype.getPathCtxId = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
@@ -481,23 +481,23 @@ proto.m3api.PathContextIdMsg.prototype.getPathCtxId = function () {
  * @return {!proto.m3api.PathContextIdMsg} returns this
  */
 proto.m3api.PathContextIdMsg.prototype.setPathCtxId = function (value) {
-  return jspb.Message.setProto3IntField(this, 1, value);
+    return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
-  /**
-   * Creates an object representation of this proto.
-   * Field names that are reserved in JavaScript and will be renamed to pb_name.
-   * Optional fields that are not set will be set to undefined.
-   * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
-   * For the list of reserved names please see:
-   *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
-   * @param {boolean=} opt_includeInstance Deprecated. whether to include the
-   *     JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @return {!Object}
-   */
+    /**
+     * Creates an object representation of this proto.
+     * Field names that are reserved in JavaScript and will be renamed to pb_name.
+     * Optional fields that are not set will be set to undefined.
+     * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+     * For the list of reserved names please see:
+     *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
+     * @param {boolean=} opt_includeInstance Deprecated. whether to include the
+     *     JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @return {!Object}
+     */
 proto.m3api.PathContextMsg.prototype.toObject = function(opt_includeInstance) {
   return proto.m3api.PathContextMsg.toObject(opt_includeInstance, this);
 };
@@ -556,40 +556,40 @@ proto.m3api.PathContextMsg.deserializeBinaryFromReader = function(msg, reader) {
       break;
     }
     var field = reader.getFieldNumber();
-    switch (field) {
-      case 1:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setPathCtxId(value);
-        break;
-      case 2:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setGrowthContextId(value);
-        break;
-      case 3:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setGrowthOffset(value);
-        break;
-      case 4:
-        var value = new proto.m3api.PathNodeMsg;
-        reader.readMessage(value, proto.m3api.PathNodeMsg.deserializeBinaryFromReader);
-        msg.setRootPathNode(value);
-        break;
-      case 5:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setMaxDist(value);
-        break;
-      case 6:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setGrowthType(value);
-        break;
-      case 7:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setGrowthIndex(value);
-        break;
-      default:
-        reader.skipField();
-        break;
-    }
+      switch (field) {
+          case 1:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setPathCtxId(value);
+              break;
+          case 2:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setGrowthContextId(value);
+              break;
+          case 3:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setGrowthOffset(value);
+              break;
+          case 4:
+              var value = new proto.m3api.PathNodeMsg;
+              reader.readMessage(value, proto.m3api.PathNodeMsg.deserializeBinaryFromReader);
+              msg.setRootPathNode(value);
+              break;
+          case 5:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setMaxDist(value);
+              break;
+          case 6:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setGrowthType(value);
+              break;
+          case 7:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setGrowthIndex(value);
+              break;
+          default:
+              reader.skipField();
+              break;
+      }
   }
   return msg;
 };
@@ -727,8 +727,8 @@ proto.m3api.PathContextMsg.prototype.setGrowthOffset = function(value) {
  * @return {?proto.m3api.PathNodeMsg}
  */
 proto.m3api.PathContextMsg.prototype.getRootPathNode = function () {
-  return /** @type{?proto.m3api.PathNodeMsg} */ (
-      jspb.Message.getWrapperField(this, proto.m3api.PathNodeMsg, 4));
+    return /** @type{?proto.m3api.PathNodeMsg} */ (
+        jspb.Message.getWrapperField(this, proto.m3api.PathNodeMsg, 4));
 };
 
 
@@ -737,7 +737,7 @@ proto.m3api.PathContextMsg.prototype.getRootPathNode = function () {
  * @return {!proto.m3api.PathContextMsg} returns this
  */
 proto.m3api.PathContextMsg.prototype.setRootPathNode = function (value) {
-  return jspb.Message.setWrapperField(this, 4, value);
+    return jspb.Message.setWrapperField(this, 4, value);
 };
 
 
@@ -746,7 +746,7 @@ proto.m3api.PathContextMsg.prototype.setRootPathNode = function (value) {
  * @return {!proto.m3api.PathContextMsg} returns this
  */
 proto.m3api.PathContextMsg.prototype.clearRootPathNode = function () {
-  return this.setRootPathNode(undefined);
+    return this.setRootPathNode(undefined);
 };
 
 
@@ -755,7 +755,7 @@ proto.m3api.PathContextMsg.prototype.clearRootPathNode = function () {
  * @return {boolean}
  */
 proto.m3api.PathContextMsg.prototype.hasRootPathNode = function () {
-  return jspb.Message.getField(this, 4) != null;
+    return jspb.Message.getField(this, 4) != null;
 };
 
 
@@ -764,7 +764,7 @@ proto.m3api.PathContextMsg.prototype.hasRootPathNode = function () {
  * @return {number}
  */
 proto.m3api.PathContextMsg.prototype.getMaxDist = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
 };
 
 
@@ -773,7 +773,7 @@ proto.m3api.PathContextMsg.prototype.getMaxDist = function () {
  * @return {!proto.m3api.PathContextMsg} returns this
  */
 proto.m3api.PathContextMsg.prototype.setMaxDist = function (value) {
-  return jspb.Message.setProto3IntField(this, 5, value);
+    return jspb.Message.setProto3IntField(this, 5, value);
 };
 
 
@@ -782,7 +782,7 @@ proto.m3api.PathContextMsg.prototype.setMaxDist = function (value) {
  * @return {number}
  */
 proto.m3api.PathContextMsg.prototype.getGrowthType = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
 };
 
 
@@ -791,7 +791,7 @@ proto.m3api.PathContextMsg.prototype.getGrowthType = function () {
  * @return {!proto.m3api.PathContextMsg} returns this
  */
 proto.m3api.PathContextMsg.prototype.setGrowthType = function (value) {
-  return jspb.Message.setProto3IntField(this, 6, value);
+    return jspb.Message.setProto3IntField(this, 6, value);
 };
 
 
@@ -800,7 +800,7 @@ proto.m3api.PathContextMsg.prototype.setGrowthType = function (value) {
  * @return {number}
  */
 proto.m3api.PathContextMsg.prototype.getGrowthIndex = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
 };
 
 
@@ -809,7 +809,7 @@ proto.m3api.PathContextMsg.prototype.getGrowthIndex = function () {
  * @return {!proto.m3api.PathContextMsg} returns this
  */
 proto.m3api.PathContextMsg.prototype.setGrowthIndex = function (value) {
-  return jspb.Message.setProto3IntField(this, 7, value);
+    return jspb.Message.setProto3IntField(this, 7, value);
 };
 
 
@@ -824,43 +824,43 @@ proto.m3api.PathContextListMsg.repeatedFields_ = [1];
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
-  /**
-   * Creates an object representation of this proto.
-   * Field names that are reserved in JavaScript and will be renamed to pb_name.
-   * Optional fields that are not set will be set to undefined.
-   * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
-   * For the list of reserved names please see:
-   *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
-   * @param {boolean=} opt_includeInstance Deprecated. whether to include the
-   *     JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @return {!Object}
-   */
-  proto.m3api.PathContextListMsg.prototype.toObject = function (opt_includeInstance) {
-    return proto.m3api.PathContextListMsg.toObject(opt_includeInstance, this);
-  };
-
-
-  /**
-   * Static version of the {@see toObject} method.
-   * @param {boolean|undefined} includeInstance Deprecated. Whether to include
-   *     the JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @param {!proto.m3api.PathContextListMsg} msg The msg instance to transform.
-   * @return {!Object}
-   * @suppress {unusedLocalVariables} f is only used for nested messages
-   */
-  proto.m3api.PathContextListMsg.toObject = function (includeInstance, msg) {
-    var f, obj = {
-      pathContextsList: jspb.Message.toObjectList(msg.getPathContextsList(),
-          proto.m3api.PathContextMsg.toObject, includeInstance)
+    /**
+     * Creates an object representation of this proto.
+     * Field names that are reserved in JavaScript and will be renamed to pb_name.
+     * Optional fields that are not set will be set to undefined.
+     * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+     * For the list of reserved names please see:
+     *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
+     * @param {boolean=} opt_includeInstance Deprecated. whether to include the
+     *     JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @return {!Object}
+     */
+    proto.m3api.PathContextListMsg.prototype.toObject = function (opt_includeInstance) {
+        return proto.m3api.PathContextListMsg.toObject(opt_includeInstance, this);
     };
 
-    if (includeInstance) {
-      obj.$jspbMessageInstance = msg;
-    }
-    return obj;
-  };
+
+    /**
+     * Static version of the {@see toObject} method.
+     * @param {boolean|undefined} includeInstance Deprecated. Whether to include
+     *     the JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @param {!proto.m3api.PathContextListMsg} msg The msg instance to transform.
+     * @return {!Object}
+     * @suppress {unusedLocalVariables} f is only used for nested messages
+     */
+    proto.m3api.PathContextListMsg.toObject = function (includeInstance, msg) {
+        var f, obj = {
+            pathContextsList: jspb.Message.toObjectList(msg.getPathContextsList(),
+                proto.m3api.PathContextMsg.toObject, includeInstance)
+        };
+
+        if (includeInstance) {
+            obj.$jspbMessageInstance = msg;
+        }
+        return obj;
+    };
 }
 
 
@@ -870,9 +870,9 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  * @return {!proto.m3api.PathContextListMsg}
  */
 proto.m3api.PathContextListMsg.deserializeBinary = function (bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.m3api.PathContextListMsg;
-  return proto.m3api.PathContextListMsg.deserializeBinaryFromReader(msg, reader);
+    var reader = new jspb.BinaryReader(bytes);
+    var msg = new proto.m3api.PathContextListMsg;
+    return proto.m3api.PathContextListMsg.deserializeBinaryFromReader(msg, reader);
 };
 
 
@@ -884,21 +884,21 @@ proto.m3api.PathContextListMsg.deserializeBinary = function (bytes) {
  * @return {!proto.m3api.PathContextListMsg}
  */
 proto.m3api.PathContextListMsg.deserializeBinaryFromReader = function (msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-      case 1:
-        var value = new proto.m3api.PathContextMsg;
-        reader.readMessage(value, proto.m3api.PathContextMsg.deserializeBinaryFromReader);
-        msg.addPathContexts(value);
-        break;
-      default:
-        reader.skipField();
-        break;
-    }
+    while (reader.nextField()) {
+        if (reader.isEndGroup()) {
+            break;
+        }
+        var field = reader.getFieldNumber();
+        switch (field) {
+            case 1:
+                var value = new proto.m3api.PathContextMsg;
+                reader.readMessage(value, proto.m3api.PathContextMsg.deserializeBinaryFromReader);
+                msg.addPathContexts(value);
+                break;
+            default:
+                reader.skipField();
+                break;
+        }
   }
   return msg;
 };
@@ -909,9 +909,9 @@ proto.m3api.PathContextListMsg.deserializeBinaryFromReader = function (msg, read
  * @return {!Uint8Array}
  */
 proto.m3api.PathContextListMsg.prototype.serializeBinary = function () {
-  var writer = new jspb.BinaryWriter();
-  proto.m3api.PathContextListMsg.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
+    var writer = new jspb.BinaryWriter();
+    proto.m3api.PathContextListMsg.serializeBinaryToWriter(this, writer);
+    return writer.getResultBuffer();
 };
 
 
@@ -923,15 +923,15 @@ proto.m3api.PathContextListMsg.prototype.serializeBinary = function () {
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
 proto.m3api.PathContextListMsg.serializeBinaryToWriter = function (message, writer) {
-  var f = undefined;
-  f = message.getPathContextsList();
-  if (f.length > 0) {
-    writer.writeRepeatedMessage(
-        1,
-        f,
-        proto.m3api.PathContextMsg.serializeBinaryToWriter
-    );
-  }
+    var f = undefined;
+    f = message.getPathContextsList();
+    if (f.length > 0) {
+        writer.writeRepeatedMessage(
+            1,
+            f,
+            proto.m3api.PathContextMsg.serializeBinaryToWriter
+        );
+    }
 };
 
 
@@ -940,8 +940,8 @@ proto.m3api.PathContextListMsg.serializeBinaryToWriter = function (message, writ
  * @return {!Array<!proto.m3api.PathContextMsg>}
  */
 proto.m3api.PathContextListMsg.prototype.getPathContextsList = function () {
-  return /** @type{!Array<!proto.m3api.PathContextMsg>} */ (
-      jspb.Message.getRepeatedWrapperField(this, proto.m3api.PathContextMsg, 1));
+    return /** @type{!Array<!proto.m3api.PathContextMsg>} */ (
+        jspb.Message.getRepeatedWrapperField(this, proto.m3api.PathContextMsg, 1));
 };
 
 
@@ -950,7 +950,7 @@ proto.m3api.PathContextListMsg.prototype.getPathContextsList = function () {
  * @return {!proto.m3api.PathContextListMsg} returns this
  */
 proto.m3api.PathContextListMsg.prototype.setPathContextsList = function (value) {
-  return jspb.Message.setRepeatedWrapperField(this, 1, value);
+    return jspb.Message.setRepeatedWrapperField(this, 1, value);
 };
 
 
@@ -960,7 +960,7 @@ proto.m3api.PathContextListMsg.prototype.setPathContextsList = function (value) 
  * @return {!proto.m3api.PathContextMsg}
  */
 proto.m3api.PathContextListMsg.prototype.addPathContexts = function (opt_value, opt_index) {
-  return jspb.Message.addToRepeatedWrapperField(this, 1, opt_value, proto.m3api.PathContextMsg, opt_index);
+    return jspb.Message.addToRepeatedWrapperField(this, 1, opt_value, proto.m3api.PathContextMsg, opt_index);
 };
 
 
@@ -969,7 +969,7 @@ proto.m3api.PathContextListMsg.prototype.addPathContexts = function (opt_value, 
  * @return {!proto.m3api.PathContextListMsg} returns this
  */
 proto.m3api.PathContextListMsg.prototype.clearPathContextsList = function () {
-  return this.setPathContextsList([]);
+    return this.setPathContextsList([]);
 };
 
 
@@ -984,18 +984,18 @@ proto.m3api.PathNodeMsg.repeatedFields_ = [6];
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
-  /**
-   * Creates an object representation of this proto.
-   * Field names that are reserved in JavaScript and will be renamed to pb_name.
-   * Optional fields that are not set will be set to undefined.
-   * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
-   * For the list of reserved names please see:
-   *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
-   * @param {boolean=} opt_includeInstance Deprecated. whether to include the
-   *     JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @return {!Object}
-   */
+    /**
+     * Creates an object representation of this proto.
+     * Field names that are reserved in JavaScript and will be renamed to pb_name.
+     * Optional fields that are not set will be set to undefined.
+     * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+     * For the list of reserved names please see:
+     *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
+     * @param {boolean=} opt_includeInstance Deprecated. whether to include the
+     *     JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @return {!Object}
+     */
 proto.m3api.PathNodeMsg.prototype.toObject = function(opt_includeInstance) {
   return proto.m3api.PathNodeMsg.toObject(opt_includeInstance, this);
 };
@@ -1053,36 +1053,36 @@ proto.m3api.PathNodeMsg.deserializeBinaryFromReader = function(msg, reader) {
       break;
     }
     var field = reader.getFieldNumber();
-    switch (field) {
-      case 1:
-        var value = /** @type {number} */ (reader.readInt64());
-        msg.setPathNodeId(value);
-        break;
-      case 2:
-        var value = new m3point_pb.PointMsg;
-        reader.readMessage(value, m3point_pb.PointMsg.deserializeBinaryFromReader);
-        msg.setPoint(value);
-        break;
-      case 3:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setD(value);
-        break;
-      case 4:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setTrioId(value);
-        break;
-      case 5:
-        var value = /** @type {number} */ (reader.readUint32());
-        msg.setConnectionMask(value);
-        break;
-      case 6:
-        var value = /** @type {!Array<number>} */ (reader.readPackedInt64());
-        msg.setLinkedPathNodeIdsList(value);
-        break;
-      default:
-        reader.skipField();
-        break;
-    }
+      switch (field) {
+          case 1:
+              var value = /** @type {number} */ (reader.readInt64());
+              msg.setPathNodeId(value);
+              break;
+          case 2:
+              var value = new m3point_pb.PointMsg;
+              reader.readMessage(value, m3point_pb.PointMsg.deserializeBinaryFromReader);
+              msg.setPoint(value);
+              break;
+          case 3:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setD(value);
+              break;
+          case 4:
+              var value = /** @type {number} */ (reader.readInt32());
+              msg.setTrioId(value);
+              break;
+          case 5:
+              var value = /** @type {number} */ (reader.readUint32());
+              msg.setConnectionMask(value);
+              break;
+          case 6:
+              var value = /** @type {!Array<number>} */ (reader.readPackedInt64());
+              msg.setLinkedPathNodeIdsList(value);
+              break;
+          default:
+              reader.skipField();
+              break;
+      }
   }
   return msg;
 };
@@ -1177,8 +1177,8 @@ proto.m3api.PathNodeMsg.prototype.setPathNodeId = function(value) {
  * @return {?proto.m3api.PointMsg}
  */
 proto.m3api.PathNodeMsg.prototype.getPoint = function() {
-  return /** @type{?proto.m3api.PointMsg} */ (
-      jspb.Message.getWrapperField(this, m3point_pb.PointMsg, 2));
+    return /** @type{?proto.m3api.PointMsg} */ (
+        jspb.Message.getWrapperField(this, m3point_pb.PointMsg, 2));
 };
 
 
@@ -1296,49 +1296,49 @@ proto.m3api.PathNodeMsg.prototype.addLinkedPathNodeIds = function(value, opt_ind
  * @return {!proto.m3api.PathNodeMsg} returns this
  */
 proto.m3api.PathNodeMsg.prototype.clearLinkedPathNodeIdsList = function () {
-  return this.setLinkedPathNodeIdsList([]);
+    return this.setLinkedPathNodeIdsList([]);
 };
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
-  /**
-   * Creates an object representation of this proto.
-   * Field names that are reserved in JavaScript and will be renamed to pb_name.
-   * Optional fields that are not set will be set to undefined.
-   * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
-   * For the list of reserved names please see:
-   *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
-   * @param {boolean=} opt_includeInstance Deprecated. whether to include the
-   *     JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @return {!Object}
-   */
-  proto.m3api.PathNodesRequestMsg.prototype.toObject = function (opt_includeInstance) {
-    return proto.m3api.PathNodesRequestMsg.toObject(opt_includeInstance, this);
-  };
-
-
-  /**
-   * Static version of the {@see toObject} method.
-   * @param {boolean|undefined} includeInstance Deprecated. Whether to include
-   *     the JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @param {!proto.m3api.PathNodesRequestMsg} msg The msg instance to transform.
-   * @return {!Object}
-   * @suppress {unusedLocalVariables} f is only used for nested messages
-   */
-  proto.m3api.PathNodesRequestMsg.toObject = function (includeInstance, msg) {
-    var f, obj = {
-      pathCtxId: jspb.Message.getFieldWithDefault(msg, 1, 0),
-      dist: jspb.Message.getFieldWithDefault(msg, 2, 0),
-      toDist: jspb.Message.getFieldWithDefault(msg, 3, 0)
+    /**
+     * Creates an object representation of this proto.
+     * Field names that are reserved in JavaScript and will be renamed to pb_name.
+     * Optional fields that are not set will be set to undefined.
+     * To access a reserved field use, foo.pb_<name>, eg, foo.pb_default.
+     * For the list of reserved names please see:
+     *     net/proto2/compiler/js/internal/generator.cc#kKeyword.
+     * @param {boolean=} opt_includeInstance Deprecated. whether to include the
+     *     JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @return {!Object}
+     */
+    proto.m3api.PathNodesRequestMsg.prototype.toObject = function (opt_includeInstance) {
+        return proto.m3api.PathNodesRequestMsg.toObject(opt_includeInstance, this);
     };
 
-    if (includeInstance) {
-      obj.$jspbMessageInstance = msg;
-    }
-    return obj;
-  };
+
+    /**
+     * Static version of the {@see toObject} method.
+     * @param {boolean|undefined} includeInstance Deprecated. Whether to include
+     *     the JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @param {!proto.m3api.PathNodesRequestMsg} msg The msg instance to transform.
+     * @return {!Object}
+     * @suppress {unusedLocalVariables} f is only used for nested messages
+     */
+    proto.m3api.PathNodesRequestMsg.toObject = function (includeInstance, msg) {
+        var f, obj = {
+            pathCtxId: jspb.Message.getFieldWithDefault(msg, 1, 0),
+            dist: jspb.Message.getFieldWithDefault(msg, 2, 0),
+            toDist: jspb.Message.getFieldWithDefault(msg, 3, 0)
+        };
+
+        if (includeInstance) {
+            obj.$jspbMessageInstance = msg;
+        }
+        return obj;
+    };
 }
 
 
@@ -1348,9 +1348,9 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  * @return {!proto.m3api.PathNodesRequestMsg}
  */
 proto.m3api.PathNodesRequestMsg.deserializeBinary = function (bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.m3api.PathNodesRequestMsg;
-  return proto.m3api.PathNodesRequestMsg.deserializeBinaryFromReader(msg, reader);
+    var reader = new jspb.BinaryReader(bytes);
+    var msg = new proto.m3api.PathNodesRequestMsg;
+    return proto.m3api.PathNodesRequestMsg.deserializeBinaryFromReader(msg, reader);
 };
 
 
@@ -1362,28 +1362,28 @@ proto.m3api.PathNodesRequestMsg.deserializeBinary = function (bytes) {
  * @return {!proto.m3api.PathNodesRequestMsg}
  */
 proto.m3api.PathNodesRequestMsg.deserializeBinaryFromReader = function (msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-      case 1:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setPathCtxId(value);
-        break;
-      case 2:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setDist(value);
-        break;
-      case 3:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setToDist(value);
-        break;
-      default:
-        reader.skipField();
-        break;
-    }
+    while (reader.nextField()) {
+        if (reader.isEndGroup()) {
+            break;
+        }
+        var field = reader.getFieldNumber();
+        switch (field) {
+            case 1:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setPathCtxId(value);
+                break;
+            case 2:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setDist(value);
+                break;
+            case 3:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setToDist(value);
+                break;
+            default:
+                reader.skipField();
+                break;
+        }
   }
   return msg;
 };
@@ -1394,9 +1394,9 @@ proto.m3api.PathNodesRequestMsg.deserializeBinaryFromReader = function (msg, rea
  * @return {!Uint8Array}
  */
 proto.m3api.PathNodesRequestMsg.prototype.serializeBinary = function () {
-  var writer = new jspb.BinaryWriter();
-  proto.m3api.PathNodesRequestMsg.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
+    var writer = new jspb.BinaryWriter();
+    proto.m3api.PathNodesRequestMsg.serializeBinaryToWriter(this, writer);
+    return writer.getResultBuffer();
 };
 
 
@@ -1408,16 +1408,16 @@ proto.m3api.PathNodesRequestMsg.prototype.serializeBinary = function () {
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
 proto.m3api.PathNodesRequestMsg.serializeBinaryToWriter = function (message, writer) {
-  var f = undefined;
-  f = message.getPathCtxId();
-  if (f !== 0) {
-    writer.writeInt32(
-        1,
-        f
-    );
-  }
-  f = message.getDist();
-  if (f !== 0) {
+    var f = undefined;
+    f = message.getPathCtxId();
+    if (f !== 0) {
+        writer.writeInt32(
+            1,
+            f
+        );
+    }
+    f = message.getDist();
+    if (f !== 0) {
     writer.writeInt32(
         2,
         f
@@ -1438,7 +1438,7 @@ proto.m3api.PathNodesRequestMsg.serializeBinaryToWriter = function (message, wri
  * @return {number}
  */
 proto.m3api.PathNodesRequestMsg.prototype.getPathCtxId = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
@@ -1447,7 +1447,7 @@ proto.m3api.PathNodesRequestMsg.prototype.getPathCtxId = function () {
  * @return {!proto.m3api.PathNodesRequestMsg} returns this
  */
 proto.m3api.PathNodesRequestMsg.prototype.setPathCtxId = function (value) {
-  return jspb.Message.setProto3IntField(this, 1, value);
+    return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1456,7 +1456,7 @@ proto.m3api.PathNodesRequestMsg.prototype.setPathCtxId = function (value) {
  * @return {number}
  */
 proto.m3api.PathNodesRequestMsg.prototype.getDist = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
 };
 
 
@@ -1465,7 +1465,7 @@ proto.m3api.PathNodesRequestMsg.prototype.getDist = function () {
  * @return {!proto.m3api.PathNodesRequestMsg} returns this
  */
 proto.m3api.PathNodesRequestMsg.prototype.setDist = function (value) {
-  return jspb.Message.setProto3IntField(this, 2, value);
+    return jspb.Message.setProto3IntField(this, 2, value);
 };
 
 
@@ -1474,7 +1474,7 @@ proto.m3api.PathNodesRequestMsg.prototype.setDist = function (value) {
  * @return {number}
  */
 proto.m3api.PathNodesRequestMsg.prototype.getToDist = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
 };
 
 
@@ -1483,7 +1483,7 @@ proto.m3api.PathNodesRequestMsg.prototype.getToDist = function () {
  * @return {!proto.m3api.PathNodesRequestMsg} returns this
  */
 proto.m3api.PathNodesRequestMsg.prototype.setToDist = function (value) {
-  return jspb.Message.setProto3IntField(this, 3, value);
+    return jspb.Message.setProto3IntField(this, 3, value);
 };
 
 
@@ -1511,35 +1511,35 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  * @return {!Object}
  */
 proto.m3api.PathNodesResponseMsg.prototype.toObject = function (opt_includeInstance) {
-  return proto.m3api.PathNodesResponseMsg.toObject(opt_includeInstance, this);
+    return proto.m3api.PathNodesResponseMsg.toObject(opt_includeInstance, this);
 };
 
 
-  /**
-   * Static version of the {@see toObject} method.
-   * @param {boolean|undefined} includeInstance Deprecated. Whether to include
-   *     the JSPB instance for transitional soy proto support:
-   *     http://goto/soy-param-migration
-   * @param {!proto.m3api.PathNodesResponseMsg} msg The msg instance to transform.
-   * @return {!Object}
-   * @suppress {unusedLocalVariables} f is only used for nested messages
-   */
-  proto.m3api.PathNodesResponseMsg.toObject = function (includeInstance, msg) {
-    var f, obj = {
-      pathCtxId: jspb.Message.getFieldWithDefault(msg, 1, 0),
-      dist: jspb.Message.getFieldWithDefault(msg, 2, 0),
-      toDist: jspb.Message.getFieldWithDefault(msg, 4, 0),
-      maxDist: jspb.Message.getFieldWithDefault(msg, 5, 0),
-      nbPathNodes: jspb.Message.getFieldWithDefault(msg, 6, 0),
-      pathNodesList: jspb.Message.toObjectList(msg.getPathNodesList(),
-          proto.m3api.PathNodeMsg.toObject, includeInstance)
-    };
+    /**
+     * Static version of the {@see toObject} method.
+     * @param {boolean|undefined} includeInstance Deprecated. Whether to include
+     *     the JSPB instance for transitional soy proto support:
+     *     http://goto/soy-param-migration
+     * @param {!proto.m3api.PathNodesResponseMsg} msg The msg instance to transform.
+     * @return {!Object}
+     * @suppress {unusedLocalVariables} f is only used for nested messages
+     */
+    proto.m3api.PathNodesResponseMsg.toObject = function (includeInstance, msg) {
+        var f, obj = {
+            pathCtxId: jspb.Message.getFieldWithDefault(msg, 1, 0),
+            dist: jspb.Message.getFieldWithDefault(msg, 2, 0),
+            toDist: jspb.Message.getFieldWithDefault(msg, 4, 0),
+            maxDist: jspb.Message.getFieldWithDefault(msg, 5, 0),
+            nbPathNodes: jspb.Message.getFieldWithDefault(msg, 6, 0),
+            pathNodesList: jspb.Message.toObjectList(msg.getPathNodesList(),
+                proto.m3api.PathNodeMsg.toObject, includeInstance)
+        };
 
-    if (includeInstance) {
-      obj.$jspbMessageInstance = msg;
-    }
-    return obj;
-  };
+        if (includeInstance) {
+            obj.$jspbMessageInstance = msg;
+        }
+        return obj;
+    };
 }
 
 
@@ -1549,9 +1549,9 @@ proto.m3api.PathNodesResponseMsg.prototype.toObject = function (opt_includeInsta
  * @return {!proto.m3api.PathNodesResponseMsg}
  */
 proto.m3api.PathNodesResponseMsg.deserializeBinary = function (bytes) {
-  var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.m3api.PathNodesResponseMsg;
-  return proto.m3api.PathNodesResponseMsg.deserializeBinaryFromReader(msg, reader);
+    var reader = new jspb.BinaryReader(bytes);
+    var msg = new proto.m3api.PathNodesResponseMsg;
+    return proto.m3api.PathNodesResponseMsg.deserializeBinaryFromReader(msg, reader);
 };
 
 
@@ -1563,41 +1563,41 @@ proto.m3api.PathNodesResponseMsg.deserializeBinary = function (bytes) {
  * @return {!proto.m3api.PathNodesResponseMsg}
  */
 proto.m3api.PathNodesResponseMsg.deserializeBinaryFromReader = function (msg, reader) {
-  while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
-    switch (field) {
-      case 1:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setPathCtxId(value);
-        break;
-      case 2:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setDist(value);
-        break;
-      case 4:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setToDist(value);
-        break;
-      case 5:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setMaxDist(value);
-        break;
-      case 6:
-        var value = /** @type {number} */ (reader.readInt32());
-        msg.setNbPathNodes(value);
-        break;
-      case 3:
-        var value = new proto.m3api.PathNodeMsg;
-        reader.readMessage(value, proto.m3api.PathNodeMsg.deserializeBinaryFromReader);
-        msg.addPathNodes(value);
-        break;
-      default:
-        reader.skipField();
-        break;
-    }
+    while (reader.nextField()) {
+        if (reader.isEndGroup()) {
+            break;
+        }
+        var field = reader.getFieldNumber();
+        switch (field) {
+            case 1:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setPathCtxId(value);
+                break;
+            case 2:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setDist(value);
+                break;
+            case 4:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setToDist(value);
+                break;
+            case 5:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setMaxDist(value);
+                break;
+            case 6:
+                var value = /** @type {number} */ (reader.readInt32());
+                msg.setNbPathNodes(value);
+                break;
+            case 3:
+                var value = new proto.m3api.PathNodeMsg;
+                reader.readMessage(value, proto.m3api.PathNodeMsg.deserializeBinaryFromReader);
+                msg.addPathNodes(value);
+                break;
+            default:
+                reader.skipField();
+                break;
+        }
   }
   return msg;
 };
@@ -1608,9 +1608,9 @@ proto.m3api.PathNodesResponseMsg.deserializeBinaryFromReader = function (msg, re
  * @return {!Uint8Array}
  */
 proto.m3api.PathNodesResponseMsg.prototype.serializeBinary = function () {
-  var writer = new jspb.BinaryWriter();
-  proto.m3api.PathNodesResponseMsg.serializeBinaryToWriter(this, writer);
-  return writer.getResultBuffer();
+    var writer = new jspb.BinaryWriter();
+    proto.m3api.PathNodesResponseMsg.serializeBinaryToWriter(this, writer);
+    return writer.getResultBuffer();
 };
 
 
@@ -1622,16 +1622,16 @@ proto.m3api.PathNodesResponseMsg.prototype.serializeBinary = function () {
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
 proto.m3api.PathNodesResponseMsg.serializeBinaryToWriter = function (message, writer) {
-  var f = undefined;
-  f = message.getPathCtxId();
-  if (f !== 0) {
-    writer.writeInt32(
-        1,
-        f
-    );
-  }
-  f = message.getDist();
-  if (f !== 0) {
+    var f = undefined;
+    f = message.getPathCtxId();
+    if (f !== 0) {
+        writer.writeInt32(
+            1,
+            f
+        );
+    }
+    f = message.getDist();
+    if (f !== 0) {
     writer.writeInt32(
         2,
         f
@@ -1674,7 +1674,7 @@ proto.m3api.PathNodesResponseMsg.serializeBinaryToWriter = function (message, wr
  * @return {number}
  */
 proto.m3api.PathNodesResponseMsg.prototype.getPathCtxId = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
 
@@ -1683,7 +1683,7 @@ proto.m3api.PathNodesResponseMsg.prototype.getPathCtxId = function () {
  * @return {!proto.m3api.PathNodesResponseMsg} returns this
  */
 proto.m3api.PathNodesResponseMsg.prototype.setPathCtxId = function (value) {
-  return jspb.Message.setProto3IntField(this, 1, value);
+    return jspb.Message.setProto3IntField(this, 1, value);
 };
 
 
@@ -1692,7 +1692,7 @@ proto.m3api.PathNodesResponseMsg.prototype.setPathCtxId = function (value) {
  * @return {number}
  */
 proto.m3api.PathNodesResponseMsg.prototype.getDist = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 2, 0));
 };
 
 
@@ -1701,7 +1701,7 @@ proto.m3api.PathNodesResponseMsg.prototype.getDist = function () {
  * @return {!proto.m3api.PathNodesResponseMsg} returns this
  */
 proto.m3api.PathNodesResponseMsg.prototype.setDist = function (value) {
-  return jspb.Message.setProto3IntField(this, 2, value);
+    return jspb.Message.setProto3IntField(this, 2, value);
 };
 
 
@@ -1710,7 +1710,7 @@ proto.m3api.PathNodesResponseMsg.prototype.setDist = function (value) {
  * @return {number}
  */
 proto.m3api.PathNodesResponseMsg.prototype.getToDist = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 4, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 4, 0));
 };
 
 
@@ -1719,7 +1719,7 @@ proto.m3api.PathNodesResponseMsg.prototype.getToDist = function () {
  * @return {!proto.m3api.PathNodesResponseMsg} returns this
  */
 proto.m3api.PathNodesResponseMsg.prototype.setToDist = function (value) {
-  return jspb.Message.setProto3IntField(this, 4, value);
+    return jspb.Message.setProto3IntField(this, 4, value);
 };
 
 
@@ -1728,7 +1728,7 @@ proto.m3api.PathNodesResponseMsg.prototype.setToDist = function (value) {
  * @return {number}
  */
 proto.m3api.PathNodesResponseMsg.prototype.getMaxDist = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
 };
 
 
@@ -1737,7 +1737,7 @@ proto.m3api.PathNodesResponseMsg.prototype.getMaxDist = function () {
  * @return {!proto.m3api.PathNodesResponseMsg} returns this
  */
 proto.m3api.PathNodesResponseMsg.prototype.setMaxDist = function (value) {
-  return jspb.Message.setProto3IntField(this, 5, value);
+    return jspb.Message.setProto3IntField(this, 5, value);
 };
 
 
@@ -1746,7 +1746,7 @@ proto.m3api.PathNodesResponseMsg.prototype.setMaxDist = function (value) {
  * @return {number}
  */
 proto.m3api.PathNodesResponseMsg.prototype.getNbPathNodes = function () {
-  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
 };
 
 
@@ -1755,7 +1755,7 @@ proto.m3api.PathNodesResponseMsg.prototype.getNbPathNodes = function () {
  * @return {!proto.m3api.PathNodesResponseMsg} returns this
  */
 proto.m3api.PathNodesResponseMsg.prototype.setNbPathNodes = function (value) {
-  return jspb.Message.setProto3IntField(this, 6, value);
+    return jspb.Message.setProto3IntField(this, 6, value);
 };
 
 
@@ -1764,8 +1764,8 @@ proto.m3api.PathNodesResponseMsg.prototype.setNbPathNodes = function (value) {
  * @return {!Array<!proto.m3api.PathNodeMsg>}
  */
 proto.m3api.PathNodesResponseMsg.prototype.getPathNodesList = function () {
-  return /** @type{!Array<!proto.m3api.PathNodeMsg>} */ (
-      jspb.Message.getRepeatedWrapperField(this, proto.m3api.PathNodeMsg, 3));
+    return /** @type{!Array<!proto.m3api.PathNodeMsg>} */ (
+        jspb.Message.getRepeatedWrapperField(this, proto.m3api.PathNodeMsg, 3));
 };
 
 
@@ -1774,7 +1774,7 @@ proto.m3api.PathNodesResponseMsg.prototype.getPathNodesList = function () {
  * @return {!proto.m3api.PathNodesResponseMsg} returns this
  */
 proto.m3api.PathNodesResponseMsg.prototype.setPathNodesList = function (value) {
-  return jspb.Message.setRepeatedWrapperField(this, 3, value);
+    return jspb.Message.setRepeatedWrapperField(this, 3, value);
 };
 
 
@@ -1784,7 +1784,7 @@ proto.m3api.PathNodesResponseMsg.prototype.setPathNodesList = function (value) {
  * @return {!proto.m3api.PathNodeMsg}
  */
 proto.m3api.PathNodesResponseMsg.prototype.addPathNodes = function (opt_value, opt_index) {
-  return jspb.Message.addToRepeatedWrapperField(this, 3, opt_value, proto.m3api.PathNodeMsg, opt_index);
+    return jspb.Message.addToRepeatedWrapperField(this, 3, opt_value, proto.m3api.PathNodeMsg, opt_index);
 };
 
 
@@ -1793,7 +1793,7 @@ proto.m3api.PathNodesResponseMsg.prototype.addPathNodes = function (opt_value, o
  * @return {!proto.m3api.PathNodesResponseMsg} returns this
  */
 proto.m3api.PathNodesResponseMsg.prototype.clearPathNodesList = function () {
-  return this.setPathNodesList([]);
+    return this.setPathNodesList([]);
 };
 
 

@@ -299,13 +299,17 @@ func getIndexAndOffsetForColor(k m3space.EventColor) (int, int) {
 // SpaceTime Functions
 /***************************************************************/
 
+func (st *SpaceTime) String() string {
+	return fmt.Sprintf("SpaceTimeDb-S:%d-T:%d", st.space.GetId(), st.currentTime)
+}
+
 func (st *SpaceTime) GetCurrentTime() m3space.DistAndTime {
 	return st.currentTime
 }
 
 func (st *SpaceTime) GetRuleAnalyzer() *SpaceTimeRuleAnalyzer {
 	res := MakeRuleAnalyzer(st)
-	st.VisitAll(res)
+	st.VisitNodes(res)
 	return res
 }
 
@@ -326,7 +330,7 @@ func (st *SpaceTime) queryPathContext(evt *EventDb) (int, int, bool) {
 	}
 }
 
-func (st *SpaceTime) populate() error {
+func (st *SpaceTime) Populate() error {
 	if st.populated {
 		return st.populatedError
 	}
@@ -342,7 +346,7 @@ func (st *SpaceTime) populate() error {
 	st.activeEvents = make([]*EventDb, len(events))
 	nodesMap := make(map[m3space.EventId][]*EventNodeDb, len(events))
 	nbPathNodes := 0
-	for i, _ := range events {
+	for i := range events {
 		evt := events[i].(*EventDb)
 		st.activeEvents[i] = evt
 		nodeList, err := evt.GetActiveNodesDbAt(st.currentTime)
@@ -374,7 +378,7 @@ func (st *SpaceTime) populate() error {
 }
 
 func (st *SpaceTime) GetNbActiveNodes() int {
-	err := st.populate()
+	err := st.Populate()
 	if err != nil {
 		Log.Error(err)
 		return -1
@@ -397,7 +401,7 @@ func (st *SpaceTime) Next() m3space.SpaceTimeIfc {
 }
 
 func (st *SpaceTime) GetNbActiveLinks() int {
-	err := st.populate()
+	err := st.Populate()
 	if err != nil {
 		Log.Error(err)
 		return -1
@@ -424,37 +428,47 @@ func (st *SpaceTime) GetNbActiveLinks() int {
 	return nbActiveLinks
 }
 
-func (st *SpaceTime) VisitAll(visitor m3space.SpaceTimeVisitor) {
-	err := st.populate()
+func (st *SpaceTime) VisitNodes(visitor m3space.SpaceTimeNodeVisitor) {
+	err := st.Populate()
 	if err != nil {
 		Log.Error(err)
 		return
 	}
-	threshold := st.space.GetActiveThreshold()
+	// Visit all the nodes
 	for _, stn := range st.stNodes {
-		// Visit all the nodes
 		visitor.VisitNode(stn)
+	}
+}
 
-		// Visit links only if threshold above 0
-		if threshold != 0 {
-			point, err := stn.GetPoint()
-			if err != nil {
-				Log.Error(err)
-				return
-			}
-			connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
-			stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
-				if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
-					alreadyDone, ok := connIdsAlreadyDone[connId]
-					if !ok || !alreadyDone {
-						visitor.VisitLink(stn, *point, connId)
-					}
-					connIdsAlreadyDone[connId] = true
-				}
-			})
-		}
+func (st *SpaceTime) VisitLinks(visitor m3space.SpaceTimeLinkVisitor) {
+	threshold := st.space.GetActiveThreshold()
+	if threshold == 0 {
+		// Nothing to do
+		return
 	}
 
+	err := st.Populate()
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	for _, stn := range st.stNodes {
+		point, err := stn.GetPoint()
+		if err != nil {
+			Log.Error(err)
+			return
+		}
+		connIdsAlreadyDone := make(map[m3point.ConnectionId]bool)
+		stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+			if linkId > 0 && st.currentTime-evtNode.creationTime < threshold {
+				alreadyDone, ok := connIdsAlreadyDone[connId]
+				if !ok || !alreadyDone {
+					visitor.VisitLink(stn, *point, connId)
+				}
+				connIdsAlreadyDone[connId] = true
+			}
+		})
+	}
 }
 
 func (st *SpaceTime) GetDisplayState() string {

@@ -15,7 +15,7 @@ type ExpectedSpaceState struct {
 }
 
 func getGlTestEnv() *client.QsmApiEnvironment {
-	return client.GetInitializedApiEnv(m3util.GlTestEnv)
+	return client.GetOrCreateInitializedApiEnv(m3util.GlTestEnv, true, true)
 }
 
 func TestSingleRedEvent(t *testing.T) {
@@ -26,9 +26,12 @@ func TestSingleRedEvent(t *testing.T) {
 	max := m3space.MinMaxCoord
 	world := MakeWorld(getGlTestEnv(), max, 0.0)
 
-	assertEmptyWorld(t, &world, max)
+	//assertEmptyWorld(t, &world, max)
 
-	world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
+	_, err := world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
+	if !assert.NoError(t, err) {
+		return
+	}
 	world.CreateDrawingElements()
 
 	expectedState := map[m3space.DistAndTime]ExpectedSpaceState{
@@ -42,9 +45,8 @@ func TestSingleRedEvent(t *testing.T) {
 
 func assertEmptyWorld(t *testing.T, world *DisplayWorld, max m3point.CInt) {
 	assert.Equal(t, max, world.WorldSpace.GetMaxCoord())
-	assert.Equal(t, 0, len(world.CurrentSpaceTime.GetActiveEvents()))
-	assert.Equal(t, 0, world.CurrentSpaceTime.GetNbActiveNodes())
-	assert.Equal(t, 0, world.CurrentSpaceTime.GetNbActiveLinks())
+	spaceTime := world.GetSpaceTime()
+	assert.Nil(t, spaceTime)
 	assert.Equal(t, 0, len(world.Elements))
 }
 
@@ -83,12 +85,13 @@ func assertSpaceStates(t *testing.T, world *DisplayWorld, expectMap map[m3space.
 }
 
 func assertSpaceSingleEvent(t *testing.T, world *DisplayWorld, time m3space.DistAndTime, nbNodes, nbConnections int, nbActive int) {
-	assert.Equal(t, time, world.CurrentSpaceTime.GetCurrentTime(), "failed at %d", time)
-	assert.Equal(t, nbNodes, world.CurrentSpaceTime.GetNbActiveNodes(), "failed at %d", time)
+	spaceTime := world.GetSpaceTime()
+	assert.Equal(t, time, spaceTime.GetCurrentTime(), "failed at %d", time)
+	assert.Equal(t, nbActive, spaceTime.GetNbActiveNodes(), "failed at %d", time)
 	// TODO: Change all test to use real active links when both sides are active
 	//assert.Equal(t, nbConnections, world.WorldSpace.GetNbActiveLinks(), "failed at %d", time)
 	assert.Equal(t, 1, len(world.WorldSpace.GetActiveEventsAt(0)), "failed at %d", time)
-	assert.Equal(t, world.CurrentSpaceTime.GetNbActiveNodes()+world.CurrentSpaceTime.GetNbActiveLinks()+6, len(world.Elements), "failed at %d", time)
+	assert.Equal(t, spaceTime.GetNbActiveNodes()+spaceTime.GetNbActiveLinks()+6, len(world.Elements), "failed at %d", time)
 	nbDisplay := 0
 	collectActiveElements := make([]*NodeDrawingElement, 0, 20)
 	for _, draw := range world.Elements {

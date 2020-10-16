@@ -45,19 +45,24 @@ type SpaceIfc interface {
 		creationTime DistAndTime, center m3point.Point, color EventColor) (EventIfc, error)
 }
 
-type SpaceTimeVisitor interface {
+type SpaceTimeNodeVisitor interface {
 	VisitNode(node SpaceTimeNodeIfc)
+}
+
+type SpaceTimeLinkVisitor interface {
 	VisitLink(node SpaceTimeNodeIfc, srcPoint m3point.Point, connId m3point.ConnectionId)
 }
 
 type SpaceTimeIfc interface {
+	fmt.Stringer
 	GetSpace() SpaceIfc
 	GetCurrentTime() DistAndTime
 	GetActiveEvents() []EventIfc
 	Next() SpaceTimeIfc
 	GetNbActiveNodes() int
 	GetNbActiveLinks() int
-	VisitAll(visitor SpaceTimeVisitor)
+	VisitNodes(visitor SpaceTimeNodeVisitor)
+	VisitLinks(visitor SpaceTimeLinkVisitor)
 	GetDisplayState() string
 }
 
@@ -66,8 +71,6 @@ type SpaceTimeNodeIfc interface {
 	GetPointId() int64
 	GetPoint() (*m3point.Point, error)
 	IsEmpty() bool
-	GetNbEventNodes() int
-	GetEventNodes() []NodeEventIfc
 	GetEventIds() []EventId
 
 	HasRoot() bool

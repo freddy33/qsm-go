@@ -3,9 +3,11 @@ package m3server
 import (
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/backend/spacedb"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
+	"math"
 	"net/http"
 )
 
@@ -243,4 +245,150 @@ func getNodeEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteResponseMsg(w, r, resMsg)
+}
+
+func getSpaceTime(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Receive getSpaceTime")
+
+	reqMsg := &m3api.SpaceTimeRequestMsg{}
+	if !ReadRequestMsg(w, r, reqMsg) {
+		return
+	}
+
+	env := GetEnvironment(r)
+	spaceData := spacedb.GetServerSpacePackData(env)
+	space := spaceData.GetSpace(int(reqMsg.SpaceId)).(*spacedb.SpaceDb)
+
+	spaceTime := space.GetSpaceTimeAt(m3space.DistAndTime(reqMsg.CurrentTime)).(*spacedb.SpaceTime)
+	err := spaceTime.Populate()
+	if err != nil {
+		SendResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	activeEvents := spaceTime.GetActiveEvents()
+	nbActiveNodes := spaceTime.GetNbActiveNodes()
+	resMsg := &m3api.SpaceTimeResponseMsg{
+		SpaceId:       int32(space.GetId()),
+		CurrentTime:   int32(spaceTime.GetCurrentTime()),
+		ActiveEvents:  make([]*m3api.EventMsg, len(activeEvents)),
+		NbActiveNodes: int32(nbActiveNodes),
+		FilteredNodes: nil,
+	}
+	for i, evt := range activeEvents {
+		resMsg.ActiveEvents[i], err = createEventMsg(evt)
+		if err != nil {
+			SendResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	nodesMsgBuilder, err := makeNodeMsgBuilder(reqMsg, spaceTime)
+	if err != nil {
+		// Nothing found in this space time may be due to too strong filter
+		SendResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	spaceTime.VisitNodes(nodesMsgBuilder)
+	if nodesMsgBuilder.buildError != nil {
+		SendResponse(w, http.StatusInternalServerError, nodesMsgBuilder.buildError.Error())
+		return
+	}
+	resMsg.FilteredNodes = nodesMsgBuilder.foundNodes
+
+	WriteResponseMsg(w, r, resMsg)
+}
+
+type NodeToMsgBuilder struct {
+	buildError        error
+	minNbEventsFilter int
+	colorMaskFilter   uint8
+	isFiltering       bool
+	foundNodes        []*m3api.SpaceTimeNodeMsg
+}
+
+func makeNodeMsgBuilder(reqMsg *m3api.SpaceTimeRequestMsg, spaceTime *spacedb.SpaceTime) (*NodeToMsgBuilder, error) {
+	n := &NodeToMsgBuilder{
+		minNbEventsFilter: int(reqMsg.MinNbEventsFilter),
+		colorMaskFilter:   uint8(reqMsg.ColorMaskFilter),
+		isFiltering:       false,
+	}
+
+	activeEvents := spaceTime.GetActiveEvents()
+	nbActiveNodes := spaceTime.GetNbActiveNodes()
+
+	// Try to find the ratio from total active nodes to actual sent back based on filter
+	activeNodesRatio := 1.0
+
+	// First check on events present and demanded minimum on a node
+	nbActiveEvents := len(activeEvents)
+	if nbActiveEvents == 0 || nbActiveEvents < n.minNbEventsFilter {
+		return nil, m3util.MakeQsmErrorf("At space time %s there not enough active events %d < %d",
+			spaceTime.String(), nbActiveEvents, n.minNbEventsFilter)
+	} else {
+		if n.minNbEventsFilter > 1 {
+			// ratio of 5% per min number above 1
+			activeNodesRatio = math.Pow(0.05, float64(n.minNbEventsFilter-1))
+			n.isFiltering = true
+		}
+	}
+
+	// If no filter applied above do the same with color
+	if !n.isFiltering {
+		// TODO: Create an actual mask of the active events, may be there is no filter here
+		maskCount := m3util.CountTheOnes(n.colorMaskFilter)
+		if int(maskCount) < len(m3space.AllColors) {
+			// ratio of 5% per min number above 1
+			activeNodesRatio = math.Pow(0.05, float64(len(m3space.AllColors)-int(maskCount)))
+			n.isFiltering = true
+		}
+	}
+
+	n.foundNodes = make([]*m3api.SpaceTimeNodeMsg, 0, int(activeNodesRatio*float64(nbActiveNodes)))
+
+	return n, nil
+}
+
+func (n *NodeToMsgBuilder) VisitNode(node m3space.SpaceTimeNodeIfc) {
+	if n.buildError != nil {
+		// Stop on error
+		return
+	}
+	if !n.isFiltering ||
+		((n.minNbEventsFilter <= len(node.GetEventIds()) || node.HasRoot()) &&
+			(n.colorMaskFilter&node.GetColorMask() != uint8(0))) {
+		spaceTimeNodeMsg, err := createSpaceTimeNodeMsg(node)
+		if err != nil {
+			n.buildError = err
+			return
+		}
+		n.foundNodes = append(n.foundNodes, spaceTimeNodeMsg)
+	}
+}
+
+func createSpaceTimeNodeMsg(node m3space.SpaceTimeNodeIfc) (*m3api.SpaceTimeNodeMsg, error) {
+	point, err := node.GetPoint()
+	if err != nil {
+		return nil, err
+	}
+
+	nodeDb := node.(*spacedb.SpaceTimeNode)
+	// TODO: This should be done using the link list of directly EventNodeDb object instead of creating an array of interfaces
+	evtNodes := nodeDb.GetEventNodes()
+	res := &m3api.SpaceTimeNodeMsg{
+		PointId:   node.GetPointId(),
+		Point:     m3api.PointToPointMsg(*point),
+		Nodes:     make([]*m3api.SpaceTimeNodeEventMsg, len(evtNodes)),
+		HasRoot:   node.HasRoot(),
+		ColorMask: uint32(node.GetColorMask()),
+	}
+	for i, evtNode := range evtNodes {
+		res.Nodes[i] = &m3api.SpaceTimeNodeEventMsg{
+			EventId:        int32(evtNode.GetEventId()),
+			CreationTime:   int32(evtNode.GetCreationTime()),
+			D:              int32(evtNode.GetD()),
+			TrioId:         int32(evtNode.GetTrioIndex()),
+			ConnectionMask: uint32(evtNode.(*spacedb.EventNodeDb).GetConnectionMask()),
+		}
+	}
+	return res, nil
 }

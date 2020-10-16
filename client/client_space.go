@@ -203,9 +203,9 @@ func (space *SpaceCl) GetMaxCoord() m3point.CInt {
 func (space *SpaceCl) GetEvent(id m3space.EventId) m3space.EventIfc {
 	uri := "event"
 	reqMsg := &m3api.FindEventsMsg{
-		EventId:              int32(id),
-		SpaceId:              int32(space.id),
-		AtTime:               0,
+		EventId: int32(id),
+		SpaceId: int32(space.id),
+		AtTime:  0,
 	}
 	resMsg := new(m3api.EventListMsg)
 	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, true)
@@ -231,9 +231,9 @@ func (space *SpaceCl) GetEvent(id m3space.EventId) m3space.EventIfc {
 func (space *SpaceCl) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.EventIfc {
 	uri := "event"
 	reqMsg := &m3api.FindEventsMsg{
-		EventId:              int32(-1),
-		SpaceId:              int32(space.id),
-		AtTime:               int32(atTime),
+		EventId: int32(-1),
+		SpaceId: int32(space.id),
+		AtTime:  int32(atTime),
 	}
 	resMsg := new(m3api.EventListMsg)
 	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, true)
@@ -241,7 +241,7 @@ func (space *SpaceCl) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.Ev
 		Log.Error(err)
 		return nil
 	}
-	if len(resMsg.Events) > 0 {
+	if len(resMsg.Events) <= 0 {
 		Log.Infof("Did not find a single event at time %d for %s", atTime, space.String())
 		return nil
 	}
@@ -259,8 +259,23 @@ func (space *SpaceCl) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.Ev
 	return res
 }
 
-func (space *SpaceCl) GetSpaceTimeAt(time m3space.DistAndTime) m3space.SpaceTimeIfc {
-	panic("implement me")
+func (space *SpaceCl) GetSpaceTimeAt(atTime m3space.DistAndTime) m3space.SpaceTimeIfc {
+	uri := "space-time"
+
+	reqMsg := &m3api.SpaceTimeRequestMsg{
+		SpaceId:           int32(space.GetId()),
+		CurrentTime:       int32(atTime),
+		MinNbEventsFilter: 0,
+		ColorMaskFilter:   0xffffffff,
+	}
+	resMsg := new(m3api.SpaceTimeResponseMsg)
+	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, false)
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+
+	return createSpaceTimeFromMsg(space, resMsg)
 }
 
 func (space *SpaceCl) CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int,
@@ -356,7 +371,7 @@ func (evt *EventCl) createNodeFromMsg(pointData *ClientPointPackData, neMsg *m3a
 	if evt.MaxNodeTime < ne.creationTime {
 		evt.MaxNodeTime = ne.creationTime
 	}
- 	evt.space.setMaxCoordAndTime(ne)
+	evt.space.setMaxCoordAndTime(ne)
 
 	return ne, nil
 }
@@ -392,9 +407,9 @@ func (evt *EventCl) GetCenterNode() m3space.NodeEventIfc {
 func (evt *EventCl) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space.NodeEventIfc, error) {
 	uri := "event-nodes"
 	reqMsg := &m3api.FindNodeEventsMsg{
-		EventId:              int32(evt.id),
-		SpaceId:              int32(evt.space.id),
-		AtTime:               int32(currentTime),
+		EventId: int32(evt.id),
+		SpaceId: int32(evt.space.id),
+		AtTime:  int32(currentTime),
 	}
 	resMsg := new(m3api.NodeEventListMsg)
 	env := evt.space.SpaceData.Env

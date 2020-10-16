@@ -343,6 +343,7 @@ func MakeApp(envId m3util.QsmEnvID) *QsmApp {
 	app.AddHandler("/event", createEvent).Methods("POST")
 
 	app.AddHandler("/event-nodes", getNodeEvents).Methods("GET")
+	app.AddHandler("/space-time", getSpaceTime).Methods("GET")
 
 	return app
 }

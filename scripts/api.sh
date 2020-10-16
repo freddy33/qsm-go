@@ -6,11 +6,11 @@ mkdir -p $perfDir
 mkdir -p $logDir
 
 usage() {
-    echo "Usage qsm api"
-    exit 1
+  echo "Usage qsm api"
+  exit 1
 }
 
-dt=$(date '+%Y%m%d_%H%M%S');
+dt=$(date '+%Y%m%d_%H%M%S')
 echo "$dt"
 
 command="$1"
@@ -69,7 +69,7 @@ increase_path_context_to() {
     exit 3
   fi
   echo "INFO: Received current max dist $current_dist for path $1"
-  ((start=$current_dist + 1))
+  ((start = $current_dist + 1))
   TIMEFORMAT=%R
   for dist in $(seq $start $2); do
     echo "INFO: Requesting for path_ctx_id=$1 the dist=$dist"

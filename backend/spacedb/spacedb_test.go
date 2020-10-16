@@ -473,7 +473,7 @@ func assertSpaceStates(t *testing.T, space *SpaceDb, expectMap map[m3space.DistA
 	nbMainPoints := baseNodes
 	for {
 		spaceTime := space.GetSpaceTimeAt(expectedTime).(*SpaceTime)
-		err := spaceTime.populate()
+		err := spaceTime.Populate()
 		if !assert.NoError(t, err) {
 			return false
 		}
@@ -559,7 +559,8 @@ func assertSpaceSingleEvent(t *testing.T, spaceTime *SpaceTime, time m3space.Dis
 	tv.t = t
 	tv.contextMsg = contextMsg
 	tv.time = time
-	spaceTime.VisitAll(tv)
+	spaceTime.VisitNodes(tv)
+	spaceTime.VisitLinks(tv)
 
 	good = assert.Equal(t, 1, tv.totalRoots, "%s nb roots failed at %d", contextMsg, time) &&
 		assert.Equal(t, nbActive, tv.totalNodes, "%s nbActiveNodes failed at %d", contextMsg, time) &&
