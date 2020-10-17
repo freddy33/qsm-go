@@ -23,7 +23,8 @@ const App = () => {
   const [growthOffsetOption, setGrowthOffsetOption] = useState(_.first(growthOffsetOptions));
   const [currentPathContextId, setCurrentPathContextId] = useState();
   const [maxDist, setMaxDist] = useState(0);
-  const [tree, setTree] = useState();
+  const [drawingRoots, setDrawingRoots] = useState([]);
+  const [getPathNodesRequest, setGetPathNodeRequest] = useState({ fromDist: 0, toDist: 0 });
 
   const fetchPointPackDataMsg = () => {
     Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
@@ -61,8 +62,14 @@ const App = () => {
   };
 
   const getPathNodes = async () => {
-    const resp = await Service.getPathNodes(currentPathContextId, maxDist);
+    const fromDist = _.get(getPathNodesRequest, 'fromDist', 0);
+    const toDist = _.get(getPathNodesRequest, 'toDist', 0);
+    const resp = await Service.getPathNodes(currentPathContextId, fromDist, toDist);
     const pathNodes = _.get(resp, 'path_nodes', []);
+
+    if (!pathNodes) {
+      alert(resp);
+    }
 
     const sortByDist = _.sortBy(pathNodes, ['d']);
 
@@ -86,9 +93,9 @@ const App = () => {
       nodeMap[pathNodeId] = node;
     });
 
-    const nodeTree = nodeMap[sortByDist[0].path_node_id];
+    const roots = _.filter(nodeMap, { d: fromDist });
 
-    setTree(nodeTree);
+    setDrawingRoots(roots);
   };
 
   // componentDidMount, will load once only when page start
@@ -130,8 +137,8 @@ const App = () => {
     mount.current.replaceChild(newRenderer.domElement, renderer.domElement);
     const controls = new OrbitControls(camera, newRenderer.domElement);
 
-    Renderer.draw(scene, tree);
-  }, [tree]);
+    Renderer.drawRoots(scene, drawingRoots);
+  }, [drawingRoots]);
 
   // called for every button clicks to update how the UI should render
   useEffect(() => {
@@ -181,16 +188,32 @@ const App = () => {
         </div>
         <hr />
         <div>
-          <button disabled={!currentPathContextId} onClick={() => getPathNodes()}>
-            Get Path Nodes (Redraw)
-          </button>
+          <div>
+            <span>From Dist: </span>
+            <input
+              type="number"
+              value={_.get(getPathNodesRequest, 'fromDist', 0)}
+              onChange={(evt) => {
+                setGetPathNodeRequest({ ...getPathNodesRequest, fromDist: parseInt(evt.target.value) });
+              }}
+            />
+          </div>
+          <div>
+            <span>To Dist: </span>
+            <input
+              type="number"
+              value={_.get(getPathNodesRequest, 'toDist', 0)}
+              onChange={(evt) => {
+                setGetPathNodeRequest({ ...getPathNodesRequest, toDist: parseInt(evt.target.value) });
+              }}
+            />
+          </div>
+          <div>
+            <button disabled={!currentPathContextId} onClick={() => getPathNodes()}>
+              Get Path Nodes (Redraw)
+            </button>
+          </div>
         </div>
-        {/* <div>
-          <button onClick={() => Service.initEnv()}>Init Env</button>
-        </div>
-        <div>
-          <button onClick={() => fetchPointPackDataMsg()}>Fetch PointPackDataMsg</button>
-        </div> */}
       </div>
       <div className="vis" ref={mount} />
     </div>

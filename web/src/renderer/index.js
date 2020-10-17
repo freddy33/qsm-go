@@ -61,26 +61,17 @@ const addCameraPivot = (scene, camera) => {
   return cameraPivot;
 };
 
-const getRandomInt = (max) => Math.floor(Math.random() * Math.floor(max));
-const mockPoints = [...Array(10).keys()].map((i) => {
-  return {
-    id: i,
-    x: i + getRandomInt(10),
-    y: i + getRandomInt(10),
-    z: i + getRandomInt(10),
-    trioId: i + getRandomInt(10),
-  };
-});
+const drawRoots = (scene, roots) => {
+  if (!_.isArray(roots)) {
+    return;
+  }
 
-const draw = (scene, root) => {
-  // const connections = _.get(pointPackDataMsg, 'connections', {});
-  // const trios = _.get(pointPackDataMsg, 'trios', {});
+  roots.forEach((root) => {
+    drawRoot(scene, root);
+  });
+};
 
-  // debugger;
-  // if (!_.size(connections) || !_.size(trios)) {
-  //   return;
-  // }
-
+const drawRoot = (scene, root) => {
   if (!root) {
     return;
   }
@@ -98,7 +89,7 @@ const draw = (scene, root) => {
     const childPoint = _.get(child, 'point');
     addPoint(scene, childPoint);
     addLine(scene, rootPoint, childPoint);
-    draw(scene, child);
+    drawRoot(scene, child);
   });
 };
 
@@ -109,6 +100,6 @@ export default {
   addPoint,
   connectPoints,
   addCameraPivot,
-  draw,
-  mockPoints,
+  drawRoot,
+  drawRoots,
 };
