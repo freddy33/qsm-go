@@ -118,13 +118,13 @@ const updateMaxDist = async (pathContextId, dist) => {
   return resp.data;
 };
 
-const getPathNodes = async (pathContextId, toDist) => {
+const getPathNodes = async (pathContextId, fromDist, toDist) => {
   const resp = await axios({
     method: 'get',
     url: `${REACT_APP_BACKEND_URL}/path-nodes`,
     params: {
       path_ctx_id: pathContextId,
-      dist: 0,
+      dist: fromDist,
       to_dist: toDist,
     },
   });
