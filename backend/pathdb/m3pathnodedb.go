@@ -324,7 +324,7 @@ func (pn *PathNodeDb) syncInDb() error {
 			if pn.point == nil {
 				return m3util.MakeQsmErrorf("cannot sync in DB path node %s with no point info", pn.String())
 			}
-			pn.pointId = getOrCreatePointTe(pn.PathCtx().pointsTe(), *pn.point)
+			pn.pointId = pn.PathCtx().pathData.GetOrCreatePoint(*pn.point)
 			if pn.pointId <= 0 {
 				return m3util.MakeQsmErrorf("cannot sync in DB path node %s while point insertion %v failed", pn.String(), *pn.point)
 			}

@@ -25,6 +25,9 @@ const (
 	// Extra states possible as mask
 )
 
+type PointId m3point.Int64Id
+type PathNodeId m3point.Int64Id
+
 type PathContext interface {
 	fmt.Stringer
 	GetId() int

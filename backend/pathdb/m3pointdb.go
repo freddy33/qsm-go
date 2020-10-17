@@ -1,7 +1,6 @@
 package pathdb
 
 import (
-	"github.com/freddy33/qsm-go/backend/m3db"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"strings"
@@ -29,10 +28,7 @@ func (pathData *ServerPathPackData) GetPoint(pointId int64) (*m3point.Point, err
 }
 
 func (pathData *ServerPathPackData) GetOrCreatePoint(p m3point.Point) int64 {
-	return getOrCreatePointTe(pathData.pointsTe, p)
-}
-
-func getOrCreatePointTe(te *m3db.TableExec, p m3point.Point) int64 {
+	te := pathData.pointsTe
 	rows, err := te.Query(FindPointIdPerCoord, p.X(), p.Y(), p.Z())
 	if err != nil {
 		Log.Fatalf("could not select points table exec due to %v", err)

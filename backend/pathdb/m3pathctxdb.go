@@ -41,7 +41,7 @@ func (pathCtx *PathContextDb) createRootNode() error {
 
 	// But the path node here points to real points in space
 	center := m3point.Origin
-	rootNode.pointId = getOrCreatePointTe(pathCtx.pointsTe(), center)
+	rootNode.pointId = pathCtx.pathData.GetOrCreatePoint(center)
 	rootNode.point = &center
 	rootNode.d = 0
 
@@ -182,7 +182,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			cd := td.GetConnections()[i]
 			npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
 
-			pId := getOrCreatePointTe(pathCtx.pointsTe(), np)
+			pId := pathCtx.pathData.GetOrCreatePoint(np)
 
 			inCurrent := current.openNodesMap.GetPathNode(np)
 			if inCurrent != nil {
@@ -191,29 +191,21 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			} else {
 				pn := next.openNodesMap.GetPathNode(np)
 				if pn == nil {
-					// Find if there is a old path node
-					pnIdInDB := pathCtx.getPathNodeIdByPoint(pId)
-					if pnIdInDB > 0 {
-						next.selectConflict++
-						// point back to old distance outgrowth so dead end
-						on.setDeadEnd(i)
-					} else {
-						// Create new node
-						pn = getNewPathNodeDb()
-						pn.pathCtxId = pathCtx.id
-						pn.pathCtx = pathCtx
-						pn.SetPathBuilder(npnb)
-						pn.SetTrioId(npnb.GetTrioIndex())
-						pn.TrioDetails = nil
-						pn.point = &np
-						pn.pointId = pId
-						pn.d = next.d
+					// Create new node
+					pn = getNewPathNodeDb()
+					pn.pathCtxId = pathCtx.id
+					pn.pathCtx = pathCtx
+					pn.SetPathBuilder(npnb)
+					pn.SetTrioId(npnb.GetTrioIndex())
+					pn.TrioDetails = nil
+					pn.point = &np
+					pn.pointId = pId
+					pn.d = next.d
 
-						fromMap, inserted := next.openNodesMap.AddPathNode(pn)
-						if !inserted {
-							pn.release()
-							pn = fromMap
-						}
+					fromMap, inserted := next.openNodesMap.AddPathNode(pn)
+					if !inserted {
+						pn.release()
+						pn = fromMap
 					}
 				}
 				if pn != nil {
@@ -395,7 +387,7 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 	if rc.GetFirstError() != nil {
 		Log.Warn("Got error while saving old nodes: %v", rc.GetFirstError())
 	}
-	Log.Infof("%s from=%d to=%d : move from %d to %d nodes with %d %d conflicts", pathCtx.String(), current.d, next.d, current.openNodesSize(), next.openNodesSize(), next.selectConflict, next.insertConflict)
+	Log.Infof("%s from=%d to=%d : move from %d to %d nodes with %d conflicts", pathCtx.String(), current.d, next.d, current.openNodesSize(), next.openNodesSize(), next.insertConflict)
 
 	pathCtx.maxDist = next.d
 	rowAffected, err := pathCtx.pathData.pathCtxTe.Update(UpdateMaxDist, pathCtx.id, pathCtx.maxDist)
