@@ -62,6 +62,7 @@ const addCameraPivot = (scene, camera) => {
 };
 
 const drawRoots = (scene, roots) => {
+  console.time('drawRoots');
   if (!_.isArray(roots)) {
     return;
   }
@@ -69,28 +70,41 @@ const drawRoots = (scene, roots) => {
   roots.forEach((root) => {
     drawRoot(scene, root);
   });
+
+  console.timeEnd('drawRoots');
 };
 
-const drawRoot = (scene, root) => {
-  if (!root) {
-    return;
-  }
+const drawRoot = (scene, originalRoot) => {
+  const root = _.cloneDeep(originalRoot);
+  const stack = [];
+  let current = root;
 
-  const rootPoint = _.get(root, 'point');
-  addPoint(scene, rootPoint);
+  stack.push(current);
+  do {
+    while (current) {
+      const childNodes = _.get(current, 'childNodes', []);
+      if (!childNodes.length) {
+        break;
+      }
 
-  const childNodes = _.get(root, 'childNodes', []);
+      current = childNodes.pop();
+      stack.push(current);
+    }
 
-  if (!childNodes.length) {
-    return;
-  }
+    if (stack.length > 0) {
+      const node = stack.pop();
 
-  childNodes.forEach((child) => {
-    const childPoint = _.get(child, 'point');
-    addPoint(scene, childPoint);
-    addLine(scene, rootPoint, childPoint);
-    drawRoot(scene, child);
-  });
+      const point = _.get(node, 'point');
+      addPoint(scene, point);
+      const parent = _.last(stack);
+      if (parent) {
+        const parentPoint = _.get(parent, 'point');
+        addLine(scene, parentPoint, point);
+      }
+
+      current = parent;
+    }
+  } while (current || stack.length > 0);
 };
 
 export default {
