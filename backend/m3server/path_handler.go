@@ -44,7 +44,7 @@ func getPathContexts(w http.ResponseWriter, r *http.Request) {
 		}
 		toSendMsg = resMsg
 	} else {
-		pathCtx := pathData.GetPathCtxDb(int(reqMsg.PathCtxId))
+		pathCtx := pathData.GetPathCtxDb(m3path.PathContextId(reqMsg.PathCtxId))
 		if pathCtx == nil {
 			SendResponse(w, http.StatusNotFound, "Path context with ID %d does not exists", reqMsg.PathCtxId)
 			return
@@ -186,7 +186,7 @@ func getNbPathNodes(w http.ResponseWriter, r *http.Request) {
 
 func pathNodeToMsg(pathNodeDb *pathdb.PathNodeDb) *m3api.PathNodeMsg {
 	return &m3api.PathNodeMsg{
-		PathNodeId:        pathNodeDb.GetId(),
+		PathNodeId:        int64(pathNodeDb.GetId()),
 		Point:             m3api.PointToPointMsg(pathNodeDb.P()),
 		D:                 int32(pathNodeDb.D()),
 		TrioId:            int32(pathNodeDb.GetTrioIndex()),
@@ -228,7 +228,7 @@ func extractPathNodeRequest(w http.ResponseWriter, r *http.Request) (*m3api.Path
 	env := GetEnvironment(r)
 	pathData := pathdb.GetServerPathPackData(env)
 
-	pathCtx := pathData.GetPathCtx(int(reqMsg.GetPathCtxId()))
+	pathCtx := pathData.GetPathCtx(m3path.PathContextId(reqMsg.GetPathCtxId()))
 	if pathCtx == nil {
 		SendResponse(w, http.StatusBadRequest, "path context id %d does not exists", reqMsg.GetPathCtxId())
 		return nil, nil

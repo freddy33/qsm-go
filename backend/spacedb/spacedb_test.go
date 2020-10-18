@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/backend/pointdb"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/stretchr/testify/assert"
@@ -25,8 +26,7 @@ func noMainState(newNodes int) ExpectedSpaceState {
 	return ExpectedSpaceState{baseNodes: 1, newNodes: newNodes, mainPoints: -1}
 }
 
-func createNewSpace(t *testing.T, spaceName string, threshold m3space.DistAndTime) *SpaceDb {
-	env := getSpaceTestEnv()
+func createNewSpace(t *testing.T, env m3util.QsmEnvironment, spaceName string, threshold m3space.DistAndTime) *SpaceDb {
 	spaceData := GetServerSpacePackData(env)
 	var space *SpaceDb
 	for _, sp := range spaceData.GetAllSpaces() {
@@ -56,7 +56,9 @@ func Test_Basic_Space(t *testing.T) {
 	Log.SetDebug()
 	pathdb.Log.SetDebug()
 
-	space := createNewSpace(t, "Test_Basic_Space", m3space.ZeroDistAndTime)
+	env := getSpaceTestEnv()
+
+	space := createNewSpace(t, env, "Test_Basic_Space", m3space.ZeroDistAndTime)
 	if space == nil {
 		return
 	}
@@ -161,8 +163,10 @@ func Test_Evt1_Type8_D0(t *testing.T) {
 	pathdb.Log.SetWarn()
 	LogStat.SetInfo()
 
+	env := getSpaceTestEnv()
+
 	for growthIdx := 0; growthIdx < 12; growthIdx++ {
-		space := createNewSpace(t, fmt.Sprintf("Test_TH0_Evt1_Type8_I%02d", growthIdx), m3space.DistAndTime(0))
+		space := createNewSpace(t, env, fmt.Sprintf("Test_TH0_Evt1_Type8_I%02d", growthIdx), m3space.DistAndTime(0))
 		if space == nil {
 			return
 		}

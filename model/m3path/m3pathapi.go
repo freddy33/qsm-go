@@ -25,12 +25,30 @@ const (
 	// Extra states possible as mask
 )
 
+const (
+	NewPathNodeId         m3point.Int64Id = -1
+	InPoolId              m3point.Int64Id = -2
+	LinkIdNotSet          m3point.Int64Id = -3
+	DeadEndId             m3point.Int64Id = -4
+	NextLinkIdNotAssigned m3point.Int64Id = -5
+)
+
+const (
+	NilPointId PointId = -1
+)
+
+type PathContextId m3point.Int32Id
 type PointId m3point.Int64Id
 type PathNodeId m3point.Int64Id
 
+type PathPoint struct {
+	Id PointId
+	P  m3point.Point
+}
+
 type PathContext interface {
 	fmt.Stringer
-	GetId() int
+	GetId() PathContextId
 	GetGrowthCtx() m3point.GrowthContext
 	GetGrowthType() m3point.GrowthType
 	GetGrowthIndex() int
@@ -63,12 +81,33 @@ type PathNode interface {
 	fmt.Stringer
 	ConnectionStateIfc
 
-	GetId() int64
+	GetId() PathNodeId
 	GetPathContext() PathContext
 
 	IsRoot() bool
 	P() m3point.Point
 	D() int
+}
+
+var NilPathPoint = PathPoint{
+	Id: NilPointId,
+	P:  m3point.Origin,
+}
+
+func (pp PathPoint) String() string {
+	return fmt.Sprintf("PP=%04d,%v", pp.Id, pp.P)
+}
+
+func (id PathContextId) MurmurHash() uint32 {
+	return m3point.Int32Id(id).MurmurHash()
+}
+
+func (id PointId) MurmurHash() uint32 {
+	return m3point.Int64Id(id).MurmurHash()
+}
+
+func (id PathNodeId) MurmurHash() uint32 {
+	return m3point.Int64Id(id).MurmurHash()
 }
 
 func GetConnectionMaskValue(connectionMask uint16, connIdx int) uint16 {
@@ -87,4 +126,3 @@ func SetConnectionState(connectionMask uint16, connIdx int, state ConnectionStat
 	newConnMask |= uint16(state)
 	return newConnMask
 }
-

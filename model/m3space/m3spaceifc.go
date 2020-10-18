@@ -7,6 +7,7 @@ import (
 )
 
 type EventId int
+type NodeEventId m3point.Int64Id
 
 const (
 	NilEvent = EventId(-1)
@@ -68,8 +69,9 @@ type SpaceTimeIfc interface {
 
 type SpaceTimeNodeIfc interface {
 	GetSpaceTime() SpaceTimeIfc
-	GetPointId() int64
+	GetPointId() m3path.PointId
 	GetPoint() (*m3point.Point, error)
+
 	IsEmpty() bool
 	GetEventIds() []EventId
 
@@ -95,15 +97,18 @@ type EventIfc interface {
 type NodeEventIfc interface {
 	fmt.Stringer
 	m3path.ConnectionStateIfc
-	GetId() int64
+	GetId() NodeEventId
 	GetEventId() EventId
-	GetPointId() int64
-	GetPathNodeId() int64
+
+	GetPointId() m3path.PointId
+	GetPoint() (*m3point.Point, error)
+
+	GetPathNodeId() m3path.PathNodeId
+	GetPathNode() (m3path.PathNode, error)
+
 	GetCreationTime() DistAndTime
 	GetD() DistAndTime
 	GetColor() EventColor
-	GetPoint() (*m3point.Point, error)
-	GetPathNode() (m3path.PathNode, error)
 }
 
 

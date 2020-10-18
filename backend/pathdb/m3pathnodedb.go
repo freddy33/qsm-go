@@ -10,14 +10,6 @@ import (
 	"sync"
 )
 
-const (
-	NewPathNodeId         int64 = -1
-	InPoolId              int64 = -2
-	LinkIdNotSet          int64 = -3
-	DeadEndId             int64 = -4
-	NextLinkIdNotAssigned int64 = -5
-)
-
 type PathNodeDbState int16
 
 const (
@@ -42,14 +34,14 @@ type ConnectionsStateMgr interface {
 
 	// Link Ids management methods
 	SetLinkIdsFromDbData(linkIds [m3path.NbConnections]sql.NullInt64)
-	GetConnsDataForMsg() []int64
+	GetConnsDataForMsg() []m3point.Int64Id
 	GetLinkIdsForDb() [m3path.NbConnections]sql.NullInt64
 	SetConnStateToNil()
 }
 
 type ConnectionsStateDb struct {
 	ConnectionMask uint16
-	LinkIds        [m3path.NbConnections]int64
+	LinkIds        [m3path.NbConnections]m3point.Int64Id
 	TrioId         m3point.TrioIndex
 	TrioDetails    *m3point.TrioDetails
 }
@@ -59,20 +51,17 @@ type PathNodeDb struct {
 	state PathNodeDbState
 
 	// In most cases this is already filled
-	pathCtxId int
+	pathCtxId m3path.PathContextId
 	pathCtx   *PathContextDb
 
 	// Just Ids will fill this only
-	id      int64
-	pointId int64
-	d       int
+	id        m3path.PathNodeId
+	pathPoint m3path.PathPoint
+	d         int
 
 	// Full Id loaded will fill this
 	pathBuilderId  int
 	pathBuilderIdx int
-
-	// This is dynamically loaded on demand from DB
-	point *m3point.Point
 
 	// This is dynamically loaded on demand from PointPackData
 	pathBuilder pointdb.PathNodeBuilder
@@ -91,7 +80,7 @@ func (cn *ConnectionsStateDb) SetConnStateToNil() {
 	cn.TrioDetails = nil
 	cn.ConnectionMask = uint16(m3path.ConnectionNotSet)
 	for i := 0; i < m3path.NbConnections; i++ {
-		cn.LinkIds[i] = LinkIdNotSet
+		cn.LinkIds[i] = m3path.LinkIdNotSet
 	}
 }
 
@@ -135,18 +124,18 @@ func (cn *ConnectionsStateDb) SetLinkIdsFromDbData(linkIds [m3path.NbConnections
 						cn, i, linkIds[i])
 				}
 			}
-			cn.LinkIds[i] = LinkIdNotSet
+			cn.LinkIds[i] = m3path.LinkIdNotSet
 		case m3path.ConnectionFrom:
 			if !linkIds[i].Valid {
 				Log.Errorf("Linked id of %v has wrong state in DB for %d since %v should be linked",
 					cn, i, linkIds[i])
 			}
-			cn.LinkIds[i] = linkIds[i].Int64
+			cn.LinkIds[i] = m3point.Int64Id(linkIds[i].Int64)
 		case m3path.ConnectionNext:
 			if linkIds[i].Valid {
-				cn.LinkIds[i] = linkIds[i].Int64
+				cn.LinkIds[i] = m3point.Int64Id(linkIds[i].Int64)
 			} else {
-				cn.LinkIds[i] = NextLinkIdNotAssigned
+				cn.LinkIds[i] = m3path.NextLinkIdNotAssigned
 			}
 		case m3path.ConnectionBlocked:
 			if Log.DoAssert() {
@@ -155,13 +144,17 @@ func (cn *ConnectionsStateDb) SetLinkIdsFromDbData(linkIds [m3path.NbConnections
 						cn, i, linkIds[i])
 				}
 			}
-			cn.LinkIds[i] = DeadEndId
+			cn.LinkIds[i] = m3path.DeadEndId
 		}
 	}
 }
 
 func (cn *ConnectionsStateDb) GetConnsDataForMsg() []int64 {
-	return cn.LinkIds[:]
+	res := make([]int64, len(cn.LinkIds))
+	for i, id := range cn.LinkIds {
+		res[i] = int64(id)
+	}
+	return res
 }
 
 func (cn *ConnectionsStateDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullInt64 {
@@ -170,9 +163,9 @@ func (cn *ConnectionsStateDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullIn
 		switch cn.GetConnectionState(i) {
 		case m3path.ConnectionNotSet:
 			//if Log.DoAssert() {
-			if cn.LinkIds[i] != LinkIdNotSet {
+			if cn.LinkIds[i] != m3path.LinkIdNotSet {
 				Log.Errorf("Linked id of %v not set correctly for %d since %d != %d",
-					cn, i, cn.LinkIds[i], LinkIdNotSet)
+					cn, i, cn.LinkIds[i], m3path.LinkIdNotSet)
 			}
 			//}
 			dbLinkIds[i].Valid = false
@@ -183,22 +176,22 @@ func (cn *ConnectionsStateDb) GetLinkIdsForDb() [m3path.NbConnections]sql.NullIn
 					cn, i, cn.LinkIds[i])
 			}
 			dbLinkIds[i].Valid = true
-			dbLinkIds[i].Int64 = cn.LinkIds[i]
+			dbLinkIds[i].Int64 = int64(cn.LinkIds[i])
 		case m3path.ConnectionNext:
-			if cn.LinkIds[i] == NextLinkIdNotAssigned {
+			if cn.LinkIds[i] == m3path.NextLinkIdNotAssigned {
 				dbLinkIds[i].Valid = false
 				dbLinkIds[i].Int64 = 0
 			} else if cn.LinkIds[i] > 0 {
 				dbLinkIds[i].Valid = true
-				dbLinkIds[i].Int64 = cn.LinkIds[i]
+				dbLinkIds[i].Int64 = int64(cn.LinkIds[i])
 			} else {
 				Log.Fatalf("Linked id for next of %v not set correctly for %d since %d != %d && %d <= 0",
-					cn, i, cn.LinkIds[i], NextLinkIdNotAssigned, cn.LinkIds[i])
+					cn, i, cn.LinkIds[i], m3path.NextLinkIdNotAssigned, cn.LinkIds[i])
 			}
 		case m3path.ConnectionBlocked:
-			if cn.LinkIds[i] != DeadEndId {
+			if cn.LinkIds[i] != m3path.DeadEndId {
 				Log.Fatalf("Linked id of %v not set correctly for %d since %d != %d",
-					cn, i, cn.LinkIds[i], DeadEndId)
+					cn, i, cn.LinkIds[i], m3path.DeadEndId)
 			}
 			dbLinkIds[i].Valid = false
 			dbLinkIds[i].Int64 = 0
@@ -259,7 +252,7 @@ var pathNodeDbPool = sync.Pool{
 func getNewPathNodeDb() *PathNodeDb {
 	pn := pathNodeDbPool.Get().(*PathNodeDb)
 	// Make sure all id are negative and pointer nil
-	pn.setToNil(NewPathNodeId)
+	pn.setToNil(m3path.NewPathNodeId)
 	return pn
 }
 
@@ -269,42 +262,33 @@ func (pn *PathNodeDb) release() {
 		return
 	}
 	// Make sure it's clean before resending to pool
-	pn.setToNil(InPoolId)
+	pn.setToNil(m3path.InPoolId)
 	pathNodeDbPool.Put(pn)
 }
 
-func (pn *PathNodeDb) reduceSize() {
-	pn.point = nil
-	pn.pathBuilder = nil
-	for i := 0; i < m3path.NbConnections; i++ {
-		pn.linkNodes[i] = nil
-	}
-}
-
-func (pn *PathNodeDb) setToNil(id int64) {
-	if id == InPoolId {
+func (pn *PathNodeDb) setToNil(id m3point.Int64Id) {
+	if id == m3path.InPoolId {
 		pn.state = InPoolNode
 	} else {
 		pn.state = NewPathNode
 	}
-	pn.id = id
+	pn.id = m3path.PathNodeId(id)
 	pn.pathCtxId = -1
 	pn.pathCtx = nil
 	pn.pathBuilderId = -1
 	pn.pathBuilder = nil
-	pn.pointId = -1
-	pn.point = nil
+	pn.pathPoint = m3path.NilPathPoint
 	pn.d = -1
 	pn.SetConnStateToNil()
 	pn.clearLinkNodes()
 }
 
 func (pn *PathNodeDb) IsNew() bool {
-	return pn.id == NewPathNodeId
+	return pn.id == m3path.PathNodeId(m3path.NewPathNodeId)
 }
 
 func (pn *PathNodeDb) IsInPool() bool {
-	return pn.id == InPoolId
+	return pn.id == m3path.PathNodeId(m3path.InPoolId)
 }
 func (pn *PathNodeDb) syncInDb() error {
 	switch pn.state {
@@ -315,18 +299,9 @@ func (pn *PathNodeDb) syncInDb() error {
 	case NewPathNode:
 		// Fetch Ids of next path nodes already synced in DB
 		for i := 0; i < m3path.NbConnections; i++ {
-			if pn.linkNodes[i] != nil && pn.linkNodes[i].state != SyncInDbPathNode && pn.LinkIds[i] == NextLinkIdNotAssigned {
+			if pn.linkNodes[i] != nil && pn.linkNodes[i].state != SyncInDbPathNode && pn.LinkIds[i] == m3path.NextLinkIdNotAssigned {
 				// The next node was sync in DB using the id
-				pn.LinkIds[i] = pn.linkNodes[i].id
-			}
-		}
-		if pn.pointId <= 0 {
-			if pn.point == nil {
-				return m3util.MakeQsmErrorf("cannot sync in DB path node %s with no point info", pn.String())
-			}
-			pn.pointId = pn.PathCtx().pathData.GetOrCreatePoint(*pn.point)
-			if pn.pointId <= 0 {
-				return m3util.MakeQsmErrorf("cannot sync in DB path node %s while point insertion %v failed", pn.String(), *pn.point)
+				pn.LinkIds[i] = m3point.Int64Id(pn.linkNodes[i].id)
 			}
 		}
 		filtered, err := pn.insertInDb()
@@ -350,9 +325,9 @@ func (pn *PathNodeDb) syncInDb() error {
 	case ModifiedNode:
 		// Fetch Ids of next path nodes already synced in DB
 		for i := 0; i < m3path.NbConnections; i++ {
-			if pn.linkNodes[i] != nil && pn.linkNodes[i].state != SyncInDbPathNode && pn.LinkIds[i] == NextLinkIdNotAssigned {
+			if pn.linkNodes[i] != nil && pn.linkNodes[i].state != SyncInDbPathNode && pn.LinkIds[i] == m3path.NextLinkIdNotAssigned {
 				// The next node was sync in DB using the id
-				pn.LinkIds[i] = pn.linkNodes[i].id
+				pn.LinkIds[i] = m3point.Int64Id(pn.linkNodes[i].id)
 			}
 		}
 		return pn.updateInDb()
@@ -361,20 +336,20 @@ func (pn *PathNodeDb) syncInDb() error {
 }
 
 func (pn *PathNodeDb) insertInDb() (bool, error) {
-	if pn.pointId < 0 {
-		return false, m3util.MakeQsmErrorf("cannot insert in DB %s since the point was not inserted", pn.String())
+	if pn.pathPoint == m3path.NilPathPoint {
+		return false, m3util.MakeQsmErrorf("cannot sync in DB path node %s with no point info", pn.String())
 	}
 	te := pn.pathCtx.pathNodesTe()
 	pathNodeIds := pn.GetLinkIdsForDb()
-	var err error
-	pn.id, err = te.InsertReturnId(pn.pathCtxId, pn.pathBuilderId, pn.pathBuilderIdx, pn.TrioId, pn.pointId, pn.d,
+	id, err := te.InsertReturnId(pn.pathCtxId, pn.pathBuilderId, pn.pathBuilderIdx, pn.TrioId, pn.pathPoint.Id, pn.d,
 		pn.ConnectionMask,
 		pathNodeIds[0], pathNodeIds[1], pathNodeIds[2])
-	if err == nil {
-		pn.state = SyncInDbPathNode
-		return false, nil
+	if err != nil {
+		return te.IsFiltered(err), m3util.MakeWrapQsmErrorf(err, "insert in DB %s failed with %v", pn.String(), err)
 	}
-	return te.IsFiltered(err), m3util.MakeWrapQsmErrorf(err, "insert in DB %s failed with %v", pn.String(), err)
+	pn.id = m3path.PathNodeId(id)
+	pn.state = SyncInDbPathNode
+	return false, nil
 }
 
 func (pn *PathNodeDb) updateInDb() error {
@@ -394,27 +369,28 @@ func (pn *PathNodeDb) updateInDb() error {
 
 func createPathNodeFromDbRows(rows *sql.Rows) (*PathNodeDb, error) {
 	pn := getNewPathNodeDb()
-	point := m3point.Point{}
+	pp := m3path.PathPoint{}
 	pathNodeIds := [m3path.NbConnections]sql.NullInt64{}
-	err := rows.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.pathBuilderIdx, &pn.TrioId, &pn.pointId, &pn.d,
+	err := rows.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.pathBuilderIdx, &pn.TrioId, &pp.Id, &pn.d,
 		&pn.ConnectionMask,
 		&pathNodeIds[0], &pathNodeIds[1], &pathNodeIds[2],
-		&point[0], &point[1], &point[2])
+		&pp.P[0], &pp.P[1], &pp.P[2])
 	if err != nil {
 		pn.release()
 		return nil, err
 	}
 	pn.clearLinkNodes()
 	pn.SetLinkIdsFromDbData(pathNodeIds)
-	pn.point = &point
+	pn.pathPoint = pp
 	pn.state = SyncInDbPathNode
 	return pn, nil
 }
 
 func createPathNodeFromDbRow(row *sql.Row) (*PathNodeDb, error) {
 	pn := getNewPathNodeDb()
+	pp := m3path.PathPoint{}
 	pathNodeIds := [m3path.NbConnections]sql.NullInt64{}
-	err := row.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.pathBuilderIdx, &pn.TrioId, &pn.pointId, &pn.d,
+	err := row.Scan(&pn.id, &pn.pathCtxId, &pn.pathBuilderId, &pn.pathBuilderIdx, &pn.TrioId, &pp.Id, &pn.d,
 		&pn.ConnectionMask,
 		&pathNodeIds[0], &pathNodeIds[1], &pathNodeIds[2])
 	if err != nil {
@@ -473,7 +449,7 @@ func (pn *PathNodeDb) SetPathBuilder(pathBuilder pointdb.PathNodeBuilder) {
 }
 
 func (pn *PathNodeDb) String() string {
-	return fmt.Sprintf("PNDB%d-%d-%d-%d-%d", pn.id, pn.pathCtxId, pn.pointId, pn.d, pn.TrioId)
+	return fmt.Sprintf("PNDB%d-%d-%d-%d-%d", pn.id, pn.pathCtxId, pn.pathPoint.Id, pn.d, pn.TrioId)
 }
 
 func (pn *PathNodeDb) GetPathContext() m3path.PathContext {
@@ -489,7 +465,7 @@ func (pn *PathNodeDb) IsRoot() bool {
 func (pn *PathNodeDb) setDeadEnd(connIdx int) {
 	pn.check()
 	pn.SetConnectionState(connIdx, m3path.ConnectionBlocked)
-	pn.LinkIds[connIdx] = DeadEndId
+	pn.LinkIds[connIdx] = m3path.DeadEndId
 	pn.linkNodes[connIdx] = nil
 	if pn.state == SyncInDbPathNode {
 		pn.state = ModifiedNode
@@ -502,25 +478,13 @@ func (pn *PathNodeDb) check() {
 	}
 }
 
-func (pn *PathNodeDb) GetId() int64 {
+func (pn *PathNodeDb) GetId() m3path.PathNodeId {
 	return pn.id
 }
 
 func (pn *PathNodeDb) P() m3point.Point {
 	pn.check()
-	if pn.point == nil {
-		if pn.pointId <= 0 {
-			Log.Fatalf("Cannot retrieve point not already set for %s", pn.String())
-			return m3point.Origin
-		}
-		var err error
-		pn.point, err = pn.pathCtx.pathData.GetPoint(pn.pointId)
-		if err != nil {
-			Log.Fatal(err)
-			return m3point.Origin
-		}
-	}
-	return *pn.point
+	return pn.pathPoint.P
 }
 
 func (pn *PathNodeDb) D() int {
@@ -528,25 +492,25 @@ func (pn *PathNodeDb) D() int {
 	return pn.d
 }
 
-func (pn *PathNodeDb) GetNext(connIdx int) int64 {
+func (pn *PathNodeDb) GetNext(connIdx int) m3path.PathNodeId {
 	if pn.GetConnectionState(connIdx) == m3path.ConnectionNext {
-		return pn.LinkIds[connIdx]
+		return m3path.PathNodeId(pn.LinkIds[connIdx])
 	}
-	return LinkIdNotSet
+	return m3path.PathNodeId(m3path.LinkIdNotSet)
 }
 
-func (pn *PathNodeDb) GetNextConnection(connId m3point.ConnectionId) int64 {
+func (pn *PathNodeDb) GetNextConnection(connId m3point.ConnectionId) m3path.PathNodeId {
 	td := pn.GetTrioDetails(pn.pathCtx.pointData)
 	for i, cd := range td.GetConnections() {
 		if cd.GetId() == connId {
 			if pn.GetConnectionState(i) != m3path.ConnectionNext {
 				Log.Errorf("asked to retrieve next connection for %s on %s but it is a next conn", pn.String(), connId.String())
-				return LinkIdNotSet
+				return m3path.PathNodeId(m3path.LinkIdNotSet)
 			}
-			return pn.LinkIds[i]
+			return m3path.PathNodeId(pn.LinkIds[i])
 		}
 	}
-	return LinkIdNotSet
+	return m3path.PathNodeId(m3path.LinkIdNotSet)
 }
 
 func (pn *PathNodeDb) setFrom(connId m3point.ConnectionId, fromNode *PathNodeDb) error {
@@ -558,7 +522,7 @@ func (pn *PathNodeDb) setFrom(connId m3point.ConnectionId, fromNode *PathNodeDb)
 					Log.Tracef("set from %s on node %s at conn %s %d.", fromNode.String(), pn.String(), connId, i)
 				}
 				pn.SetConnectionState(i, m3path.ConnectionFrom)
-				pn.LinkIds[i] = fromNode.id
+				pn.LinkIds[i] = m3point.Int64Id(fromNode.id)
 				if pn.state == SyncInDbPathNode {
 					pn.state = ModifiedNode
 				}
@@ -568,7 +532,7 @@ func (pn *PathNodeDb) setFrom(connId m3point.ConnectionId, fromNode *PathNodeDb)
 					Log.Debugf("Cannot set from %s on node %s at conn %s %d, since it is already %d to %d.", fromNode.String(), pn.String(), connId, i, pn.GetConnectionState(i), pn.LinkIds[i])
 				}
 				// TODO: This is very expensive and happens a lot =>
-				return MakeQsmModelErrorf(ConnectionNotAvailable, "Connection %s not available on %d", connId.String(), pn.pointId)
+				return MakeQsmModelErrorf(ConnectionNotAvailable, "Connection %s not available on %d", connId.String(), pn.pathPoint.Id)
 			}
 		}
 	}

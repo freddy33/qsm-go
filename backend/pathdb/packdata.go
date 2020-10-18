@@ -11,7 +11,7 @@ import (
 
 type ServerPathPackData struct {
 	env        *m3db.QsmDbEnvironment
-	pathCtxMap map[int]*PathContextDb
+	pathCtxMap map[m3path.PathContextId]*PathContextDb
 
 	pointsTe    *m3db.TableExec
 	pathCtxTe   *m3db.TableExec
@@ -21,14 +21,17 @@ type ServerPathPackData struct {
 	allPathContextsLoadMutex sync.Mutex
 	pathContextsLoaded       bool
 	AllCenterContexts        map[m3point.GrowthType][]*PathContextDb
+
+	pathPointsMap *m3path.PathPointMap
 }
 
 func makeServerPathPackData(env m3util.QsmEnvironment) *ServerPathPackData {
 	res := new(ServerPathPackData)
 	res.env = env.(*m3db.QsmDbEnvironment)
-	res.pathCtxMap = make(map[int]*PathContextDb, 2^8)
+	res.pathCtxMap = make(map[m3path.PathContextId]*PathContextDb, 200)
 	res.AllCenterContexts = make(map[m3point.GrowthType][]*PathContextDb)
 	res.pathContextsLoaded = false
+	res.pathPointsMap = m3path.MakePathPointMap(2 ^ 8)
 	return res
 }
 
@@ -46,7 +49,7 @@ func (pathData *ServerPathPackData) GetEnvId() m3util.QsmEnvID {
 	return pathData.env.GetId()
 }
 
-func (pathData *ServerPathPackData) GetPathCtxDb(id int) *PathContextDb {
+func (pathData *ServerPathPackData) GetPathCtxDb(id m3path.PathContextId) *PathContextDb {
 	if !pathData.pathContextsLoaded {
 		Log.Fatal("The path context should have been initialized with call to InitAllPathContexts")
 		return nil
@@ -60,7 +63,7 @@ func (pathData *ServerPathPackData) GetPathCtxDb(id int) *PathContextDb {
 	return nil
 }
 
-func (pathData *ServerPathPackData) GetPathCtx(id int) m3path.PathContext {
+func (pathData *ServerPathPackData) GetPathCtx(id m3path.PathContextId) m3path.PathContext {
 	return pathData.GetPathCtxDb(id)
 }
 

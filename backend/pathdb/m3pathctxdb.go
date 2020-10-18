@@ -14,7 +14,7 @@ type PathContextDb struct {
 	pathData  *ServerPathPackData
 	pointData *pointdb.ServerPointPackData
 
-	id           int
+	id           m3path.PathContextId
 	growthCtx    m3point.GrowthContext
 	growthOffset int
 	maxDist      int
@@ -28,24 +28,24 @@ func (pathCtx *PathContextDb) createRootNode() error {
 	}
 
 	// the path builder enforce origin as the center
-	nodeBuilder := pathCtx.pointData.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, m3point.Origin)
+	origin := m3point.Origin
+
+	pathPoint, err := pathCtx.pathData.GetOrCreatePoint(origin)
+	if err != nil {
+		return m3util.MakeWrapQsmErrorf(err, "could not get or insert the origin point %v due to %s", origin, err.Error())
+	}
+
+	nodeBuilder := pathCtx.pointData.GetPathNodeBuilder(pathCtx.growthCtx, pathCtx.growthOffset, origin)
 
 	rootNode := getNewPathNodeDb()
-
 	rootNode.pathCtxId = pathCtx.id
 	rootNode.pathCtx = pathCtx
-
 	rootNode.SetPathBuilder(nodeBuilder)
-
 	rootNode.SetTrioId(nodeBuilder.GetTrioIndex())
-
-	// But the path node here points to real points in space
-	center := m3point.Origin
-	rootNode.pointId = pathCtx.pathData.GetOrCreatePoint(center)
-	rootNode.point = &center
+	rootNode.pathPoint = *pathPoint
 	rootNode.d = 0
 
-	err := rootNode.syncInDb()
+	err = rootNode.syncInDb()
 	if err != nil {
 		return m3util.MakeWrapQsmErrorf(err, "could not insert the root node %s of path context %s due to %v", rootNode.String(), pathCtx.String(), err)
 	}
@@ -76,7 +76,7 @@ func (pathCtx *PathContextDb) insertInDb() error {
 	if err != nil {
 		return err
 	}
-	pathCtx.id = int(id64)
+	pathCtx.id = m3path.PathContextId(id64)
 	return nil
 }
 
@@ -84,7 +84,7 @@ func (pathCtx *PathContextDb) String() string {
 	return fmt.Sprintf("PathDB%d-%s-%d-%d", pathCtx.id, pathCtx.growthCtx.String(), pathCtx.growthOffset, pathCtx.maxDist)
 }
 
-func (pathCtx *PathContextDb) GetId() int {
+func (pathCtx *PathContextDb) GetId() m3path.PathContextId {
 	return pathCtx.id
 }
 
@@ -155,9 +155,9 @@ func (pathCtx *PathContextDb) createConnection(fromNode *PathNodeDb, cd *m3point
 		// Link the destination node to this link
 		fromNode.SetConnectionState(connIdx, m3path.ConnectionNext)
 		if nextPathNode.id <= 0 {
-			fromNode.LinkIds[connIdx] = NextLinkIdNotAssigned
+			fromNode.LinkIds[connIdx] = m3path.NextLinkIdNotAssigned
 		} else {
-			fromNode.LinkIds[connIdx] = nextPathNode.id
+			fromNode.LinkIds[connIdx] = m3point.Int64Id(nextPathNode.id)
 		}
 		fromNode.linkNodes[connIdx] = nextPathNode
 	}
@@ -166,7 +166,7 @@ func (pathCtx *PathContextDb) createConnection(fromNode *PathNodeDb, cd *m3point
 	}
 }
 
-func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *PathNodeDb, td *m3point.TrioDetails) {
+func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *PathNodeDb, td *m3point.TrioDetails) error {
 	nbFrom := 0
 	nbBlocked := 0
 	pnb := on.PathBuilder()
@@ -182,7 +182,10 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			cd := td.GetConnections()[i]
 			npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
 
-			pId := pathCtx.pathData.GetOrCreatePoint(np)
+			pp, err := pathCtx.pathData.GetOrCreatePoint(np)
+			if err != nil {
+				return err
+			}
 
 			inCurrent := current.openNodesMap.GetPathNode(np)
 			if inCurrent != nil {
@@ -198,8 +201,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 					pn.SetPathBuilder(npnb)
 					pn.SetTrioId(npnb.GetTrioIndex())
 					pn.TrioDetails = nil
-					pn.point = &np
-					pn.pointId = pId
+					pn.pathPoint = *pp
 					pn.d = next.d
 
 					fromMap, inserted := next.openNodesMap.AddPathNode(pn)
@@ -215,6 +217,7 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			}
 		}
 	}
+	return nil
 }
 
 func (pathCtx *PathContextDb) GetPathNodesAt(dist int) ([]m3path.PathNode, error) {
@@ -341,7 +344,11 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 			rc.SendError(m3util.MakeQsmErrorf("reached a node without trio %s %s", on.String(), on.GetTrioIndex()))
 			return true
 		}
-		pathCtx.makeNewNodes(current, next, on, td)
+		err = pathCtx.makeNewNodes(current, next, on, td)
+		if err != nil {
+			rc.SendError(err)
+			return true
+		}
 		return false
 	}, rc)
 	if rc.GetFirstError() != nil {
@@ -418,7 +425,7 @@ func (pathCtx *PathContextDb) CountAllPathNodes() int {
 	return res
 }
 
-func (pathCtx *PathContextDb) GetPathNodeDb(id int64) (*PathNodeDb, error) {
+func (pathCtx *PathContextDb) GetPathNodeDb(id m3path.PathNodeId) (*PathNodeDb, error) {
 	row := pathCtx.pathData.pathNodesTe.QueryRow(SelectPathNodesById, id)
 	pn, err := createPathNodeFromDbRow(row)
 	if err != nil {

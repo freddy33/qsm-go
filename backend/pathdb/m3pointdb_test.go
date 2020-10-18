@@ -72,9 +72,9 @@ func TestPointsTableConcurrency(t *testing.T) {
 	env := GetPathDbCleanEnv(m3util.PerfTestEnv)
 	pathData := GetServerPathPackData(env)
 	// increase concurrency chance with low random
-	rdMax := m3point.CInt(100)
+	rdMax := m3point.CInt(10)
 	nbRoutines := 50
-	nbRound := 500
+	nbRound := 250
 	start := time.Now()
 	wg := new(sync.WaitGroup)
 	for r := 0; r < nbRoutines; r++ {
@@ -83,8 +83,43 @@ func TestPointsTableConcurrency(t *testing.T) {
 			defer wg.Done()
 			for i := 0; i < nbRound; i++ {
 				randomPoint := m3point.CreateRandomPoint(rdMax)
-				id := pathData.GetOrCreatePoint(randomPoint)
-				if !assert.True(t, id > 0) {
+				pp, err := pathData.GetOrCreatePoint(randomPoint)
+				if !assert.NoError(t, err) || !assert.NotNil(t, pp) {
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	Log.Infof("It took %v to create %d points with nb routines=%d max coord %d", time.Now().Sub(start), nbRoutines*nbRound, nbRoutines, rdMax)
+}
+
+/***************************************************************/
+// perf test main
+/***************************************************************/
+func RunInsertRandomPoints() {
+	m3util.SetToTestMode()
+	env := GetPathDbFullEnv(m3util.PerfTestEnv)
+	pathData := GetServerPathPackData(env)
+	// increase concurrency chance with low random
+	rdMax := m3point.CInt(10)
+	nbRoutines := 100
+	nbRound := 250
+	start := time.Now()
+	wg := new(sync.WaitGroup)
+	for r := 0; r < nbRoutines; r++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < nbRound; i++ {
+				randomPoint := m3point.CreateRandomPoint(rdMax)
+				pp, err := pathData.GetOrCreatePoint(randomPoint)
+				if err != nil {
+					Log.Errorf("failed to insert %v got %s", randomPoint, err.Error())
+					return
+				}
+				if pp == nil {
+					Log.Errorf("failed to insert %v got nil pp", randomPoint)
 					return
 				}
 			}

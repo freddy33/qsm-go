@@ -175,7 +175,7 @@ func createNodeEventMsg(node m3space.NodeEventIfc) (*m3api.NodeEventMsg, error) 
 	pathNodeDb := pathNode.(*pathdb.PathNodeDb)
 
 	return &m3api.NodeEventMsg{
-		EventNodeId:    node.GetId(),
+		EventNodeId:    int64(node.GetId()),
 		EventId:        int32(node.GetEventId()),
 		Point:          m3api.PointToPointMsg(*point),
 		CreationTime:   int32(node.GetCreationTime()),
@@ -372,10 +372,10 @@ func createSpaceTimeNodeMsg(node m3space.SpaceTimeNodeIfc) (*m3api.SpaceTimeNode
 	}
 
 	nodeDb := node.(*spacedb.SpaceTimeNode)
-	// TODO: This should be done using the link list of directly EventNodeDb object instead of creating an array of interfaces
+	// TODO: This should be done using the link list of directly NodeEventDb object instead of creating an array of interfaces
 	evtNodes := nodeDb.GetEventNodes()
 	res := &m3api.SpaceTimeNodeMsg{
-		PointId:   node.GetPointId(),
+		PointId:   int64(node.GetPointId()),
 		Point:     m3api.PointToPointMsg(*point),
 		Nodes:     make([]*m3api.SpaceTimeNodeEventMsg, len(evtNodes)),
 		HasRoot:   node.HasRoot(),
@@ -387,7 +387,7 @@ func createSpaceTimeNodeMsg(node m3space.SpaceTimeNodeIfc) (*m3api.SpaceTimeNode
 			CreationTime:   int32(evtNode.GetCreationTime()),
 			D:              int32(evtNode.GetD()),
 			TrioId:         int32(evtNode.GetTrioIndex()),
-			ConnectionMask: uint32(evtNode.(*spacedb.EventNodeDb).GetConnectionMask()),
+			ConnectionMask: uint32(evtNode.(*spacedb.NodeEventDb).GetConnectionMask()),
 		}
 	}
 	return res, nil

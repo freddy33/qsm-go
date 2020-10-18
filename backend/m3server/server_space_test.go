@@ -5,6 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/gorilla/mux"
@@ -146,7 +147,7 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	good := assert.True(t, resMsg.EventId > 0)
 
 	pathData := pathdb.GetServerPathPackData(qsmApp.Env)
-	pathCtx := pathData.GetPathCtx(int(resMsg.GetPathCtxId()))
+	pathCtx := pathData.GetPathCtx(m3path.PathContextId(resMsg.GetPathCtxId()))
 	good = good && assert.Equal(t, growthType, pathCtx.GetGrowthType()) &&
 		assert.Equal(t, growthIndex, pathCtx.GetGrowthIndex()) &&
 		assert.Equal(t, growthOffset, pathCtx.GetGrowthOffset()) &&
