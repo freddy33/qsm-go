@@ -18,6 +18,16 @@ if [[ $? -ne 0 ]]; then
 fi
 
 commandName=$1
+shift
+
+launch_ui() {
+  local env_file="local-env.env"
+  if [[ "$1" == "-kinto" ]]; then
+    env_file="kinto-env.env"
+    shift
+  fi
+  cd "${rootDir}/ui" && ${go_exe} build && cp "$env_file" ".env" && ./ui "$@"
+}
 
 case "$commandName" in
 tidy)
@@ -31,7 +41,7 @@ build)
     cd ${rootDir}/ui && ${go_exe} build
   ;;
 play)
-  cd ${rootDir}/ui && ${go_exe} build && ./ui "$@"
+  launch_ui "$@"
   ;;
 gentxt | *filldb | perf)
   cd ${rootDir}/backend && ${go_exe} build && ./backend "$@"
