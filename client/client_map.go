@@ -21,7 +21,7 @@ type ClientPointHashPathNodeMap struct {
 }
 
 /***************************************************************/
-// ServerPointHashPathNodeMap Functions
+// ClientPointHashPathNodeMap Functions
 /***************************************************************/
 
 // TODO: This should be in path data entry of the env

@@ -1,8 +1,11 @@
 select *
-from path_contexts;
+from qsm1.path_contexts
+where max_dist > 20;
 
-select count(*)
-from growth_contexts;
+-- type, id: (1,1), (2,9), (3,33), (4,57), (8,105)
+
+select *
+from qsm6.growth_contexts;
 
 select count(*)
 from points;
@@ -10,26 +13,35 @@ from points;
 select avg(x)
 from points;
 
-select path_ctx_id, count(*)
-from path_nodes
-group by path_ctx_id;
+select pn.d, count(*)
+from qsm1.path_nodes pn
+where pn.path_ctx_id = 33
+group by pn.d;
 
 select d, count(*)
-from path_nodes
-where path_ctx_id = 37
+from qsm1.path_nodes
+where path_ctx_id = 33
 group by d
 order by d;
 
+select pnp.d as d, count(id) as c, avg(cd) as avg_cd, min(cd) as min_cd, max(cd) as max_cd, stddev(cd) as stddev_cd
+from (select pn.id as id, pn.d as d, sqrt(p.x * p.x + p.y * p.y + p.z * p.z) as cd
+      from qsm1.path_nodes as pn
+               join qsm1.points as p on p.id = pn.point_id
+      where pn.path_ctx_id = 105) as pnp
+group by 1
+order by 1 asc;
 
-select pn.d, p.x, p.y, p.z, sqrt(p.x*p.x+p.y*p.y+p.z*p.z) cart_d
+select pn.d, p.x, p.y, p.z, sqrt(p.x * p.x + p.y * p.y + p.z * p.z) cart_d
 from path_nodes as pn
-    join points as p on pn.point_id = p.id
-where pn.path_ctx_id=37 and pn.d<=120
+         join points as p on pn.point_id = p.id
+where pn.path_ctx_id = 37
+  and pn.d <= 120
 order by cart_d;
 
 
-select ct.d as D,
-       count(ct.id) as NB,
+select ct.d                as D,
+       count(ct.id)        as NB,
        avg(ct.cart_d) as avg_cart_d,
        avg(ct.cart_d)/ct.d as "ratio(avg/d)",
        min(ct.cart_d) as min_cart_d,

@@ -52,10 +52,6 @@ func (fr *SpaceTimeRuleAnalyzer) VisitNode(node m3space.SpaceTimeNodeIfc) {
 	}
 }
 
-func (fr *SpaceTimeRuleAnalyzer) VisitLink(node m3space.SpaceTimeNodeIfc, srcPoint m3point.Point, connId m3point.ConnectionId) {
-	// Nothing here for now
-}
-
 func SortEventIDs(ids *[]m3space.EventId) {
 	sort.Slice(*ids, func(i, j int) bool {
 		return (*ids)[i] < (*ids)[j]

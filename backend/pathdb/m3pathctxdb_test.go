@@ -3,6 +3,7 @@ package pathdb
 import (
 	"github.com/freddy33/qsm-go/backend/pointdb"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -12,10 +13,10 @@ import (
 func TestNodeSyncPool(t *testing.T) {
 	pn := getNewPathNodeDb()
 	assert.NotNil(t, pn)
-	assert.Equal(t, int64(-1), pn.id)
-	assert.Equal(t, -1, pn.pathCtxId)
+	assert.Equal(t, m3path.PathNodeId(-1), pn.id)
+	assert.Equal(t, m3path.PathContextId(-1), pn.pathCtxId)
 	for i := 0; i < 3; i++ {
-		assert.Equal(t, int64(-3), pn.LinkIds[1])
+		assert.Equal(t, m3point.Int64Id(-3), pn.LinkIds[1])
 	}
 
 	pn.release()
@@ -51,7 +52,9 @@ func TestMakeNewPathCtx(t *testing.T) {
 	assert.Equal(t, pn, pathCtx.rootNode)
 
 	assert.Equal(t, pathCtx.rootNode.pathCtxId, ctxId)
-	assert.Equal(t, pathCtx.rootNode.pointId, pathData.GetOrCreatePoint(testPoint))
+	pathPoint, err := pathData.GetOrCreatePoint(testPoint)
+	assert.NoError(t, err)
+	assert.Equal(t, pathCtx.rootNode.pathPoint, *pathPoint)
 	assert.Equal(t, 2601, pathCtx.rootNode.pathBuilderId)
 
 	assert.Equal(t, 1, pathCtx.GetNumberOfNodesAt(0))

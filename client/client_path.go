@@ -6,18 +6,19 @@ import (
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"sync"
+	"unsafe"
 )
 
 type ClientPathPackData struct {
 	env        *QsmApiEnvironment
-	pathCtxMap map[int]*PathContextCl
+	pathCtxMap *m3point.NonBlockConcurrentMap
 }
 
 type PathContextCl struct {
 	env       *QsmApiEnvironment
 	pointData *ClientPointPackData
 
-	id           int
+	id           m3path.PathContextId
 	growthCtx    m3point.GrowthContext
 	growthOffset int
 
@@ -29,7 +30,7 @@ type PathContextCl struct {
 
 type PathNodeCl struct {
 	pathCtx        *PathContextCl
-	id             m3point.Int64Id
+	id             m3path.PathNodeId
 	d              int
 	point          m3point.Point
 	trioDetails    *m3point.TrioDetails
@@ -43,7 +44,7 @@ type PathNodeCl struct {
 
 func MakePatchContextClient(pathData *ClientPathPackData, pMsg *m3api.PathContextMsg) *PathContextCl {
 	pathCtx := new(PathContextCl)
-	pathCtx.id = int(pMsg.GetPathCtxId())
+	pathCtx.id = m3path.PathContextId(pMsg.GetPathCtxId())
 	pathCtx.env = pathData.env
 	pointData := GetClientPointPackData(pathData.env)
 	pathCtx.pointData = pointData
@@ -52,16 +53,16 @@ func MakePatchContextClient(pathData *ClientPathPackData, pMsg *m3api.PathContex
 	pathCtx.pathNodeMap = MakeHashPathNodeMap(1024)
 	pathCtx.rootNode = pathCtx.addPathNodeFromMsg(pMsg.RootPathNode)
 
-	pathData.pathCtxMap[pathCtx.GetId()] = pathCtx
+	actualPP, _ := pathData.pathCtxMap.LoadOrStore(pathCtx.GetId(), unsafe.Pointer(pathCtx))
 
-	return pathCtx
+	return (*PathContextCl)(actualPP)
 }
 
 func (pathCtx *PathContextCl) String() string {
 	return fmt.Sprintf("PathCL%d-%s-%d", pathCtx.id, pathCtx.growthCtx.String(), pathCtx.growthOffset)
 }
 
-func (pathCtx *PathContextCl) GetId() int {
+func (pathCtx *PathContextCl) GetId() m3path.PathContextId {
 	return pathCtx.id
 }
 
@@ -91,7 +92,7 @@ func (pathCtx *PathContextCl) CountAllPathNodes() int {
 
 func (pathCtx *PathContextCl) addPathNodeFromMsg(pMsg *m3api.PathNodeMsg) *PathNodeCl {
 	pn := getNewPathNodeCl()
-	pn.id = m3point.Int64Id(pMsg.GetPathNodeId())
+	pn.id = m3path.PathNodeId(pMsg.GetPathNodeId())
 	pn.pathCtx = pathCtx
 	pn.d = int(pMsg.D)
 	pn.point = m3api.PointMsgToPoint(pMsg.GetPoint())
@@ -318,8 +319,8 @@ func (pn *PathNodeCl) String() string {
 	return fmt.Sprintf("PNCL%d-%d-%d-%d-%v", pn.id, pn.pathCtx.id, pn.d, pn.trioDetails.GetId(), pn.point)
 }
 
-func (pn *PathNodeCl) GetId() int64 {
-	return int64(pn.id)
+func (pn *PathNodeCl) GetId() m3path.PathNodeId {
+	return pn.id
 }
 
 func (pn *PathNodeCl) GetPathContext() m3path.PathContext {

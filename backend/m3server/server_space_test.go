@@ -5,6 +5,7 @@ import (
 	"github.com/freddy33/qsm-go/backend/pathdb"
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3api"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 	"github.com/gorilla/mux"
@@ -44,6 +45,14 @@ func TestSpaceNextTime(t *testing.T) {
 	if eventId < 0 {
 		// failed
 		return
+	}
+
+	if !callGetSpaceTime(t, spaceId, router, 0, 1) ||
+		!callGetSpaceTime(t, spaceId, router, 1, 4) ||
+		!callGetSpaceTime(t, spaceId, router, 2, 7) ||
+		!callGetSpaceTime(t, spaceId, router, 3, 13) {
+		// Do not return let delete space run
+		assert.Fail(t, "something wrong with call space time")
 	}
 
 	if !callDeleteSpace(t, router, spaceId, spaceName) {
@@ -146,7 +155,7 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	good := assert.True(t, resMsg.EventId > 0)
 
 	pathData := pathdb.GetServerPathPackData(qsmApp.Env)
-	pathCtx := pathData.GetPathCtx(int(resMsg.GetPathCtxId()))
+	pathCtx := pathData.GetPathCtx(m3path.PathContextId(resMsg.GetPathCtxId()))
 	good = good && assert.Equal(t, growthType, pathCtx.GetGrowthType()) &&
 		assert.Equal(t, growthIndex, pathCtx.GetGrowthIndex()) &&
 		assert.Equal(t, growthOffset, pathCtx.GetGrowthOffset()) &&
@@ -162,10 +171,12 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 	return int(resMsg.EventId)
 }
 
-func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activeNodes int) bool {
+func callGetSpaceTime(t *testing.T, spaceId int, router *mux.Router, time int, activeNodes int) bool {
 	reqMsg := &m3api.SpaceTimeRequestMsg{
-		SpaceId:     int32(spaceId),
-		CurrentTime: int32(time),
+		SpaceId:           int32(spaceId),
+		CurrentTime:       int32(time),
+		MinNbEventsFilter: 0,
+		ColorMaskFilter:   0xffffffff,
 	}
 	spaceTimeResponse := &m3api.SpaceTimeResponseMsg{}
 	if !sendAndReceive(t, &requestTest{
@@ -173,7 +184,7 @@ func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activ
 		requestContentType:  "proto",
 		responseContentType: "proto",
 		typeName:            "SpaceTimeResponseMsg",
-		methodName:          "POST",
+		methodName:          "GET",
 		uri:                 "/space-time",
 	}, reqMsg, spaceTimeResponse) {
 		return false
@@ -181,5 +192,5 @@ func callNextTime(t *testing.T, spaceId int, router *mux.Router, time int, activ
 
 	return assert.Equal(t, int32(spaceId), spaceTimeResponse.GetSpaceId()) &&
 		assert.Equal(t, int32(time), spaceTimeResponse.GetCurrentTime()) &&
-		assert.Equal(t, activeNodes, len(spaceTimeResponse.GetActiveNodes()))
+		assert.Equal(t, activeNodes, int(spaceTimeResponse.GetNbActiveNodes()))
 }

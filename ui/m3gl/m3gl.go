@@ -41,6 +41,7 @@ type DisplayWorld struct {
 	pointData        *client.ClientPointPackData
 	Max              m3point.CInt
 	WorldSpace       m3space.SpaceIfc
+	CurrentTime      m3space.DistAndTime
 	CurrentSpaceTime m3space.SpaceTimeIfc
 	Filter           SpaceDrawingFilter
 	Elements         []SpaceDrawingElement
@@ -99,8 +100,15 @@ func MakeWorld(env *client.QsmApiEnvironment, Max m3point.CInt, glfwTime float64
 func (world *DisplayWorld) initialized(space m3space.SpaceIfc, glfwTime float64) {
 	world.Max = 0
 	world.WorldSpace = space
-	world.CurrentSpaceTime = space.GetSpaceTimeAt(m3space.DistAndTime(0))
-	world.Filter = SpaceDrawingFilter{false, false, uint8(0xFF), 0, world.CurrentSpaceTime}
+	world.CurrentTime = m3space.ZeroDistAndTime
+	world.CurrentSpaceTime = nil
+	world.Filter = SpaceDrawingFilter{
+		DisplayEmptyNodes:                 false,
+		DisplayEmptyConnections:           false,
+		EventColorMask:                    uint8(0xff),
+		EventOutgrowthManyColorsThreshold: 0,
+		ActiveThreshold:                   space.GetActiveThreshold(),
+	}
 	world.Elements = make([]SpaceDrawingElement, 0, 500)
 	world.NbVertices = 0
 	world.OpenGLBuffer = make([]float32, 0)
@@ -211,19 +219,27 @@ func (creator *DrawingElementsCreator) VisitLink(node m3space.SpaceTimeNodeIfc, 
 	creator.offset++
 }
 
+func (world *DisplayWorld) GetSpaceTime() m3space.SpaceTimeIfc {
+	if world.CurrentSpaceTime == nil {
+		world.CurrentSpaceTime = world.WorldSpace.GetSpaceTimeAt(world.CurrentTime)
+	}
+	return world.CurrentSpaceTime
+}
+
 func (world *DisplayWorld) ForwardTime() {
-	world.CurrentSpaceTime = world.CurrentSpaceTime.Next()
-	world.Filter.SpaceTime = world.CurrentSpaceTime
+	world.CurrentTime++
+	world.CurrentSpaceTime = world.WorldSpace.GetSpaceTimeAt(world.CurrentTime)
 }
 
 func (world *DisplayWorld) CreateDrawingElements() {
-	space := world.CurrentSpaceTime
+	space := world.GetSpaceTime()
 	dec := DrawingElementsCreator{}
 	dec.nbElements = 6 + space.GetNbActiveNodes() + space.GetNbActiveLinks()
 	dec.elements = make([]SpaceDrawingElement, dec.nbElements)
 	dec.offset = 0
 	dec.createAxes(world.Max)
-	space.VisitAll(&dec)
+	space.VisitNodes(&dec)
+	space.VisitLinks(&dec)
 	if dec.offset != dec.nbElements {
 		fmt.Println("Created", dec.offset, "elements, but it should be", dec.nbElements)
 		return

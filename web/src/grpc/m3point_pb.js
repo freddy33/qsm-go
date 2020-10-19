@@ -1083,7 +1083,7 @@ proto.m3api.PointPackDataMsg.serializeBinaryToWriter = function(message, writer)
             8,
             f
         );
-  }
+    }
 };
 
 

@@ -168,3 +168,7 @@ func (qsmError *QsmError) Unwrap() error {
 	return qsmError.cause
 }
 
+func CountTheOnes(m uint8) uint8 {
+	return ((m >> 7) & 1) + ((m >> 6) & 1) + ((m >> 5) & 1) + ((m >> 4) & 1) + ((m >> 3) & 1) + ((m >> 2) & 1) + ((m >> 1) & 1) + (m & 1)
+}
+

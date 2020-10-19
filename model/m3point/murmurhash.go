@@ -13,7 +13,13 @@ const (
 	n    = 0xe6546b64
 )
 
+type Int32Id int32
+
 type Int64Id int64
+
+func (id Int32Id) MurmurHash() uint32 {
+	return MurmurHashUint32([]uint32{uint32(id)})
+}
 
 func (id Int64Id) MurmurHash() uint32 {
 	c64 := uint64(id)

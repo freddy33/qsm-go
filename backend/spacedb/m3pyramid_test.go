@@ -33,21 +33,38 @@ func createAllIndexesForContext(t assert.TestingT, ctxType m3point.GrowthType) [
 }
 
 var envMutex sync.Mutex
+var pyramidEnv m3util.QsmEnvironment
 var spaceEnv m3util.QsmEnvironment
+
+func getPyramidTestEnv() m3util.QsmEnvironment {
+	if pyramidEnv != nil {
+		return pyramidEnv
+	}
+	envMutex.Lock()
+	defer envMutex.Unlock()
+	if pyramidEnv != nil {
+		return pyramidEnv
+	}
+	pyramidEnv = cleanTestEnv(m3util.SpaceTempEnv)
+	return pyramidEnv
+}
 
 func getSpaceTestEnv() m3util.QsmEnvironment {
 	if spaceEnv != nil {
 		return spaceEnv
 	}
-
 	envMutex.Lock()
 	defer envMutex.Unlock()
 	if spaceEnv != nil {
 		return spaceEnv
 	}
-	m3util.SetToTestMode()
-	spaceEnv := GetSpaceDbCleanEnv(m3util.SpaceTempEnv)
+	spaceEnv = cleanTestEnv(m3util.SpaceTestEnv)
 	return spaceEnv
+}
+
+func cleanTestEnv(envId m3util.QsmEnvID) m3util.QsmEnvironment {
+	m3util.SetToTestMode()
+	return GetSpaceDbCleanEnv(envId)
 }
 
 func TestSpaceAllPyramids(t *testing.T) {
@@ -57,6 +74,8 @@ func TestSpaceAllPyramids(t *testing.T) {
 	m3path.Log.SetWarn()
 	LogStat.SetWarn()
 	LogRun.SetWarn()
+
+	env := getPyramidTestEnv()
 
 	ctxs := [4]m3point.GrowthType{8, 8, 8, 8}
 
@@ -80,7 +99,7 @@ func TestSpaceAllPyramids(t *testing.T) {
 			}
 			start := time.Now()
 			LogData.Infof("Running space %s indexes = %v", spaceName, idxs)
-			space := createNewSpace(t, spaceName, m3space.ZeroDistAndTime)
+			space := createNewSpace(t, env, spaceName, m3space.ZeroDistAndTime)
 			found, originalPyramid, foundTime, finalPyramid, nbPoss := RunSpacePyramidWithParams(space, pSize, ctxs, idxs, offsets)
 			if found {
 				orgSize := GetPyramidSize(originalPyramid)
@@ -108,8 +127,9 @@ func TestSpaceRunPySize5(t *testing.T) {
 func TestSpaceRunPySize4(t *testing.T) {
 	Log.SetWarn()
 	LogStat.SetInfo()
+	env := getPyramidTestEnv()
 
-	space := createNewSpace(t, "TestSpaceRunPySize4-1", m3space.ZeroDistAndTime)
+	space := createNewSpace(t, env, "TestSpaceRunPySize4-1", m3space.ZeroDistAndTime)
 
 	found, originalPyramid, time, finalPyramid, nbPoss := RunSpacePyramidWithParams(space, 4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 0}, [4]int{0, 0, 0, 0})
 	// TODO: Reactivate after space node fix
@@ -119,7 +139,7 @@ func TestSpaceRunPySize4(t *testing.T) {
 	diff := m3point.AbsDInt(orgSize - finalSize)
 	LogStat.Infof("%v %d %v %v %d %d %d %d", found, time, originalPyramid, finalPyramid, nbPoss, orgSize, finalSize, diff)
 
-	space = createNewSpace(t, "TestSpaceRunPySize4-2", m3space.ZeroDistAndTime)
+	space = createNewSpace(t, env, "TestSpaceRunPySize4-2", m3space.ZeroDistAndTime)
 
 	found, originalPyramid, time, finalPyramid, nbPoss = RunSpacePyramidWithParams(space, 4, [4]m3point.GrowthType{2, 2, 2, 2}, [4]int{0, 0, 0, 3}, [4]int{0, 0, 0, 0})
 	// TODO: Reactivate after space node fix
@@ -143,7 +163,8 @@ func TestSpaceRunPySize2(t *testing.T) {
 }
 
 func runSpaceTest(t *testing.T, pSize m3point.CInt, spaceName string) {
-	space := createNewSpace(t, spaceName, m3space.ZeroDistAndTime)
+	env := getPyramidTestEnv()
+	space := createNewSpace(t, env, spaceName, m3space.ZeroDistAndTime)
 	growthTypes := [4]m3point.GrowthType{8, 8, 8, 8}
 	indexes := [4]int{0, 4, 8, 10}
 	offsets := [4]int{0, 0, 0, 4}

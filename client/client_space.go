@@ -46,14 +46,14 @@ type EventCl struct {
 
 type EventNodeCl struct {
 	Event *EventCl
-	id    int64
+	id    m3space.NodeEventId
 
-	point m3point.Point
+	pathPoint m3path.PathPoint
 
 	creationTime m3space.DistAndTime
 	d            m3space.DistAndTime
 
-	pathNodeId     int64
+	pathNodeId     m3path.PathNodeId
 	trioDetails    *m3point.TrioDetails
 	connectionMask uint16
 	linkNodes      [m3path.NbConnections]int64
@@ -203,9 +203,9 @@ func (space *SpaceCl) GetMaxCoord() m3point.CInt {
 func (space *SpaceCl) GetEvent(id m3space.EventId) m3space.EventIfc {
 	uri := "event"
 	reqMsg := &m3api.FindEventsMsg{
-		EventId:              int32(id),
-		SpaceId:              int32(space.id),
-		AtTime:               0,
+		EventId: int32(id),
+		SpaceId: int32(space.id),
+		AtTime:  0,
 	}
 	resMsg := new(m3api.EventListMsg)
 	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, true)
@@ -231,9 +231,9 @@ func (space *SpaceCl) GetEvent(id m3space.EventId) m3space.EventIfc {
 func (space *SpaceCl) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.EventIfc {
 	uri := "event"
 	reqMsg := &m3api.FindEventsMsg{
-		EventId:              int32(-1),
-		SpaceId:              int32(space.id),
-		AtTime:               int32(atTime),
+		EventId: int32(-1),
+		SpaceId: int32(space.id),
+		AtTime:  int32(atTime),
 	}
 	resMsg := new(m3api.EventListMsg)
 	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, true)
@@ -241,7 +241,7 @@ func (space *SpaceCl) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.Ev
 		Log.Error(err)
 		return nil
 	}
-	if len(resMsg.Events) > 0 {
+	if len(resMsg.Events) <= 0 {
 		Log.Infof("Did not find a single event at time %d for %s", atTime, space.String())
 		return nil
 	}
@@ -259,8 +259,23 @@ func (space *SpaceCl) GetActiveEventsAt(atTime m3space.DistAndTime) []m3space.Ev
 	return res
 }
 
-func (space *SpaceCl) GetSpaceTimeAt(time m3space.DistAndTime) m3space.SpaceTimeIfc {
-	panic("implement me")
+func (space *SpaceCl) GetSpaceTimeAt(atTime m3space.DistAndTime) m3space.SpaceTimeIfc {
+	uri := "space-time"
+
+	reqMsg := &m3api.SpaceTimeRequestMsg{
+		SpaceId:           int32(space.GetId()),
+		CurrentTime:       int32(atTime),
+		MinNbEventsFilter: 0,
+		ColorMaskFilter:   0xffffffff,
+	}
+	resMsg := new(m3api.SpaceTimeResponseMsg)
+	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, reqMsg, resMsg, false)
+	if err != nil {
+		Log.Error(err)
+		return nil
+	}
+
+	return createSpaceTimeFromMsg(space, resMsg)
 }
 
 func (space *SpaceCl) CreateEvent(growthType m3point.GrowthType, growthIndex int, growthOffset int,
@@ -298,7 +313,7 @@ func (space *SpaceCl) setMaxCoordAndTime(evtNode *EventNodeCl) {
 	if evtNode.creationTime > space.maxTime {
 		space.maxTime = evtNode.creationTime
 	}
-	for _, c := range evtNode.point {
+	for _, c := range evtNode.pathPoint.P {
 		if c > space.maxCoord {
 			space.maxCoord = c
 		}
@@ -309,7 +324,7 @@ func (space *SpaceCl) setMaxCoordAndTime(evtNode *EventNodeCl) {
 }
 
 func (space *SpaceCl) createEventFromMsg(pathData *ClientPathPackData, pointData *ClientPointPackData, resMsg *m3api.EventMsg) (*EventCl, error) {
-	pathCtx := pathData.GetPathCtx(int(resMsg.PathCtxId))
+	pathCtx := pathData.GetPathCtx(m3path.PathContextId(resMsg.PathCtxId))
 	if pathCtx == nil {
 		return nil, m3util.MakeQsmErrorf("Received path context id %d which does exists", resMsg.PathCtxId)
 	}
@@ -337,15 +352,15 @@ func (space *SpaceCl) createEventFromMsg(pathData *ClientPathPackData, pointData
 func (evt *EventCl) createNodeFromMsg(pointData *ClientPointPackData, neMsg *m3api.NodeEventMsg) (*EventNodeCl, error) {
 	td := pointData.GetTrioDetails(m3point.TrioIndex(neMsg.TrioId))
 	if td == nil {
-		return nil, m3util.MakeQsmErrorf("Cannot create node %d since trio index %d does not exists", neMsg.EventNodeId, neMsg.TrioId)
+		return nil, m3util.MakeQsmErrorf("Cannot create node %d since trio index %d does not exists", neMsg.NodeEventId, neMsg.TrioId)
 	}
 	ne := &EventNodeCl{
 		Event:          evt,
-		id:             neMsg.EventNodeId,
-		point:          m3api.PointMsgToPoint(neMsg.Point),
+		id:             m3space.NodeEventId(neMsg.NodeEventId),
+		pathPoint:      m3api.MsgToPathPoint(neMsg),
 		creationTime:   m3space.DistAndTime(neMsg.CreationTime),
 		d:              m3space.DistAndTime(neMsg.D),
-		pathNodeId:     neMsg.PathNodeId,
+		pathNodeId:     m3path.PathNodeId(neMsg.PathNodeId),
 		trioDetails:    td,
 		connectionMask: uint16(neMsg.ConnectionMask),
 	}
@@ -356,7 +371,7 @@ func (evt *EventCl) createNodeFromMsg(pointData *ClientPointPackData, neMsg *m3a
 	if evt.MaxNodeTime < ne.creationTime {
 		evt.MaxNodeTime = ne.creationTime
 	}
- 	evt.space.setMaxCoordAndTime(ne)
+	evt.space.setMaxCoordAndTime(ne)
 
 	return ne, nil
 }
@@ -392,9 +407,9 @@ func (evt *EventCl) GetCenterNode() m3space.NodeEventIfc {
 func (evt *EventCl) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space.NodeEventIfc, error) {
 	uri := "event-nodes"
 	reqMsg := &m3api.FindNodeEventsMsg{
-		EventId:              int32(evt.id),
-		SpaceId:              int32(evt.space.id),
-		AtTime:               int32(currentTime),
+		EventId: int32(evt.id),
+		SpaceId: int32(evt.space.id),
+		AtTime:  int32(currentTime),
 	}
 	resMsg := new(m3api.NodeEventListMsg)
 	env := evt.space.SpaceData.Env
@@ -422,24 +437,25 @@ func (evt *EventCl) GetActiveNodesAt(currentTime m3space.DistAndTime) ([]m3space
 /***************************************************************/
 
 func (en *EventNodeCl) String() string {
-	return fmt.Sprintf("EvtNode%02d:Evt%02d:P=%v:T=%d:%d", en.id, en.Event.id,
-		en.point, en.creationTime, en.d)
+	return fmt.Sprintf("EvtNode%02d:Evt%02d:%s:T=%d:%d", en.id, en.Event.id,
+		en.pathPoint.String(), en.creationTime, en.d)
 }
 
-func (en *EventNodeCl) GetId() int64 {
+
+func (en *EventNodeCl) GetId() m3space.NodeEventId {
 	return en.id
+}
+
+func (en *EventNodeCl) GetPointId() m3path.PointId {
+	return en.pathPoint.Id
+}
+
+func (en *EventNodeCl) GetPathNodeId() m3path.PathNodeId {
+	return en.pathNodeId
 }
 
 func (en *EventNodeCl) GetEventId() m3space.EventId {
 	return en.Event.GetId()
-}
-
-func (en *EventNodeCl) GetPointId() int64 {
-	panic("There is no point id on client side")
-}
-
-func (en *EventNodeCl) GetPathNodeId() int64 {
-	return en.pathNodeId
 }
 
 func (en *EventNodeCl) GetCreationTime() m3space.DistAndTime {
@@ -455,7 +471,7 @@ func (en *EventNodeCl) GetColor() m3space.EventColor {
 }
 
 func (en *EventNodeCl) GetPoint() (*m3point.Point, error) {
-	return &en.point, nil
+	return &en.pathPoint.P, nil
 }
 
 func (en *EventNodeCl) GetPathNode() (m3path.PathNode, error) {

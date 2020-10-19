@@ -3,22 +3,23 @@ package spacedb
 import (
 	"fmt"
 	"github.com/freddy33/qsm-go/m3util"
+	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 )
 
 type SpaceTimeNode struct {
 	spaceTime *SpaceTime
-	pointId   int64
+	pathPoint m3path.PathPoint
 	head      *NodeEventList
 }
 
 type NodeEventList struct {
-	cur  *EventNodeDb
+	cur  *NodeEventDb
 	next *NodeEventList
 }
 
-func (nel *NodeEventList) Add(en *EventNodeDb) {
+func (nel *NodeEventList) Add(en *NodeEventDb) {
 	if nel.cur == nil {
 		nel.cur = en
 	} else if nel.next == nil {
@@ -38,10 +39,6 @@ func (nel *NodeEventList) Size() int {
 	return 1 + nel.next.Size()
 }
 
-func countOnes(m uint8) uint8 {
-	return ((m >> 7) & 1) + ((m >> 6) & 1) + ((m >> 5) & 1) + ((m >> 4) & 1) + ((m >> 3) & 1) + ((m >> 2) & 1) + ((m >> 1) & 1) + (m & 1)
-}
-
 /***************************************************************/
 // SpaceTimeNode Functions
 /***************************************************************/
@@ -50,8 +47,8 @@ func (stn *SpaceTimeNode) GetSpaceTime() m3space.SpaceTimeIfc {
 	return stn.spaceTime
 }
 
-func (stn *SpaceTimeNode) GetPointId() int64 {
-	return stn.pointId
+func (stn *SpaceTimeNode) GetPointId() m3path.PointId {
+	return stn.pathPoint.Id
 }
 
 func (stn *SpaceTimeNode) GetNbEventNodes() int {
@@ -72,7 +69,7 @@ func (stn *SpaceTimeNode) GetEventNodes() []m3space.NodeEventIfc {
 }
 
 func (stn *SpaceTimeNode) String() string {
-	return fmt.Sprintf("Node-%d-%d", stn.pointId, stn.GetNbEventNodes())
+	return fmt.Sprintf("Node-%s-%d", stn.pathPoint.String(), stn.GetNbEventNodes())
 }
 
 func (stn *SpaceTimeNode) GetEventIds() []m3space.EventId {
@@ -87,7 +84,7 @@ func (stn *SpaceTimeNode) GetEventIds() []m3space.EventId {
 	return res
 }
 
-func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64)) {
+func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId m3point.Int64Id)) {
 	pointData := stn.spaceTime.space.pointData
 	nel := stn.head
 	for nel != nil {
@@ -106,7 +103,7 @@ func (stn *SpaceTimeNode) VisitConnections(visitConn func(evtNode *EventNodeDb, 
 func (stn *SpaceTimeNode) GetPoint() (*m3point.Point, error) {
 	if stn.IsEmpty() {
 		return nil, m3util.MakeQsmErrorf("cannot get point id %d since not event node set here at time=%d",
-			stn.pointId, stn.spaceTime.GetCurrentTime())
+			stn.pathPoint.Id, stn.spaceTime.GetCurrentTime())
 	}
 	return stn.head.cur.GetPoint()
 }
@@ -155,7 +152,7 @@ func (stn *SpaceTimeNode) HasRoot() bool {
 }
 
 func (stn *SpaceTimeNode) HowManyColors() uint8 {
-	return countOnes(stn.GetColorMask())
+	return m3util.CountTheOnes(stn.GetColorMask())
 }
 
 func (stn *SpaceTimeNode) GetColorMask() uint8 {
@@ -189,14 +186,14 @@ func (stn *SpaceTimeNode) GetStateString() string {
 	p, err := stn.GetPoint()
 	if err != nil {
 		Log.Error(err)
-		return fmt.Sprintf("%s %d:FAIL:%v", name, stn.pointId, evtIds)
+		return fmt.Sprintf("%s %s:FAIL:%v", name, stn.pathPoint.String(), evtIds)
 	}
-	return fmt.Sprintf("%s %d:%v:%v", name, stn.pointId, *p, evtIds)
+	return fmt.Sprintf("%s %s:%v:%v", name, stn.pathPoint.String(), *p, evtIds)
 }
 
 func (stn *SpaceTimeNode) GetConnections() []m3point.ConnectionId {
 	res := make([]m3point.ConnectionId, 0, 5)
-	stn.VisitConnections(func(evtNode *EventNodeDb, connId m3point.ConnectionId, linkId int64) {
+	stn.VisitConnections(func(evtNode *NodeEventDb, connId m3point.ConnectionId, linkId m3point.Int64Id) {
 		for _, cId := range res {
 			if cId == connId {
 				return
