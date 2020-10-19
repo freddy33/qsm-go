@@ -52,13 +52,17 @@ func Play() {
 	// ******************************************************************
 	max := m3space.MinMaxCoord
 	env := client.GetInitializedApiEnv(m3util.GetDefaultEnvId())
-	world = m3gl.MakeWorld(env, max, glfw.GetTime())
-	_, err = world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
-	if err != nil {
-		Log.Fatal(err)
-		return
+	world = m3gl.MakeWorld(env, "ui", max, glfw.GetTime())
+	events := world.WorldSpace.GetActiveEventsAt(m3space.ZeroDistAndTime)
+	if len(events) == 0 {
+		_, err = world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
+		if err != nil {
+			Log.Fatal(err)
+			return
+		}
 	}
-	world.CurrentSpaceTime = world.WorldSpace.GetSpaceTimeAt(m3space.DistAndTime(0))
+	world.CurrentTime = m3space.ZeroDistAndTime
+	world.CurrentSpaceTime = nil
 	world.CreateDrawingElements()
 
 	// Configure the vertex and fragment shaders
