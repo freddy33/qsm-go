@@ -175,8 +175,9 @@ func createNodeEventMsg(node m3space.NodeEventIfc) (*m3api.NodeEventMsg, error) 
 	pathNodeDb := pathNode.(*pathdb.PathNodeDb)
 
 	return &m3api.NodeEventMsg{
-		EventNodeId:    int64(node.GetId()),
+		NodeEventId:    int64(node.GetId()),
 		EventId:        int32(node.GetEventId()),
+		PointId:        int64(node.GetPointId()),
 		Point:          m3api.PointToPointMsg(*point),
 		CreationTime:   int32(node.GetCreationTime()),
 		D:              int32(node.GetD()),

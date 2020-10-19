@@ -255,8 +255,8 @@ proto.m3api.PathContextRequestMsg.deserializeBinaryFromReader = function (msg, r
                 reader.skipField();
                 break;
         }
-  }
-  return msg;
+    }
+    return msg;
 };
 
 
@@ -289,17 +289,17 @@ proto.m3api.PathContextRequestMsg.serializeBinaryToWriter = function (message, w
     }
     f = message.getGrowthIndex();
     if (f !== 0) {
-    writer.writeInt32(
-        2,
-        f
-    );
-  }
-  f = message.getGrowthOffset();
-  if (f !== 0) {
-    writer.writeInt32(
-        3,
-        f
-    );
+        writer.writeInt32(
+            2,
+            f
+        );
+    }
+    f = message.getGrowthOffset();
+    if (f !== 0) {
+        writer.writeInt32(
+            3,
+            f
+        );
   }
 };
 
@@ -432,8 +432,8 @@ proto.m3api.PathContextIdMsg.deserializeBinaryFromReader = function (msg, reader
                 reader.skipField();
                 break;
         }
-  }
-  return msg;
+    }
+    return msg;
 };
 
 
@@ -552,10 +552,10 @@ proto.m3api.PathContextMsg.deserializeBinary = function(bytes) {
  */
 proto.m3api.PathContextMsg.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
+      if (reader.isEndGroup()) {
+          break;
+      }
+      var field = reader.getFieldNumber();
       switch (field) {
           case 1:
               var value = /** @type {number} */ (reader.readInt32());
@@ -899,8 +899,8 @@ proto.m3api.PathContextListMsg.deserializeBinaryFromReader = function (msg, read
                 reader.skipField();
                 break;
         }
-  }
-  return msg;
+    }
+    return msg;
 };
 
 
@@ -1049,10 +1049,10 @@ proto.m3api.PathNodeMsg.deserializeBinary = function(bytes) {
  */
 proto.m3api.PathNodeMsg.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
-    if (reader.isEndGroup()) {
-      break;
-    }
-    var field = reader.getFieldNumber();
+      if (reader.isEndGroup()) {
+          break;
+      }
+      var field = reader.getFieldNumber();
       switch (field) {
           case 1:
               var value = /** @type {number} */ (reader.readInt64());
@@ -1384,8 +1384,8 @@ proto.m3api.PathNodesRequestMsg.deserializeBinaryFromReader = function (msg, rea
                 reader.skipField();
                 break;
         }
-  }
-  return msg;
+    }
+    return msg;
 };
 
 
@@ -1418,17 +1418,17 @@ proto.m3api.PathNodesRequestMsg.serializeBinaryToWriter = function (message, wri
     }
     f = message.getDist();
     if (f !== 0) {
-    writer.writeInt32(
-        2,
-        f
-    );
-  }
-  f = message.getToDist();
-  if (f !== 0) {
-    writer.writeInt32(
-        3,
-        f
-    );
+        writer.writeInt32(
+            2,
+            f
+        );
+    }
+    f = message.getToDist();
+    if (f !== 0) {
+        writer.writeInt32(
+            3,
+            f
+        );
   }
 };
 
@@ -1598,8 +1598,8 @@ proto.m3api.PathNodesResponseMsg.deserializeBinaryFromReader = function (msg, re
                 reader.skipField();
                 break;
         }
-  }
-  return msg;
+    }
+    return msg;
 };
 
 
@@ -1632,17 +1632,17 @@ proto.m3api.PathNodesResponseMsg.serializeBinaryToWriter = function (message, wr
     }
     f = message.getDist();
     if (f !== 0) {
-    writer.writeInt32(
-        2,
-        f
-    );
-  }
-  f = message.getToDist();
-  if (f !== 0) {
-    writer.writeInt32(
-        4,
-        f
-    );
+        writer.writeInt32(
+            2,
+            f
+        );
+    }
+    f = message.getToDist();
+    if (f !== 0) {
+        writer.writeInt32(
+            4,
+            f
+        );
   }
   f = message.getMaxDist();
   if (f !== 0) {

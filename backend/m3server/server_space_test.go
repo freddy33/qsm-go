@@ -47,6 +47,14 @@ func TestSpaceNextTime(t *testing.T) {
 		return
 	}
 
+	if !callGetSpaceTime(t, spaceId, router, 0, 1) ||
+		!callGetSpaceTime(t, spaceId, router, 1, 4) ||
+		!callGetSpaceTime(t, spaceId, router, 2, 7) ||
+		!callGetSpaceTime(t, spaceId, router, 3, 13) {
+		// Do not return let delete space run
+		assert.Fail(t, "something wrong with call space time")
+	}
+
 	if !callDeleteSpace(t, router, spaceId, spaceName) {
 		return
 	}
@@ -165,8 +173,10 @@ func callCreateEvent(t *testing.T, qsmApp *QsmApp, spaceId int,
 
 func callGetSpaceTime(t *testing.T, spaceId int, router *mux.Router, time int, activeNodes int) bool {
 	reqMsg := &m3api.SpaceTimeRequestMsg{
-		SpaceId:     int32(spaceId),
-		CurrentTime: int32(time),
+		SpaceId:           int32(spaceId),
+		CurrentTime:       int32(time),
+		MinNbEventsFilter: 0,
+		ColorMaskFilter:   0xffffffff,
 	}
 	spaceTimeResponse := &m3api.SpaceTimeResponseMsg{}
 	if !sendAndReceive(t, &requestTest{

@@ -130,7 +130,7 @@ func (env *QsmApiEnvironment) initializePathData() {
 	if ppdIfc == nil {
 		pathData = new(ClientPathPackData)
 		pathData.env = env
-		pathData.pathCtxMap = make(map[int]*PathContextCl)
+		pathData.pathCtxMap = m3point.MakeNonBlockConcurrentMap(25)
 		env.SetData(m3util.PathIdx, pathData)
 	} else {
 		pathData = ppdIfc.(*ClientPathPackData)
@@ -228,10 +228,10 @@ func (pathData *ClientPathPackData) GetEnvId() m3util.QsmEnvID {
 	return pathData.env.GetId()
 }
 
-func (pathData *ClientPathPackData) GetPathCtx(id int) m3path.PathContext {
-	pathCtx, ok := pathData.pathCtxMap[id]
+func (pathData *ClientPathPackData) GetPathCtx(id m3path.PathContextId) m3path.PathContext {
+	pathCtx, ok := pathData.pathCtxMap.Load(id)
 	if ok {
-		return pathCtx
+		return (*PathContextCl)(pathCtx)
 	}
 
 	uri := "path-context"

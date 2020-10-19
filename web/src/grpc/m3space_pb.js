@@ -1154,13 +1154,12 @@ proto.m3api.CreateEventRequestMsg.prototype.setColor = function (value) {
 };
 
 
-
 /**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
-proto.m3api.NodeEventMsg.repeatedFields_ = [9];
+proto.m3api.NodeEventMsg.repeatedFields_ = [10];
 
 
 
@@ -1193,15 +1192,16 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
      */
     proto.m3api.NodeEventMsg.toObject = function (includeInstance, msg) {
         var f, obj = {
-            eventNodeId: jspb.Message.getFieldWithDefault(msg, 1, 0),
+            nodeEventId: jspb.Message.getFieldWithDefault(msg, 1, 0),
             eventId: jspb.Message.getFieldWithDefault(msg, 2, 0),
+            pointId: jspb.Message.getFieldWithDefault(msg, 3, 0),
             point: (f = msg.getPoint()) && m3point_pb.PointMsg.toObject(includeInstance, f),
-            creationTime: jspb.Message.getFieldWithDefault(msg, 4, 0),
-            d: jspb.Message.getFieldWithDefault(msg, 5, 0),
-            trioId: jspb.Message.getFieldWithDefault(msg, 6, 0),
-            connectionMask: jspb.Message.getFieldWithDefault(msg, 7, 0),
-            pathNodeId: jspb.Message.getFieldWithDefault(msg, 8, 0),
-            linkedNodeIdsList: (f = jspb.Message.getRepeatedField(msg, 9)) == null ? undefined : f
+            creationTime: jspb.Message.getFieldWithDefault(msg, 5, 0),
+            d: jspb.Message.getFieldWithDefault(msg, 6, 0),
+            trioId: jspb.Message.getFieldWithDefault(msg, 7, 0),
+            connectionMask: jspb.Message.getFieldWithDefault(msg, 8, 0),
+            pathNodeId: jspb.Message.getFieldWithDefault(msg, 9, 0),
+            linkedNodeIdsList: (f = jspb.Message.getRepeatedField(msg, 10)) == null ? undefined : f
         };
 
         if (includeInstance) {
@@ -1240,38 +1240,42 @@ proto.m3api.NodeEventMsg.deserializeBinaryFromReader = function (msg, reader) {
         switch (field) {
             case 1:
                 var value = /** @type {number} */ (reader.readInt64());
-                msg.setEventNodeId(value);
+                msg.setNodeEventId(value);
                 break;
             case 2:
                 var value = /** @type {number} */ (reader.readInt32());
                 msg.setEventId(value);
                 break;
             case 3:
+                var value = /** @type {number} */ (reader.readInt64());
+                msg.setPointId(value);
+                break;
+            case 4:
                 var value = new m3point_pb.PointMsg;
                 reader.readMessage(value, m3point_pb.PointMsg.deserializeBinaryFromReader);
                 msg.setPoint(value);
                 break;
-            case 4:
+            case 5:
                 var value = /** @type {number} */ (reader.readInt32());
                 msg.setCreationTime(value);
                 break;
-            case 5:
+            case 6:
                 var value = /** @type {number} */ (reader.readInt32());
                 msg.setD(value);
                 break;
-            case 6:
+            case 7:
                 var value = /** @type {number} */ (reader.readInt32());
                 msg.setTrioId(value);
                 break;
-            case 7:
+            case 8:
                 var value = /** @type {number} */ (reader.readUint32());
                 msg.setConnectionMask(value);
                 break;
-            case 8:
+            case 9:
                 var value = /** @type {number} */ (reader.readInt64());
                 msg.setPathNodeId(value);
                 break;
-            case 9:
+            case 10:
                 var value = /** @type {!Array<number>} */ (reader.readPackedInt64());
                 msg.setLinkedNodeIdsList(value);
                 break;
@@ -1304,7 +1308,7 @@ proto.m3api.NodeEventMsg.prototype.serializeBinary = function () {
  */
 proto.m3api.NodeEventMsg.serializeBinaryToWriter = function (message, writer) {
     var f = undefined;
-    f = message.getEventNodeId();
+    f = message.getNodeEventId();
     if (f !== 0) {
         writer.writeInt64(
             1,
@@ -1318,10 +1322,17 @@ proto.m3api.NodeEventMsg.serializeBinaryToWriter = function (message, writer) {
             f
         );
     }
+    f = message.getPointId();
+    if (f !== 0) {
+        writer.writeInt64(
+            3,
+            f
+        );
+    }
     f = message.getPoint();
     if (f != null) {
         writer.writeMessage(
-            3,
+            4,
             f,
             m3point_pb.PointMsg.serializeBinaryToWriter
         );
@@ -1329,42 +1340,42 @@ proto.m3api.NodeEventMsg.serializeBinaryToWriter = function (message, writer) {
     f = message.getCreationTime();
     if (f !== 0) {
         writer.writeInt32(
-            4,
+            5,
             f
         );
     }
     f = message.getD();
     if (f !== 0) {
         writer.writeInt32(
-            5,
+            6,
             f
         );
     }
     f = message.getTrioId();
     if (f !== 0) {
         writer.writeInt32(
-            6,
+            7,
             f
         );
     }
     f = message.getConnectionMask();
     if (f !== 0) {
         writer.writeUint32(
-            7,
+            8,
             f
         );
     }
     f = message.getPathNodeId();
     if (f !== 0) {
         writer.writeInt64(
-            8,
+            9,
             f
         );
     }
     f = message.getLinkedNodeIdsList();
     if (f.length > 0) {
         writer.writePackedInt64(
-            9,
+            10,
             f
         );
     }
@@ -1372,10 +1383,10 @@ proto.m3api.NodeEventMsg.serializeBinaryToWriter = function (message, writer) {
 
 
 /**
- * optional int64 event_node_id = 1;
+ * optional int64 node_event_id = 1;
  * @return {number}
  */
-proto.m3api.NodeEventMsg.prototype.getEventNodeId = function () {
+proto.m3api.NodeEventMsg.prototype.getNodeEventId = function () {
     return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
@@ -1384,7 +1395,7 @@ proto.m3api.NodeEventMsg.prototype.getEventNodeId = function () {
  * @param {number} value
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
-proto.m3api.NodeEventMsg.prototype.setEventNodeId = function (value) {
+proto.m3api.NodeEventMsg.prototype.setNodeEventId = function (value) {
     return jspb.Message.setProto3IntField(this, 1, value);
 };
 
@@ -1408,12 +1419,30 @@ proto.m3api.NodeEventMsg.prototype.setEventId = function (value) {
 
 
 /**
- * optional PointMsg point = 3;
+ * optional int64 point_id = 3;
+ * @return {number}
+ */
+proto.m3api.NodeEventMsg.prototype.getPointId = function () {
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 3, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.m3api.NodeEventMsg} returns this
+ */
+proto.m3api.NodeEventMsg.prototype.setPointId = function (value) {
+    return jspb.Message.setProto3IntField(this, 3, value);
+};
+
+
+/**
+ * optional PointMsg point = 4;
  * @return {?proto.m3api.PointMsg}
  */
 proto.m3api.NodeEventMsg.prototype.getPoint = function () {
     return /** @type{?proto.m3api.PointMsg} */ (
-        jspb.Message.getWrapperField(this, m3point_pb.PointMsg, 3));
+        jspb.Message.getWrapperField(this, m3point_pb.PointMsg, 4));
 };
 
 
@@ -1422,7 +1451,7 @@ proto.m3api.NodeEventMsg.prototype.getPoint = function () {
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
 proto.m3api.NodeEventMsg.prototype.setPoint = function (value) {
-    return jspb.Message.setWrapperField(this, 3, value);
+    return jspb.Message.setWrapperField(this, 4, value);
 };
 
 
@@ -1440,33 +1469,15 @@ proto.m3api.NodeEventMsg.prototype.clearPoint = function () {
  * @return {boolean}
  */
 proto.m3api.NodeEventMsg.prototype.hasPoint = function () {
-    return jspb.Message.getField(this, 3) != null;
+    return jspb.Message.getField(this, 4) != null;
 };
 
 
 /**
- * optional int32 creation_time = 4;
+ * optional int32 creation_time = 5;
  * @return {number}
  */
 proto.m3api.NodeEventMsg.prototype.getCreationTime = function () {
-    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 4, 0));
-};
-
-
-/**
- * @param {number} value
- * @return {!proto.m3api.NodeEventMsg} returns this
- */
-proto.m3api.NodeEventMsg.prototype.setCreationTime = function (value) {
-    return jspb.Message.setProto3IntField(this, 4, value);
-};
-
-
-/**
- * optional int32 d = 5;
- * @return {number}
- */
-proto.m3api.NodeEventMsg.prototype.getD = function () {
     return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
 };
 
@@ -1475,16 +1486,16 @@ proto.m3api.NodeEventMsg.prototype.getD = function () {
  * @param {number} value
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
-proto.m3api.NodeEventMsg.prototype.setD = function (value) {
+proto.m3api.NodeEventMsg.prototype.setCreationTime = function (value) {
     return jspb.Message.setProto3IntField(this, 5, value);
 };
 
 
 /**
- * optional int32 trio_id = 6;
+ * optional int32 d = 6;
  * @return {number}
  */
-proto.m3api.NodeEventMsg.prototype.getTrioId = function () {
+proto.m3api.NodeEventMsg.prototype.getD = function () {
     return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
 };
 
@@ -1493,16 +1504,16 @@ proto.m3api.NodeEventMsg.prototype.getTrioId = function () {
  * @param {number} value
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
-proto.m3api.NodeEventMsg.prototype.setTrioId = function (value) {
+proto.m3api.NodeEventMsg.prototype.setD = function (value) {
     return jspb.Message.setProto3IntField(this, 6, value);
 };
 
 
 /**
- * optional uint32 connection_mask = 7;
+ * optional int32 trio_id = 7;
  * @return {number}
  */
-proto.m3api.NodeEventMsg.prototype.getConnectionMask = function () {
+proto.m3api.NodeEventMsg.prototype.getTrioId = function () {
     return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
 };
 
@@ -1511,16 +1522,16 @@ proto.m3api.NodeEventMsg.prototype.getConnectionMask = function () {
  * @param {number} value
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
-proto.m3api.NodeEventMsg.prototype.setConnectionMask = function (value) {
+proto.m3api.NodeEventMsg.prototype.setTrioId = function (value) {
     return jspb.Message.setProto3IntField(this, 7, value);
 };
 
 
 /**
- * optional int64 path_node_id = 8;
+ * optional uint32 connection_mask = 8;
  * @return {number}
  */
-proto.m3api.NodeEventMsg.prototype.getPathNodeId = function () {
+proto.m3api.NodeEventMsg.prototype.getConnectionMask = function () {
     return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 8, 0));
 };
 
@@ -1529,17 +1540,35 @@ proto.m3api.NodeEventMsg.prototype.getPathNodeId = function () {
  * @param {number} value
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
-proto.m3api.NodeEventMsg.prototype.setPathNodeId = function (value) {
+proto.m3api.NodeEventMsg.prototype.setConnectionMask = function (value) {
     return jspb.Message.setProto3IntField(this, 8, value);
 };
 
 
 /**
- * repeated int64 linked_node_ids = 9;
+ * optional int64 path_node_id = 9;
+ * @return {number}
+ */
+proto.m3api.NodeEventMsg.prototype.getPathNodeId = function () {
+    return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 9, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.m3api.NodeEventMsg} returns this
+ */
+proto.m3api.NodeEventMsg.prototype.setPathNodeId = function (value) {
+    return jspb.Message.setProto3IntField(this, 9, value);
+};
+
+
+/**
+ * repeated int64 linked_node_ids = 10;
  * @return {!Array<number>}
  */
 proto.m3api.NodeEventMsg.prototype.getLinkedNodeIdsList = function () {
-    return /** @type {!Array<number>} */ (jspb.Message.getRepeatedField(this, 9));
+    return /** @type {!Array<number>} */ (jspb.Message.getRepeatedField(this, 10));
 };
 
 
@@ -1548,7 +1577,7 @@ proto.m3api.NodeEventMsg.prototype.getLinkedNodeIdsList = function () {
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
 proto.m3api.NodeEventMsg.prototype.setLinkedNodeIdsList = function (value) {
-    return jspb.Message.setField(this, 9, value || []);
+    return jspb.Message.setField(this, 10, value || []);
 };
 
 
@@ -1558,7 +1587,7 @@ proto.m3api.NodeEventMsg.prototype.setLinkedNodeIdsList = function (value) {
  * @return {!proto.m3api.NodeEventMsg} returns this
  */
 proto.m3api.NodeEventMsg.prototype.addLinkedNodeIds = function (value, opt_index) {
-    return jspb.Message.addToRepeatedField(this, 9, value, opt_index);
+    return jspb.Message.addToRepeatedField(this, 10, value, opt_index);
 };
 
 
@@ -3202,12 +3231,14 @@ proto.m3api.SpaceTimeResponseMsg.prototype.clearFilteredNodesList = function () 
 };
 
 
+
 /**
  * List of repeated fields within this message type.
  * @private {!Array<number>}
  * @const
  */
 proto.m3api.SpaceTimeNodeMsg.repeatedFields_ = [3];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {

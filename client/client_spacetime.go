@@ -22,8 +22,7 @@ type SpaceTimeCl struct {
 
 type SpaceTimeNodeCl struct {
 	spaceTime *SpaceTimeCl
-	pointId   int64
-	point     m3point.Point
+	pathPoint m3path.PathPoint
 
 	hasRoot   bool
 	colorMask uint8
@@ -166,8 +165,7 @@ func (st *SpaceTimeCl) GetDisplayState() string {
 func (st *SpaceTimeCl) createStNodeFromMsg(pointData *ClientPointPackData, nodeMsg *m3api.SpaceTimeNodeMsg) *SpaceTimeNodeCl {
 	res := &SpaceTimeNodeCl{
 		spaceTime:  st,
-		pointId:    nodeMsg.PointId,
-		point:      m3api.PointMsgToPoint(nodeMsg.Point),
+		pathPoint:  m3api.MsgToPathPoint(nodeMsg),
 		hasRoot:    nodeMsg.HasRoot,
 		colorMask:  uint8(nodeMsg.ColorMask),
 		nodeEvents: make([]*SpaceTimeNodeEventCl, len(nodeMsg.Nodes)),
@@ -192,12 +190,12 @@ func (stn *SpaceTimeNodeCl) GetSpaceTime() m3space.SpaceTimeIfc {
 	return stn.spaceTime
 }
 
-func (stn *SpaceTimeNodeCl) GetPointId() int64 {
-	return stn.pointId
+func (stn *SpaceTimeNodeCl) GetPointId() m3path.PointId {
+	return stn.pathPoint.Id
 }
 
 func (stn *SpaceTimeNodeCl) GetPoint() (*m3point.Point, error) {
-	return &stn.point, nil
+	return &stn.pathPoint.P, nil
 }
 
 func (stn *SpaceTimeNodeCl) IsEmpty() bool {

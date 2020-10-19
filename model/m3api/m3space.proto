@@ -30,15 +30,16 @@ message CreateEventRequestMsg {
 }
 
 message NodeEventMsg {
-    int64 event_node_id = 1;
+    int64 node_event_id = 1;
     int32 event_id = 2;
-    PointMsg point = 3;
-    int32 creation_time = 4;
-    int32 d = 5;
-    int32 trio_id = 6;
-    uint32 connection_mask = 7;
-    int64 path_node_id = 8;
-    repeated int64 linked_node_ids = 9;
+    int64 point_id = 3;
+    PointMsg point = 4;
+    int32 creation_time = 5;
+    int32 d = 6;
+    int32 trio_id = 7;
+    uint32 connection_mask = 8;
+    int64 path_node_id = 9;
+    repeated int64 linked_node_ids = 10;
 }
 
 message FindEventsMsg {
