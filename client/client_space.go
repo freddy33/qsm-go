@@ -200,6 +200,32 @@ func (space *SpaceCl) GetMaxCoord() m3point.CInt {
 	return space.maxCoord
 }
 
+func (space *SpaceCl) SetMaxTime(t m3space.DistAndTime) {
+	space.maxTime = t
+}
+
+func (space *SpaceCl) SetMaxCoord(c m3point.CInt) {
+	space.maxCoord = c
+}
+
+func (space *SpaceCl) UpdateMax() {
+	// TODO: Add a REST API to retrieve space by id
+	uri := "space"
+	pMsg := &m3api.SpaceListMsg{}
+	_, err := space.SpaceData.Env.clConn.ExecReq("GET", uri, nil, pMsg, false)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	for _, sp := range pMsg.Spaces {
+		if int(sp.SpaceId) == space.id {
+			space.maxTime = m3space.DistAndTime(sp.MaxTime)
+			space.maxCoord = m3point.CInt(sp.MaxCoord)
+			break
+		}
+	}
+}
+
 func (space *SpaceCl) GetEvent(id m3space.EventId) m3space.EventIfc {
 	uri := "event"
 	reqMsg := &m3api.FindEventsMsg{
