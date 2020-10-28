@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import _ from 'lodash';
 import Select from 'react-select';
@@ -13,11 +12,14 @@ const growthOffsetOptions = [...Array(12).keys()].map((v) => ({ value: v, label:
 
 const App = () => {
   const mount = useRef(null);
+  const control = useRef(null);
 
+  const [rotating, setRotating] = useState(true);
+  const [group, setGroup] = useState();
   const [scene, setScene] = useState();
   const [camera, setCamera] = useState();
   const [renderer, setRenderer] = useState();
-  const [pointPackDataMsg, setPointPackDataMsg] = useState();
+  // const [pointPackDataMsg, setPointPackDataMsg] = useState();
   const [growthTypeOption, setGrowthTypeOption] = useState(_.last(growthTypeOptions));
   const [growthIndexOption, setGrowthIndexOption] = useState(_.first(growthIndexOptions));
   const [growthOffsetOption, setGrowthOffsetOption] = useState(_.first(growthOffsetOptions));
@@ -26,11 +28,11 @@ const App = () => {
   const [drawingRoots, setDrawingRoots] = useState([]);
   const [getPathNodesRequest, setGetPathNodeRequest] = useState({ fromDist: 0, toDist: 0 });
 
-  const fetchPointPackDataMsg = () => {
-    Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
-      setPointPackDataMsg(pointPackDataMsg);
-    });
-  };
+  // const fetchPointPackDataMsg = () => {
+  //   Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
+  //     setPointPackDataMsg(pointPackDataMsg);
+  //   });
+  // };
 
   const createPathContext = async () => {
     const resp = await Service.createPathContext(
@@ -41,7 +43,7 @@ const App = () => {
 
     const point = _.get(resp, 'root_path_node.point');
     if (!point) return;
-    Renderer.addPoint(scene, point);
+    Renderer.addPoint(group, point);
 
     const pathContextId = _.get(resp, 'path_ctx_id');
     setCurrentPathContextId(pathContextId);
@@ -100,16 +102,15 @@ const App = () => {
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
-    fetchPointPackDataMsg();
+    // fetchPointPackDataMsg();
 
     const { clientWidth: width, clientHeight: height } = mount.current;
 
-    const { scene, camera, renderer } = Renderer.init(width, height);
+    const { group, scene, camera, renderer } = Renderer.init(width, height);
+    setGroup(group);
     setScene(scene);
     setCamera(camera);
     setRenderer(renderer);
-
-    mount.current.appendChild(renderer.domElement);
 
     const handleResize = () => {
       const { clientWidth: width, clientHeight: height } = mount.current;
@@ -119,41 +120,40 @@ const App = () => {
       renderer.render(scene, camera);
     };
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-
+    new OrbitControls(camera, renderer.domElement);
+    mount.current.appendChild(renderer.domElement);
     window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   useEffect(() => {
-    if (!renderer) return;
+    if (!(group && drawingRoots)) return;
 
-    const { clientWidth: width, clientHeight: height } = mount.current;
-
-    const { scene, camera, renderer: newRenderer } = Renderer.init(width, height);
-    setScene(scene);
-    setCamera(camera);
-    setRenderer(newRenderer);
-
-    mount.current.replaceChild(newRenderer.domElement, renderer.domElement);
-    const controls = new OrbitControls(camera, newRenderer.domElement);
-
-    Renderer.drawRoots(scene, drawingRoots);
-  }, [drawingRoots]);
+    Renderer.drawRoots(group, drawingRoots);
+  }, [group, drawingRoots]);
 
   // called for every button clicks to update how the UI should render
   useEffect(() => {
-    if (!(scene && camera && renderer)) return;
+    if (!(scene && camera && renderer && group)) return;
 
-    const cameraPivot = Renderer.addCameraPivot(scene, camera);
+    const frameId = _.get(control, 'current.frameId');
+    if (frameId) {
+      cancelAnimationFrame(frameId);
+    }
+
     const animate = () => {
-      // cameraPivot.rotateOnAxis(new THREE.Vector3(0, 1, 0), 0.01);
-
-      requestAnimationFrame(animate);
+      if (rotating) {
+        group.rotation.y += 0.005;
+      }
+      control.current = { frameId: requestAnimationFrame(animate) };
       renderer.render(scene, camera);
     };
 
     animate();
-  }, [scene, camera, renderer]);
+  }, [scene, camera, renderer, group, rotating]);
 
   return (
     <div className="main">
@@ -212,6 +212,11 @@ const App = () => {
             <button disabled={!currentPathContextId} onClick={() => getPathNodes()}>
               Get Path Nodes (Redraw)
             </button>
+          </div>
+
+          <hr />
+          <div>
+            <button onClick={() => setRotating(!rotating)}>Rotate: {`${rotating}`}</button>
           </div>
         </div>
       </div>

@@ -83,6 +83,8 @@ const initEnv = async () => {
       'Content-Type': 'application/json',
     },
   });
+
+  return resp;
 };
 
 const createPathContext = async (growthType, growthIndex, growthOffset) => {
