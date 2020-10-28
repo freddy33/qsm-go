@@ -6,20 +6,23 @@ const init = (width, height) => {
   camera.position.set(45, 90, 100);
   camera.lookAt(0, 0, 0);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: false });
   renderer.setSize(width, height);
 
   const scene = new THREE.Scene();
-  addAxes(scene);
+  const group = new THREE.Group();
+  addAxes(group);
+  scene.add(group)
 
   return {
+    group,
     scene,
     camera,
     renderer,
   };
 };
 
-const addLine = (scene, from, to, color = 0xffff00) => {
+const addLine = (group, from, to, color = 0xffff00) => {
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(from.x, from.y, from.z),
@@ -28,32 +31,32 @@ const addLine = (scene, from, to, color = 0xffff00) => {
     new THREE.LineBasicMaterial({ color })
   );
 
-  scene.add(line);
+  group.add(line);
 };
 
-const addAxes = (scene) => {
-  addLine(scene, { x: -70, y: 0, z: 0 }, { x: 70, y: 0, z: 0 }, 0xff0000);
-  addLine(scene, { x: 0, y: -70, z: 0 }, { x: 0, y: 70, z: 0 }, 0x00ff00);
-  addLine(scene, { x: 0, y: 0, z: -70 }, { x: 0, y: 0, z: 70 }, 0x0000ff);
+const addAxes = (group) => {
+  addLine(group, { x: -70, y: 0, z: 0 }, { x: 70, y: 0, z: 0 }, 0xff0000);
+  addLine(group, { x: 0, y: -70, z: 0 }, { x: 0, y: 70, z: 0 }, 0x00ff00);
+  addLine(group, { x: 0, y: 0, z: -70 }, { x: 0, y: 0, z: 70 }, 0x0000ff);
 };
 
-const addPoint = (scene, pos) => {
+const addPoint = (group, pos) => {
   const geometry = new THREE.SphereGeometry(0.5, 32, 32);
   const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
   const sphere = new THREE.Mesh(geometry, material);
   sphere.position.set(pos.x, pos.y, pos.z);
-  scene.add(sphere);
+  group.add(sphere);
 };
 
-const connectPoints = (scene, from, to, color) => {
-  addLine(scene, from, to);
-  addPoint(scene, to);
+const connectPoints = (group, from, to, color) => {
+  addLine(group, from, to);
+  addPoint(group, to);
 };
 
-const addCameraPivot = (scene, camera) => {
+const addCameraPivot = (group, camera) => {
   const cameraPivot = new THREE.Object3D();
 
-  scene.add(cameraPivot);
+  group.add(cameraPivot);
   cameraPivot.add(camera);
   camera.position.set(65, 90, 100);
   camera.lookAt(cameraPivot.position);
@@ -61,20 +64,20 @@ const addCameraPivot = (scene, camera) => {
   return cameraPivot;
 };
 
-const drawRoots = (scene, roots) => {
+const drawRoots = (group, roots) => {
   console.time('drawRoots');
   if (!_.isArray(roots)) {
     return;
   }
 
   roots.forEach((root) => {
-    drawRoot(scene, root);
+    drawRoot(group, root);
   });
 
   console.timeEnd('drawRoots');
 };
 
-const drawRoot = (scene, originalRoot) => {
+const drawRoot = (group, originalRoot) => {
   const root = _.cloneDeep(originalRoot);
   const stack = [];
   let current = root;
@@ -95,11 +98,11 @@ const drawRoot = (scene, originalRoot) => {
       const node = stack.pop();
 
       const point = _.get(node, 'point');
-      addPoint(scene, point);
+      addPoint(group, point);
       const parent = _.last(stack);
       if (parent) {
         const parentPoint = _.get(parent, 'point');
-        addLine(scene, parentPoint, point);
+        addLine(group, parentPoint, point);
       }
 
       current = parent;
