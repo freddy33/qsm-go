@@ -6,10 +6,6 @@ import Select from 'react-select';
 import Service from './service';
 import Renderer from './renderer';
 
-const growthTypeOptions = [1, 2, 3, 4, 8].map((v) => ({ value: v, label: v }));
-const growthIndexOptions = [...Array(12).keys()].map((v) => ({ value: v, label: v }));
-const growthOffsetOptions = [...Array(12).keys()].map((v) => ({ value: v, label: v }));
-
 const App = () => {
   const mount = useRef(null);
   const control = useRef(null);
@@ -19,54 +15,40 @@ const App = () => {
   const [scene, setScene] = useState();
   const [camera, setCamera] = useState();
   const [renderer, setRenderer] = useState();
-  // const [pointPackDataMsg, setPointPackDataMsg] = useState();
-  const [growthTypeOption, setGrowthTypeOption] = useState(_.last(growthTypeOptions));
-  const [growthIndexOption, setGrowthIndexOption] = useState(_.first(growthIndexOptions));
-  const [growthOffsetOption, setGrowthOffsetOption] = useState(_.first(growthOffsetOptions));
-  const [currentPathContextId, setCurrentPathContextId] = useState();
-  const [maxDist, setMaxDist] = useState(0);
-  const [drawingRoots, setDrawingRoots] = useState([]);
-  const [getPathNodesRequest, setGetPathNodeRequest] = useState({ fromDist: 0, toDist: 0 });
+  const [pathContextIdOptions, setPathContextIdOptions] = useState([]);
+  const [currentPathContext, setCurrentPathContext] = useState({});
+  const [fromDist, setFromDist] = useState(0);
+  const [toDist, setToDist] = useState(0);
 
-  // const fetchPointPackDataMsg = () => {
-  //   Service.fetchPointPackDataMsg().then((pointPackDataMsg) => {
-  //     setPointPackDataMsg(pointPackDataMsg);
-  //   });
-  // };
+  const fetchPathContextIds = async () => {
+    const pathContextIds = await Service.getPathContextIds();
 
-  const createPathContext = async () => {
-    const resp = await Service.createPathContext(
-      growthTypeOption.value,
-      growthIndexOption.value,
-      growthOffsetOption.value
-    );
-
-    const point = _.get(resp, 'root_path_node.point');
-    if (!point) return;
-    Renderer.addPoint(group, point);
-
-    const pathContextId = _.get(resp, 'path_ctx_id');
-    setCurrentPathContextId(pathContextId);
-
-    const maxDist = _.get(resp, 'max_dist', 0);
-    setMaxDist(maxDist);
+    const pathContextIdOptions = pathContextIds.map((pathContextId) => {
+      return { value: pathContextId, label: pathContextId };
+    });
+    setPathContextIdOptions(pathContextIdOptions);
   };
 
   const updateMaxDist = async () => {
-    const resp = await Service.updateMaxDist(currentPathContextId, parseInt(maxDist));
+    const { pathContextId, maxDist } = currentPathContext;
+    await Service.updateMaxDist(pathContextId, maxDist + 1);
 
-    const dist = _.get(resp, 'max_dist');
-    if (!dist) {
-      alert(resp);
-    }
-
-    setMaxDist(dist);
+    const pathContext = await Service.getPathContext(pathContextId);
+    setCurrentPathContext(pathContext);
   };
 
   const getPathNodes = async () => {
-    const fromDist = _.get(getPathNodesRequest, 'fromDist', 0);
-    const toDist = _.get(getPathNodesRequest, 'toDist', 0);
-    const resp = await Service.getPathNodes(currentPathContextId, fromDist, toDist);
+    if (fromDist > toDist) {
+      alert('"From" dist cannot be less than "To" dist');
+      return;
+    }
+
+    if (toDist > currentPathContext.maxDist) {
+      alert(`"To" dist needs to be less than ${currentPathContext.maxDist}`);
+      return;
+    }
+
+    const resp = await Service.getPathNodes(currentPathContext.pathContextId, fromDist, toDist);
     const pathNodes = _.get(resp, 'path_nodes', []);
 
     if (!pathNodes) {
@@ -95,14 +77,21 @@ const App = () => {
       nodeMap[pathNodeId] = node;
     });
 
-    const roots = _.filter(nodeMap, { d: fromDist });
+    const nodesToDraw = _.filter(nodeMap, { d: fromDist });
 
-    setDrawingRoots(roots);
+    Renderer.drawRoots(group, nodesToDraw);
+  };
+
+  const onChangePathContextId = async (option) => {
+    const pathContextId = option.value;
+    const pathContext = await Service.getPathContext(pathContextId);
+
+    setCurrentPathContext(pathContext);
   };
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
-    // fetchPointPackDataMsg();
+    fetchPathContextIds();
 
     const { clientWidth: width, clientHeight: height } = mount.current;
 
@@ -129,12 +118,6 @@ const App = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!(group && drawingRoots)) return;
-
-    Renderer.drawRoots(group, drawingRoots);
-  }, [group, drawingRoots]);
-
   // called for every button clicks to update how the UI should render
   useEffect(() => {
     if (!(scene && camera && renderer && group)) return;
@@ -148,7 +131,8 @@ const App = () => {
       if (rotating) {
         group.rotation.y += 0.005;
       }
-      control.current = { frameId: requestAnimationFrame(animate) };
+      const frameId = requestAnimationFrame(animate);
+      control.current = { frameId };
       renderer.render(scene, camera);
     };
 
@@ -159,31 +143,24 @@ const App = () => {
     <div className="main">
       <div className="panel">
         <div>
-          <span>Growth Type</span>
-          <Select defaultValue={growthTypeOption} onChange={setGrowthTypeOption} options={growthTypeOptions} />
-          <span>Growth Index</span>
-          <Select defaultValue={growthIndexOption} onChange={setGrowthIndexOption} options={growthIndexOptions} />
-          <span>Growth Offset</span>
-          <Select defaultValue={growthOffsetOption} onChange={setGrowthOffsetOption} options={growthOffsetOptions} />
+          <button onClick={() => setRotating(!rotating)}>Rotate: {`${rotating}`}</button>
         </div>
-        <div>
-          <button onClick={() => createPathContext()}>Create Path Context</button>
-        </div>
-
         <hr />
         <div>
-          <span>Max Dist: </span>
-          <input
-            type="number"
-            value={maxDist}
-            onChange={(evt) => {
-              setMaxDist(evt.target.value);
-            }}
-          />
+          <span>Path Context ID:</span>
+          <Select onChange={onChangePathContextId} options={pathContextIdOptions} isSearchable={true} />
         </div>
+
         <div>
-          <button disabled={!currentPathContextId} onClick={() => updateMaxDist()}>
-            Update Max Dist
+          <p>Growth Type: {currentPathContext.growthType} </p>
+          <p>Growth Index: {currentPathContext.growthIndex} </p>
+          <p>Growth Offset: {currentPathContext.growthOffset} </p>
+          <p>Max Dist: {currentPathContext.maxDist}</p>
+        </div>
+        <hr />
+        <div>
+          <button disabled={!currentPathContext.pathContextId} onClick={() => updateMaxDist()}>
+            Max Dist + 1
           </button>
         </div>
         <hr />
@@ -192,9 +169,9 @@ const App = () => {
             <span>From Dist: </span>
             <input
               type="number"
-              value={_.get(getPathNodesRequest, 'fromDist', 0)}
+              value={fromDist}
               onChange={(evt) => {
-                setGetPathNodeRequest({ ...getPathNodesRequest, fromDist: parseInt(evt.target.value) });
+                setFromDist(parseInt(evt.target.value));
               }}
             />
           </div>
@@ -202,22 +179,19 @@ const App = () => {
             <span>To Dist: </span>
             <input
               type="number"
-              value={_.get(getPathNodesRequest, 'toDist', 0)}
+              value={toDist}
               onChange={(evt) => {
-                setGetPathNodeRequest({ ...getPathNodesRequest, toDist: parseInt(evt.target.value) });
+                setToDist(parseInt(evt.target.value));
               }}
             />
           </div>
           <div>
-            <button disabled={!currentPathContextId} onClick={() => getPathNodes()}>
-              Get Path Nodes (Redraw)
+            <button disabled={!currentPathContext.pathContextId} onClick={() => getPathNodes()}>
+              Render
             </button>
           </div>
 
           <hr />
-          <div>
-            <button onClick={() => setRotating(!rotating)}>Rotate: {`${rotating}`}</button>
-          </div>
         </div>
       </div>
       <div className="vis" ref={mount} />
