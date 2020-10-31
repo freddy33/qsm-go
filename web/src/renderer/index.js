@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import _ from 'lodash';
 
 const init = (width, height) => {
-  const camera = new THREE.PerspectiveCamera(45, width / height, 1, 500);
+  const camera = new THREE.PerspectiveCamera(20, width / height, 1, 500);
   camera.position.set(45, 90, 100);
   camera.lookAt(0, 0, 0);
 
@@ -12,7 +12,7 @@ const init = (width, height) => {
   const scene = new THREE.Scene();
   const group = new THREE.Group();
   addAxes(group);
-  scene.add(group)
+  scene.add(group);
 
   return {
     group,
@@ -22,7 +22,7 @@ const init = (width, height) => {
   };
 };
 
-const addLine = (group, from, to, color = 0xffff00) => {
+const addLine = (group, from, to, color = 0xFFFFFF) => {
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(from.x, from.y, from.z),
@@ -41,7 +41,7 @@ const addAxes = (group) => {
 };
 
 const addPoint = (group, pos) => {
-  const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+  const geometry = new THREE.SphereGeometry(0.3, 8, 8);
   const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
   const sphere = new THREE.Mesh(geometry, material);
   sphere.position.set(pos.x, pos.y, pos.z);
@@ -66,6 +66,9 @@ const addCameraPivot = (group, camera) => {
 
 const drawRoots = (group, roots) => {
   console.time('drawRoots');
+
+  clearGroup(group);
+
   if (!_.isArray(roots)) {
     return;
   }
@@ -110,6 +113,11 @@ const drawRoot = (group, originalRoot) => {
   } while (current || stack.length > 0);
 };
 
+const clearGroup = (group) => {
+  group.remove(...group.children);
+  addAxes(group);
+};
+
 export default {
   init,
   addLine,
@@ -119,4 +127,5 @@ export default {
   addCameraPivot,
   drawRoot,
   drawRoots,
+  clearGroup,
 };
