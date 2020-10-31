@@ -17,7 +17,6 @@ const App = () => {
   const [renderer, setRenderer] = useState();
   const [pathContextIdOptions, setPathContextIdOptions] = useState([]);
   const [currentPathContext, setCurrentPathContext] = useState({});
-  const [drawingRoots, setDrawingRoots] = useState([]);
   const [fromDist, setFromDist] = useState(0);
   const [toDist, setToDist] = useState(0);
 
@@ -78,9 +77,9 @@ const App = () => {
       nodeMap[pathNodeId] = node;
     });
 
-    const roots = _.filter(nodeMap, { d: fromDist });
+    const nodesToDraw = _.filter(nodeMap, { d: fromDist });
 
-    setDrawingRoots(roots);
+    Renderer.drawRoots(group, nodesToDraw);
   };
 
   const onChangePathContextId = async (option) => {
@@ -119,12 +118,6 @@ const App = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!(group && drawingRoots)) return;
-
-    Renderer.drawRoots(group, drawingRoots);
-  }, [group, drawingRoots]);
-
   // called for every button clicks to update how the UI should render
   useEffect(() => {
     if (!(scene && camera && renderer && group)) return;
@@ -138,7 +131,8 @@ const App = () => {
       if (rotating) {
         group.rotation.y += 0.005;
       }
-      control.current = { frameId: requestAnimationFrame(animate) };
+      const frameId = requestAnimationFrame(animate);
+      control.current = { frameId };
       renderer.render(scene, camera);
     };
 
@@ -162,13 +156,12 @@ const App = () => {
           <p>Growth Index: {currentPathContext.growthIndex} </p>
           <p>Growth Offset: {currentPathContext.growthOffset} </p>
           <p>Max Dist: {currentPathContext.maxDist}</p>
-          
         </div>
         <hr />
         <div>
-        <button disabled={!currentPathContext.pathContextId} onClick={() => updateMaxDist()}>
-              Max Dist + 1
-            </button>
+          <button disabled={!currentPathContext.pathContextId} onClick={() => updateMaxDist()}>
+            Max Dist + 1
+          </button>
         </div>
         <hr />
         <div>
