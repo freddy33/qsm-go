@@ -5,7 +5,7 @@ import m3point from '../grpc/m3point_pb';
 
 const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-const fetchPointPackDataMsgGrpc = async () => {
+const getPointPackDataMsgGrpc = async () => {
   const resp = await axios.get(`${REACT_APP_BACKEND_URL}/point-data`, {
     responseType: 'arraybuffer',
   });
@@ -36,7 +36,7 @@ const fetchPointPackDataMsgGrpc = async () => {
   return { connections, trios };
 };
 
-const fetchPointPackDataMsg = async () => {
+const getPointPackDataMsg = async () => {
   const resp = await axios({
     method: 'get',
     url: `${REACT_APP_BACKEND_URL}/point-data`,
@@ -74,36 +74,6 @@ const fetchPointPackDataMsg = async () => {
   return { connections, trios };
 };
 
-const initEnv = async () => {
-  const resp = await axios({
-    method: 'post',
-    url: `${REACT_APP_BACKEND_URL}/init-env`,
-    data: null,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  return resp;
-};
-
-const createPathContext = async (growthType, growthIndex, growthOffset) => {
-  const resp = await axios({
-    method: 'post',
-    url: `${REACT_APP_BACKEND_URL}/path-context`,
-    data: {
-      growth_type: growthType,
-      growth_index: growthIndex,
-      growth_offset: growthOffset,
-    },
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  return resp.data;
-};
-
 const updateMaxDist = async (pathContextId, dist) => {
   const resp = await axios({
     method: 'put',
@@ -112,12 +82,12 @@ const updateMaxDist = async (pathContextId, dist) => {
       path_ctx_id: pathContextId,
       dist,
     },
-    headers: {
-      'Content-Type': 'application/json',
-    },
   });
 
-  return resp.data;
+  const maxDist = _.get(resp, 'data.max_dist');
+  if (!maxDist) {
+    alert(resp.data);
+  }
 };
 
 const getPathNodes = async (pathContextId, fromDist, toDist) => {
@@ -134,11 +104,51 @@ const getPathNodes = async (pathContextId, fromDist, toDist) => {
   return resp.data;
 };
 
+const getPathContext = async (pathContextId) => {
+  const resp = await axios({
+    method: 'get',
+    url: `${REACT_APP_BACKEND_URL}/path-context`,
+    params: {
+      path_ctx_id: pathContextId,
+    },
+  });
+
+  const pathContext = _.get(resp, 'data', {});
+  const { path_ctx_id, growth_type, growth_index, growth_offset, max_dist } = pathContext;
+
+  return {
+    pathContextId: path_ctx_id,
+    growthType: growth_type,
+    growthIndex: growth_index,
+    growthOffset: growth_offset,
+    maxDist: max_dist,
+  };
+};
+
+const getPathContextIds = async () => {
+  const resp = await axios({
+    method: 'get',
+    url: `${REACT_APP_BACKEND_URL}/path-context`,
+    params: {
+      path_ctx_id: -1,
+    },
+  });
+
+  const pathContexts = _.get(resp, 'data.path_contexts', []);
+
+  const pathContextIds = pathContexts.map((pathContext) => {
+    return pathContext.path_ctx_id;
+  });
+
+  const sorted = _.sortBy(pathContextIds);
+  return sorted;
+};
+
 export default {
-  fetchPointPackDataMsg,
-  fetchPointPackDataMsgGrpc,
-  initEnv,
-  createPathContext,
+  getPointPackDataMsg,
+  getPointPackDataMsgGrpc,
   updateMaxDist,
   getPathNodes,
+  getPathContext,
+  getPathContextIds,
 };
