@@ -41,6 +41,25 @@ const getPointPackDataMsg = async () => {
   return { connections, trios };
 };
 
+const createPathContext = async (growthType, growthIndex, growthOffset) => {
+  const resp = await axios({
+    method: 'post',
+    url: `${REACT_APP_BACKEND_URL}/path-context`,
+    data: {
+      growth_type: growthType,
+      growth_index: growthIndex,
+      growth_offset: growthOffset,
+    },
+  });
+
+  if (!_.get(resp, 'data.path_ctx_id')) {
+    alert(resp.data);
+  }
+
+  const data = _.get(resp, 'data');
+  return data;
+};
+
 const updateMaxDist = async (pathContextId, dist) => {
   const resp = await axios({
     method: 'put',
@@ -118,6 +137,7 @@ const getPathContextIds = async () => {
 
 export default {
   getPointPackDataMsg,
+  createPathContext,
   updateMaxDist,
   getPathNodes,
   getPathContext,

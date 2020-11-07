@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import _ from 'lodash';
 import Select from 'react-select';
+import { Link } from '@reach/router';
 
 import styles from './RenderPage.module.scss';
 import Service from '../libs/service';
@@ -212,6 +213,9 @@ const RenderPage = (props) => {
           </div>
 
           <hr />
+          <Link to="/">
+            <h4>Path Context List</h4>
+          </Link>
         </div>
       </div>
       <div className={styles.vis} ref={mount} />
