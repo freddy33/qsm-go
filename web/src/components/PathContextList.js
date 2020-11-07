@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from '@reach/router';
 import { Table } from 'semantic-ui-react';
+import _ from 'lodash';
 
 import styles from './PathContextList.module.scss';
 import Service from '../libs/service';
@@ -9,15 +10,15 @@ const PathContextList = () => {
   const [pathContexts, setPathContexts] = useState([]);
 
   useEffect(() => {
-    Service.getPathContexts().then((pathContexts) => setPathContexts(pathContexts));
+    Service.getPathContexts().then((pathContexts) => {
+      const sorted = _.sortBy(pathContexts, ['path_ctx_id']);
+      setPathContexts(sorted);
+    });
   }, []);
 
   return (
     <div className={styles.pathContextList}>
-      <nav>
-        <Link to="/render">Render</Link> | <Link to="dashboard">Dashboard</Link>
-      </nav>
-
+      <h1>Path Contexts</h1>
       <Table celled>
         <Table.Header>
           <Table.Row>
