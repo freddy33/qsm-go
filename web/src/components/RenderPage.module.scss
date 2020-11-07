@@ -1,0 +1,30 @@
+.renderPage {
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  height: 100vh;
+  width: 100vw;
+
+  .panel {
+    padding: 5px;
+    width: 350px;
+    min-width: 350px;
+
+    div {
+      padding: 2px;
+    }
+
+    textarea {
+      width: 100%;
+    }
+
+    button {
+      width: 100%;
+    }
+  }
+
+  .vis {
+    margin-left: 0px;
+    width: 100%;
+  }
+}
