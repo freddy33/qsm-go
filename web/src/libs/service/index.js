@@ -92,7 +92,7 @@ const getPathContext = async (pathContextId) => {
   };
 };
 
-const getPathContextIds = async () => {
+const getPathContexts = async () => {
   const resp = await axios({
     method: 'get',
     url: `${REACT_APP_BACKEND_URL}/path-context`,
@@ -102,6 +102,11 @@ const getPathContextIds = async () => {
   });
 
   const pathContexts = _.get(resp, 'data.path_contexts', []);
+  return pathContexts;
+};
+
+const getPathContextIds = async () => {
+  const pathContexts = await getPathContexts();
 
   const pathContextIds = pathContexts.map((pathContext) => {
     return pathContext.path_ctx_id;
@@ -116,5 +121,6 @@ export default {
   updateMaxDist,
   getPathNodes,
   getPathContext,
+  getPathContexts,
   getPathContextIds,
 };

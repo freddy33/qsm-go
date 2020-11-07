@@ -7,7 +7,69 @@ import styles from './RenderPage.module.scss';
 import Service from '../libs/service';
 import Renderer from '../libs/renderer';
 
-const RenderPage = () => {
+const fetchPathContextIds = async (setPathContextIdOptions) => {
+  const pathContextIds = await Service.getPathContextIds();
+
+  const pathContextIdOptions = pathContextIds.map((pathContextId) => {
+    return { value: pathContextId, label: pathContextId };
+  });
+  setPathContextIdOptions(pathContextIdOptions);
+};
+
+const updateMaxDist = async (currentPathContext, setCurrentPathContext) => {
+  const { pathContextId, maxDist } = currentPathContext;
+  await Service.updateMaxDist(pathContextId, maxDist + 1);
+
+  const pathContext = await Service.getPathContext(pathContextId);
+  setCurrentPathContext(pathContext);
+};
+
+const getPathNodes = async (group, fromDist, toDist, currentPathContext) => {
+  if (fromDist > toDist) {
+    alert('"From" dist cannot be less than "To" dist');
+    return;
+  }
+
+  if (toDist > currentPathContext.maxDist) {
+    alert(`"To" dist needs to be less than ${currentPathContext.maxDist}`);
+    return;
+  }
+
+  const resp = await Service.getPathNodes(currentPathContext.pathContextId, fromDist, toDist);
+  const pathNodes = _.get(resp, 'path_nodes', []);
+
+  if (!pathNodes) {
+    alert(resp);
+  }
+
+  const sortByDist = _.sortBy(pathNodes, ['d']);
+
+  const nodeMap = {};
+  sortByDist.forEach((node) => {
+    const linkedPathNodeIds = _.get(node, 'linked_path_node_ids', []);
+
+    linkedPathNodeIds.forEach((precedingNodeId) => {
+      const precedingNode = nodeMap[precedingNodeId];
+
+      if (!precedingNode) {
+        return;
+      }
+
+      const childNodes = _.get(precedingNode, 'childNodes', []);
+      childNodes.push(node);
+      precedingNode.childNodes = childNodes;
+    });
+
+    const pathNodeId = node.path_node_id;
+    nodeMap[pathNodeId] = node;
+  });
+
+  const nodesToDraw = _.filter(nodeMap, { d: fromDist });
+
+  Renderer.drawRoots(group, nodesToDraw);
+};
+
+const RenderPage = (props) => {
   const mount = useRef(null);
   const control = useRef(null);
 
@@ -21,67 +83,7 @@ const RenderPage = () => {
   const [fromDist, setFromDist] = useState(0);
   const [toDist, setToDist] = useState(0);
 
-  const fetchPathContextIds = async () => {
-    const pathContextIds = await Service.getPathContextIds();
-
-    const pathContextIdOptions = pathContextIds.map((pathContextId) => {
-      return { value: pathContextId, label: pathContextId };
-    });
-    setPathContextIdOptions(pathContextIdOptions);
-  };
-
-  const updateMaxDist = async () => {
-    const { pathContextId, maxDist } = currentPathContext;
-    await Service.updateMaxDist(pathContextId, maxDist + 1);
-
-    const pathContext = await Service.getPathContext(pathContextId);
-    setCurrentPathContext(pathContext);
-  };
-
-  const getPathNodes = async () => {
-    if (fromDist > toDist) {
-      alert('"From" dist cannot be less than "To" dist');
-      return;
-    }
-
-    if (toDist > currentPathContext.maxDist) {
-      alert(`"To" dist needs to be less than ${currentPathContext.maxDist}`);
-      return;
-    }
-
-    const resp = await Service.getPathNodes(currentPathContext.pathContextId, fromDist, toDist);
-    const pathNodes = _.get(resp, 'path_nodes', []);
-
-    if (!pathNodes) {
-      alert(resp);
-    }
-
-    const sortByDist = _.sortBy(pathNodes, ['d']);
-
-    const nodeMap = {};
-    sortByDist.forEach((node) => {
-      const linkedPathNodeIds = _.get(node, 'linked_path_node_ids', []);
-
-      linkedPathNodeIds.forEach((precedingNodeId) => {
-        const precedingNode = nodeMap[precedingNodeId];
-
-        if (!precedingNode) {
-          return;
-        }
-
-        const childNodes = _.get(precedingNode, 'childNodes', []);
-        childNodes.push(node);
-        precedingNode.childNodes = childNodes;
-      });
-
-      const pathNodeId = node.path_node_id;
-      nodeMap[pathNodeId] = node;
-    });
-
-    const nodesToDraw = _.filter(nodeMap, { d: fromDist });
-
-    Renderer.drawRoots(group, nodesToDraw);
-  };
+  const { pathContextId: defaultPathContextId } = props;
 
   const onChangePathContextId = async (option) => {
     const pathContextId = option.value;
@@ -92,7 +94,7 @@ const RenderPage = () => {
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
-    fetchPathContextIds();
+    fetchPathContextIds(setPathContextIdOptions);
 
     const { clientWidth: width, clientHeight: height } = mount.current;
 
@@ -118,6 +120,12 @@ const RenderPage = () => {
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  useEffect(() => {
+    if (defaultPathContextId) {
+      onChangePathContextId({ value: defaultPathContextId });
+    }
+  }, [defaultPathContextId]);
 
   // called for every button clicks to update how the UI should render
   useEffect(() => {
@@ -149,7 +157,12 @@ const RenderPage = () => {
         <hr />
         <div>
           <span>Path Context ID:</span>
-          <Select onChange={onChangePathContextId} options={pathContextIdOptions} isSearchable={true} />
+          <Select
+            defaultValue={{ value: defaultPathContextId, label: defaultPathContextId }}
+            onChange={onChangePathContextId}
+            options={pathContextIdOptions}
+            isSearchable={true}
+          />
         </div>
 
         <div>
@@ -160,7 +173,10 @@ const RenderPage = () => {
         </div>
         <hr />
         <div>
-          <button disabled={!currentPathContext.pathContextId} onClick={() => updateMaxDist()}>
+          <button
+            disabled={!currentPathContext.pathContextId}
+            onClick={() => updateMaxDist(currentPathContext, setCurrentPathContext)}
+          >
             Max Dist + 1
           </button>
         </div>
@@ -187,7 +203,10 @@ const RenderPage = () => {
             />
           </div>
           <div>
-            <button disabled={!currentPathContext.pathContextId} onClick={() => getPathNodes()}>
+            <button
+              disabled={!currentPathContext.pathContextId}
+              onClick={() => getPathNodes(group, fromDist, toDist, currentPathContext)}
+            >
               Render
             </button>
           </div>
