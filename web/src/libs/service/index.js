@@ -1,40 +1,7 @@
 import _ from 'lodash';
 import axios from 'axios';
 
-import m3point from '../grpc/m3point_pb';
-
 const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-
-const getPointPackDataMsgGrpc = async () => {
-  const resp = await axios.get(`${REACT_APP_BACKEND_URL}/point-data`, {
-    responseType: 'arraybuffer',
-  });
-
-  const pointPackDataMsg = m3point.PointPackDataMsg.deserializeBinary(resp.data);
-
-  const connections = {};
-  const trios = {};
-  pointPackDataMsg.getAllConnectionsList().forEach((conn) => {
-    connections[conn.getConnId()] = {
-      connId: conn.getConnId(),
-      ds: conn.getDs(),
-      vector: {
-        x: conn.getVector().getX(),
-        y: conn.getVector().getY(),
-        z: conn.getVector().getZ(),
-      },
-    };
-  });
-
-  pointPackDataMsg.getAllTriosList().forEach((trio) => {
-    trios[trio.getTrioId()] = {
-      trioId: trio.getTrioId(),
-      connIds: trio.getConnIdsList(),
-    };
-  });
-
-  return { connections, trios };
-};
 
 const getPointPackDataMsg = async () => {
   const resp = await axios({
@@ -146,7 +113,6 @@ const getPathContextIds = async () => {
 
 export default {
   getPointPackDataMsg,
-  getPointPackDataMsgGrpc,
   updateMaxDist,
   getPathNodes,
   getPathContext,

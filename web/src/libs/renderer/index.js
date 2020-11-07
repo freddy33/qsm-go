@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import _ from 'lodash';
 
 const init = (width, height) => {
-  const camera = new THREE.PerspectiveCamera(20, width / height, 1, 500);
+  const camera = new THREE.PerspectiveCamera(20, width / height, 1, 3000);
   camera.position.set(45, 90, 100);
   camera.lookAt(0, 0, 0);
 
@@ -22,7 +22,7 @@ const init = (width, height) => {
   };
 };
 
-const addLine = (group, from, to, color = 0xFFFFFF) => {
+const addLine = (group, from, to, color = 0xffffff) => {
   const line = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(from.x, from.y, from.z),

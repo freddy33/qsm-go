@@ -3,10 +3,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import _ from 'lodash';
 import Select from 'react-select';
 
-import Service from './service';
-import Renderer from './renderer';
+import styles from './RenderPage.module.scss';
+import Service from '../libs/service';
+import Renderer from '../libs/renderer';
 
-const App = () => {
+const RenderPage = () => {
   const mount = useRef(null);
   const control = useRef(null);
 
@@ -140,8 +141,8 @@ const App = () => {
   }, [scene, camera, renderer, group, rotating]);
 
   return (
-    <div className="main">
-      <div className="panel">
+    <div className={styles.renderPage}>
+      <div className={styles.panel}>
         <div>
           <button onClick={() => setRotating(!rotating)}>Rotate: {`${rotating}`}</button>
         </div>
@@ -194,9 +195,9 @@ const App = () => {
           <hr />
         </div>
       </div>
-      <div className="vis" ref={mount} />
+      <div className={styles.vis} ref={mount} />
     </div>
   );
 };
 
-export default App;
+export default RenderPage;
