@@ -3,27 +3,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import _ from 'lodash';
 import Select from 'react-select';
 import { Link } from '@reach/router';
+import { Button } from 'semantic-ui-react';
 
 import styles from './RenderPage.module.scss';
 import Service from '../libs/service';
 import Renderer from '../libs/renderer';
-
-const fetchPathContextIds = async (setPathContextIdOptions) => {
-  const pathContextIds = await Service.getPathContextIds();
-
-  const pathContextIdOptions = pathContextIds.map((pathContextId) => {
-    return { value: pathContextId, label: pathContextId };
-  });
-  setPathContextIdOptions(pathContextIdOptions);
-};
-
-const updateMaxDist = async (currentPathContext, setCurrentPathContext) => {
-  const { pathContextId, maxDist } = currentPathContext;
-  await Service.updateMaxDist(pathContextId, maxDist + 1);
-
-  const pathContext = await Service.getPathContext(pathContextId);
-  setCurrentPathContext(pathContext);
-};
 
 const getPathNodes = async (group, fromDist, toDist, currentPathContext) => {
   if (fromDist > toDist) {
@@ -86,6 +70,23 @@ const RenderPage = (props) => {
 
   const { pathContextId: defaultPathContextId } = props;
 
+  const fetchPathContextIds = async () => {
+    const pathContextIds = await Service.getPathContextIds();
+
+    const pathContextIdOptions = pathContextIds.map((pathContextId) => {
+      return { value: pathContextId, label: pathContextId };
+    });
+    setPathContextIdOptions(pathContextIdOptions);
+  };
+
+  const updateMaxDist = async () => {
+    const { pathContextId, maxDist } = currentPathContext;
+    await Service.updateMaxDist(pathContextId, maxDist + 1);
+
+    const pathContext = await Service.getPathContext(pathContextId);
+    setCurrentPathContext(pathContext);
+  };
+
   const onChangePathContextId = async (option) => {
     const pathContextId = option.value;
     const pathContext = await Service.getPathContext(pathContextId);
@@ -95,7 +96,7 @@ const RenderPage = (props) => {
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
-    fetchPathContextIds(setPathContextIdOptions);
+    fetchPathContextIds();
 
     const { clientWidth: width, clientHeight: height } = mount.current;
 
@@ -153,7 +154,9 @@ const RenderPage = (props) => {
     <div className={styles.renderPage}>
       <div className={styles.panel}>
         <div>
-          <button onClick={() => setRotating(!rotating)}>Rotate: {`${rotating}`}</button>
+          <Button toggle active={rotating} onClick={() => setRotating(!rotating)}>
+            Rotate
+          </Button>
         </div>
         <hr />
         <div>
@@ -174,12 +177,9 @@ const RenderPage = (props) => {
         </div>
         <hr />
         <div>
-          <button
-            disabled={!currentPathContext.pathContextId}
-            onClick={() => updateMaxDist(currentPathContext, setCurrentPathContext)}
-          >
+          <Button disabled={!currentPathContext.pathContextId} onClick={() => updateMaxDist()}>
             Max Dist + 1
-          </button>
+          </Button>
         </div>
         <hr />
         <div>
@@ -204,12 +204,27 @@ const RenderPage = (props) => {
             />
           </div>
           <div>
-            <button
+            <Button
+              icon="fast forward"
+              content="Render From/To + 1"
+              labelPosition="left"
+              disabled={!currentPathContext.pathContextId}
+              onClick={() => {
+                const newFromDist = fromDist + 1;
+                const newToDist = toDist + 1;
+
+                setFromDist(newFromDist);
+                setToDist(newToDist);
+                getPathNodes(group, newFromDist, newToDist, currentPathContext);
+              }}
+            />
+            <Button
+              icon="play"
+              content="Render"
+              labelPosition="left"
               disabled={!currentPathContext.pathContextId}
               onClick={() => getPathNodes(group, fromDist, toDist, currentPathContext)}
-            >
-              Render
-            </button>
+            />
           </div>
 
           <hr />

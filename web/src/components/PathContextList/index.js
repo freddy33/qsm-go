@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from '@reach/router';
-import { Table, Button, Form, Message, Segment } from 'semantic-ui-react';
+import { Button, Form, Message, Segment } from 'semantic-ui-react';
 import _ from 'lodash';
 
 import DataTable from './DataTable';

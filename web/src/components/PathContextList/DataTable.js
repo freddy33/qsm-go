@@ -1,11 +1,7 @@
-import React, { useEffect, useState, useReducer } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from '@reach/router';
 import { Table, Button } from 'semantic-ui-react';
 import _ from 'lodash';
-
-const growthTypeOptions = [1, 2, 3, 4, 8].map((v) => ({ value: v, text: v }));
-const growthIndexOptions = [...Array(12).keys()].map((v) => ({ value: v, text: v }));
-const growthOffsetOptions = [...Array(12).keys()].map((v) => ({ value: v, text: v }));
 
 const DIRECTION = {
   ASCENDING: 'ascending',
