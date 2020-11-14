@@ -13,6 +13,11 @@
     div {
       padding: 2px;
     }
+    .colorPicker {
+      div{
+        padding: 0px;
+      }
+    }
 
     textarea {
       width: 100%;
@@ -20,6 +25,7 @@
 
     button {
       width: 100%;
+      margin: 5px 0px;
     }
   }
 

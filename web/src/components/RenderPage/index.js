@@ -3,29 +3,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import _ from 'lodash';
 import Select from 'react-select';
 import { Link } from '@reach/router';
+import { Button, Checkbox } from 'semantic-ui-react';
+import { HuePicker } from 'react-color';
 
-import styles from './RenderPage.module.scss';
-import Service from '../libs/service';
-import Renderer from '../libs/renderer';
+import styles from './index.module.scss';
+import Service from '../../libs/service';
+import Renderer from '../../libs/renderer';
+import { COLOR } from '../../libs/constant';
 
-const fetchPathContextIds = async (setPathContextIdOptions) => {
-  const pathContextIds = await Service.getPathContextIds();
-
-  const pathContextIdOptions = pathContextIds.map((pathContextId) => {
-    return { value: pathContextId, label: pathContextId };
-  });
-  setPathContextIdOptions(pathContextIdOptions);
-};
-
-const updateMaxDist = async (currentPathContext, setCurrentPathContext) => {
-  const { pathContextId, maxDist } = currentPathContext;
-  await Service.updateMaxDist(pathContextId, maxDist + 1);
-
-  const pathContext = await Service.getPathContext(pathContextId);
-  setCurrentPathContext(pathContext);
-};
-
-const getPathNodes = async (group, fromDist, toDist, currentPathContext) => {
+const getPathNodes = async (group, fromDist, toDist, currentPathContext, drawingOptions) => {
   if (fromDist > toDist) {
     alert('"From" dist cannot be less than "To" dist');
     return;
@@ -67,7 +53,7 @@ const getPathNodes = async (group, fromDist, toDist, currentPathContext) => {
 
   const nodesToDraw = _.filter(nodeMap, { d: fromDist });
 
-  Renderer.drawRoots(group, nodesToDraw);
+  Renderer.drawRoots(group, nodesToDraw, drawingOptions);
 };
 
 const RenderPage = (props) => {
@@ -83,8 +69,28 @@ const RenderPage = (props) => {
   const [currentPathContext, setCurrentPathContext] = useState({});
   const [fromDist, setFromDist] = useState(0);
   const [toDist, setToDist] = useState(0);
+  const [mainPointColor, setMainPointColor] = useState(COLOR.MAIN_POINT);
+  const [shouldDisplayMainPoint, setShouldDisplayMainPoint] = useState(true);
+  const [shouldDisplayNonMainPoint, setShouldDisplayNonMainPoint] = useState(true);
 
   const { pathContextId: defaultPathContextId } = props;
+
+  const fetchPathContextIds = async () => {
+    const pathContextIds = await Service.getPathContextIds();
+
+    const pathContextIdOptions = pathContextIds.map((pathContextId) => {
+      return { value: pathContextId, label: pathContextId };
+    });
+    setPathContextIdOptions(pathContextIdOptions);
+  };
+
+  const updateMaxDist = async () => {
+    const { pathContextId, maxDist } = currentPathContext;
+    await Service.updateMaxDist(pathContextId, maxDist + 1);
+
+    const pathContext = await Service.getPathContext(pathContextId);
+    setCurrentPathContext(pathContext);
+  };
 
   const onChangePathContextId = async (option) => {
     const pathContextId = option.value;
@@ -95,7 +101,7 @@ const RenderPage = (props) => {
 
   // componentDidMount, will load once only when page start
   useEffect(() => {
-    fetchPathContextIds(setPathContextIdOptions);
+    fetchPathContextIds();
 
     const { clientWidth: width, clientHeight: height } = mount.current;
 
@@ -153,7 +159,9 @@ const RenderPage = (props) => {
     <div className={styles.renderPage}>
       <div className={styles.panel}>
         <div>
-          <button onClick={() => setRotating(!rotating)}>Rotate: {`${rotating}`}</button>
+          <Button toggle active={rotating} onClick={() => setRotating(!rotating)}>
+            Rotate
+          </Button>
         </div>
         <hr />
         <div>
@@ -174,12 +182,9 @@ const RenderPage = (props) => {
         </div>
         <hr />
         <div>
-          <button
-            disabled={!currentPathContext.pathContextId}
-            onClick={() => updateMaxDist(currentPathContext, setCurrentPathContext)}
-          >
+          <Button disabled={!currentPathContext.pathContextId} onClick={() => updateMaxDist()}>
             Max Dist + 1
-          </button>
+          </Button>
         </div>
         <hr />
         <div>
@@ -204,12 +209,63 @@ const RenderPage = (props) => {
             />
           </div>
           <div>
-            <button
+            <Checkbox
+              label="Display main point"
+              checked={shouldDisplayMainPoint}
+              onChange={(evt, value) => {
+                setShouldDisplayMainPoint(value.checked);
+              }}
+            />
+            <Checkbox
+              label="Display non-main point"
+              checked={shouldDisplayNonMainPoint}
+              onChange={(evt, value) => {
+                setShouldDisplayNonMainPoint(value.checked);
+              }}
+            />
+          </div>
+          <div>
+            <span>Main point color: {mainPointColor}</span>
+            <HuePicker
+              className={styles.colorPicker}
+              color={mainPointColor}
+              onChangeComplete={(color) => {
+                setMainPointColor(color.hex);
+              }}
+            />
+          </div>
+          <div>
+            <Button
+              icon="fast forward"
+              content="Render From/To + 1"
+              labelPosition="left"
               disabled={!currentPathContext.pathContextId}
-              onClick={() => getPathNodes(group, fromDist, toDist, currentPathContext)}
-            >
-              Render
-            </button>
+              onClick={() => {
+                const newFromDist = fromDist + 1;
+                const newToDist = toDist + 1;
+
+                setFromDist(newFromDist);
+                setToDist(newToDist);
+                return getPathNodes(group, newFromDist, newToDist, currentPathContext, {
+                  mainPointColor,
+                  shouldDisplayMainPoint,
+                  shouldDisplayNonMainPoint,
+                });
+              }}
+            />
+            <Button
+              icon="play"
+              content="Render"
+              labelPosition="left"
+              disabled={!currentPathContext.pathContextId}
+              onClick={() =>
+                getPathNodes(group, fromDist, toDist, currentPathContext, {
+                  mainPointColor,
+                  shouldDisplayMainPoint,
+                  shouldDisplayNonMainPoint,
+                })
+              }
+            />
           </div>
 
           <hr />
