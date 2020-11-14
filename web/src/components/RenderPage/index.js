@@ -71,6 +71,7 @@ const RenderPage = (props) => {
   const [toDist, setToDist] = useState(0);
   const [mainPointColor, setMainPointColor] = useState(COLOR.MAIN_POINT);
   const [shouldDisplayMainPoint, setShouldDisplayMainPoint] = useState(true);
+  const [shouldDisplayNonMainPoint, setShouldDisplayNonMainPoint] = useState(true);
 
   const { pathContextId: defaultPathContextId } = props;
 
@@ -215,6 +216,13 @@ const RenderPage = (props) => {
                 setShouldDisplayMainPoint(value.checked);
               }}
             />
+            <Checkbox
+              label="Display non-main point"
+              checked={shouldDisplayNonMainPoint}
+              onChange={(evt, value) => {
+                setShouldDisplayNonMainPoint(value.checked);
+              }}
+            />
           </div>
           <div>
             <span>Main point color: {mainPointColor}</span>
@@ -238,9 +246,10 @@ const RenderPage = (props) => {
 
                 setFromDist(newFromDist);
                 setToDist(newToDist);
-                getPathNodes(group, newFromDist, newToDist, currentPathContext, {
+                return getPathNodes(group, newFromDist, newToDist, currentPathContext, {
                   mainPointColor,
                   shouldDisplayMainPoint,
+                  shouldDisplayNonMainPoint,
                 });
               }}
             />
@@ -250,7 +259,11 @@ const RenderPage = (props) => {
               labelPosition="left"
               disabled={!currentPathContext.pathContextId}
               onClick={() =>
-                getPathNodes(group, fromDist, toDist, currentPathContext, { mainPointColor, shouldDisplayMainPoint })
+                getPathNodes(group, fromDist, toDist, currentPathContext, {
+                  mainPointColor,
+                  shouldDisplayMainPoint,
+                  shouldDisplayNonMainPoint,
+                })
               }
             />
           </div>

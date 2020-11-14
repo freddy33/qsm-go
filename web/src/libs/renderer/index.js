@@ -94,6 +94,7 @@ const isMainPoint = (point) => {
 const drawRoot = (group, originalRoot, options) => {
   const mainPointColor = _.get(options, 'mainPointColor', COLOR.MAIN_POINT);
   const shouldDisplayMainPoint = _.get(options, 'shouldDisplayMainPoint', true);
+  const shouldDisplayNonMainPoint = _.get(options, 'shouldDisplayNonMainPoint', true);
 
   const root = _.cloneDeep(originalRoot);
   const stack = [];
@@ -116,17 +117,22 @@ const drawRoot = (group, originalRoot, options) => {
 
       const point = _.get(node, 'point');
       const isCurrentPointMainPoint = isMainPoint(point);
+      const shouldDrawCurrentPoint =
+        (shouldDisplayMainPoint && isCurrentPointMainPoint) || (shouldDisplayNonMainPoint && !isCurrentPointMainPoint);
 
-      if (shouldDisplayMainPoint || !isCurrentPointMainPoint) {
-        addPoint(group, point, isMainPoint(point) ? mainPointColor : COLOR.YELLOW);
+      if (shouldDrawCurrentPoint) {
+        const color = isCurrentPointMainPoint ? mainPointColor : COLOR.YELLOW;
+        addPoint(group, point, color);
       }
 
       const parent = _.last(stack);
-      if (parent) {
+      if (shouldDrawCurrentPoint && parent) {
         const parentPoint = _.get(parent, 'point');
         const isParentMainPoint = isMainPoint(parentPoint);
-        const anyPointIsMainPoint = isCurrentPointMainPoint || isParentMainPoint;
-        if (shouldDisplayMainPoint || !anyPointIsMainPoint) {
+        const isParentVisible =
+          (shouldDisplayMainPoint && isParentMainPoint) || (shouldDisplayNonMainPoint && !isParentMainPoint);
+
+        if (isParentVisible) {
           addLine(group, parentPoint, point);
         }
       }
