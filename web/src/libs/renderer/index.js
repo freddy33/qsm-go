@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import _ from 'lodash';
 
+import { COLOR } from '../constant';
+
 const init = (width, height) => {
   const camera = new THREE.PerspectiveCamera(20, width / height, 1, 3000);
   camera.position.set(45, 90, 100);
@@ -35,14 +37,14 @@ const addLine = (group, from, to, color = 0xffffff) => {
 };
 
 const addAxes = (group) => {
-  addLine(group, { x: -70, y: 0, z: 0 }, { x: 70, y: 0, z: 0 }, 0xff0000);
-  addLine(group, { x: 0, y: -70, z: 0 }, { x: 0, y: 70, z: 0 }, 0x00ff00);
-  addLine(group, { x: 0, y: 0, z: -70 }, { x: 0, y: 0, z: 70 }, 0x0000ff);
+  addLine(group, { x: -70, y: 0, z: 0 }, { x: 70, y: 0, z: 0 }, COLOR.RED);
+  addLine(group, { x: 0, y: -70, z: 0 }, { x: 0, y: 70, z: 0 }, COLOR.GREEN);
+  addLine(group, { x: 0, y: 0, z: -70 }, { x: 0, y: 0, z: 70 }, COLOR.BLUE);
 };
 
-const addPoint = (group, pos) => {
+const addPoint = (group, pos, color = 0xffff00) => {
   const geometry = new THREE.SphereGeometry(0.3, 8, 8);
-  const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+  const material = new THREE.MeshBasicMaterial({ color });
   const sphere = new THREE.Mesh(geometry, material);
   sphere.position.set(pos.x, pos.y, pos.z);
   group.add(sphere);
@@ -64,7 +66,7 @@ const addCameraPivot = (group, camera) => {
   return cameraPivot;
 };
 
-const drawRoots = (group, roots) => {
+const drawRoots = (group, roots, options) => {
   console.time('drawRoots');
 
   clearGroup(group);
@@ -74,13 +76,20 @@ const drawRoots = (group, roots) => {
   }
 
   roots.forEach((root) => {
-    drawRoot(group, root);
+    drawRoot(group, root, options);
   });
 
   console.timeEnd('drawRoots');
 };
 
-const drawRoot = (group, originalRoot) => {
+const isMainPoint = (point) => {
+  const { x, y, z } = point;
+  return (x % 3) + (y % 3) + (z % 3) === 0;
+};
+
+const drawRoot = (group, originalRoot, options) => {
+  const mainPointColor = _.get(options, 'mainPointColor', COLOR.MAIN_POINT);
+
   const root = _.cloneDeep(originalRoot);
   const stack = [];
   let current = root;
@@ -101,7 +110,9 @@ const drawRoot = (group, originalRoot) => {
       const node = stack.pop();
 
       const point = _.get(node, 'point');
-      addPoint(group, point);
+
+      const color = isMainPoint(point) ? mainPointColor : COLOR.YELLOW;
+      addPoint(group, point, color);
       const parent = _.last(stack);
       if (parent) {
         const parentPoint = _.get(parent, 'point');

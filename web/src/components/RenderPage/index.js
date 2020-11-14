@@ -4,12 +4,14 @@ import _ from 'lodash';
 import Select from 'react-select';
 import { Link } from '@reach/router';
 import { Button } from 'semantic-ui-react';
+import { HuePicker } from 'react-color';
 
-import styles from './RenderPage.module.scss';
-import Service from '../libs/service';
-import Renderer from '../libs/renderer';
+import styles from './index.module.scss';
+import Service from '../../libs/service';
+import Renderer from '../../libs/renderer';
+import { COLOR } from '../../libs/constant';
 
-const getPathNodes = async (group, fromDist, toDist, currentPathContext) => {
+const getPathNodes = async (group, fromDist, toDist, currentPathContext, mainPointColor) => {
   if (fromDist > toDist) {
     alert('"From" dist cannot be less than "To" dist');
     return;
@@ -51,7 +53,7 @@ const getPathNodes = async (group, fromDist, toDist, currentPathContext) => {
 
   const nodesToDraw = _.filter(nodeMap, { d: fromDist });
 
-  Renderer.drawRoots(group, nodesToDraw);
+  Renderer.drawRoots(group, nodesToDraw, { mainPointColor });
 };
 
 const RenderPage = (props) => {
@@ -67,6 +69,7 @@ const RenderPage = (props) => {
   const [currentPathContext, setCurrentPathContext] = useState({});
   const [fromDist, setFromDist] = useState(0);
   const [toDist, setToDist] = useState(0);
+  const [mainPointColor, setMainPointColor] = useState(COLOR.MAIN_POINT);
 
   const { pathContextId: defaultPathContextId } = props;
 
@@ -204,6 +207,16 @@ const RenderPage = (props) => {
             />
           </div>
           <div>
+            <span>Main point color: {mainPointColor}</span>
+            <HuePicker
+              className={styles.colorPicker}
+              color={mainPointColor}
+              onChangeComplete={(color) => {
+                setMainPointColor(color.hex);
+              }}
+            />
+          </div>
+          <div>
             <Button
               icon="fast forward"
               content="Render From/To + 1"
@@ -215,7 +228,7 @@ const RenderPage = (props) => {
 
                 setFromDist(newFromDist);
                 setToDist(newToDist);
-                getPathNodes(group, newFromDist, newToDist, currentPathContext);
+                getPathNodes(group, newFromDist, newToDist, currentPathContext, mainPointColor);
               }}
             />
             <Button
@@ -223,7 +236,7 @@ const RenderPage = (props) => {
               content="Render"
               labelPosition="left"
               disabled={!currentPathContext.pathContextId}
-              onClick={() => getPathNodes(group, fromDist, toDist, currentPathContext)}
+              onClick={() => getPathNodes(group, fromDist, toDist, currentPathContext, mainPointColor)}
             />
           </div>
 
