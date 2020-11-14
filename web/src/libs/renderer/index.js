@@ -83,12 +83,17 @@ const drawRoots = (group, roots, options) => {
 };
 
 const isMainPoint = (point) => {
+  if (!point) {
+    return false;
+  }
+
   const { x, y, z } = point;
   return (x % 3) + (y % 3) + (z % 3) === 0;
 };
 
 const drawRoot = (group, originalRoot, options) => {
   const mainPointColor = _.get(options, 'mainPointColor', COLOR.MAIN_POINT);
+  const shouldDisplayMainPoint = _.get(options, 'shouldDisplayMainPoint', true);
 
   const root = _.cloneDeep(originalRoot);
   const stack = [];
@@ -110,13 +115,20 @@ const drawRoot = (group, originalRoot, options) => {
       const node = stack.pop();
 
       const point = _.get(node, 'point');
+      const isCurrentPointMainPoint = isMainPoint(point);
 
-      const color = isMainPoint(point) ? mainPointColor : COLOR.YELLOW;
-      addPoint(group, point, color);
+      if (shouldDisplayMainPoint || !isCurrentPointMainPoint) {
+        addPoint(group, point, isMainPoint(point) ? mainPointColor : COLOR.YELLOW);
+      }
+
       const parent = _.last(stack);
       if (parent) {
         const parentPoint = _.get(parent, 'point');
-        addLine(group, parentPoint, point);
+        const isParentMainPoint = isMainPoint(parentPoint);
+        const anyPointIsMainPoint = isCurrentPointMainPoint || isParentMainPoint;
+        if (shouldDisplayMainPoint || !anyPointIsMainPoint) {
+          addLine(group, parentPoint, point);
+        }
       }
 
       current = parent;
