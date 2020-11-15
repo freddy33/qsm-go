@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import _ from 'lodash';
 
-import { COLOR } from '../constant';
+import {COLOR} from '../constant';
 
 const init = (width, height) => {
   const camera = new THREE.PerspectiveCamera(20, width / height, 1, 3000);
@@ -88,7 +88,7 @@ const isMainPoint = (point) => {
   }
 
   const { x, y, z } = point;
-  return (x % 3) + (y % 3) + (z % 3) === 0;
+  return (x % 3) === 0 && (y % 3) === 0 && (z % 3) === 0;
 };
 
 const drawRoot = (group, originalRoot, options) => {
