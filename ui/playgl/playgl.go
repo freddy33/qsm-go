@@ -52,14 +52,17 @@ func Play() {
 	// ******************************************************************
 	max := m3space.MinMaxCoord
 	env := client.GetInitializedApiEnv(m3util.GetDefaultEnvId())
-	world = m3gl.MakeWorld(env, "ui", max, glfw.GetTime())
+	world = m3gl.MakeWorld(env, "ui3", max, glfw.GetTime())
 	events := world.WorldSpace.GetActiveEventsAt(m3space.ZeroDistAndTime)
 	if len(events) == 0 {
-		_, err = world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
-		if err != nil {
-			Log.Fatal(err)
-			return
-		}
+		m3gl.CreatePyramidWithParams(world.WorldSpace, 4, [4]m3point.GrowthType{8, 8, 8, 8}, [4]int{0, 0, 0, 0}, [4]int{0, 2, 4, 6})
+		/*
+			_, err = world.WorldSpace.CreateEvent(m3point.GrowthType(8), 0, 0, m3space.ZeroDistAndTime, m3point.Origin, m3space.RedEvent)
+			if err != nil {
+				Log.Fatal(err)
+				return
+			}
+		*/
 	}
 	world.CurrentTime = m3space.ZeroDistAndTime
 	world.CurrentSpaceTime = nil

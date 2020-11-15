@@ -2,6 +2,7 @@ package m3gl
 
 import (
 	"fmt"
+	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3point"
 	"github.com/freddy33/qsm-go/model/m3space"
 )
@@ -71,7 +72,7 @@ func (filter *SpaceDrawingFilter) EventOutgrowthColorsDecrease() {
 }
 
 func (filter *SpaceDrawingFilter) ColorMaskSwitch(color m3space.EventColor) {
-	filter.EventColorMask ^= 1 << color
+	filter.EventColorMask ^= uint8(color)
 }
 
 type SpaceDrawingColor struct {
@@ -116,20 +117,11 @@ func (sdc *SpaceDrawingColor) hasColor(c m3space.EventColor) bool {
 }
 
 func (sdc *SpaceDrawingColor) hasDimming(c m3space.EventColor) bool {
-	return sdc.dimColors&(1<<uint8(c)) != uint8(0)
+	return sdc.dimColors&uint8(c) != uint8(0)
 }
 
 func (sdc *SpaceDrawingColor) howManyColors() uint8 {
-	if sdc.objColors == 0 {
-		return 0
-	}
-	r := uint8(0)
-	for _, c := range m3space.AllColors {
-		if sdc.hasColor(c) {
-			r++
-		}
-	}
-	return r
+	return m3util.CountTheOnes(sdc.objColors)
 }
 
 func (sdc *SpaceDrawingColor) singleColor() m3space.EventColor {

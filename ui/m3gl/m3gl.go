@@ -94,7 +94,7 @@ func MakeWorld(env *client.QsmApiEnvironment, spaceName string, Max m3point.CInt
 		}
 	}
 	if space == nil {
-		space, err = spaceData.CreateSpace(spaceName, m3space.ZeroDistAndTime, 2, 4)
+		space, err = spaceData.CreateSpace(spaceName, m3space.DistAndTime(3), 2, 4)
 		if err != nil {
 			Log.Fatal(err)
 		}
@@ -106,6 +106,29 @@ func MakeWorld(env *client.QsmApiEnvironment, spaceName string, Max m3point.CInt
 	world.CheckMax()
 
 	return world
+}
+
+func CreatePyramidWithParams(space m3space.SpaceIfc, pyramidSize m3point.CInt, ctxTypes [4]m3point.GrowthType, indexes [4]int, offsets [4]int) {
+	_, err := space.CreateEvent(ctxTypes[0], indexes[0], offsets[0], m3space.ZeroDistAndTime, m3point.Point{3, 0, 3}.Mul(pyramidSize), m3space.RedEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	_, err = space.CreateEvent(ctxTypes[1], indexes[1], offsets[1], m3space.ZeroDistAndTime, m3point.Point{-3, 3, 3}.Mul(pyramidSize), m3space.GreenEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	_, err = space.CreateEvent(ctxTypes[2], indexes[2], offsets[2], m3space.ZeroDistAndTime, m3point.Point{-3, -3, 3}.Mul(pyramidSize), m3space.BlueEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
+	_, err = space.CreateEvent(ctxTypes[3], indexes[3], offsets[3], m3space.ZeroDistAndTime, m3point.Point{0, 0, -3}.Mul(pyramidSize), m3space.YellowEvent)
+	if err != nil {
+		Log.Error(err)
+		return
+	}
 }
 
 func (world *DisplayWorld) initialized(space m3space.SpaceIfc, glfwTime float64) {
@@ -233,13 +256,16 @@ func (creator *DrawingElementsCreator) VisitLink(node m3space.SpaceTimeNodeIfc, 
 func (world *DisplayWorld) GetSpaceTime() m3space.SpaceTimeIfc {
 	if world.CurrentSpaceTime == nil {
 		world.CurrentSpaceTime = world.WorldSpace.GetSpaceTimeAt(world.CurrentTime)
+		// Update space also.
+		world.WorldSpace.(*client.SpaceCl).UpdateMax()
 	}
 	return world.CurrentSpaceTime
 }
 
 func (world *DisplayWorld) ForwardTime() {
 	world.CurrentTime++
-	world.CurrentSpaceTime = world.WorldSpace.GetSpaceTimeAt(world.CurrentTime)
+	world.CurrentSpaceTime = nil
+	world.GetSpaceTime()
 }
 
 func (world *DisplayWorld) CreateDrawingElements() {
