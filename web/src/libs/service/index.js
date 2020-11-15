@@ -1,40 +1,7 @@
 import _ from 'lodash';
 import axios from 'axios';
 
-import m3point from '../grpc/m3point_pb';
-
 const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-
-const getPointPackDataMsgGrpc = async () => {
-  const resp = await axios.get(`${REACT_APP_BACKEND_URL}/point-data`, {
-    responseType: 'arraybuffer',
-  });
-
-  const pointPackDataMsg = m3point.PointPackDataMsg.deserializeBinary(resp.data);
-
-  const connections = {};
-  const trios = {};
-  pointPackDataMsg.getAllConnectionsList().forEach((conn) => {
-    connections[conn.getConnId()] = {
-      connId: conn.getConnId(),
-      ds: conn.getDs(),
-      vector: {
-        x: conn.getVector().getX(),
-        y: conn.getVector().getY(),
-        z: conn.getVector().getZ(),
-      },
-    };
-  });
-
-  pointPackDataMsg.getAllTriosList().forEach((trio) => {
-    trios[trio.getTrioId()] = {
-      trioId: trio.getTrioId(),
-      connIds: trio.getConnIdsList(),
-    };
-  });
-
-  return { connections, trios };
-};
 
 const getPointPackDataMsg = async () => {
   const resp = await axios({
@@ -72,6 +39,25 @@ const getPointPackDataMsg = async () => {
   });
 
   return { connections, trios };
+};
+
+const createPathContext = async (growthType, growthIndex, growthOffset) => {
+  const resp = await axios({
+    method: 'post',
+    url: `${REACT_APP_BACKEND_URL}/path-context`,
+    data: {
+      growth_type: growthType,
+      growth_index: growthIndex,
+      growth_offset: growthOffset,
+    },
+  });
+
+  if (!_.get(resp, 'data.path_ctx_id')) {
+    alert(resp.data);
+  }
+
+  const data = _.get(resp, 'data');
+  return data;
 };
 
 const updateMaxDist = async (pathContextId, dist) => {
@@ -125,7 +111,7 @@ const getPathContext = async (pathContextId) => {
   };
 };
 
-const getPathContextIds = async () => {
+const getPathContexts = async () => {
   const resp = await axios({
     method: 'get',
     url: `${REACT_APP_BACKEND_URL}/path-context`,
@@ -135,6 +121,11 @@ const getPathContextIds = async () => {
   });
 
   const pathContexts = _.get(resp, 'data.path_contexts', []);
+  return pathContexts;
+};
+
+const getPathContextIds = async () => {
+  const pathContexts = await getPathContexts();
 
   const pathContextIds = pathContexts.map((pathContext) => {
     return pathContext.path_ctx_id;
@@ -146,9 +137,10 @@ const getPathContextIds = async () => {
 
 export default {
   getPointPackDataMsg,
-  getPointPackDataMsgGrpc,
+  createPathContext,
   updateMaxDist,
   getPathNodes,
   getPathContext,
+  getPathContexts,
   getPathContextIds,
 };
