@@ -8,11 +8,12 @@ const DIRECTION = {
 };
 
 const Index = (props) => {
-  const { headers, data } = props;
+  const { headers, data, actionProducer, highlightProducer } = props;
 
   const [direction, setDirection] = useState(DIRECTION.ASCENDING);
   const [sortedColumn, setSortedColumn] = useState();
   const [currentData, setCurrentData] = useState(data);
+  const [lastRender, setLastRender] = useState(Date.now());
 
   const sort = (selectedColumn) => {
     const newDirection = direction === DIRECTION.ASCENDING ? DIRECTION.DESCENDING : DIRECTION.ASCENDING;
@@ -29,34 +30,44 @@ const Index = (props) => {
     setDirection(newDirection);
   };
 
+  const rerender = () => setLastRender(Date.now());
+
   useEffect(() => {
     setCurrentData(data);
   }, [data]);
 
+  useEffect(() => {
+    // use this state to force UI to rerender
+  }, [lastRender]);
+
+  const shouldShowAction = !!actionProducer;
   return (
     <Table sortable celled>
       <Table.Header>
         <Table.Row>
-          {headers.map((header, index) => {
-            const { label, sortable = true } = header;
+          {headers.map((header) => {
+            const { fieldName, label, sortable = true } = header;
             const cellProperties = sortable
               ? {
-                  sorted: sortedColumn === index ? direction : null,
-                  onClick: () => sort(index),
+                  sorted: sortedColumn === fieldName ? direction : null,
+                  onClick: () => sort(fieldName),
                 }
               : {};
             return <Table.HeaderCell {...cellProperties}>{label}</Table.HeaderCell>;
           })}
+          {shouldShowAction && <Table.HeaderCell>Actions</Table.HeaderCell>}
         </Table.Row>
       </Table.Header>
 
       <Table.Body>
         {currentData.map((row) => {
+          const highlighted = highlightProducer(row);
           return (
-            <Table.Row>
-              {row.map((column) => (
-                <Table.Cell>{column}</Table.Cell>
+            <Table.Row positive={highlighted}>
+              {headers.map((header) => (
+                <Table.Cell>{row[header.fieldName]}</Table.Cell>
               ))}
+              {shouldShowAction && <Table.Cell>{actionProducer(row, rerender)}</Table.Cell>}
             </Table.Row>
           );
         })}
