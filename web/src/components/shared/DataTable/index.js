@@ -60,17 +60,14 @@ const Index = (props) => {
       </Table.Header>
 
       <Table.Body>
-        {currentData.map((row) => {
-          const highlighted = highlightProducer(row);
-          return (
-            <Table.Row positive={highlighted}>
-              {headers.map((header) => (
-                <Table.Cell>{row[header.fieldName]}</Table.Cell>
-              ))}
-              {shouldShowAction && <Table.Cell>{actionProducer(row, rerender)}</Table.Cell>}
-            </Table.Row>
-          );
-        })}
+        {currentData.map((row) => (
+          <Table.Row positive={highlightProducer && highlightProducer(row)}>
+            {headers.map(({ fieldName }) => (
+              <Table.Cell>{row[fieldName]}</Table.Cell>
+            ))}
+            {shouldShowAction && <Table.Cell>{actionProducer(row, rerender)}</Table.Cell>}
+          </Table.Row>
+        ))}
       </Table.Body>
     </Table>
   );
