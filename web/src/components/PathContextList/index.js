@@ -93,36 +93,27 @@ const PathContextList = () => {
       </Segment>
       <DataTable
         headers={[
-          { label: 'Path Context ID' },
-          { label: 'Max Dist' },
-          { label: 'Growth Type' },
-          { label: 'Growth Index' },
-          { label: 'Growth Offset' },
-          { label: 'Actions', sortable: false },
+          { label: 'Path Context ID', fieldName: 'pathContextId' },
+          { label: 'Max Dist', fieldName: 'maxDist' },
+          { label: 'Growth Type', fieldName: 'growthType' },
+          { label: 'Growth Index', fieldName: 'growthIndex' },
+          { label: 'Growth Offset', fieldName: 'growthOffset' },
         ]}
-        data={pathContexts.map((pathContext) => {
-          const {
-            path_ctx_id: pathContextId,
-            max_dist: maxDist,
-            growth_type: growthType,
-            growth_index: growthIndex,
-            growth_offset: growthOffset,
-          } = pathContext;
-
-          return [
-            pathContextId,
-            maxDist,
-            growthType,
-            growthIndex,
-            growthOffset,
-            <>
-              <Link to={`render/${pathContextId}`}>
-                <Button>Render</Button>
-              </Link>
-              <Button onClick={() => updateMaxDist(pathContextId, maxDist + 1)}>Max dist + 1</Button>
-            </>,
-          ];
-        })}
+        data={pathContexts.map(({ path_ctx_id, max_dist, growth_type, growth_index, growth_offset }) => ({
+          pathContextId: path_ctx_id,
+          maxDist: max_dist,
+          growthType: growth_type,
+          growthIndex: growth_index,
+          growthOffset: growth_offset,
+        }))}
+        actionProducer={({ pathContextId, maxDist }) => (
+          <>
+            <Link to={`render/${pathContextId}`}>
+              <Button>Render</Button>
+            </Link>
+            <Button onClick={() => updateMaxDist(pathContextId, maxDist + 1)}>Max dist + 1</Button>
+          </>
+        )}
       />
     </div>
   );
