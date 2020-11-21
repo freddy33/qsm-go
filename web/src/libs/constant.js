@@ -7,4 +7,8 @@ const COLOR = {
   MAIN_POINT: '#ff8000',
 };
 
-export { COLOR };
+const LOCAL_STORAGE_KEY = {
+  SELECTED_ENVIRONMENT: 'selectedEnvironment',
+};
+
+export { COLOR, LOCAL_STORAGE_KEY };

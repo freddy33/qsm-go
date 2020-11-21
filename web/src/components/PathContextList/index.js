@@ -3,7 +3,7 @@ import { Link } from '@reach/router';
 import { Button, Form, Message, Segment } from 'semantic-ui-react';
 import _ from 'lodash';
 
-import DataTable from './DataTable';
+import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';
 import Service from '../../libs/service';
 
@@ -91,7 +91,30 @@ const PathContextList = () => {
           </Message>
         )}
       </Segment>
-      <DataTable pathContexts={pathContexts} updateMaxDist={updateMaxDist} />
+      <DataTable
+        headers={[
+          { label: 'Path Context ID', fieldName: 'pathContextId' },
+          { label: 'Max Dist', fieldName: 'maxDist' },
+          { label: 'Growth Type', fieldName: 'growthType' },
+          { label: 'Growth Index', fieldName: 'growthIndex' },
+          { label: 'Growth Offset', fieldName: 'growthOffset' },
+        ]}
+        data={pathContexts.map(({ path_ctx_id, max_dist, growth_type, growth_index, growth_offset }) => ({
+          pathContextId: path_ctx_id,
+          maxDist: max_dist,
+          growthType: growth_type,
+          growthIndex: growth_index,
+          growthOffset: growth_offset,
+        }))}
+        actionProducer={({ pathContextId, maxDist }) => (
+          <>
+            <Link to={`render/${pathContextId}`}>
+              <Button>Render</Button>
+            </Link>
+            <Button onClick={() => updateMaxDist(pathContextId, maxDist + 1)}>Max dist + 1</Button>
+          </>
+        )}
+      />
     </div>
   );
 };

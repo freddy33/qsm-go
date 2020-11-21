@@ -135,6 +135,15 @@ const getPathContextIds = async () => {
   return sorted;
 };
 
+const getEnvironments = async () => {
+  const resp = await axios({
+    method: 'get',
+    url: `${REACT_APP_BACKEND_URL}/list-env`,
+  });
+
+  return _.get(resp, 'data.envs', []);
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -143,4 +152,5 @@ export default {
   getPathContext,
   getPathContexts,
   getPathContextIds,
+  getEnvironments,
 };
