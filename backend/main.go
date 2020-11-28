@@ -62,6 +62,7 @@ func createAppAndListen(port string) {
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders: []string{"QsmEnvId"},
 	})
 
 	handler := c.Handler(runningApp.Router)
