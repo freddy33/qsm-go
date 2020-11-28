@@ -77,7 +77,13 @@ const getPathContext = async (pathContextId) => {
   });
 
   const pathContext = _.get(resp, 'data', {});
-  const { path_ctx_id, growth_type, growth_index, growth_offset, max_dist } = pathContext;
+  const {
+    path_ctx_id,
+    growth_type,
+    growth_index,
+    growth_offset,
+    max_dist,
+  } = pathContext;
 
   return {
     pathContextId: path_ctx_id,
@@ -114,6 +120,20 @@ const getEnvironments = async () => {
   return _.get(resp, 'data.envs', []);
 };
 
+const createEnvironment = async (envId) => {
+  const resp = await httpRequest.request({
+    method: 'post',
+    url: `${REACT_APP_BACKEND_URL}/init-env`,
+    headers: {
+      QsmEnvId: envId,
+    },
+  });
+
+  if (_.get(resp, 'status') !== 201) {
+    alert(resp.data);
+  }
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -123,4 +143,5 @@ export default {
   getPathContexts,
   getPathContextIds,
   getEnvironments,
+  createEnvironment,
 };

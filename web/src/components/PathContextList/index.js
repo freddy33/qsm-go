@@ -89,7 +89,7 @@ const PathContextList = () => {
               onChange={(e, { value }) => setGrowthOffset(value)}
             />
           </Form.Group>
-          <Form.Button>Submit</Form.Button>
+          <Form.Button>Create Path Context</Form.Button>
         </Form>
         {createdPathContext && (
           <Message positive>

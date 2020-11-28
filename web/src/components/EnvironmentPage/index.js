@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Button } from 'semantic-ui-react';
+import { Button, Form, Message, Segment } from 'semantic-ui-react';
 import _ from 'lodash';
-import { useNavigate } from '@reach/router';
+import { Link, useNavigate } from '@reach/router';
 
 import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';
@@ -11,11 +11,19 @@ import localStorage from '../../libs/util/localStorage';
 const EnvironmentPage = ({ changeEnv }) => {
   const navigate = useNavigate();
   const [environments, setEnvironments] = useState([]);
+  const [envIdToBeCreated, setEnvIdToBeCreated] = useState();
+  const [displayMessage, setDisplayMessage] = useState('');
 
   const getEnvironments = async () => {
     const envs = await Service.getEnvironments();
     const sorted = _.sortBy(envs, ['env_id']);
     setEnvironments(sorted);
+  };
+
+  const createEnv = async (envId) => {
+    await Service.createEnvironment(envId);
+    await getEnvironments();
+    setDisplayMessage('Environment is created successfully.');
   };
 
   useEffect(() => {
@@ -24,6 +32,22 @@ const EnvironmentPage = ({ changeEnv }) => {
 
   return (
     <div className={styles.environmentPage}>
+      <Segment>
+        <Form onSubmit={() => createEnv(envIdToBeCreated)}>
+          <Form.Input
+            placeholder="Env ID"
+            onChange={(e, { value }) => setEnvIdToBeCreated(value)}
+          />
+          <Form.Button disabled={!envIdToBeCreated}>
+            Create Environment
+          </Form.Button>
+        </Form>
+        {displayMessage && (
+          <Message positive>
+            <Message.Header>{displayMessage}</Message.Header>
+          </Message>
+        )}
+      </Segment>
       <DataTable
         headers={[
           { label: 'Env ID', fieldName: 'envId' },
