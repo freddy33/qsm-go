@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-// import { Link } from '@reach/router';
 import { Button } from 'semantic-ui-react';
 import _ from 'lodash';
+import { useNavigate } from '@reach/router';
 
 import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';
 import Service from '../../libs/service';
-import LocalStorage from '../../libs/util/localStorage';
-import { LOCAL_STORAGE_KEY } from '../../libs/constant';
+import localStorage from '../../libs/util/localStorage';
 
-const EnvironmentPage = () => {
+const EnvironmentPage = ({ changeEnv }) => {
+  const navigate = useNavigate();
   const [environments, setEnvironments] = useState([]);
 
   const getEnvironments = async () => {
@@ -18,16 +18,12 @@ const EnvironmentPage = () => {
     setEnvironments(sorted);
   };
 
-  const selectEnv = (envId) => LocalStorage.setItem(LOCAL_STORAGE_KEY.SELECTED_ENVIRONMENT, envId);
-  const getCurrentEnv = () => _.parseInt(LocalStorage.getItem(LOCAL_STORAGE_KEY.SELECTED_ENVIRONMENT));
-
   useEffect(() => {
     getEnvironments();
   }, []);
 
   return (
     <div className={styles.environmentPage}>
-      <h1>Environments</h1>
       <DataTable
         headers={[
           { label: 'Env ID', fieldName: 'envId' },
@@ -45,15 +41,17 @@ const EnvironmentPage = () => {
           return (
             <Button
               onClick={() => {
-                selectEnv(rowData.envId);
-                rerender();
+                changeEnv(rowData.envId);
+                navigate(`/path-contexts`);
               }}
             >
               Select
             </Button>
           );
         }}
-        highlightProducer={(row) => getCurrentEnv() === row.envId}
+        highlightProducer={(row) =>
+          _.parseInt(localStorage.getCurrentEnv()) === row.envId
+        }
       />
     </div>
   );

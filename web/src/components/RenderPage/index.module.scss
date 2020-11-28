@@ -2,7 +2,7 @@
   display: flex;
   margin: 0px;
   padding: 0px;
-  height: 100vh;
+  height: calc(100vh - 60px);
   width: 100vw;
 
   .panel {
@@ -14,7 +14,7 @@
       padding: 2px;
     }
     .colorPicker {
-      div{
+      div {
         padding: 0px;
       }
     }

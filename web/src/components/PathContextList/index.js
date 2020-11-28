@@ -6,16 +6,27 @@ import _ from 'lodash';
 import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';
 import Service from '../../libs/service';
+import LocalStorage from '../../libs/util/localStorage';
+import { LOCAL_STORAGE_KEY } from '../../libs/constant';
+import Breadcrumb from '../shared/PageHeader';
 
 const growthTypeOptions = [1, 2, 3, 4, 8].map((v) => ({ value: v, text: v }));
-const growthIndexOptions = [...Array(12).keys()].map((v) => ({ value: v, text: v }));
-const growthOffsetOptions = [...Array(12).keys()].map((v) => ({ value: v, text: v }));
+const growthIndexOptions = [...Array(12).keys()].map((v) => ({
+  value: v,
+  text: v,
+}));
+const growthOffsetOptions = [...Array(12).keys()].map((v) => ({
+  value: v,
+  text: v,
+}));
 
 const PathContextList = () => {
   const [pathContexts, setPathContexts] = useState([]);
   const [growthType, setGrowthType] = useState(growthTypeOptions[0].value);
   const [growthIndex, setGrowthIndex] = useState(growthIndexOptions[0].value);
-  const [growthOffset, setGrowthOffset] = useState(growthOffsetOptions[0].value);
+  const [growthOffset, setGrowthOffset] = useState(
+    growthOffsetOptions[0].value,
+  );
   const [createdPathContext, setCreatedPathContext] = useState();
 
   const getPathContexts = async () => {
@@ -31,7 +42,11 @@ const PathContextList = () => {
   };
 
   const onSubmit = async (growthType, growthIndex, growthOffset) => {
-    const resp = await Service.createPathContext(growthType, growthIndex, growthOffset);
+    const resp = await Service.createPathContext(
+      growthType,
+      growthIndex,
+      growthOffset,
+    );
     const { path_ctx_id: pathContextId, max_dist: maxDist } = resp;
     setCreatedPathContext({
       pathContextId,
@@ -46,7 +61,6 @@ const PathContextList = () => {
 
   return (
     <div className={styles.pathContextList}>
-      <h1>Path Contexts</h1>
       <Segment>
         <Form onSubmit={() => onSubmit(growthType, growthIndex, growthOffset)}>
           <Form.Group widths="equal">
@@ -79,13 +93,15 @@ const PathContextList = () => {
         </Form>
         {createdPathContext && (
           <Message positive>
-            <Message.Header>Path context is created successfully.</Message.Header>
+            <Message.Header>
+              Path context is created successfully.
+            </Message.Header>
             <p>
               Path Context ID: {createdPathContext.pathContextId}
               <br />
               Max Dist: {createdPathContext.maxDist}
             </p>
-            <Link to={`render/${createdPathContext.pathContextId}`}>
+            <Link to={`/render/${createdPathContext.pathContextId}`}>
               <Button>Render</Button>
             </Link>
           </Message>
@@ -99,19 +115,29 @@ const PathContextList = () => {
           { label: 'Growth Index', fieldName: 'growthIndex' },
           { label: 'Growth Offset', fieldName: 'growthOffset' },
         ]}
-        data={pathContexts.map(({ path_ctx_id, max_dist, growth_type, growth_index, growth_offset }) => ({
-          pathContextId: path_ctx_id,
-          maxDist: max_dist,
-          growthType: growth_type,
-          growthIndex: growth_index,
-          growthOffset: growth_offset,
-        }))}
+        data={pathContexts.map(
+          ({
+            path_ctx_id,
+            max_dist,
+            growth_type,
+            growth_index,
+            growth_offset,
+          }) => ({
+            pathContextId: path_ctx_id,
+            maxDist: max_dist,
+            growthType: growth_type,
+            growthIndex: growth_index,
+            growthOffset: growth_offset,
+          }),
+        )}
         actionProducer={({ pathContextId, maxDist }) => (
           <>
-            <Link to={`render/${pathContextId}`}>
+            <Link to={`/render/${pathContextId}`}>
               <Button>Render</Button>
             </Link>
-            <Button onClick={() => updateMaxDist(pathContextId, maxDist + 1)}>Max dist + 1</Button>
+            <Button onClick={() => updateMaxDist(pathContextId, maxDist + 1)}>
+              Max dist + 1
+            </Button>
           </>
         )}
       />

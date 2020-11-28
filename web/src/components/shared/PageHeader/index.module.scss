@@ -1,0 +1,17 @@
+.pageHeader {
+  margin: 20px;
+  font-size: 20px;
+  display: flex;
+
+  .currentEnv {
+    margin-left: 20px;
+  }
+
+  .breadcrumb {
+    .active {
+      color: dodgerblue;
+      text-decoration: underline;
+      font-weight: bold;
+    }
+  }
+}
