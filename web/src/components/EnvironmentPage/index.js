@@ -26,6 +26,11 @@ const EnvironmentPage = ({ changeEnv }) => {
     setDisplayMessage('Environment is created successfully.');
   };
 
+  const deleteEnv = async (envId) => {
+    await Service.deleteEnvironment(envId);
+    await getEnvironments();
+  };
+
   useEffect(() => {
     getEnvironments();
   }, []);
@@ -63,14 +68,17 @@ const EnvironmentPage = ({ changeEnv }) => {
         }))}
         actionProducer={(rowData, rerender) => {
           return (
-            <Button
-              onClick={() => {
-                changeEnv(rowData.envId);
-                navigate(`/path-contexts`);
-              }}
-            >
-              Select
-            </Button>
+            <div>
+              <Button
+                onClick={() => {
+                  changeEnv(rowData.envId);
+                  navigate(`/path-contexts`);
+                }}
+              >
+                Select
+              </Button>
+              <Button onClick={() => deleteEnv(rowData.envId)}>Delete</Button>
+            </div>
           );
         }}
         highlightProducer={(row) =>

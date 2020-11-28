@@ -134,6 +134,20 @@ const createEnvironment = async (envId) => {
   }
 };
 
+const deleteEnvironment = async (envId) => {
+  const resp = await httpRequest.request({
+    method: 'delete',
+    url: `${REACT_APP_BACKEND_URL}/drop-env`,
+    headers: {
+      QsmEnvId: envId,
+    },
+  });
+
+  if (_.get(resp, 'status') !== 200) {
+    alert(resp.data);
+  }
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -144,4 +158,5 @@ export default {
   getPathContextIds,
   getEnvironments,
   createEnvironment,
+  deleteEnvironment,
 };
