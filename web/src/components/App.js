@@ -1,23 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Router } from '@reach/router';
 
 import PathContextList from './PathContextList';
 import RenderPage from './RenderPage';
 import EnvironmentPage from './EnvironmentPage';
+import PageHeader from './shared/PageHeader';
+import styles from './App.module.scss';
+import localStorage from '../libs/util/localStorage';
+import { LOCAL_STORAGE_KEY } from '../libs/constant';
 
 const NotFound = () => <h1>Invalid route</h1>;
 
 const App = () => {
-  return (
-    <Router>
-      <PathContextList path="/" />
-      <PathContextList path="path-contexts" />
-      <RenderPage path="render" />
-      <RenderPage path="render/:pathContextId" />
-      <EnvironmentPage path="environments" />
+  const [currentEnv, setCurrentEnv] = useState(localStorage.getCurrentEnv());
 
-      <NotFound default />
-    </Router>
+  const changeEnv = (envId) => {
+    localStorage.setItem(LOCAL_STORAGE_KEY.SELECTED_ENVIRONMENT, envId);
+    setCurrentEnv(envId);
+  };
+
+  return (
+    <div className={styles.app}>
+      <PageHeader currentEnv={currentEnv} />
+      <Router className={styles.content}>
+        <EnvironmentPage path="/" changeEnv={changeEnv} />
+        <PathContextList path="path-contexts" />
+        <RenderPage path="render" />
+        <RenderPage path="render/:pathContextId" />
+        <EnvironmentPage path="environments" />
+
+        <NotFound default />
+      </Router>
+    </div>
   );
 };
 

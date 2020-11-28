@@ -1,17 +1,10 @@
 import _ from 'lodash';
-import axios from 'axios';
+import httpRequest from '../util/httpRequest';
 
 const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getPointPackDataMsg = async () => {
-  const resp = await axios({
-    method: 'get',
-    url: `${REACT_APP_BACKEND_URL}/point-data`,
-    data: null,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/point-data`);
 
   const connections = {};
   const trios = {};
@@ -42,14 +35,10 @@ const getPointPackDataMsg = async () => {
 };
 
 const createPathContext = async (growthType, growthIndex, growthOffset) => {
-  const resp = await axios({
-    method: 'post',
-    url: `${REACT_APP_BACKEND_URL}/path-context`,
-    data: {
-      growth_type: growthType,
-      growth_index: growthIndex,
-      growth_offset: growthOffset,
-    },
+  const resp = await httpRequest.post(`${REACT_APP_BACKEND_URL}/path-context`, {
+    growth_type: growthType,
+    growth_index: growthIndex,
+    growth_offset: growthOffset,
   });
 
   if (!_.get(resp, 'data.path_ctx_id')) {
@@ -61,13 +50,9 @@ const createPathContext = async (growthType, growthIndex, growthOffset) => {
 };
 
 const updateMaxDist = async (pathContextId, dist) => {
-  const resp = await axios({
-    method: 'put',
-    url: `${REACT_APP_BACKEND_URL}/max-dist`,
-    data: {
-      path_ctx_id: pathContextId,
-      dist,
-    },
+  const resp = await httpRequest.put(`${REACT_APP_BACKEND_URL}/max-dist`, {
+    path_ctx_id: pathContextId,
+    dist,
   });
 
   const maxDist = _.get(resp, 'data.max_dist');
@@ -77,30 +62,28 @@ const updateMaxDist = async (pathContextId, dist) => {
 };
 
 const getPathNodes = async (pathContextId, fromDist, toDist) => {
-  const resp = await axios({
-    method: 'get',
-    url: `${REACT_APP_BACKEND_URL}/path-nodes`,
-    params: {
-      path_ctx_id: pathContextId,
-      dist: fromDist,
-      to_dist: toDist,
-    },
+  const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/path-nodes`, {
+    path_ctx_id: pathContextId,
+    dist: fromDist,
+    to_dist: toDist,
   });
 
   return resp.data;
 };
 
 const getPathContext = async (pathContextId) => {
-  const resp = await axios({
-    method: 'get',
-    url: `${REACT_APP_BACKEND_URL}/path-context`,
-    params: {
-      path_ctx_id: pathContextId,
-    },
+  const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/path-context`, {
+    path_ctx_id: pathContextId,
   });
 
   const pathContext = _.get(resp, 'data', {});
-  const { path_ctx_id, growth_type, growth_index, growth_offset, max_dist } = pathContext;
+  const {
+    path_ctx_id,
+    growth_type,
+    growth_index,
+    growth_offset,
+    max_dist,
+  } = pathContext;
 
   return {
     pathContextId: path_ctx_id,
@@ -112,12 +95,8 @@ const getPathContext = async (pathContextId) => {
 };
 
 const getPathContexts = async () => {
-  const resp = await axios({
-    method: 'get',
-    url: `${REACT_APP_BACKEND_URL}/path-context`,
-    params: {
-      path_ctx_id: -1,
-    },
+  const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/path-context`, {
+    path_ctx_id: -1,
   });
 
   const pathContexts = _.get(resp, 'data.path_contexts', []);
@@ -136,12 +115,37 @@ const getPathContextIds = async () => {
 };
 
 const getEnvironments = async () => {
-  const resp = await axios({
-    method: 'get',
-    url: `${REACT_APP_BACKEND_URL}/list-env`,
-  });
+  const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/list-env`);
 
   return _.get(resp, 'data.envs', []);
+};
+
+const createEnvironment = async (envId) => {
+  const resp = await httpRequest.request({
+    method: 'post',
+    url: `${REACT_APP_BACKEND_URL}/init-env`,
+    headers: {
+      QsmEnvId: envId,
+    },
+  });
+
+  if (_.get(resp, 'status') !== 201) {
+    alert(resp.data);
+  }
+};
+
+const deleteEnvironment = async (envId) => {
+  const resp = await httpRequest.request({
+    method: 'delete',
+    url: `${REACT_APP_BACKEND_URL}/drop-env`,
+    headers: {
+      QsmEnvId: envId,
+    },
+  });
+
+  if (_.get(resp, 'status') !== 200) {
+    alert(resp.data);
+  }
 };
 
 export default {
@@ -153,4 +157,6 @@ export default {
   getPathContexts,
   getPathContextIds,
   getEnvironments,
+  createEnvironment,
+  deleteEnvironment,
 };
