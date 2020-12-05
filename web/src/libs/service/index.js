@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import httpRequest from '../util/httpRequest';
+import { HTTP_STATUS } from '../constant';
 
 const REACT_APP_BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -143,8 +144,50 @@ const deleteEnvironment = async (envId) => {
     },
   });
 
-  if (_.get(resp, 'status') !== 200) {
+  if (_.get(resp, 'status') !== HTTP_STATUS.OK) {
     alert(resp.data);
+  }
+};
+
+const getSpaces = async () => {
+  const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/space`);
+
+  return _.get(resp, 'data.spaces', []);
+};
+
+const createSpace = async (spaceName, activeThreshold, maxTime, maxCoord) => {
+  try {
+    const resp = await httpRequest.post(`${REACT_APP_BACKEND_URL}/space`, {
+      space_name: spaceName,
+      active_threshold: _.parseInt(activeThreshold),
+      max_time: _.parseInt(maxTime),
+      max_coord: _.parseInt(maxCoord),
+    });
+
+    if (_.get(resp, 'status') !== HTTP_STATUS.OK) {
+      alert(resp.data);
+    }
+
+    return _.get(resp, 'data');
+  } catch (e) {
+    alert(_.get(e, 'response.data'));
+  }
+};
+
+const deleteSpace = async (spaceId, spaceName) => {
+  try {
+    const resp = await httpRequest.delete(`${REACT_APP_BACKEND_URL}/space`, {
+      space_id: spaceId,
+      space_name: spaceName,
+    });
+
+    if (_.get(resp, 'status') !== HTTP_STATUS.OK) {
+      alert(resp.data);
+    }
+
+    return _.get(resp, 'data');
+  } catch (e) {
+    alert(_.get(e, 'response.data'));
   }
 };
 
@@ -159,4 +202,7 @@ export default {
   getEnvironments,
   createEnvironment,
   deleteEnvironment,
+  getSpaces,
+  createSpace,
+  deleteSpace,
 };

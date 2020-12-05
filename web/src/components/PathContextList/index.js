@@ -6,9 +6,6 @@ import _ from 'lodash';
 import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';
 import Service from '../../libs/service';
-import LocalStorage from '../../libs/util/localStorage';
-import { LOCAL_STORAGE_KEY } from '../../libs/constant';
-import Breadcrumb from '../shared/PageHeader';
 
 const growthTypeOptions = [1, 2, 3, 4, 8].map((v) => ({ value: v, text: v }));
 const growthIndexOptions = [...Array(12).keys()].map((v) => ({
