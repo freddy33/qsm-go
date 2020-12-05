@@ -174,6 +174,23 @@ const createSpace = async (spaceName, activeThreshold, maxTime, maxCoord) => {
   }
 };
 
+const deleteSpace = async (spaceId, spaceName) => {
+  try {
+    const resp = await httpRequest.delete(`${REACT_APP_BACKEND_URL}/space`, {
+      space_id: spaceId,
+      space_name: spaceName,
+    });
+
+    if (_.get(resp, 'status') !== HTTP_STATUS.OK) {
+      alert(resp.data);
+    }
+
+    return _.get(resp, 'data');
+  } catch (e) {
+    alert(_.get(e, 'response.data'));
+  }
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -187,4 +204,5 @@ export default {
   deleteEnvironment,
   getSpaces,
   createSpace,
+  deleteSpace,
 };

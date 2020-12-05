@@ -44,6 +44,14 @@ const SpacePage = () => {
     }
   };
 
+  const deleteSpace = async (spaceId, spaceName) => {
+    const result = await Service.deleteSpace(spaceId, spaceName);
+
+    if (result) {
+      await getSpaces();
+    }
+  };
+
   useEffect(() => {
     getSpaces();
   }, []);
@@ -120,11 +128,14 @@ const SpacePage = () => {
           maxTime: space.max_time,
           maxCoord: space.max_coord,
         }))}
-        actionProducer={({ spaceId }) => (
+        actionProducer={({ spaceId, spaceName }) => (
           <>
             <Link to={`/spaces/${spaceId}`}>
               <Button>Detail</Button>
             </Link>
+            <Button onClick={() => deleteSpace(spaceId, spaceName)}>
+              Delete
+            </Button>
           </>
         )}
       />

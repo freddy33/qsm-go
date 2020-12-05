@@ -66,7 +66,7 @@ const EnvironmentPage = ({ changeEnv }) => {
           schemaSize: env.schema_size,
           schemaSizePercent: env.schema_size_percent,
         }))}
-        actionProducer={(rowData, rerender) => {
+        actionProducer={(rowData) => {
           return (
             <div>
               <Button
