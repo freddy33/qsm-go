@@ -11,6 +11,13 @@ import localStorage from '../../libs/util/localStorage';
 const SpacePage = () => {
   const navigate = useNavigate();
   const [spaces, setSpaces] = useState([]);
+  const [spaceToBeCreated, setSpaceToBeCreated] = useState({
+    spaceName: '',
+    activeThreshold: '',
+    maxTime: '',
+    maxCoord: '',
+  });
+  const [displayMessage, setDisplayMessage] = useState('');
 
   const getSpaces = async () => {
     const spaces = await Service.getSpaces();
@@ -22,12 +29,80 @@ const SpacePage = () => {
     setSpaces(sorted);
   };
 
+  const createSpace = async (space) => {
+    const { spaceName, activeThreshold, maxTime, maxCoord } = space;
+    const result = await Service.createSpace(
+      spaceName,
+      activeThreshold,
+      maxTime,
+      maxCoord,
+    );
+
+    if (result) {
+      setDisplayMessage(`Space ${spaceName} is created successfully.`);
+      return getSpaces();
+    }
+  };
+
   useEffect(() => {
     getSpaces();
   }, []);
 
   return (
     <div className={styles.spacePage}>
+      <Segment>
+        <Form onSubmit={() => createSpace(spaceToBeCreated)}>
+          <Form.Input
+            placeholder="Space Name"
+            onChange={(e, { value }) =>
+              setSpaceToBeCreated({
+                ...spaceToBeCreated,
+                spaceName: value,
+              })
+            }
+          />
+          <Form.Input
+            type="number"
+            placeholder="Active Threshold"
+            onChange={(e, { value }) =>
+              setSpaceToBeCreated({
+                ...spaceToBeCreated,
+                activeThreshold: value,
+              })
+            }
+          />
+          <Form.Input
+            type="number"
+            placeholder="Max Time"
+            onChange={(e, { value }) =>
+              setSpaceToBeCreated({
+                ...spaceToBeCreated,
+                maxTime: value,
+              })
+            }
+          />
+          <Form.Input
+            type="number"
+            placeholder="Max Coord"
+            onChange={(e, { value }) =>
+              setSpaceToBeCreated({
+                ...spaceToBeCreated,
+                maxCoord: value,
+              })
+            }
+          />
+          <Form.Button
+            disabled={_.values(spaceToBeCreated).some((value) => value === '')}
+          >
+            Create Space
+          </Form.Button>
+        </Form>
+        {displayMessage && (
+          <Message positive>
+            <Message.Header>{displayMessage}</Message.Header>
+          </Message>
+        )}
+      </Segment>
       <DataTable
         headers={[
           { label: 'Space ID', fieldName: 'spaceId' },
