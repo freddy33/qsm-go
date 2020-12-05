@@ -18,9 +18,11 @@ const PageHeader = ({ currentEnv }) => {
     <div className={styles.pageHeader}>
       <nav className={styles.breadcrumb}>
         <NavLink to="/">Environments</NavLink>
-        {' > '}
+        {' | '}
+        <NavLink to="/spaces">Spaces</NavLink>
+        {' | '}
         <NavLink to="/path-contexts">Path Contexts</NavLink>
-        {' > '}
+        {' | '}
         <NavLink to="/render">Render</NavLink>
       </nav>
       <div className={styles.currentEnv}>(Current Env: {currentEnv})</div>

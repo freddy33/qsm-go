@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Form, Message, Segment } from 'semantic-ui-react';
 import _ from 'lodash';
-import { Link, useNavigate } from '@reach/router';
+import { useNavigate } from '@reach/router';
 
 import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';

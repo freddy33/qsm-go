@@ -1,0 +1,5 @@
+@import '../../style/mixins';
+
+.spacePage {
+  @include base-page;
+}

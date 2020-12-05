@@ -148,6 +148,12 @@ const deleteEnvironment = async (envId) => {
   }
 };
 
+const getSpaces = async () => {
+  const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/space`);
+
+  return _.get(resp, 'data.spaces', []);
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -159,4 +165,5 @@ export default {
   getEnvironments,
   createEnvironment,
   deleteEnvironment,
+  getSpaces,
 };
