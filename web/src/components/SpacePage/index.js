@@ -45,6 +45,13 @@ const SpacePage = () => {
           maxTime: space.max_time,
           maxCoord: space.max_coord,
         }))}
+        actionProducer={({ spaceId }) => (
+          <>
+            <Link to={`/spaces/${spaceId}`}>
+              <Button>Detail</Button>
+            </Link>
+          </>
+        )}
       />
     </div>
   );
