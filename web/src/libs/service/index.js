@@ -191,6 +191,19 @@ const deleteSpace = async (spaceId, spaceName) => {
   }
 };
 
+const getEvents = async (spaceId) => {
+  try {
+    const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/event`, {
+      space_id: spaceId,
+      at_time: -1,
+    });
+
+    return _.get(resp, 'data.events', []);
+  } catch (e) {
+    alert(_.get(e, 'response.data'));
+  }
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -205,4 +218,5 @@ export default {
   getSpaces,
   createSpace,
   deleteSpace,
+  getEvents,
 };

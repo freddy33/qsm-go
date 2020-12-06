@@ -1,0 +1,5 @@
+@import '../../style/mixins';
+
+.eventPage {
+  @include base-page;
+}

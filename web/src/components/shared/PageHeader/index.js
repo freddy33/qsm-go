@@ -5,9 +5,12 @@ import styles from './index.module.scss';
 const NavLink = (props) => (
   <Link
     {...props}
-    getProps={({ isCurrent }) => {
+    getProps={({ isPartiallyCurrent, isCurrent }) => {
+      const active =
+        (props.partialMatch && isPartiallyCurrent) ||
+        (!props.partialMatch && isCurrent);
       return {
-        className: isCurrent ? styles.active : null,
+        className: active ? styles.active : null,
       };
     }}
   />
@@ -23,7 +26,9 @@ const PageHeader = ({ currentEnv }) => {
         {' | '}
         <NavLink to="/path-contexts">Path Contexts</NavLink>
         {' | '}
-        <NavLink to="/render">Render</NavLink>
+        <NavLink to="/render" partialMatch>
+          Render
+        </NavLink>
       </nav>
       <div className={styles.currentEnv}>(Current Env: {currentEnv})</div>
     </div>

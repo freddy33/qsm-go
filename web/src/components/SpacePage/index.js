@@ -130,8 +130,8 @@ const SpacePage = () => {
         }))}
         actionProducer={({ spaceId, spaceName }) => (
           <>
-            <Link to={`/spaces/${spaceId}`}>
-              <Button>Detail</Button>
+            <Link to={`/events/${spaceId}`}>
+              <Button>Events</Button>
             </Link>
             <Button onClick={() => deleteSpace(spaceId, spaceName)}>
               Delete

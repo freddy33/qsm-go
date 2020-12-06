@@ -9,7 +9,7 @@ import styles from './App.module.scss';
 import localStorage from '../libs/util/localStorage';
 import { LOCAL_STORAGE_KEY } from '../libs/constant';
 import SpacePage from './SpacePage';
-import SpaceDetailPage from './SpaceDetailPage';
+import EventPage from './EventPage';
 
 const NotFound = () => <h1>Invalid route</h1>;
 
@@ -31,7 +31,7 @@ const App = () => {
         <RenderPage path="render/:pathContextId" />
         <EnvironmentPage path="environments" />
         <SpacePage path="spaces" />
-        <SpaceDetailPage path="spaces/:spaceId" />
+        <EventPage path="events/:spaceId" />
 
         <NotFound default />
       </Router>
