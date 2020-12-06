@@ -191,6 +191,51 @@ const deleteSpace = async (spaceId, spaceName) => {
   }
 };
 
+const getEvents = async (spaceId) => {
+  try {
+    const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/event`, {
+      space_id: spaceId,
+      at_time: -1,
+    });
+
+    return _.get(resp, 'data.events', []);
+  } catch (e) {
+    alert(_.get(e, 'response.data'));
+  }
+};
+
+const createEvent = async (
+  spaceId,
+  growthType,
+  growthIndex,
+  growthOffset,
+  creationTime,
+  centerX,
+  centerY,
+  centerZ,
+  color,
+) => {
+  try {
+    const resp = await httpRequest.post(`${REACT_APP_BACKEND_URL}/event`, {
+      space_id: _.parseInt(spaceId),
+      growth_type: _.parseInt(growthType),
+      growth_index: _.parseInt(growthIndex),
+      growth_offset: _.parseInt(growthOffset),
+      creationTime: _.parseInt(creationTime),
+      center: {
+        x: _.parseInt(centerX),
+        y: _.parseInt(centerY),
+        z: _.parseInt(centerZ),
+      },
+      color: _.parseInt(color),
+    });
+
+    return _.get(resp, 'data');
+  } catch (e) {
+    alert(_.get(e, 'response.data'));
+  }
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -205,4 +250,6 @@ export default {
   getSpaces,
   createSpace,
   deleteSpace,
+  getEvents,
+  createEvent,
 };
