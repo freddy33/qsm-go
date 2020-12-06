@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Form, Message, Segment } from 'semantic-ui-react';
 import _ from 'lodash';
-import { Link, useNavigate } from '@reach/router';
+import { Link } from '@reach/router';
 
 import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';
 import Service from '../../libs/service';
-import localStorage from '../../libs/util/localStorage';
 
 const SpacePage = () => {
-  const navigate = useNavigate();
   const [spaces, setSpaces] = useState([]);
   const [spaceToBeCreated, setSpaceToBeCreated] = useState({
     spaceName: '',
