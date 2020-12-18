@@ -8,6 +8,7 @@ import (
 	"github.com/freddy33/qsm-go/m3util"
 	"github.com/freddy33/qsm-go/model/m3path"
 	"github.com/freddy33/qsm-go/model/m3point"
+	"sync"
 )
 
 type PathContextDb struct {
@@ -20,6 +21,9 @@ type PathContextDb struct {
 	maxDist      int
 
 	rootNode *PathNodeDb
+
+	increaseDistMutex  sync.Mutex
+	currentNodeBuilder *OpenNodeBuilder
 }
 
 func (pathCtx *PathContextDb) createRootNode() error {
@@ -180,7 +184,11 @@ func (pathCtx *PathContextDb) makeNewNodes(current, next *OpenNodeBuilder, on *P
 			nbBlocked++
 		case m3path.ConnectionNotSet:
 			cd := td.GetConnections()[i]
-			npnb, np := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
+			npnb, np, err := pnb.GetNextPathNodeBuilder(on.P(), cd.GetId(), pathCtx.GetGrowthOffset())
+			if err != nil {
+				return m3util.MakeWrapQsmErrorf(err, "Increase dist of %s to %d failed getting new path builder for %v %s %d with: %v",
+					pathCtx.String(), next.d, on.P(), cd.GetId().String(), pathCtx.GetGrowthOffset(), err)
+			}
 
 			pp, err := pathCtx.pathData.GetOrCreatePoint(np)
 			if err != nil {
@@ -309,7 +317,10 @@ func (pathCtx *PathContextDb) RequestNewMaxDist(requestDist int) error {
 }
 
 func (pathCtx *PathContextDb) calculateNextMaxDist() error {
-	current, err := createCurrentNodeBuilder(pathCtx)
+	pathCtx.increaseDistMutex.Lock()
+	defer pathCtx.increaseDistMutex.Unlock()
+
+	current, err := pathCtx.createCurrentNodeBuilder()
 	if err != nil {
 		return err
 	}
@@ -405,8 +416,8 @@ func (pathCtx *PathContextDb) calculateNextMaxDist() error {
 		return m3util.MakeQsmErrorf("updating path context %s with new max dist %d returned wrong rows %d", pathCtx.String(), pathCtx.maxDist, rowAffected)
 	}
 
+	pathCtx.currentNodeBuilder = next
 	current.openNodesMap.Clear()
-	next.openNodesMap.Clear()
 	return nil
 }
 

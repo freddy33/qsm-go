@@ -9,6 +9,7 @@ const DefaultMaxHashConflicts = 8
 type PointMap interface {
 	InitSize() int
 	Size() int
+	Has(p Point) bool
 	Get(p Point) (value unsafe.Pointer, loaded bool)
 	Put(p Point, val unsafe.Pointer) unsafe.Pointer
 	LoadOrStore(p Point, val unsafe.Pointer) (actual unsafe.Pointer, inserted bool)
@@ -45,6 +46,10 @@ func (phm *PointHashMap) SetMaxConflictsAllowed(max int) {
 
 func (phm *PointHashMap) GetCurrentMaxConflicts() int {
 	return phm.concMap.mHashConflicts
+}
+
+func (phm *PointHashMap) Has(p Point) bool {
+	return phm.concMap.Has(p)
 }
 
 func (phm *PointHashMap) Get(p Point) (unsafe.Pointer, bool) {

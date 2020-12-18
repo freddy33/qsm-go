@@ -261,6 +261,9 @@ func (pn *PathNodeDb) release() {
 	if pn.id > 0 && pn.d == 0 {
 		return
 	}
+	if pn.pathCtx != nil && pn.pathCtx.currentNodeBuilder != nil && pn.pathCtx.currentNodeBuilder.hasPathNode(pn) {
+		return
+	}
 	// Make sure it's clean before resending to pool
 	pn.setToNil(m3path.InPoolId)
 	pathNodeDbPool.Put(pn)

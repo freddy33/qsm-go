@@ -78,7 +78,7 @@ type OpenGLDrawingElement struct {
 	NbVertices   int32
 }
 
-func MakeWorld(env *client.QsmApiEnvironment, spaceName string, Max m3point.CInt, glfwTime float64) DisplayWorld {
+func MakeWorld(env *client.QsmApiEnvironment, spaceName string, Max m3point.CInt, glfwTime float64, activeThreshold m3space.DistAndTime) DisplayWorld {
 	if Max%m3point.THREE != 0 {
 		panic(fmt.Sprintf("cannot have a max %d not dividable by %d", Max, m3point.THREE))
 	}
@@ -94,7 +94,7 @@ func MakeWorld(env *client.QsmApiEnvironment, spaceName string, Max m3point.CInt
 		}
 	}
 	if space == nil {
-		space, err = spaceData.CreateSpace(spaceName, m3space.DistAndTime(3), 2, 4)
+		space, err = spaceData.CreateSpace(spaceName, activeThreshold, 2, 4)
 		if err != nil {
 			Log.Fatal(err)
 		}
