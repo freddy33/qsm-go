@@ -98,7 +98,9 @@ const PathContextList = () => {
               <br />
               Max Dist: {createdPathContext.maxDist}
             </p>
-            <Link to={`/render/${createdPathContext.pathContextId}`}>
+            <Link
+              to={`/render/path-context/${createdPathContext.pathContextId}`}
+            >
               <Button>Render</Button>
             </Link>
           </Message>
@@ -129,7 +131,7 @@ const PathContextList = () => {
         )}
         actionProducer={({ pathContextId, maxDist }) => (
           <>
-            <Link to={`/render/${pathContextId}`}>
+            <Link to={`/render/path-context/${pathContextId}`}>
               <Button>Render</Button>
             </Link>
             <Button onClick={() => updateMaxDist(pathContextId, maxDist + 1)}>

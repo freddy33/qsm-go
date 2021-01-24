@@ -1,0 +1,36 @@
+.renderSpacePage {
+  display: flex;
+  margin: 0px;
+  padding: 0px;
+  height: calc(100vh - 60px);
+  width: 100vw;
+
+  .panel {
+    padding: 5px;
+    width: 350px;
+    min-width: 350px;
+
+    div {
+      padding: 2px;
+    }
+    .colorPicker {
+      div {
+        padding: 0px;
+      }
+    }
+
+    textarea {
+      width: 100%;
+    }
+
+    button {
+      width: 100%;
+      margin: 5px 0px;
+    }
+  }
+
+  .vis {
+    margin-left: 0px;
+    width: 100%;
+  }
+}
