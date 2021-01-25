@@ -26,8 +26,12 @@ const PageHeader = ({ currentEnv }) => {
         {' | '}
         <NavLink to="/path-contexts">Path Contexts</NavLink>
         {' | '}
-        <NavLink to="/render" partialMatch>
-          Render
+        <NavLink to="/render/path-context" partialMatch>
+          Render (Path Context)
+        </NavLink>
+        {' | '}
+        <NavLink to="/render/space" partialMatch>
+          Render (Space)
         </NavLink>
       </nav>
       <div className={styles.currentEnv}>(Current Env: {currentEnv})</div>

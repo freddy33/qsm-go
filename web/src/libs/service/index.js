@@ -236,6 +236,26 @@ const createEvent = async (
   }
 };
 
+const getSpaceTime = async (
+  spaceId,
+  currentTime,
+  minNbEventsFilter,
+  colorMaskFilter,
+) => {
+  try {
+    const resp = await httpRequest.get(`${REACT_APP_BACKEND_URL}/space-time`, {
+      space_id: spaceId,
+      current_time: currentTime,
+      min_nb_events_filter: minNbEventsFilter,
+      color_mask_filter: colorMaskFilter,
+    });
+
+    return _.get(resp, 'data');
+  } catch (e) {
+    alert(_.get(e, 'response.data'));
+  }
+};
+
 export default {
   getPointPackDataMsg,
   createPathContext,
@@ -252,4 +272,5 @@ export default {
   deleteSpace,
   getEvents,
   createEvent,
+  getSpaceTime,
 };

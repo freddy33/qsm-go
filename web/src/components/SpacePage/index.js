@@ -128,6 +128,9 @@ const SpacePage = () => {
         }))}
         actionProducer={({ spaceId, spaceName }) => (
           <>
+            <Link to={`/render/space/${spaceId}`}>
+              <Button>Render</Button>
+            </Link>
             <Link to={`/events/${spaceId}`}>
               <Button>Events</Button>
             </Link>
