@@ -25,6 +25,9 @@ const RenderSpacePage = (props) => {
   const [spaceId, setSpaceId] = useState();
   const [uiData, setUiData] = useState({
     spaceIdOptions: [],
+    currentTime: 0,
+    minNbOfEventsFilter: 0,
+    colorMaskFilter: 3,
   });
   const [spaceTime, setSpaceTime] = useState();
 
@@ -40,11 +43,26 @@ const RenderSpacePage = (props) => {
     setUiData({ ...uiData, spaceIdOptions });
   };
 
+  const getSpaceTime = async (spaceId) => {
+    const { currentTime, minNbOfEventsFilter, colorMaskFilter } = uiData;
+    const resp = await Service.getSpaceTime(
+      spaceId,
+      currentTime,
+      minNbOfEventsFilter,
+      colorMaskFilter,
+    );
+
+    debugger;
+    const filteredNodes = _.get(resp, 'filtered_nodes', []);
+    Renderer.clearGroup(renderingConfig.group);
+    filteredNodes.forEach((node) => {
+      Renderer.addPoint(renderingConfig.group, node.point);
+    });
+  };
+
   const onChangeSpaceId = async (option) => {
     const spaceId = option.value;
-    const spaceTime = await Service.getSpaceTime(spaceId);
-
-    setSpaceTime(spaceTime);
+    setSpaceId(spaceId);
   };
 
   // componentDidMount, will load once only when page start
@@ -120,7 +138,7 @@ const RenderSpacePage = (props) => {
         </div>
         <hr />
         <div>
-          <span>Space ID:</span>
+          <span>Space ID: </span>
           <Select
             defaultValue={{
               value: defaultSpaceId,
@@ -132,7 +150,51 @@ const RenderSpacePage = (props) => {
           />
         </div>
 
+        <div>
+          <span>Current Time: </span>
+          <input
+            type="number"
+            value={uiData.currentTime}
+            onChange={(evt) => {
+              setUiData({ ...uiData, currentTime: parseInt(evt.target.value) });
+            }}
+          />
+        </div>
+        <div>
+          <span>Min # of events: </span>
+          <input
+            type="number"
+            value={uiData.minNbOfEventsFilter}
+            onChange={(evt) => {
+              setUiData({
+                ...uiData,
+                minNbOfEventsFilter: parseInt(evt.target.value),
+              });
+            }}
+          />
+        </div>
+        <div>
+          <span>Color Mask Filter: </span>
+          <input
+            type="number"
+            value={uiData.colorMaskFilter}
+            onChange={(evt) => {
+              setUiData({
+                ...uiData,
+                colorMaskFilter: parseInt(evt.target.value),
+              });
+            }}
+          />
+        </div>
         <hr />
+
+        <Button
+          icon="play"
+          content="Render"
+          labelPosition="left"
+          disabled={!spaceId}
+          onClick={() => getSpaceTime(spaceId)}
+        />
       </div>
       <div className={styles.vis} ref={mount} />
     </div>
