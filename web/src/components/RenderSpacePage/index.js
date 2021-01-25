@@ -93,7 +93,7 @@ const RenderSpacePage = (props) => {
 
   useEffect(() => {
     if (defaultSpaceId) {
-      onChangeSpaceId({ value: spaceId });
+      onChangeSpaceId({ value: defaultSpaceId });
     }
   }, [defaultSpaceId]);
 
