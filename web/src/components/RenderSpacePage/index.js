@@ -43,8 +43,12 @@ const RenderSpacePage = (props) => {
     setUiData({ ...uiData, spaceIdOptions });
   };
 
-  const getSpaceTime = async (spaceId) => {
-    const { currentTime, minNbOfEventsFilter, colorMaskFilter } = uiData;
+  const getSpaceTime = async (
+    spaceId,
+    currentTime,
+    minNbOfEventsFilter,
+    colorMaskFilter,
+  ) => {
     const resp = await Service.getSpaceTime(
       spaceId,
       currentTime,
@@ -189,11 +193,47 @@ const RenderSpacePage = (props) => {
         <hr />
 
         <Button
+          icon="fast forward"
+          content="Render (Current Time + 1)"
+          labelPosition="left"
+          disabled={!spaceId}
+          onClick={() => {
+            const {
+              currentTime,
+              minNbOfEventsFilter,
+              colorMaskFilter,
+            } = uiData;
+
+            const nextCurrentTime = currentTime + 1;
+            setUiData({ ...uiData, currentTime: nextCurrentTime });
+
+            getSpaceTime(
+              spaceId,
+              nextCurrentTime,
+              minNbOfEventsFilter,
+              colorMaskFilter,
+            );
+          }}
+        />
+
+        <Button
           icon="play"
           content="Render"
           labelPosition="left"
           disabled={!spaceId}
-          onClick={() => getSpaceTime(spaceId)}
+          onClick={() => {
+            const {
+              currentTime,
+              minNbOfEventsFilter,
+              colorMaskFilter,
+            } = uiData;
+            getSpaceTime(
+              spaceId,
+              currentTime,
+              minNbOfEventsFilter,
+              colorMaskFilter,
+            );
+          }}
         />
       </div>
       <div className={styles.vis} ref={mount} />

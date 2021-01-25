@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Message, Segment } from 'semantic-ui-react';
+import { Button, Form, Message, Segment } from 'semantic-ui-react';
 import _ from 'lodash';
 
 import DataTable from '../shared/DataTable';
 import styles from './index.module.scss';
 import Service from '../../libs/service';
+import { Link } from '@reach/router';
 
 const growthTypeOptions = [1, 2, 3, 4, 8].map((v) => ({ value: v, text: v }));
 const growthIndexOptions = [...Array(12).keys()].map((v) => ({
@@ -207,6 +208,11 @@ const EventPage = (props) => {
             <Message.Header>{displayMessage}</Message.Header>
           </Message>
         )}
+      </Segment>
+      <Segment>
+        <Link to={`/render/space/${spaceId}`}>
+          <Button>Render</Button>
+        </Link>
       </Segment>
       <DataTable
         headers={[
