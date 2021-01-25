@@ -2,14 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import _ from 'lodash';
 import Select from 'react-select';
-import { Link } from '@reach/router';
-import { Button, Checkbox } from 'semantic-ui-react';
-import { HuePicker } from 'react-color';
+import { Button } from 'semantic-ui-react';
 
 import styles from './index.module.scss';
 import Service from '../../libs/service';
 import Renderer from '../../libs/renderer';
-import { COLOR } from '../../libs/constant';
 
 const RenderSpacePage = (props) => {
   const mount = useRef(null);
@@ -29,7 +26,6 @@ const RenderSpacePage = (props) => {
     minNbOfEventsFilter: 0,
     colorMaskFilter: 3,
   });
-  const [spaceTime, setSpaceTime] = useState();
 
   const { spaceId: defaultSpaceId } = props;
 
