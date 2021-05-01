@@ -16,7 +16,7 @@ echo "$dt"
 command="$1"
 shift
 
-baseUrl="http://localhost:8063"
+baseUrl="http://localhost:3002"
 
 if [[ "$1" == "-kinto" ]]; then
   baseUrl="https://qsmgo-92a1656-5f154.eu1.kinto.io"

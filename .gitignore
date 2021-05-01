@@ -12,9 +12,11 @@
 /ui/ui
 /backend/backend
 *.test
+*.exe
 
 # gen build folders
 build/
+*.out
 
 backend/conf/dbconn*.json
 .env
