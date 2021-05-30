@@ -26,6 +26,10 @@ launch_ui() {
     env_file="kinto-env.env"
     shift
   fi
+  if [[ "$1" == "-okteto" ]]; then
+    env_file="okteto-env.env"
+    shift
+  fi
   cd "${rootDir}/ui" && ${go_exe} build && cp "$env_file" ".env" && ./ui "$@"
 }
 

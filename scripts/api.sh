@@ -22,6 +22,10 @@ if [[ "$1" == "-kinto" ]]; then
   baseUrl="https://qsmgo-92a1656-5f154.eu1.kinto.io"
   shift
 fi
+if [[ "$1" == "-okteto" ]]; then
+  baseUrl="https://backend-freddy33.cloud.okteto.net"
+  shift
+fi
 
 QSM_ENV_NUMBER=${QSM_ENV_NUMBER:=1}
 
