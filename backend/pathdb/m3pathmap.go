@@ -7,6 +7,7 @@ import (
 
 type ServerPathNodeMap interface {
 	Size() int
+	HasPathNode(p m3point.Point) bool
 	GetPathNode(p m3point.Point) *PathNodeDb
 	AddPathNode(pathNode *PathNodeDb) (*PathNodeDb, bool)
 	Clear()
@@ -30,6 +31,11 @@ func MakeSimplePathNodeMap(initSize int) ServerPathNodeMap {
 
 func (pnm *SimplePathNodeMap) Size() int {
 	return len(*pnm)
+}
+
+func (pnm *SimplePathNodeMap) HasPathNode(p m3point.Point) bool {
+	_, ok := (*pnm)[p]
+	return ok
 }
 
 func (pnm *SimplePathNodeMap) GetPathNode(p m3point.Point) *PathNodeDb {
@@ -83,6 +89,10 @@ func MakeHashPathNodeMap(initSize int) ServerPathNodeMap {
 
 func (hnm *ServerPointHashPathNodeMap) Size() int {
 	return hnm.pointMap.Size()
+}
+
+func (hnm *ServerPointHashPathNodeMap) HasPathNode(p m3point.Point) bool {
+	return hnm.pointMap.Has(p)
 }
 
 func (hnm *ServerPointHashPathNodeMap) GetPathNode(p m3point.Point) *PathNodeDb {

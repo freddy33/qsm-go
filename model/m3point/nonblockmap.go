@@ -13,6 +13,7 @@ type MurmurKey interface {
 }
 
 type MurmurHashMap interface {
+	Has(key MurmurKey) bool
 	Load(key MurmurKey) (value unsafe.Pointer, loaded bool)
 	Store(key MurmurKey, value unsafe.Pointer) unsafe.Pointer
 	LoadOrStore(key MurmurKey, value unsafe.Pointer) (actualValue unsafe.Pointer, inserted bool)
@@ -187,6 +188,20 @@ func MakeNonBlockConcurrentMap(initSize int) *NonBlockConcurrentMap {
 
 func (n *NonBlockConcurrentMap) InitSize() int {
 	return n.nbEntries
+}
+
+func (n *NonBlockConcurrentMap) Has(key MurmurKey) bool {
+	hashIdx := murmurHashToInt(key.MurmurHash(), n.nbEntries)
+	entry := n.entries[hashIdx]
+	for {
+		if entry == nil {
+			return false
+		}
+		if entry.key == key {
+			return true
+		}
+		entry = entry.next
+	}
 }
 
 func (n *NonBlockConcurrentMap) Load(key MurmurKey) (unsafe.Pointer, bool) {

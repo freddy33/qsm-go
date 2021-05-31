@@ -52,7 +52,7 @@ func Play() {
 	// ******************************************************************
 	max := m3space.MinMaxCoord
 	env := client.GetInitializedApiEnv(m3util.GetDefaultEnvId())
-	world = m3gl.MakeWorld(env, "ui3", max, glfw.GetTime())
+	world = m3gl.MakeWorld(env, "ui3", max, glfw.GetTime(), 3)
 	events := world.WorldSpace.GetActiveEventsAt(m3space.ZeroDistAndTime)
 	if len(events) == 0 {
 		m3gl.CreatePyramidWithParams(world.WorldSpace, 4, [4]m3point.GrowthType{8, 8, 8, 8}, [4]int{0, 0, 0, 0}, [4]int{0, 2, 4, 6})

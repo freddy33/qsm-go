@@ -20,8 +20,15 @@ fi
 exe_ext=""
 go_exe="$(which go)"
 if [ $? -eq 0 ]; then
-  echo "INFO: Using Unix"
-  is_windows="no"
+  # May be in MINGW mode
+  if [[ $OS == Windows* ]]; then
+    echo "INFO: Using Windows on MINGW"
+    is_windows="mingw"
+    exe_ext=".exe"
+  else
+    echo "INFO: Using Unix"
+    is_windows="no"
+  fi
 else
   go_exe="$(which go.exe)"
   if [ $? -eq 0 ]; then

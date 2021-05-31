@@ -27,7 +27,7 @@ type PathNodeBuilder interface {
 	GetEnv() m3util.QsmEnvironment
 	GetCubeId() int
 	GetTrioIndex() m3point.TrioIndex
-	GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point)
+	GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point, error)
 	GetPathBuilderByIndex(pbIdx int) PathNodeBuilder
 	DumpInfo() string
 	Verify()
@@ -136,14 +136,13 @@ func (rpnb *RootPathNodeBuilder) GetPathLinks() []PathLinkBuilder {
 	return rpnb.PathLinks[:]
 }
 
-func (rpnb *RootPathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point) {
+func (rpnb *RootPathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point, error) {
 	for _, plb := range rpnb.PathLinks {
 		if plb.ConnId == connId {
-			return plb.PathNode, from.Add(rpnb.getPointPackData().GetConnDetailsById(connId).Vector)
+			return plb.PathNode, from.Add(rpnb.getPointPackData().GetConnDetailsById(connId).Vector), nil
 		}
 	}
-	Log.Fatalf("trying to get next path node builder on connection %s which does not exists in %s", connId.String(), rpnb.String())
-	return nil, Origin
+	return nil, Origin, m3util.MakeQsmErrorf("trying to get next path node builder on connection %s which does not exists in %s", connId.String(), rpnb.String())
 }
 
 func (rpnb *RootPathNodeBuilder) Verify() {
@@ -197,14 +196,13 @@ func (ipnb *IntermediatePathNodeBuilder) GetPathLinks() []PathLinkBuilder {
 	return ipnb.PathLinks[:]
 }
 
-func (ipnb *IntermediatePathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point) {
+func (ipnb *IntermediatePathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point, error) {
 	for _, plb := range ipnb.PathLinks {
 		if plb.ConnId == connId {
-			return plb.PathNode, from.Add(ipnb.getPointPackData().GetConnDetailsById(connId).Vector)
+			return plb.PathNode, from.Add(ipnb.getPointPackData().GetConnDetailsById(connId).Vector), nil
 		}
 	}
-	Log.Fatalf("trying to get next path node builder on connection %s which does not exists in %s trio %s", connId.String(), ipnb.String(), ipnb.TrIdx.String())
-	return nil, Origin
+	return nil, Origin, m3util.MakeQsmErrorf("trying to get next path node builder on connection %s which does not exists in %s trio %s", connId.String(), ipnb.String(), ipnb.TrIdx.String())
 }
 
 func (ipnb *IntermediatePathNodeBuilder) Verify() {
@@ -242,29 +240,33 @@ func (lipnb *LastPathNodeBuilder) GetNextInterConnId() m3point.ConnectionId {
 	return lipnb.NextInterConnId
 }
 
-func (lipnb *LastPathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point) {
+func (lipnb *LastPathNodeBuilder) GetNextPathNodeBuilder(from m3point.Point, connId m3point.ConnectionId, offset int) (PathNodeBuilder, m3point.Point, error) {
 	ppd := lipnb.getPointPackData()
 	nextMainPoint := from.GetNearMainPoint()
 	if Log.DoAssert() {
 		oNextMainPoint := from.Add(ppd.GetConnDetailsById(lipnb.NextMainConnId).Vector)
 		if nextMainPoint != oNextMainPoint {
-			Log.Fatalf("last inter main path node %s (%s) does give a main point using %v and %s", lipnb.String(), lipnb.DumpInfo(), from, lipnb.NextMainConnId)
+			return nil, Origin, m3util.MakeQsmErrorf("last inter main path node %s (%s) does give a main point using %v and %s",
+				lipnb.String(), lipnb.DumpInfo(), from, lipnb.NextMainConnId)
 		}
 	}
 	nextMainPnb := ppd.GetPathNodeBuilder(lipnb.Ctx.GrowthCtx, offset, nextMainPoint)
 	if lipnb.NextMainConnId == connId {
-		return nextMainPnb, nextMainPoint
+		return nextMainPnb, nextMainPoint, nil
 	} else if lipnb.NextInterConnId == connId {
-		nextInterPnbBack, oInterPoint := nextMainPnb.GetNextPathNodeBuilder(nextMainPoint, lipnb.NextMainConnId.GetNegId(), offset)
-		if Log.DoAssert() {
-			if from != oInterPoint {
-				Log.Fatalf("back calculation on last inter path node %s (%s) failed %v != %v", lipnb.String(), lipnb.DumpInfo(), from, oInterPoint)
-			}
+		nextInterPnbBack, oInterPoint, err := nextMainPnb.GetNextPathNodeBuilder(nextMainPoint, lipnb.NextMainConnId.GetNegId(), offset)
+		if err != nil {
+			return nil, Origin, m3util.MakeWrapQsmErrorf(err, "trying to get next inter PNB from %s and %v %s %d failed with: %v",
+				lipnb.String(), from, connId.String(), offset, err)
+		}
+		if from != oInterPoint {
+			return nil, Origin, m3util.MakeQsmErrorf("back calculation on last inter path node %s (%s) failed %v != %v",
+				lipnb.String(), lipnb.DumpInfo(), from, oInterPoint)
 		}
 		return nextInterPnbBack.GetNextPathNodeBuilder(from, connId, offset)
 	}
-	Log.Fatalf("trying to get next path node builder on connection %s which does not exists in %s", connId.String(), lipnb.String())
-	return nil, Origin
+	return nil, Origin, m3util.MakeQsmErrorf("trying to get next path node builder on connection %s which does not exists in %s",
+		connId.String(), lipnb.String())
 }
 
 func (lipnb *LastPathNodeBuilder) Verify() {

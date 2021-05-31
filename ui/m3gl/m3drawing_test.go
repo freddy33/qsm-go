@@ -24,7 +24,7 @@ func TestSingleRedEvent(t *testing.T) {
 	m3util.SetToTestMode()
 
 	max := m3space.MinMaxCoord
-	world := MakeWorld(getGlTestEnv(), "gl-test", max, 0.0)
+	world := MakeWorld(getGlTestEnv(), "gl-test", max, 0.0, 0)
 
 	//assertEmptyWorld(t, &world, max)
 

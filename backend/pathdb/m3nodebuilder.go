@@ -6,14 +6,18 @@ import (
 )
 
 type OpenNodeBuilder struct {
-	pathCtx                        *PathContextDb
-	d                              int
-	expectedSize                   int
-	openNodesMap                   ServerPathNodeMap
-	selectConflict, insertConflict int
+	pathCtx        *PathContextDb
+	d              int
+	expectedSize   int
+	openNodesMap   ServerPathNodeMap
+	insertConflict int
 }
 
-func createCurrentNodeBuilder(pathCtx *PathContextDb) (*OpenNodeBuilder, error) {
+func (pathCtx *PathContextDb) createCurrentNodeBuilder() (*OpenNodeBuilder, error) {
+	if pathCtx.currentNodeBuilder != nil {
+		return pathCtx.currentNodeBuilder, nil
+	}
+
 	lastNodes, err := pathCtx.GetPathNodesAt(pathCtx.GetMaxDist())
 	if err != nil {
 		return nil, err
@@ -36,6 +40,7 @@ func createCurrentNodeBuilder(pathCtx *PathContextDb) (*OpenNodeBuilder, error) 
 	for i := 0; i < len(lastNodes); i++ {
 		res.addPathNode(lastNodes[i].(*PathNodeDb))
 	}
+	pathCtx.currentNodeBuilder = res
 
 	return res, nil
 }
@@ -60,4 +65,8 @@ func (onb *OpenNodeBuilder) addPathNode(pn *PathNodeDb) *PathNodeDb {
 
 func (onb *OpenNodeBuilder) openNodesSize() int {
 	return onb.openNodesMap.Size()
+}
+
+func (onb *OpenNodeBuilder) hasPathNode(pn *PathNodeDb) bool {
+	return onb.openNodesMap.HasPathNode(pn.pathPoint.P)
 }
