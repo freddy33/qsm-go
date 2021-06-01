@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:12.16.1-alpine
+ARG NODE_IMAGE=fredsimon-docker.jfrog.io/node:12.16.1-alpine
 
 FROM ${NODE_IMAGE} AS BUILDER
 WORKDIR /app
