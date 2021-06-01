@@ -5,8 +5,8 @@ services:
     build:
       context: .
       dockerfile: web.Dockerfile
-    environment:
-      REACT_APP_BACKEND_URL: "http://localhost:8063"
+      args: 
+        REACT_APP_BACKEND_URL: "http://localhost:8063"
     ports:
       - 8082:8080
 

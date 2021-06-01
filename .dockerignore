@@ -1,0 +1,6 @@
+*.Dockerfile
+.dockerignore
+.gitignore
+README.md
+web/build
+web/node_modules
