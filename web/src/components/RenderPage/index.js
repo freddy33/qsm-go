@@ -1,15 +1,16 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import React, {useEffect, useRef, useState} from 'react';
+import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
+import {VRButton} from 'three/examples/jsm/webxr/VRButton.js';
 import _ from 'lodash';
 import Select from 'react-select';
-import { Link } from '@reach/router';
-import { Button, Checkbox } from 'semantic-ui-react';
-import { HuePicker } from 'react-color';
+import {Link} from '@reach/router';
+import {Button, Checkbox} from 'semantic-ui-react';
+import {HuePicker} from 'react-color';
 
 import styles from './index.module.scss';
 import Service from '../../libs/service';
 import Renderer from '../../libs/renderer';
-import { COLOR } from '../../libs/constant';
+import {COLOR} from '../../libs/constant';
 
 const getPathNodes = async (group, fromDist, toDist, currentPathContext, drawingOptions) => {
   if (fromDist > toDist) {
@@ -112,7 +113,7 @@ const RenderPage = (props) => {
     setRenderer(renderer);
 
     const handleResize = () => {
-      const { clientWidth: width, clientHeight: height } = mount.current;
+      const {clientWidth: width, clientHeight: height} = mount.current;
       renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
@@ -121,6 +122,8 @@ const RenderPage = (props) => {
 
     new OrbitControls(camera, renderer.domElement);
     mount.current.appendChild(renderer.domElement);
+    mount.current.appendChild(VRButton.createButton(renderer))
+    renderer.xr.enabled = true;
     window.addEventListener('resize', handleResize);
 
     return () => {
