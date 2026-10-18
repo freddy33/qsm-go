@@ -1,0 +1,11 @@
+[package]
+name = "m3space"
+version = "0.1.0"
+edition = "2021"
+description = "QSM space events: colors, three-id rules, index combinations, and pyramids"
+license = "Apache-2.0"
+
+[dependencies]
+m3util = { path = "../m3util" }
+m3point = { path = "../m3point" }
+m3path = { path = "../m3path" }

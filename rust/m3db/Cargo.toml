@@ -1,0 +1,12 @@
+[package]
+name = "m3db"
+version = "0.1.0"
+edition = "2021"
+description = "PostgreSQL storage for QSM point data, using sqlx"
+license = "Apache-2.0"
+
+[dependencies]
+m3util = { path = "../m3util" }
+m3point = { path = "../m3point" }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres"] }
+tokio = { version = "1", features = ["rt"] }

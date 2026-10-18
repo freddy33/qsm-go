@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "m3util",
+    "m3point",
+    "m3path",
+    "m3space",
+    "m3db",
+    "m3gl",
+    "playgl",
+]

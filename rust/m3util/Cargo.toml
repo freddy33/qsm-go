@@ -1,0 +1,8 @@
+[package]
+name = "m3util"
+version = "0.1.0"
+edition = "2021"
+description = "Shared QSM utilities: environment ids, positive moduli, and errors"
+license = "Apache-2.0"
+
+[dependencies]
