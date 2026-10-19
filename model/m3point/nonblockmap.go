@@ -47,6 +47,8 @@ type RangeContext struct {
 	canceled      bool
 	logger        m3util.Logger
 	nbDone        int32
+	closeDoneOnce sync.Once
+	closeErrOnce  sync.Once
 }
 
 /***************************************************************/
@@ -101,20 +103,34 @@ func (ec *RangeContext) incrementDone() {
 	atomic.AddInt32(&ec.nbDone, 1)
 }
 
+func (ec *RangeContext) closeDone() {
+	ec.closeDoneOnce.Do(func() {
+		close(ec.done)
+	})
+}
+
+func (ec *RangeContext) closeErrors() {
+	ec.closeErrOnce.Do(func() {
+		close(ec.collectErrors)
+	})
+}
+
 func (ec *RangeContext) Reset() {
+	ec.closeDone()
+	ec.closeErrors()
 	ec.canceled = false
 	ec.firstError = nil
 	ec.isListening = false
-	close(ec.done)
-	close(ec.collectErrors)
 	ec.collectErrors = make(chan error)
 	ec.done = make(chan int32)
+	ec.closeDoneOnce = sync.Once{}
+	ec.closeErrOnce = sync.Once{}
 	ec.Wg = &sync.WaitGroup{}
 }
 
 func (ec *RangeContext) Close() {
-	close(ec.done)
-	close(ec.collectErrors)
+	ec.closeDone()
+	ec.closeErrors()
 }
 
 func (ec *RangeContext) GetFirstError() error {
@@ -127,7 +143,7 @@ func (ec *RangeContext) IsCancel() bool {
 
 func (ec *RangeContext) Cancel() {
 	ec.canceled = true
-	close(ec.done)
+	ec.closeDone()
 }
 
 func (ec *RangeContext) ReceivedError(err error) {
