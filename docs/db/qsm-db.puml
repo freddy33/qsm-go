@@ -1,6 +1,7 @@
 @startuml qsm-db
 ' Rust Iceberg tables under data/<simulation>/.
-' Go Postgres still has a spaces table and events.space_id; Rust dropped both.
+' Go Postgres still has a spaces table, events.space_id, path_contexts.max_dist,
+' and events.max_node_time. Rust dropped all of those.
 ' One simulation folder is one space.
 hide circle
 skinparam linetype ortho
@@ -62,7 +63,6 @@ entity path_contexts {
   *growth_ctx_id : smallint <<FK,UK1>>
   *growth_offset : smallint <<UK1>>
   path_builders_id : smallint <<FK>>
-  *max_dist : integer = 0
 }
 entity path_nodes {
   *id : bigserial <<PK>>
@@ -85,7 +85,6 @@ entity events {
   *creation_time : integer
   *color : smallint
   *end_time : integer
-  *max_node_time : integer
 }
 entity nodes {
   *id : bigserial <<PK>>

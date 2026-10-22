@@ -12,12 +12,12 @@ Source of the column list: freddy33/qsm-go, branch `prod` @ e2be02a (the `rust` 
 | trio_cubes | pointdb · [m3triocubedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pointdb/m3triocubedb.go) | 5192 | Per-context cube of trios: center, 6 face centers, 12 edge middles. |
 | path_builders | pointdb · [m3pathbuilderdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pointdb/m3pathbuilderdb.go) | 5192 | Path-builder rules for each trio cube (1:1 with trio_cubes): root trio, intermediate trios, connections. |
 | points | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | open | Unique 3D integer lattice points. |
-| path_contexts | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | 200 | A growth context + offset, bound to its path builder, with max distance reached. |
+| path_contexts | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | 200 | A growth context + offset, bound to its path builder. |
 | path_nodes | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | open | Nodes of a growth path: point, trio, distance d, links to up to 3 neighbour path nodes. |
 | events | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | An event at a creation time, with a color, growing along one path context. |
 | nodes | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | Event nodes in space-time: a path node placed at a creation time, linked to up to 3 other nodes. |
 
-Go Postgres still has a `spaces` table and `events.space_id` (see `backend/spacedb/spacedb.go`). Rust does not. A folder is the space, and its limits live in `inputs.json`.
+Go Postgres still has a `spaces` table, `events.space_id`, `path_contexts.max_dist`, and `events.max_node_time` (see `backend/spacedb/spacedb.go` and `backend/pathdb/pathdb.go`). Rust does not. A folder is the space, and its limits live in `inputs.json`. The distance a path has reached, and the latest creation time of an event, are the max `d` and `creation_time` of the stored nodes.
 
 ## Diagram
 
@@ -25,7 +25,8 @@ Go Postgres still has a `spaces` table and `events.space_id` (see `backend/space
 
 ```mermaid
 %% Rust Iceberg tables under data/<simulation>/. Static pointdb tables are in memory.
-%% Go Postgres still has a spaces table and events.space_id; Rust dropped both.
+%% Go Postgres still has a spaces table, events.space_id, path_contexts.max_dist,
+%% and events.max_node_time. Rust dropped all of those.
 %% One simulation folder is one space. Solid lines are the logical references.
 erDiagram
     %% ---------- backend/pointdb : static reference data (fixed row counts) ----------
@@ -76,7 +77,6 @@ erDiagram
         smallint growth_ctx_id FK,UK "NOT NULL; UK path_ctx_growth_param_key"
         smallint growth_offset UK "NOT NULL"
         smallint path_builders_id FK "NULL until built"
-        integer max_dist "NOT NULL DEFAULT 0"
     }
     path_nodes {
         bigserial id PK
@@ -98,7 +98,6 @@ erDiagram
         integer creation_time "NOT NULL"
         smallint color "NOT NULL"
         integer end_time "NOT NULL"
-        integer max_node_time "NOT NULL"
     }
     nodes {
         bigserial id PK
@@ -159,7 +158,7 @@ Rust storage uses the `iceberg` crate 0.10 (apache/iceberg-rust) for table metad
 
 iceberg-rust 0.10 has no filesystem catalog. The process opens a memory catalog whose warehouse is `file://<absolute data/<simulation name>>` and whose storage is the local filesystem. Creating a table writes `qsm/<table>/metadata/00000-<uuid>.metadata.json`. A later process does not trust the in-memory index: it scans that metadata directory, picks the highest zero-padded version, and registers that file. The latest `*.metadata.json` is the durable commit pointer.
 
-Namespace: `qsm`. Format version: 2. Ids are assigned in Rust (`max(id) + 1`, starting at 1). Iceberg does not enforce primary keys, foreign keys, or unique constraints. Before each append, Rust rejects a non-positive id and any repeat of:
+Namespace: `qsm`. Format version: 2. No table is partitioned. Ids are assigned in Rust (`max(id) + 1`, starting at 1). Iceberg does not enforce primary keys, foreign keys, or unique constraints. Before a row is staged, Rust rejects a non-positive id and any repeat of:
 
 - `points` `(x, y, z)` and `id`
 - `path_contexts` `(growth_ctx_id, growth_offset)` and `id`
@@ -167,30 +166,36 @@ Namespace: `qsm`. Format version: 2. Ids are assigned in Rust (`max(id) + 1`, st
 - `events` `id`
 - `nodes` `(event_id, point_id)` and `id`
 
-A growth step has to change connection masks and cursors on rows that already exist. iceberg-rust 0.10 transactions only offer fast append, so Rust appends a new copy of that path node, path context, or event with the **same id** and the same natural key. Load keeps one row per id: for a path node, the copy with fewer `NotSet` connections (then more assigned links); for a path context, the higher `max_dist`; for an event, the higher `max_node_time`. A different id that collides on the natural key is still rejected. Points and event nodes are insert-only.
+Load reads the current snapshot as the whole table. A repeated id in that file is an error. There is no "keep the newest copy of an id" pass.
 
-Postgres `smallint`, `integer`, and `serial` columns are Iceberg `int` (32-bit). `bigserial` / `bigint` are `long`. `varchar` is `string`. Nullable columns stay optional. The `id` column is field id 1 and is the Iceberg identifier field. Other field ids follow the column order in the diagram above.
+Rows are immutable except one case. `points`, `path_contexts`, `events`, and event `nodes` are written once. `path_contexts` has no `max_dist` column and `events` has no `max_node_time` column; Go Postgres still has both. A path node is created with its `From` link set and its other slots `NotSet`. The next shell, which may be a later `qsm` invocation, fills those slots with `Next` or `Blocked`. That final mask is not known at the first write, and the open frontier has to be on disk so a crash can resume, so a later step replaces the link columns of that same id. The natural key `(path_ctx_id, point_id)` does not change, and the rewritten file still contains the id once. Event nodes copy the path-node mask at creation and are not revised.
+
+### One data file per table
+
+Parquet cannot be appended in place, and iceberg-rust 0.10 does not expose an overwrite action: `fast_append` keeps every previous data file, and `TableCommit`'s builder is crate-private. A commit therefore rewrites the table. The rolling writer target is `usize::MAX`, so the new rows and the rows already stored become one Parquet file. Rust then writes a manifest and a manifest list that name only that file, and writes the next `*.metadata.json` with an Iceberg snapshot whose operation is `overwrite` and whose `main` ref points at it. That metadata file is the commit for the table. The memory catalog is pointed at it with `drop_table` plus `register_table`.
+
+A step stages every dirty table and commits them in order: points, path contexts, path nodes, event nodes, events. `qsm/step.json` is renamed into place only after those commits. It records each table's current snapshot id (`null` when the table is still empty). Iceberg has no cross-table transaction, so the journal is the barrier. A crash before it leaves the new snapshots in the metadata but not in the journal. The next open moves `main` back to the journaled snapshot, or clears `main` when the journal is missing or says `null`, and only then deletes Parquet files the restored snapshot does not name. Old snapshots stay in the metadata so that rollback can still see them. A crash after the journal keeps the new step; the next open deletes the previous data files.
+
+The cost is that every dirty table is copied in full at every step. `points`, `path_nodes`, and `nodes` grow with the simulation, so the bytes written across a run are quadratic in the number of rows. A large simulation pays that copy on each time step. The single file is the property this layout is for; a later format can switch to many files if that copy dominates.
 
 ### Tables
 
-| Table | Stored | Partition spec | Why |
+| Table | Stored | Files | When rows are written |
 | --- | --- | --- | --- |
 | `connection_details`, `trio_details`, `growth_contexts`, `trio_cubes`, `path_builders` | no | — | Derived. `PointPackData::shared()` rebuilds the 50 / 200 / 52 / 5192 / 5192 rows at startup. |
-| `points` | yes | unpartitioned | Resume loads the whole point map to enforce `(x, y, z)`. The table is the dimension table for every node. |
-| `path_contexts` | yes | unpartitioned | One row per growth context and offset. A run keeps a handful, and resume needs all of them. |
-| `path_nodes` | yes | `identity(path_ctx_id)`, `truncate(d, 8)` as `d_bucket` | A step writes one distance. Identity on `d` would add a partition per distance. Width 8 matches growth type 8, the widest permutation, so one band is one permutation cycle. |
-| `events` | yes | unpartitioned | A run keeps a handful of events. One folder is one space, so there is no `space_id` to partition on. |
-| `nodes` | yes | `identity(event_id)`, `truncate(creation_time, 8)` as `creation_time_bucket` | Same band width as `d`. A step appends the nodes for one creation time into the current band. |
+| `points` | yes | one Parquet file | Appended as new coordinates appear. The whole file is rewritten at the end of the step. |
+| `path_contexts` | yes | one Parquet file | One row per growth context and offset, written once when the context is created. |
+| `path_nodes` | yes | one Parquet file | New nodes are added at the step that creates them, including the open frontier. A later step may replace link columns of an existing id, then the whole file is rewritten. |
+| `events` | yes | one Parquet file | One row per event, written once when the event is created. |
+| `nodes` | yes | one Parquet file | New event nodes are added at the end of the step that creates them. A stored event node is not revised. |
 
-`truncate` uses the Iceberg rule `v - (v % W)` with a positive remainder. Distances 0..7 share `d_bucket=0`; 8..15 share `d_bucket=8`; `-1` lands in `-8`.
-
-An append builds one Arrow `RecordBatch` per partition value and commits those files as one snapshot. A simulation step therefore commits one snapshot per table it changes, not one file per row. Iceberg has no cross-table transaction, so the step's tables are committed one after another: points, path contexts, path nodes, event nodes, then events.
+Postgres `smallint`, `integer`, and `serial` columns are Iceberg `int` (32-bit). `bigserial` / `bigint` are `long`. `varchar` is `string`. Nullable columns stay optional. The `id` column is field id 1 and is the Iceberg identifier field. Other field ids follow the column order in the diagram above.
 
 Nullable link columns follow `GetLinkIdsForDb`. `NotSet`, `Blocked`, and a `Next` that is not assigned yet are NULL. `From`, and a `Next` that already has an id, store that positive id. The connection state itself lives in `connection_mask`, so a NULL link is not ambiguous on read. Event nodes copy the path-node mask at the time they are created. Go's `getNodeLinkIds` does not point an event `Next` at the following node, and a new shell has no `Next` yet, so event `node1/2/3` are either NULL or the earlier event node on a `From` link.
 
 `inputs.json` sits next to `qsm/` and is not a table. It holds `max_time_steps`, the space parameters, explicit events, and shortcuts such as `pyramid`. The run grows until every event's max creation time reaches `max_time_steps`. Resume uses the nodes already stored and the max from that file.
 
-After a successful `qsm <name>`, Rust writes `qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC). The file records the sha256 of the raw `inputs.json`, the parsed inputs, the resolved space parameters, the event list after shortcut expansion, the `max_time_steps` used, and the last saved creation time. The next run of that name loads the latest `run-*.json` (lexical order; a same-second file is `run-<stamp>_01.json`, which sorts after the unsuffixed name). Space parameters and expanded events must match. Only `max_time_steps` may change. Any other difference is an error and writes nothing. Saved rows with no `run-*.json` are an error too. The `doc` string is not part of that check.
+After a successful `qsm <name>`, Rust writes `qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC). The file records the sha256 of the raw `inputs.json`, the parsed inputs, the resolved space parameters, the event list after shortcut expansion, the `max_time_steps` used, and the last saved creation time. The next run of that name loads the latest `run-*.json` (lexical order; a same-second file is `run-<stamp>_01.json`, which sorts after the unsuffixed name). Space parameters and expanded events must match. Only `max_time_steps` may change, and it may not drop below that file's `creation_time`. A lower value is an error, nothing is written, and no new run file is created. Any other difference is an error and writes nothing. Saved rows with no `run-*.json` are an error too. The `doc` string is not part of that check.
 
 ### Folder tree
 
@@ -198,20 +203,22 @@ After a successful `qsm <name>`, Rust writes `qsm/run-<YYYYMMDDTHHMMSSZ>.json` (
 data/<simulation name>/
 ├── inputs.json
 └── qsm/
+    ├── step.json
     ├── run-20261022T121800Z.json
     ├── points/
     │   ├── data/part-<n>-<pid>-<seq>.parquet
     │   └── metadata/
     │       ├── 00000-<uuid>.metadata.json
-    │       ├── 00001-<uuid>.metadata.json    # one new file per commit
-    │       └── snap-<id>-<m>.avro            # manifest list, plus the manifest
+    │       ├── 00001-<uuid>.metadata.json
+    │       └── snap-<id>-0-<suffix>.avro
     ├── path_contexts/
+    │   └── data/part-<n>-<pid>-<seq>.parquet
     ├── path_nodes/
-    │   └── data/path_ctx_id=<id>/d_bucket=<n>/part-<n>-<pid>-<seq>.parquet
+    │   └── data/part-<n>-<pid>-<seq>.parquet
     ├── events/
     │   └── data/part-<n>-<pid>-<seq>.parquet
     └── nodes/
-        └── data/event_id=<id>/creation_time_bucket=<n>/part-<n>-<pid>-<seq>.parquet
+        └── data/part-<n>-<pid>-<seq>.parquet
 ```
 
-`00000-*.metadata.json` is the empty table. Each batch append writes the next version and its Avro manifest list. Opening the folder registers the highest version. `data/` at the repository root is gitignored, and so is `rust/data/` when the CLI is run from `rust/`.
+`00000-*.metadata.json` is the empty table. Each commit writes the next metadata version, one manifest, and one manifest list. After `step.json` names that snapshot, the previous Parquet file is deleted, so `data/` holds one file. Opening the folder registers the highest metadata version, rolls `main` back when it disagrees with `step.json`, then deletes unreferenced Parquet. `data/` at the repository root is gitignored, and so is `rust/data/` when the CLI is run from `rust/`.

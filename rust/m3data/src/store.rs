@@ -1,36 +1,54 @@
 //! Local Iceberg warehouse for one named simulation.
 //!
-//! iceberg-rust 0.10 has no filesystem catalog. The catalog index is a
-//! [`MemoryCatalog`] whose warehouse is `file://<data>/<simulation>` on the
-//! local filesystem. Table metadata JSON is the durable record: opening the
-//! same folder scans `qsm/<table>/metadata/*.metadata.json`, picks the highest
-//! version, and `register_table`s it. Nothing talks to Postgres or to a network.
+//! iceberg-rust 0.10 has no filesystem catalog and no public overwrite action
+//! (`TableCommit`'s builder and `TransactionAction` are crate-private, and
+//! `fast_append` always keeps the previous data files). Parquet itself cannot
+//! be appended in place. Each commit therefore:
+//!
+//! 1. rewrites the table's rows into one new Parquet file (the rolling writer
+//!    target is `usize::MAX`, so it does not split);
+//! 2. writes a manifest and a manifest list that name only that file;
+//! 3. builds the next table metadata with an `overwrite` snapshot and
+//!    `SetSnapshotRef` on `main`, and writes that metadata JSON;
+//! 4. points the memory catalog at the new metadata.
+//!
+//! The metadata file is the per-table commit. `qsm/step.json` is written only
+//! after every dirty table in the step has been committed. A crash before that
+//! journal leaves the new snapshot unreferenced by the journal; the next open
+//! moves `main` back to the journaled snapshot (or clears it) and then deletes
+//! Parquet files the restored snapshot does not name. Old snapshots stay in
+//! the metadata so that rollback can still see them. Their Parquet is removed
+//! only after the journal names the new snapshot.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use arrow::array::RecordBatch;
 use futures::TryStreamExt;
 use iceberg::io::LocalFsStorageFactory;
 use iceberg::memory::{MemoryCatalog, MemoryCatalogBuilder, MEMORY_CATALOG_WAREHOUSE};
-use iceberg::spec::{DataFile, Literal, PartitionKey, Struct};
+use iceberg::spec::{
+    DataFile, FormatVersion, ManifestListWriter, ManifestWriterBuilder, Operation, Snapshot,
+    SnapshotReference, SnapshotRetention, Summary, MAIN_BRANCH,
+};
 use iceberg::table::Table;
-use iceberg::transaction::{ApplyTransactionAction, Transaction};
 use iceberg::writer::base_writer::data_file_writer::DataFileWriterBuilder;
 use iceberg::writer::file_writer::location_generator::{
     DefaultFileNameGenerator, DefaultLocationGenerator,
 };
 use iceberg::writer::file_writer::rolling_writer::RollingFileWriterBuilder;
 use iceberg::writer::file_writer::ParquetWriterBuilder;
-use iceberg::writer::partitioning::fanout_writer::FanoutWriter;
-use iceberg::writer::partitioning::PartitioningWriter;
 use iceberg::writer::{IcebergWriter, IcebergWriterBuilder};
-use iceberg::{Catalog, CatalogBuilder, NamespaceIdent, TableCreation, TableIdent};
+use iceberg::{
+    Catalog, CatalogBuilder, MetadataLocation, NamespaceIdent, TableCreation, TableIdent,
+    TableUpdate,
+};
 use parquet::file::properties::WriterProperties;
-
-use m3path::{get_connection_state, ConnectionState};
+use serde::{Deserialize, Serialize};
 
 use crate::batch::{
     decode_events, decode_nodes, decode_path_contexts, decode_path_nodes, decode_points,
@@ -38,20 +56,22 @@ use crate::batch::{
 };
 use crate::error::{Error, Result};
 use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
-use crate::schema::{bucket_of, TableKind, NAMESPACE};
+use crate::schema::{TableKind, NAMESPACE};
 
 const MAX_NAME_LEN: usize = 175;
+const STEP_JOURNAL: &str = "step.json";
 
 /// In-memory copy of every stored table for one simulation.
 ///
-/// `open` loads each table fully. That is the read API a later viewer uses:
-/// pass the simulation name, then borrow the rows. Appends are batches. Each
-/// append is one Iceberg snapshot for that table.
+/// `open` loads each table fully. Appends stage rows and [`SimulationStore::sync`]
+/// rewrites each dirty table as one data file. `append_*` stages and syncs, so a
+/// direct append is its own commit.
 pub struct SimulationStore {
     root: PathBuf,
     name: String,
     catalog: MemoryCatalog,
     tables: HashMap<TableKind, Table>,
+    dirty: HashSet<TableKind>,
     points: Vec<PointRow>,
     path_contexts: Vec<PathContextRow>,
     path_nodes: Vec<PathNodeRow>,
@@ -88,7 +108,7 @@ impl SimulationStore {
 
         let mut tables = HashMap::new();
         for kind in TableKind::all() {
-            let ident = TableIdent::new(namespace.clone(), kind.name().to_string());
+            let ident = table_ident(kind);
             let table = if let Some(metadata) = latest_metadata(&root, kind.name()) {
                 catalog.register_table(&ident, file_uri(&metadata)).await?
             } else {
@@ -99,23 +119,12 @@ impl SimulationStore {
             tables.insert(kind, table);
         }
 
-        let points = read_points(&tables[&TableKind::Points]).await?;
-        // Iceberg 0.10 can only append. A changed path node, path context, or
-        // event is appended again with the same id. The latest logical row is
-        // the one whose growth cursor moved forward (fewer open connections, or a
-        // higher max distance / time). That pick does not depend on scan order.
-        let path_contexts =
-            collapse_path_contexts(read_path_contexts(&tables[&TableKind::PathContexts]).await?)?;
-        let path_nodes =
-            collapse_path_nodes(read_path_nodes(&tables[&TableKind::PathNodes]).await?)?;
-        let events = collapse_events(read_events(&tables[&TableKind::Events]).await?)?;
-        let nodes = read_nodes(&tables[&TableKind::Nodes]).await?;
-
         let mut store = Self {
             root,
             name: simulation.to_string(),
             catalog,
             tables,
+            dirty: HashSet::new(),
             points: Vec::new(),
             path_contexts: Vec::new(),
             path_nodes: Vec::new(),
@@ -131,6 +140,14 @@ impl SimulationStore {
             node_ids: HashSet::new(),
             node_key: HashSet::new(),
         };
+        store.reconcile_journal().await?;
+        store.gc_unreferenced().await?;
+
+        let points = read_points(&store.tables[&TableKind::Points]).await?;
+        let path_contexts = read_path_contexts(&store.tables[&TableKind::PathContexts]).await?;
+        let path_nodes = read_path_nodes(&store.tables[&TableKind::PathNodes]).await?;
+        let events = read_events(&store.tables[&TableKind::Events]).await?;
+        let nodes = read_nodes(&store.tables[&TableKind::Nodes]).await?;
         store.absorb_points(&points)?;
         store.absorb_path_contexts(&path_contexts)?;
         store.absorb_path_nodes(&path_nodes)?;
@@ -177,104 +194,283 @@ impl SimulationStore {
             || !self.nodes.is_empty()
     }
 
-    pub async fn append_points(&mut self, rows: &[PointRow]) -> Result<()> {
+    pub(crate) fn stage_points(&mut self, rows: &[PointRow]) -> Result<()> {
         if rows.is_empty() {
             return Ok(());
         }
-        self.check_point_rows(rows)?;
-        let batch = encode_points(rows)?;
-        self.write(TableKind::Points, vec![(None, batch)]).await?;
-        self.absorb_points(rows)
+        self.absorb_points(rows)?;
+        self.dirty.insert(TableKind::Points);
+        Ok(())
+    }
+
+    pub(crate) fn stage_path_contexts(&mut self, rows: &[PathContextRow]) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        self.absorb_path_contexts(rows)?;
+        self.dirty.insert(TableKind::PathContexts);
+        Ok(())
+    }
+
+    pub(crate) fn stage_path_nodes(&mut self, rows: &[PathNodeRow]) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        self.absorb_path_nodes(rows)?;
+        self.dirty.insert(TableKind::PathNodes);
+        Ok(())
+    }
+
+    /// Replace link columns of path nodes that are already stored.
+    ///
+    /// The id and `(path_ctx_id, point_id)` stay the same. The single data file
+    /// is rewritten on the next [`SimulationStore::sync`], so the id still
+    /// appears once. This is the one mutation growth cannot avoid: the next
+    /// shell fills `Next` and `Blocked` after the node has been saved.
+    pub(crate) fn stage_path_node_revisions(&mut self, rows: &[PathNodeRow]) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        for row in rows {
+            let Some(existing) = self.path_nodes.iter().find(|node| node.id == row.id) else {
+                return Err(Error::new(format!(
+                    "path node {} is not stored and cannot be revised",
+                    row.id
+                )));
+            };
+            if existing.path_ctx_id != row.path_ctx_id || existing.point_id != row.point_id {
+                return Err(Error::new(format!(
+                    "path node {} changed (path_ctx_id, point_id)",
+                    row.id
+                )));
+            }
+        }
+        for row in rows {
+            let pos = self
+                .path_nodes
+                .iter()
+                .position(|node| node.id == row.id)
+                .expect("revision target was checked");
+            self.path_nodes[pos] = row.clone();
+        }
+        self.dirty.insert(TableKind::PathNodes);
+        Ok(())
+    }
+
+    pub(crate) fn stage_events(&mut self, rows: &[EventRow]) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        self.absorb_events(rows)?;
+        self.dirty.insert(TableKind::Events);
+        Ok(())
+    }
+
+    pub(crate) fn stage_nodes(&mut self, rows: &[NodeRow]) -> Result<()> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        self.absorb_nodes(rows)?;
+        self.dirty.insert(TableKind::Nodes);
+        Ok(())
+    }
+
+    /// Rewrite every dirty table, then record the snapshot ids in `qsm/step.json`.
+    pub(crate) async fn sync(&mut self) -> Result<()> {
+        self.commit_dirty().await?;
+        if self.journal_matches()? {
+            return Ok(());
+        }
+        self.write_journal()?;
+        self.gc_unreferenced().await
+    }
+
+    /// Commit staged rows without moving the step journal.
+    ///
+    /// The next `open` treats that as a crash and restores the journaled snapshot.
+    #[cfg(test)]
+    pub(crate) async fn commit_without_journal_for_test(&mut self) -> Result<()> {
+        self.commit_dirty().await
+    }
+
+    pub async fn append_points(&mut self, rows: &[PointRow]) -> Result<()> {
+        self.stage_points(rows)?;
+        self.sync().await
     }
 
     pub async fn append_path_contexts(&mut self, rows: &[PathContextRow]) -> Result<()> {
-        if rows.is_empty() {
-            return Ok(());
-        }
-        self.check_path_context_rows(rows)?;
-        let batch = encode_path_contexts(rows)?;
-        self.write(TableKind::PathContexts, vec![(None, batch)])
-            .await?;
-        self.absorb_path_contexts(rows)
+        self.stage_path_contexts(rows)?;
+        self.sync().await
     }
 
     pub async fn append_path_nodes(&mut self, rows: &[PathNodeRow]) -> Result<()> {
-        if rows.is_empty() {
-            return Ok(());
-        }
-        self.check_path_node_rows(rows)?;
-        let mut groups: HashMap<(i32, i32), Vec<PathNodeRow>> = HashMap::new();
-        for row in rows {
-            groups
-                .entry((row.path_ctx_id, bucket_of(row.d)))
-                .or_default()
-                .push(row.clone());
-        }
-        let table = self.tables[&TableKind::PathNodes].clone();
-        let mut batches = Vec::new();
-        for ((path_ctx_id, d_bucket), group) in groups {
-            let key = partition_key(
-                &table,
-                vec![
-                    Some(Literal::int(path_ctx_id)),
-                    Some(Literal::int(d_bucket)),
-                ],
-            );
-            batches.push((Some(key), encode_path_nodes(&group)?));
-        }
-        self.write(TableKind::PathNodes, batches).await?;
-        self.absorb_path_nodes(rows)
+        self.stage_path_nodes(rows)?;
+        self.sync().await
     }
 
     pub async fn append_events(&mut self, rows: &[EventRow]) -> Result<()> {
-        if rows.is_empty() {
-            return Ok(());
-        }
-        self.check_event_rows(rows)?;
-        let batch = encode_events(rows)?;
-        self.write(TableKind::Events, vec![(None, batch)]).await?;
-        self.absorb_events(rows)
+        self.stage_events(rows)?;
+        self.sync().await
     }
 
     pub async fn append_nodes(&mut self, rows: &[NodeRow]) -> Result<()> {
-        if rows.is_empty() {
-            return Ok(());
-        }
-        self.check_node_rows(rows)?;
-        let mut groups: HashMap<(i32, i32), Vec<NodeRow>> = HashMap::new();
-        for row in rows {
-            groups
-                .entry((row.event_id, bucket_of(row.creation_time)))
-                .or_default()
-                .push(row.clone());
-        }
-        let table = self.tables[&TableKind::Nodes].clone();
-        let mut batches = Vec::new();
-        for ((event_id, time_bucket), group) in groups {
-            let key = partition_key(
-                &table,
-                vec![
-                    Some(Literal::int(event_id)),
-                    Some(Literal::int(time_bucket)),
-                ],
-            );
-            batches.push((Some(key), encode_nodes(&group)?));
-        }
-        self.write(TableKind::Nodes, batches).await?;
-        self.absorb_nodes(rows)
+        self.stage_nodes(rows)?;
+        self.sync().await
     }
 
-    async fn write(
-        &mut self,
-        kind: TableKind,
-        batches: Vec<(Option<PartitionKey>, RecordBatch)>,
-    ) -> Result<()> {
+    async fn commit_dirty(&mut self) -> Result<()> {
+        for kind in TableKind::all() {
+            if !self.dirty.contains(&kind) {
+                continue;
+            }
+            self.rewrite(kind).await?;
+            self.dirty.remove(&kind);
+        }
+        Ok(())
+    }
+
+    async fn rewrite(&mut self, kind: TableKind) -> Result<()> {
+        let batch = match kind {
+            TableKind::Points => encode_points(&self.points)?,
+            TableKind::PathContexts => encode_path_contexts(&self.path_contexts)?,
+            TableKind::PathNodes => encode_path_nodes(&self.path_nodes)?,
+            TableKind::Events => encode_events(&self.events)?,
+            TableKind::Nodes => encode_nodes(&self.nodes)?,
+        };
+        if batch.num_rows() == 0 {
+            return Err(Error::new(format!("{} rewrite has no rows", kind.name())));
+        }
         let table = self.tables[&kind].clone();
-        let files = write_batches(&table, kind.partitioned(), batches).await?;
-        let tx = Transaction::new(&table);
-        let tx = tx.fast_append().add_data_files(files).apply(tx)?;
-        let updated = tx.commit(&self.catalog).await?;
+        let files = write_one_file(&table, batch).await?;
+        let updated = commit_overwrite(&self.catalog, &table, files).await?;
         self.tables.insert(kind, updated);
+        Ok(())
+    }
+
+    fn journal_matches(&self) -> Result<bool> {
+        let Some(journal) = read_journal(&self.root)? else {
+            return Ok(false);
+        };
+        Ok(journal == self.current_journal())
+    }
+
+    fn current_journal(&self) -> StepJournal {
+        StepJournal {
+            points: snapshot_id(&self.tables[&TableKind::Points]),
+            path_contexts: snapshot_id(&self.tables[&TableKind::PathContexts]),
+            path_nodes: snapshot_id(&self.tables[&TableKind::PathNodes]),
+            events: snapshot_id(&self.tables[&TableKind::Events]),
+            nodes: snapshot_id(&self.tables[&TableKind::Nodes]),
+        }
+    }
+
+    fn write_journal(&self) -> Result<()> {
+        let qsm = self.root.join(NAMESPACE);
+        std::fs::create_dir_all(&qsm)?;
+        let tmp = qsm.join("step.json.tmp");
+        let dest = qsm.join(STEP_JOURNAL);
+        std::fs::write(&tmp, serde_json::to_vec_pretty(&self.current_journal())?)?;
+        std::fs::rename(&tmp, &dest)?;
+        Ok(())
+    }
+
+    async fn reconcile_journal(&mut self) -> Result<()> {
+        let journal = read_journal(&self.root)?;
+        for kind in TableKind::all() {
+            let have = snapshot_id(&self.tables[&kind]);
+            let want = journal.as_ref().and_then(|journal| journal.of(kind));
+            // No journal and no snapshot: a fresh folder. No journal and a
+            // snapshot: the first step crashed before `step.json`.
+            if journal.is_none() && have.is_none() {
+                continue;
+            }
+            if have == want {
+                continue;
+            }
+            self.roll_snapshot(kind, want).await?;
+        }
+        Ok(())
+    }
+
+    async fn roll_snapshot(&mut self, kind: TableKind, snapshot_id: Option<i64>) -> Result<()> {
+        let table = self.tables[&kind].clone();
+        let update = match snapshot_id {
+            Some(id) => {
+                if table.metadata().snapshot_by_id(id).is_none() {
+                    return Err(Error::new(format!(
+                        "{} step journal names missing snapshot {id}",
+                        kind.name()
+                    )));
+                }
+                TableUpdate::SetSnapshotRef {
+                    ref_name: MAIN_BRANCH.to_string(),
+                    reference: branch_ref(id),
+                }
+            }
+            None => TableUpdate::RemoveSnapshotRef {
+                ref_name: MAIN_BRANCH.to_string(),
+            },
+        };
+        let updated = publish_metadata(&self.catalog, &table, vec![update]).await?;
+        self.tables.insert(kind, updated);
+        Ok(())
+    }
+
+    async fn gc_unreferenced(&self) -> Result<()> {
+        for kind in TableKind::all() {
+            let keep = referenced_parquet(&self.tables[&kind]).await?;
+            delete_unreferenced(&self.root, kind.name(), &keep)?;
+        }
+        Ok(())
+    }
+
+    fn absorb_points(&mut self, rows: &[PointRow]) -> Result<()> {
+        self.check_point_rows(rows)?;
+        for row in rows {
+            self.point_ids.insert(row.id);
+            self.point_xyz.insert(row.xyz());
+            self.points.push(row.clone());
+        }
+        Ok(())
+    }
+
+    fn absorb_path_contexts(&mut self, rows: &[PathContextRow]) -> Result<()> {
+        self.check_path_context_rows(rows)?;
+        for row in rows {
+            self.path_ctx_ids.insert(row.id);
+            self.path_ctx_key
+                .insert((row.growth_ctx_id, row.growth_offset));
+            self.path_contexts.push(row.clone());
+        }
+        Ok(())
+    }
+
+    fn absorb_path_nodes(&mut self, rows: &[PathNodeRow]) -> Result<()> {
+        self.check_path_node_rows(rows)?;
+        for row in rows {
+            self.path_node_ids.insert(row.id);
+            self.path_node_key.insert((row.path_ctx_id, row.point_id));
+            self.path_nodes.push(row.clone());
+        }
+        Ok(())
+    }
+
+    fn absorb_events(&mut self, rows: &[EventRow]) -> Result<()> {
+        self.check_event_rows(rows)?;
+        for row in rows {
+            self.event_ids.insert(row.id);
+            self.events.push(row.clone());
+        }
+        Ok(())
+    }
+
+    fn absorb_nodes(&mut self, rows: &[NodeRow]) -> Result<()> {
+        self.check_node_rows(rows)?;
+        for row in rows {
+            self.node_ids.insert(row.id);
+            self.node_key.insert((row.event_id, row.point_id));
+            self.nodes.push(row.clone());
+        }
         Ok(())
     }
 
@@ -294,31 +490,11 @@ impl SimulationStore {
     }
 
     fn check_path_context_rows(&self, rows: &[PathContextRow]) -> Result<()> {
-        let mut new_ids = HashSet::new();
-        let mut new_keys = HashSet::new();
+        let mut ids = self.path_ctx_ids.clone();
+        let mut keys = self.path_ctx_key.clone();
         for row in rows {
-            if row.id <= 0 {
-                return Err(Error::new(format!(
-                    "path_contexts id must be positive, got {}",
-                    row.id
-                )));
-            }
-            if let Some(existing) = self.path_contexts.iter().find(|ctx| ctx.id == row.id) {
-                if existing.growth_ctx_id != row.growth_ctx_id
-                    || existing.growth_offset != row.growth_offset
-                {
-                    return Err(Error::new(format!(
-                        "path context {} changed (growth_ctx_id, growth_offset)",
-                        row.id
-                    )));
-                }
-                continue;
-            }
-            if self.path_ctx_ids.contains(&row.id) || !new_ids.insert(row.id) {
-                return Err(Error::new(format!("duplicate path_contexts id {}", row.id)));
-            }
-            let key = (row.growth_ctx_id, row.growth_offset);
-            if self.path_ctx_key.contains(&key) || !new_keys.insert(key) {
+            insert_i32(&mut ids, row.id, "path_contexts")?;
+            if !keys.insert((row.growth_ctx_id, row.growth_offset)) {
                 return Err(Error::new(format!(
                     "duplicate path context ({}, {})",
                     row.growth_ctx_id, row.growth_offset
@@ -329,29 +505,11 @@ impl SimulationStore {
     }
 
     fn check_path_node_rows(&self, rows: &[PathNodeRow]) -> Result<()> {
-        let mut new_ids = HashSet::new();
-        let mut new_keys = HashSet::new();
+        let mut ids = self.path_node_ids.clone();
+        let mut keys = self.path_node_key.clone();
         for row in rows {
-            if row.id <= 0 {
-                return Err(Error::new(format!(
-                    "path_nodes id must be positive, got {}",
-                    row.id
-                )));
-            }
-            if let Some(existing) = self.path_nodes.iter().find(|node| node.id == row.id) {
-                if existing.path_ctx_id != row.path_ctx_id || existing.point_id != row.point_id {
-                    return Err(Error::new(format!(
-                        "path node {} changed (path_ctx_id, point_id)",
-                        row.id
-                    )));
-                }
-                continue;
-            }
-            if self.path_node_ids.contains(&row.id) || !new_ids.insert(row.id) {
-                return Err(Error::new(format!("duplicate path_nodes id {}", row.id)));
-            }
-            let key = (row.path_ctx_id, row.point_id);
-            if self.path_node_key.contains(&key) || !new_keys.insert(key) {
+            insert_id(&mut ids, row.id, "path_nodes")?;
+            if !keys.insert((row.path_ctx_id, row.point_id)) {
                 return Err(Error::new(format!(
                     "duplicate path node ({}, {})",
                     row.path_ctx_id, row.point_id
@@ -362,20 +520,9 @@ impl SimulationStore {
     }
 
     fn check_event_rows(&self, rows: &[EventRow]) -> Result<()> {
-        let mut new_ids = HashSet::new();
+        let mut ids = self.event_ids.clone();
         for row in rows {
-            if row.id <= 0 {
-                return Err(Error::new(format!(
-                    "events id must be positive, got {}",
-                    row.id
-                )));
-            }
-            if self.events.iter().any(|event| event.id == row.id) {
-                continue;
-            }
-            if self.event_ids.contains(&row.id) || !new_ids.insert(row.id) {
-                return Err(Error::new(format!("duplicate events id {}", row.id)));
-            }
+            insert_i32(&mut ids, row.id, "events")?;
         }
         Ok(())
     }
@@ -394,71 +541,48 @@ impl SimulationStore {
         }
         Ok(())
     }
+}
 
-    fn absorb_points(&mut self, rows: &[PointRow]) -> Result<()> {
-        self.check_point_rows(rows)?;
-        for row in rows {
-            self.point_ids.insert(row.id);
-            self.point_xyz.insert(row.xyz());
-            self.points.push(row.clone());
-        }
-        Ok(())
-    }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct StepJournal {
+    points: Option<i64>,
+    path_contexts: Option<i64>,
+    path_nodes: Option<i64>,
+    events: Option<i64>,
+    nodes: Option<i64>,
+}
 
-    fn absorb_path_contexts(&mut self, rows: &[PathContextRow]) -> Result<()> {
-        self.check_path_context_rows(rows)?;
-        for row in rows {
-            if let Some(pos) = self.path_contexts.iter().position(|ctx| ctx.id == row.id) {
-                self.path_contexts[pos] = row.clone();
-            } else {
-                self.path_ctx_ids.insert(row.id);
-                self.path_ctx_key
-                    .insert((row.growth_ctx_id, row.growth_offset));
-                self.path_contexts.push(row.clone());
-            }
+impl StepJournal {
+    fn of(&self, kind: TableKind) -> Option<i64> {
+        match kind {
+            TableKind::Points => self.points,
+            TableKind::PathContexts => self.path_contexts,
+            TableKind::PathNodes => self.path_nodes,
+            TableKind::Events => self.events,
+            TableKind::Nodes => self.nodes,
         }
-        Ok(())
-    }
-
-    fn absorb_path_nodes(&mut self, rows: &[PathNodeRow]) -> Result<()> {
-        self.check_path_node_rows(rows)?;
-        for row in rows {
-            if let Some(pos) = self.path_nodes.iter().position(|node| node.id == row.id) {
-                self.path_nodes[pos] = row.clone();
-            } else {
-                self.path_node_ids.insert(row.id);
-                self.path_node_key.insert((row.path_ctx_id, row.point_id));
-                self.path_nodes.push(row.clone());
-            }
-        }
-        Ok(())
-    }
-
-    fn absorb_events(&mut self, rows: &[EventRow]) -> Result<()> {
-        self.check_event_rows(rows)?;
-        for row in rows {
-            if let Some(pos) = self.events.iter().position(|event| event.id == row.id) {
-                self.events[pos] = row.clone();
-            } else {
-                self.event_ids.insert(row.id);
-                self.events.push(row.clone());
-            }
-        }
-        Ok(())
-    }
-
-    fn absorb_nodes(&mut self, rows: &[NodeRow]) -> Result<()> {
-        self.check_node_rows(rows)?;
-        for row in rows {
-            self.node_ids.insert(row.id);
-            self.node_key.insert((row.event_id, row.point_id));
-            self.nodes.push(row.clone());
-        }
-        Ok(())
     }
 }
 
+fn snapshot_id(table: &Table) -> Option<i64> {
+    table.metadata().current_snapshot_id()
+}
+
+fn branch_ref(snapshot_id: i64) -> SnapshotReference {
+    SnapshotReference::new(snapshot_id, SnapshotRetention::branch(None, None, None))
+}
+
 fn insert_id(ids: &mut HashSet<i64>, id: i64, table: &str) -> Result<()> {
+    if id <= 0 {
+        return Err(Error::new(format!("{table} id must be positive, got {id}")));
+    }
+    if !ids.insert(id) {
+        return Err(Error::new(format!("duplicate {table} id {id}")));
+    }
+    Ok(())
+}
+
+fn insert_i32(ids: &mut HashSet<i32>, id: i32, table: &str) -> Result<()> {
     if id <= 0 {
         return Err(Error::new(format!("{table} id must be positive, got {id}")));
     }
@@ -500,12 +624,19 @@ fn unique_file_suffix() -> String {
     )
 }
 
+fn now_millis() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_millis() as i64)
+        .unwrap_or(0)
+}
+
 fn latest_metadata(root: &Path, table: &str) -> Option<PathBuf> {
     let dir = root.join(NAMESPACE).join(table).join("metadata");
     let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
         .ok()?
         .flatten()
-        .map(|e| e.path())
+        .map(|entry| entry.path())
         .filter(|path| {
             path.file_name()
                 .and_then(|name| name.to_str())
@@ -516,37 +647,31 @@ fn latest_metadata(root: &Path, table: &str) -> Option<PathBuf> {
     files.pop()
 }
 
-fn table_creation(kind: TableKind) -> Result<TableCreation> {
-    let schema = kind.iceberg_schema()?;
-    let name = kind.name().to_string();
-    if let Some(spec) = kind.partition_spec()? {
-        Ok(TableCreation::builder()
-            .name(name)
-            .schema(schema)
-            .partition_spec(spec)
-            .build())
-    } else {
-        Ok(TableCreation::builder().name(name).schema(schema).build())
-    }
-}
-
-fn partition_key(table: &Table, values: Vec<Option<Literal>>) -> PartitionKey {
-    PartitionKey::new(
-        table.metadata().default_partition_spec().as_ref().clone(),
-        table.metadata().current_schema().clone(),
-        Struct::from_iter(values),
+fn table_ident(kind: TableKind) -> TableIdent {
+    TableIdent::new(
+        NamespaceIdent::new(NAMESPACE.to_string()),
+        kind.name().to_string(),
     )
 }
 
-async fn write_batches(
-    table: &Table,
-    partitioned: bool,
-    batches: Vec<(Option<PartitionKey>, RecordBatch)>,
-) -> Result<Vec<DataFile>> {
+fn table_creation(kind: TableKind) -> Result<TableCreation> {
+    Ok(TableCreation::builder()
+        .name(kind.name().to_string())
+        .schema(kind.iceberg_schema()?)
+        .build())
+}
+
+fn read_journal(root: &Path) -> Result<Option<StepJournal>> {
+    let path = root.join(NAMESPACE).join(STEP_JOURNAL);
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let text = std::fs::read_to_string(&path)?;
+    Ok(Some(serde_json::from_str(&text)?))
+}
+
+async fn write_one_file(table: &Table, batch: RecordBatch) -> Result<Vec<DataFile>> {
     let location = DefaultLocationGenerator::new(table.metadata())?;
-    // The generator's counter starts at zero on every writer. A stable prefix
-    // would reuse `part-00000.parquet` and the next commit would see that path
-    // as already referenced. The suffix makes each batch's files unique.
     let names = DefaultFileNameGenerator::new(
         "part".to_string(),
         Some(unique_file_suffix()),
@@ -556,124 +681,193 @@ async fn write_batches(
         WriterProperties::default(),
         table.metadata().current_schema().clone(),
     );
-    let rolling = RollingFileWriterBuilder::new_with_default_file_size(
+    // Parquet has no in-place append. One file per commit means the writer must
+    // not roll. A real simulation that outgrows memory is a separate problem;
+    // the file-size cap is not what splits this file.
+    let rolling = RollingFileWriterBuilder::new(
         parquet,
+        usize::MAX,
         table.file_io().clone(),
         location,
         names,
     );
-    let builder = DataFileWriterBuilder::new(rolling);
-    if partitioned {
-        let mut fanout = FanoutWriter::new(builder);
-        for (key, batch) in batches {
-            let key = key.ok_or_else(|| Error::new("partitioned write is missing a key"))?;
-            fanout.write(key, batch).await?;
-        }
-        Ok(PartitioningWriter::close(fanout).await?)
-    } else {
-        let mut writer = builder.build(None).await?;
-        for (_, batch) in batches {
-            writer.write(batch).await?;
-        }
-        Ok(writer.close().await?)
+    let mut writer = DataFileWriterBuilder::new(rolling).build(None).await?;
+    writer.write(batch).await?;
+    Ok(writer.close().await?)
+}
+
+async fn commit_overwrite(
+    catalog: &MemoryCatalog,
+    table: &Table,
+    files: Vec<DataFile>,
+) -> Result<Table> {
+    if files.len() != 1 {
+        return Err(Error::new(format!(
+            "overwrite expected 1 data file, writer produced {}",
+            files.len()
+        )));
     }
-}
+    let snapshot_id = fresh_snapshot_id(table);
+    let sequence = table.metadata().next_sequence_number();
+    let suffix = unique_file_suffix();
+    let location = table.metadata().location().trim_end_matches('/');
+    let manifest_path = format!("{location}/metadata/{suffix}-m0.avro");
+    let manifest_output = table.file_io().new_output(&manifest_path)?;
+    let schema = table.metadata().current_schema().clone();
+    let spec = table.metadata().default_partition_spec().as_ref().clone();
+    let builder = ManifestWriterBuilder::new(manifest_output, Some(snapshot_id), schema, spec);
+    let mut manifest_writer = match table.metadata().format_version() {
+        FormatVersion::V1 => builder.build_v1(),
+        FormatVersion::V2 => builder.build_v2_data(),
+        FormatVersion::V3 => builder.build_v3_data(),
+    };
+    for file in files {
+        manifest_writer.add_file(file, sequence)?;
+    }
+    let manifest = manifest_writer.write_manifest_file().await?;
 
-fn collapse_path_contexts(rows: Vec<PathContextRow>) -> Result<Vec<PathContextRow>> {
-    collapse(
-        rows,
-        |row| row.id as i64,
-        |row| row.max_dist,
-        |prev, row| {
-            if prev.growth_ctx_id != row.growth_ctx_id || prev.growth_offset != row.growth_offset {
-                return Err(Error::new(format!(
-                    "path context {} was appended with a different growth key",
-                    row.id
-                )));
-            }
-            Ok(())
-        },
-    )
-}
+    let list_path = format!("{location}/metadata/snap-{snapshot_id}-0-{suffix}.avro");
+    let list_output = table.file_io().new_output(&list_path)?.writer().await?;
+    let parent = table.metadata().current_snapshot_id();
+    let mut list_writer = match table.metadata().format_version() {
+        FormatVersion::V1 => ManifestListWriter::v1(list_output, snapshot_id, parent),
+        FormatVersion::V2 => ManifestListWriter::v2(list_output, snapshot_id, parent, sequence),
+        FormatVersion::V3 => ManifestListWriter::v3(
+            list_output,
+            snapshot_id,
+            parent,
+            sequence,
+            Some(table.metadata().next_row_id()),
+        ),
+    };
+    list_writer.add_manifests(std::iter::once(manifest))?;
+    let next_row_id = list_writer.next_row_id();
+    list_writer.close().await?;
 
-fn collapse_path_nodes(rows: Vec<PathNodeRow>) -> Result<Vec<PathNodeRow>> {
-    collapse(
-        rows,
-        |row| row.id,
-        path_node_rank,
-        |prev, row| {
-            if prev.path_ctx_id != row.path_ctx_id || prev.point_id != row.point_id {
-                return Err(Error::new(format!(
-                    "path node {} was appended with a different (path_ctx_id, point_id)",
-                    row.id
-                )));
-            }
-            Ok(())
-        },
-    )
-}
-
-fn path_node_rank(row: &PathNodeRow) -> i32 {
-    let open = (0..3)
-        .filter(|&conn| {
-            get_connection_state(row.connection_mask as u16, conn) == ConnectionState::NotSet
+    let snapshot = Snapshot::builder()
+        .with_manifest_list(list_path)
+        .with_snapshot_id(snapshot_id)
+        .with_parent_snapshot_id(parent)
+        .with_sequence_number(sequence)
+        .with_summary(Summary {
+            operation: Operation::Overwrite,
+            additional_properties: HashMap::new(),
         })
-        .count() as i32;
-    let links = [row.path_node1, row.path_node2, row.path_node3]
-        .iter()
-        .filter(|link| link.is_some())
-        .count() as i32;
-    // Fewer open connections, then more assigned neighbour ids.
-    -open * 10 + links
-}
-
-fn collapse_events(rows: Vec<EventRow>) -> Result<Vec<EventRow>> {
-    collapse(
-        rows,
-        |row| row.id as i64,
-        |row| row.max_node_time,
-        |prev, row| {
-            if prev.path_ctx_id != row.path_ctx_id
-                || prev.creation_time != row.creation_time
-                || prev.color != row.color
-            {
-                return Err(Error::new(format!(
-                    "event {} was appended with different identity columns",
-                    row.id
-                )));
-            }
-            Ok(())
-        },
+        .with_schema_id(table.metadata().current_schema_id())
+        .with_timestamp_ms(now_millis());
+    let snapshot = if table.metadata().format_version() >= FormatVersion::V3 {
+        let first = table.metadata().next_row_id();
+        let added = next_row_id.unwrap_or(first).saturating_sub(first);
+        snapshot.with_row_range(first, added).build()
+    } else {
+        snapshot.build()
+    };
+    publish_metadata(
+        catalog,
+        table,
+        vec![
+            TableUpdate::AddSnapshot { snapshot },
+            TableUpdate::SetSnapshotRef {
+                ref_name: MAIN_BRANCH.to_string(),
+                reference: branch_ref(snapshot_id),
+            },
+        ],
     )
+    .await
 }
 
-fn collapse<T>(
-    rows: Vec<T>,
-    id_of: impl Fn(&T) -> i64,
-    rank: impl Fn(&T) -> i32,
-    same: impl Fn(&T, &T) -> Result<()>,
-) -> Result<Vec<T>> {
-    let mut order = Vec::new();
-    let mut best: HashMap<i64, T> = HashMap::new();
-    let mut best_rank: HashMap<i64, i32> = HashMap::new();
-    for row in rows {
-        let id = id_of(&row);
-        if let Some(prev) = best.get(&id) {
-            same(prev, &row)?;
-            if rank(&row) > best_rank[&id] {
-                best_rank.insert(id, rank(&row));
-                best.insert(id, row);
+async fn publish_metadata(
+    catalog: &MemoryCatalog,
+    table: &Table,
+    updates: Vec<TableUpdate>,
+) -> Result<Table> {
+    let current_loc = table.metadata_location_result()?.to_string();
+    let mut builder = table
+        .metadata()
+        .clone()
+        .into_builder(Some(current_loc.clone()));
+    for update in updates {
+        builder = update.apply(builder)?;
+    }
+    let metadata = builder.build()?.metadata;
+    let next = MetadataLocation::from_str(&current_loc)?.with_next_version();
+    metadata.write_to(table.file_io(), &next).await?;
+    let ident = table.identifier().clone();
+    catalog.drop_table(&ident).await?;
+    Ok(catalog.register_table(&ident, next.to_string()).await?)
+}
+
+fn fresh_snapshot_id(table: &Table) -> i64 {
+    let mut id = now_millis().saturating_mul(1000);
+    if id <= 0 {
+        id = 1;
+    }
+    let used: HashSet<i64> = table
+        .metadata()
+        .snapshots()
+        .map(|snapshot| snapshot.snapshot_id())
+        .collect();
+    while used.contains(&id) {
+        id = id.saturating_add(1);
+    }
+    id
+}
+
+async fn referenced_parquet(table: &Table) -> Result<HashSet<PathBuf>> {
+    let Some(snapshot) = table.metadata().current_snapshot() else {
+        return Ok(HashSet::new());
+    };
+    let list = table.manifest_list_reader(snapshot).load().await?;
+    let mut keep = HashSet::new();
+    for manifest in list.entries() {
+        let loaded = manifest.load_manifest(table.file_io()).await?;
+        for entry in loaded.entries() {
+            if entry.is_alive() {
+                keep.insert(normalize_path(&uri_to_path(entry.file_path())));
             }
-        } else {
-            order.push(id);
-            best_rank.insert(id, rank(&row));
-            best.insert(id, row);
         }
     }
-    Ok(order
-        .into_iter()
-        .map(|id| best.remove(&id).expect("id was inserted"))
-        .collect())
+    Ok(keep)
+}
+
+fn delete_unreferenced(root: &Path, table: &str, keep: &HashSet<PathBuf>) -> Result<()> {
+    let data = root.join(NAMESPACE).join(table).join("data");
+    if !data.is_dir() {
+        return Ok(());
+    }
+    for path in walk_parquet(&data) {
+        if !keep.contains(&normalize_path(&path)) {
+            std::fs::remove_file(&path)?;
+        }
+    }
+    Ok(())
+}
+
+fn walk_parquet(dir: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return out;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            out.extend(walk_parquet(&path));
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("parquet") {
+            out.push(path);
+        }
+    }
+    out
+}
+
+fn uri_to_path(uri: &str) -> PathBuf {
+    match uri.strip_prefix("file://") {
+        Some(rest) => PathBuf::from(rest),
+        None => PathBuf::from(uri),
+    }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
 
 async fn read_batches(table: &Table) -> Result<Vec<RecordBatch>> {

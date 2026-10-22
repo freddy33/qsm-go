@@ -2,8 +2,8 @@
 //!
 //! A later run of the same name loads the latest file and requires the resolved
 //! space parameters and the expanded event list to match. Only `max_time_steps`
-//! may change. The file is not written when the run fails that check or fails
-//! while growing.
+//! may change, and it may not drop below the saved creation time. The file is
+//! not written when the run fails that check or fails while growing.
 
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};

@@ -1,7 +1,7 @@
 //! Arrow RecordBatch encode and decode for each stored table.
 //!
-//! Batches are the unit of a write. A simulation step builds one batch (or one
-//! batch per partition) and commits that, rather than one file per row.
+//! A simulation step encodes each dirty table as one batch and rewrites that
+//! table's single Parquet file.
 
 use std::sync::Arc;
 
@@ -52,7 +52,6 @@ pub fn encode_path_contexts(rows: &[PathContextRow]) -> Result<RecordBatch> {
             i32_col(rows.iter().map(|r| r.growth_ctx_id)),
             i32_col(rows.iter().map(|r| r.growth_offset)),
             opt_i32_col(rows.iter().map(|r| r.path_builders_id)),
-            i32_col(rows.iter().map(|r| r.max_dist)),
         ],
     )
 }
@@ -64,14 +63,12 @@ pub fn decode_path_contexts(batches: &[RecordBatch]) -> Result<Vec<PathContextRo
         let growth_ctx_id = i32s(batch, "growth_ctx_id")?;
         let growth_offset = i32s(batch, "growth_offset")?;
         let path_builders_id = i32s(batch, "path_builders_id")?;
-        let max_dist = i32s(batch, "max_dist")?;
         for i in 0..batch.num_rows() {
             rows.push(PathContextRow {
                 id: id.value(i),
                 growth_ctx_id: growth_ctx_id.value(i),
                 growth_offset: growth_offset.value(i),
                 path_builders_id: opt_i32(path_builders_id, i),
-                max_dist: max_dist.value(i),
             });
         }
     }
@@ -141,7 +138,6 @@ pub fn encode_events(rows: &[EventRow]) -> Result<RecordBatch> {
             i32_col(rows.iter().map(|r| r.creation_time)),
             i32_col(rows.iter().map(|r| r.color)),
             i32_col(rows.iter().map(|r| r.end_time)),
-            i32_col(rows.iter().map(|r| r.max_node_time)),
         ],
     )
 }
@@ -154,7 +150,6 @@ pub fn decode_events(batches: &[RecordBatch]) -> Result<Vec<EventRow>> {
         let creation_time = i32s(batch, "creation_time")?;
         let color = i32s(batch, "color")?;
         let end_time = i32s(batch, "end_time")?;
-        let max_node_time = i32s(batch, "max_node_time")?;
         for i in 0..batch.num_rows() {
             rows.push(EventRow {
                 id: id.value(i),
@@ -162,7 +157,6 @@ pub fn decode_events(batches: &[RecordBatch]) -> Result<Vec<EventRow>> {
                 creation_time: creation_time.value(i),
                 color: color.value(i),
                 end_time: end_time.value(i),
-                max_node_time: max_node_time.value(i),
             });
         }
     }

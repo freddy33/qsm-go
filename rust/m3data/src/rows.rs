@@ -33,7 +33,6 @@ pub struct PathContextRow {
     pub growth_ctx_id: i32,
     pub growth_offset: i32,
     pub path_builders_id: Option<i32>,
-    pub max_dist: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -58,7 +57,6 @@ pub struct EventRow {
     pub creation_time: i32,
     pub color: i32,
     pub end_time: i32,
-    pub max_node_time: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

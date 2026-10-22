@@ -6,7 +6,7 @@
 //! later path-node updates. A `From` link on an event node is the earlier event
 //! node, not the path node.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use m3path::{
     get_connection_state, restored_link, ConnectionState, ConnectionsState, LivePathNode,
@@ -29,7 +29,8 @@ pub struct RunStats {
 }
 
 struct CtxState {
-    persisted_max_dist: i32,
+    /// Written once, when the context is created. Later shells do not rewrite it.
+    stored: bool,
     growth: PathGrowth,
 }
 
@@ -39,8 +40,11 @@ struct EventState {
     creation_time: i32,
     color: i32,
     center: Point,
+    /// Highest creation time reached in memory. Derived from nodes on load.
+    /// Not a stored column.
     max_node_time: i32,
-    persisted_max_node_time: i32,
+    /// Written once, when the event is created.
+    stored: bool,
 }
 
 struct World {
@@ -143,7 +147,7 @@ fn seed(specs: &[ResolvedEvent]) -> Result<World> {
         world.next_path_node_id += 1;
         ctx_for.insert(key, id);
         world.contexts.push(CtxState {
-            persisted_max_dist: -1,
+            stored: false,
             growth,
         });
     }
@@ -191,7 +195,7 @@ fn seed(specs: &[ResolvedEvent]) -> Result<World> {
             color: i32::from(spec.color as u8),
             center: spec.point,
             max_node_time: spec.creation_time,
-            persisted_max_node_time: i32::MIN,
+            stored: false,
         });
     }
     Ok(world)
@@ -259,7 +263,7 @@ fn load(store: &SimulationStore) -> Result<World> {
             }
         }
         contexts.push(CtxState {
-            persisted_max_dist: row.max_dist,
+            stored: true,
             growth,
         });
     }
@@ -296,7 +300,7 @@ fn load(store: &SimulationStore) -> Result<World> {
             color: row.color,
             center,
             max_node_time: max_from_nodes,
-            persisted_max_node_time: row.max_node_time,
+            stored: true,
         });
     }
 
@@ -450,15 +454,14 @@ impl World {
         if !self.fresh_points.is_empty() || !self.fresh_nodes.is_empty() {
             return true;
         }
-        if self.contexts.iter().any(|ctx| {
-            ctx.growth.max_dist() != ctx.persisted_max_dist
-                || ctx.growth.nodes.iter().any(|node| node.dirty)
-        }) {
+        if self
+            .contexts
+            .iter()
+            .any(|ctx| !ctx.stored || ctx.growth.nodes.iter().any(|node| node.dirty))
+        {
             return true;
         }
-        self.events
-            .iter()
-            .any(|event| event.max_node_time != event.persisted_max_node_time)
+        self.events.iter().any(|event| !event.stored)
     }
 
     async fn persist(&mut self, store: &mut SimulationStore) -> Result<()> {
@@ -476,14 +479,13 @@ impl World {
         self.intern_new_sorted(&coords);
 
         if !self.fresh_points.is_empty() {
-            store.append_points(&self.fresh_points).await?;
-            self.fresh_points.clear();
+            store.stage_points(&self.fresh_points)?;
         }
 
         let ctx_rows: Vec<PathContextRow> = self
             .contexts
             .iter()
-            .filter(|ctx| ctx.growth.max_dist() != ctx.persisted_max_dist)
+            .filter(|ctx| !ctx.stored)
             .map(|ctx| PathContextRow {
                 id: ctx.growth.id,
                 growth_ctx_id: ctx.growth.growth_ctx_id,
@@ -494,15 +496,13 @@ impl World {
                     .iter()
                     .find(|node| node.d == 0)
                     .map(|node| node.builder.cube_id()),
-                max_dist: ctx.growth.max_dist(),
             })
             .collect();
-        store.append_path_contexts(&ctx_rows).await?;
-        for ctx in &mut self.contexts {
-            ctx.persisted_max_dist = ctx.growth.max_dist();
-        }
+        store.stage_path_contexts(&ctx_rows)?;
 
-        let mut path_rows = Vec::new();
+        let stored_path_ids: HashSet<i64> = store.path_nodes().iter().map(|node| node.id).collect();
+        let mut fresh_path = Vec::new();
+        let mut revised_path = Vec::new();
         for ctx in &self.contexts {
             for node in &ctx.growth.nodes {
                 if !node.dirty {
@@ -517,7 +517,7 @@ impl World {
                         )
                     })
                     .collect::<Vec<_>>();
-                path_rows.push(PathNodeRow {
+                let row = PathNodeRow {
                     id: node.id,
                     path_ctx_id: ctx.growth.id,
                     path_builders_id: node.builder.cube_id(),
@@ -529,37 +529,46 @@ impl World {
                     path_node1: links[0],
                     path_node2: links[1],
                     path_node3: links[2],
-                });
+                };
+                if stored_path_ids.contains(&node.id) {
+                    revised_path.push(row);
+                } else {
+                    fresh_path.push(row);
+                }
             }
         }
-        store.append_path_nodes(&path_rows).await?;
-        for ctx in &mut self.contexts {
-            for node in &mut ctx.growth.nodes {
-                node.dirty = false;
-            }
-        }
+        store.stage_path_nodes(&fresh_path)?;
+        store.stage_path_node_revisions(&revised_path)?;
 
         if !self.fresh_nodes.is_empty() {
-            store.append_nodes(&self.fresh_nodes).await?;
-            self.fresh_nodes.clear();
+            store.stage_nodes(&self.fresh_nodes)?;
         }
 
         let event_rows: Vec<EventRow> = self
             .events
             .iter()
-            .filter(|event| event.max_node_time != event.persisted_max_node_time)
+            .filter(|event| !event.stored)
             .map(|event| EventRow {
                 id: event.id,
                 path_ctx_id: event.path_ctx_id,
                 creation_time: event.creation_time,
                 color: event.color,
                 end_time: event.creation_time,
-                max_node_time: event.max_node_time,
             })
             .collect();
-        store.append_events(&event_rows).await?;
+        store.stage_events(&event_rows)?;
+        store.sync().await?;
+
+        self.fresh_points.clear();
+        self.fresh_nodes.clear();
+        for ctx in &mut self.contexts {
+            ctx.stored = true;
+            for node in &mut ctx.growth.nodes {
+                node.dirty = false;
+            }
+        }
         for event in &mut self.events {
-            event.persisted_max_node_time = event.max_node_time;
+            event.stored = true;
         }
         Ok(())
     }

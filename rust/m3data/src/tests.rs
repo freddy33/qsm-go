@@ -14,7 +14,6 @@ use m3space::{pyramid_centers, EventColor};
 use crate::inputs::{default_inputs, load_inputs, save_inputs};
 use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
 use crate::runfile::{self, RunRecord};
-use crate::schema::{bucket_of, BUCKET_WIDTH};
 use crate::sim::run_named;
 use crate::static_pack;
 use crate::store::SimulationStore;
@@ -54,6 +53,27 @@ fn metadata_files(root: &std::path::Path, table: &str) -> Vec<PathBuf> {
     files
 }
 
+fn parquet_files(root: &std::path::Path, table: &str) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    collect_parquet(&root.join("qsm").join(table).join("data"), &mut files);
+    files.sort();
+    files
+}
+
+fn collect_parquet(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_parquet(&path, out);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("parquet") {
+            out.push(path);
+        }
+    }
+}
+
 fn has_partition(root: &std::path::Path, table: &str, component: &str) -> bool {
     let data = root.join("qsm").join(table).join("data");
     walk_has(&data, component)
@@ -73,15 +93,6 @@ fn walk_has(dir: &std::path::Path, component: &str) -> bool {
         }
     }
     false
-}
-
-#[test]
-fn bucket_edges() {
-    assert_eq!(BUCKET_WIDTH, 8);
-    assert_eq!(bucket_of(0), 0);
-    assert_eq!(bucket_of(7), 0);
-    assert_eq!(bucket_of(8), 8);
-    assert_eq!(bucket_of(-1), -8);
 }
 
 #[test]
@@ -137,13 +148,17 @@ async fn round_trip_each_table() {
         .await
         .unwrap();
     assert_eq!(metadata_files(&root, "points").len(), 3);
+    assert_eq!(
+        parquet_files(&root, "points").len(),
+        1,
+        "two commits still leave one points file"
+    );
 
     let path_contexts = vec![PathContextRow {
         id: 1,
         growth_ctx_id: 0,
         growth_offset: 0,
         path_builders_id: Some(4),
-        max_dist: 0,
     }];
     store.append_path_contexts(&path_contexts).await.unwrap();
 
@@ -178,9 +193,9 @@ async fn round_trip_each_table() {
     let before_nodes = metadata_files(&root, "path_nodes").len();
     store.append_path_nodes(&path_nodes).await.unwrap();
     assert_eq!(metadata_files(&root, "path_nodes").len(), before_nodes + 1);
-    assert!(has_partition(&root, "path_nodes", "path_ctx_id=1"));
-    assert!(has_partition(&root, "path_nodes", "d_bucket=0"));
-    assert!(has_partition(&root, "path_nodes", "d_bucket=8"));
+    assert_eq!(parquet_files(&root, "path_nodes").len(), 1);
+    assert!(!has_partition(&root, "path_nodes", "path_ctx_id=1"));
+    assert!(!has_partition(&root, "path_nodes", "d_bucket=0"));
 
     let events = vec![
         EventRow {
@@ -189,7 +204,6 @@ async fn round_trip_each_table() {
             creation_time: 0,
             color: 1,
             end_time: 0,
-            max_node_time: 0,
         },
         EventRow {
             id: 2,
@@ -197,7 +211,6 @@ async fn round_trip_each_table() {
             creation_time: 4,
             color: 2,
             end_time: 9,
-            max_node_time: 4,
         },
     ];
     store.append_events(&events).await.unwrap();
@@ -232,9 +245,9 @@ async fn round_trip_each_table() {
         },
     ];
     store.append_nodes(&nodes).await.unwrap();
-    assert!(has_partition(&root, "nodes", "event_id=1"));
-    assert!(has_partition(&root, "nodes", "creation_time_bucket=0"));
-    assert!(has_partition(&root, "nodes", "creation_time_bucket=8"));
+    assert_eq!(parquet_files(&root, "nodes").len(), 1);
+    assert!(!has_partition(&root, "nodes", "event_id=1"));
+    assert!(!has_partition(&root, "nodes", "creation_time_bucket=0"));
 
     drop(store);
     let loaded = SimulationStore::open(&tmp.0, "round").await.unwrap();
@@ -269,7 +282,14 @@ async fn round_trip_each_table() {
 fn table_names(root: &std::path::Path) -> Vec<String> {
     let mut names: Vec<String> = fs::read_dir(root.join("qsm"))
         .unwrap()
-        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .filter_map(|entry| {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                Some(entry.file_name().into_string().unwrap())
+            } else {
+                None
+            }
+        })
         .collect();
     names.sort();
     names
@@ -385,7 +405,7 @@ async fn uniqueness_is_enforced_in_rust() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn path_node_update_reloads_the_closed_connection() {
+async fn path_node_reappend_is_rejected() {
     let tmp = TempRoot::new();
     let mut store = SimulationStore::open(&tmp.0, "mask").await.unwrap();
     let original = PathNodeRow {
@@ -405,17 +425,16 @@ async fn path_node_update_reloads_the_closed_connection() {
     let updated = PathNodeRow {
         connection_mask: ConnectionState::From as i32,
         path_node1: Some(9),
-        ..original
+        ..original.clone()
     };
-    store.append_path_nodes(&[updated.clone()]).await.unwrap();
-    assert_eq!(store.path_nodes().len(), 1);
-    assert_eq!(
-        store.path_nodes()[0].connection_mask,
-        updated.connection_mask
-    );
-    drop(store);
-    let loaded = SimulationStore::open(&tmp.0, "mask").await.unwrap();
-    assert_eq!(loaded.path_nodes(), &[updated]);
+    let err = store
+        .append_path_nodes(&[updated])
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("duplicate path_nodes id 5"), "{err}");
+    assert_eq!(store.path_nodes(), &[original]);
+    assert_eq!(parquet_files(store.root(), "path_nodes").len(), 1);
 }
 
 /// playgl pyramid, three growth steps after the time-0 roots.
@@ -465,6 +484,7 @@ fn pyramid_three_steps_matches_a_resumed_run() {
         assert_eq!(finished.nodes, 88);
         let loaded = open_store(&partial.0, "pyramid");
         assert_eq!(snapshot(&loaded), snapshot(&straight.store));
+        assert_one_data_file(loaded.root());
     }
 }
 
@@ -540,7 +560,7 @@ fn assert_pyramid(store: &SimulationStore) {
     for (index, event) in events.iter().enumerate() {
         assert_eq!(event.color, colors[index]);
         assert_eq!(event.creation_time, 0);
-        assert_eq!(event.max_node_time, 3);
+        assert_eq!(event.end_time, 0);
         let ctx = store
             .path_contexts()
             .iter()
@@ -548,7 +568,6 @@ fn assert_pyramid(store: &SimulationStore) {
             .unwrap();
         assert_eq!(ctx.growth_ctx_id, 40);
         assert_eq!(ctx.growth_offset, offsets[index]);
-        assert_eq!(ctx.max_dist, 3);
         let root = store
             .nodes()
             .iter()
@@ -581,6 +600,7 @@ fn assert_pyramid(store: &SimulationStore) {
     assert_eq!(store.nodes().len(), 88);
     assert_unique(store);
     assert_links(store);
+    assert_one_data_file(store.root());
 }
 
 fn point_map(store: &SimulationStore) -> HashMap<i64, Point> {
@@ -830,6 +850,76 @@ fn run_file_locks_space_and_events() {
     );
     assert!(sorted_runs(&tmp.0.join("pyramid")).is_empty());
     assert_eq!(open_store(&tmp.0, "pyramid").nodes().len(), saved_nodes);
+}
+
+fn assert_one_data_file(root: &std::path::Path) {
+    for table in ["points", "path_contexts", "path_nodes", "events", "nodes"] {
+        assert_eq!(
+            parquet_files(root, table).len(),
+            1,
+            "{table} should have one data file"
+        );
+    }
+}
+
+#[test]
+fn max_time_steps_below_saved_creation_time_is_rejected() {
+    let tmp = TempRoot::new();
+    write_pyramid(&tmp.0, "pyramid", 1);
+    let first = run_named(&tmp.0, "pyramid").unwrap();
+    assert_eq!(first.time, 1);
+    assert_eq!(first.nodes, 4 + 12);
+    let runs = sorted_runs(&tmp.0.join("pyramid"));
+    assert_eq!(runs.len(), 1);
+    let record = load_run(&runs[0]);
+    assert_eq!(record.creation_time, 1);
+    let nodes_before = open_store(&tmp.0, "pyramid").nodes().len();
+
+    write_pyramid(&tmp.0, "pyramid", 0);
+    let err = run_named(&tmp.0, "pyramid").unwrap_err().to_string();
+    assert!(
+        err.contains("max_time_steps 0 is below the last saved creation time 1"),
+        "{err}"
+    );
+    assert!(err.contains("refusing to shorten the simulation"), "{err}");
+    assert_eq!(sorted_runs(&tmp.0.join("pyramid")).len(), 1);
+    assert_eq!(open_store(&tmp.0, "pyramid").nodes().len(), nodes_before);
+    assert_one_data_file(&tmp.0.join("pyramid"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn crash_before_journal_keeps_the_previous_step() {
+    let tmp = TempRoot::new();
+    let mut store = SimulationStore::open(&tmp.0, "crash").await.unwrap();
+    store
+        .append_points(&[PointRow {
+            id: 1,
+            x: 0,
+            y: 0,
+            z: 0,
+        }])
+        .await
+        .unwrap();
+    assert_eq!(parquet_files(store.root(), "points").len(), 1);
+    store
+        .stage_points(&[PointRow {
+            id: 2,
+            x: 1,
+            y: 0,
+            z: 0,
+        }])
+        .unwrap();
+    store.commit_without_journal_for_test().await.unwrap();
+    assert_eq!(store.points().len(), 2);
+    let root = store.root().to_path_buf();
+    drop(store);
+
+    let loaded = SimulationStore::open(&tmp.0, "crash").await.unwrap();
+    assert_eq!(loaded.points().len(), 1);
+    assert_eq!(loaded.points()[0].id, 1);
+    assert_eq!(parquet_files(&root, "points").len(), 1);
+    let ids: HashSet<i64> = loaded.points().iter().map(|row| row.id).collect();
+    assert_eq!(ids.len(), loaded.points().len());
 }
 
 fn rewrite_and_fail(

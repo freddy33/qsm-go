@@ -92,6 +92,16 @@ pub async fn run_named_async(data_root: &Path, simulation: &str) -> Result<StepR
     };
     if let Some((path, record)) = latest_run(store.root())? {
         ensure_compatible(&path, &record, &inputs)?;
+        if inputs.max_time_steps < record.creation_time {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("run file");
+            return Err(Error::new(format!(
+                "max_time_steps {} is below the last saved creation time {} ({name}); refusing to shorten the simulation",
+                inputs.max_time_steps, record.creation_time
+            )));
+        }
     }
     let stats = run_simulation(&mut store, &inputs).await?;
     write_run(store.root(), &inputs, &raw, stats.time)?;
