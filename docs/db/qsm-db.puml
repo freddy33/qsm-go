@@ -1,0 +1,123 @@
+@startuml qsm-db
+' Rust Iceberg tables under data/<simulation>/.
+' Go Postgres still has a spaces table, events.space_id, path_contexts.max_dist,
+' and events.max_node_time. Rust dropped all of those.
+' One simulation folder is one space.
+hide circle
+skinparam linetype ortho
+left to right direction
+
+package "backend/pointdb (static, fixed counts)" {
+entity connection_details {
+  *id : smallint <<PK>>
+  --
+  x : integer
+  y : integer
+  z : integer
+  ds : bigint
+}
+entity trio_details {
+  *id : smallint <<PK>>
+  --
+  conn1 : smallint <<FK>>
+  conn2 : smallint <<FK>>
+  conn3 : smallint <<FK>>
+}
+entity growth_contexts {
+  *id : smallint <<PK>>
+  --
+  ctx_type : smallint <<UK1>>
+  ctx_index : smallint <<UK1>>
+}
+entity trio_cubes {
+  *id : smallint <<PK>>
+  --
+  ctx_id : smallint <<FK>>
+  center : smallint <<FK>>
+  center_faces_PX..MZ : smallint x6 <<FK>>
+  middle_edges_PXPY..MYMZ : smallint x12 <<FK>>
+}
+entity path_builders {
+  *id : smallint <<PK,FK>>
+  --
+  *ctx_id : smallint <<FK>>
+  *root : smallint <<FK>>
+  *inter1..3 : smallint x3 <<FK>>
+  *conn11..32 : smallint x6 <<FK>>
+  *last_inter11..32 : smallint x6 <<FK>>
+  *next_main_conn11..32 : smallint x6 <<FK>>
+  *next_inter_conn11..32 : smallint x6 <<FK>>
+}
+}
+package "backend/pathdb" {
+entity points {
+  *id : bigserial <<PK>>
+  --
+  *x : integer <<UK1>>
+  *y : integer <<UK1>>
+  *z : integer <<UK1>>
+}
+entity path_contexts {
+  *id : serial <<PK>>
+  --
+  *growth_ctx_id : smallint <<FK,UK1>>
+  *growth_offset : smallint <<UK1>>
+  path_builders_id : smallint <<FK>>
+}
+entity path_nodes {
+  *id : bigserial <<PK>>
+  --
+  *path_ctx_id : integer <<FK,UK1>>
+  *path_builders_id : smallint <<FK>>
+  *path_builder_idx : smallint
+  *trio_id : smallint <<FK>>
+  *point_id : bigint <<FK,UK1>>
+  *d : integer = 0
+  *connection_mask : smallint = 0
+  path_node1..3 : bigint x3 <<FK self>>
+}
+}
+package "backend/spacedb" {
+entity events {
+  *id : serial <<PK>>
+  --
+  *path_ctx_id : integer <<FK>>
+  *creation_time : integer
+  *color : smallint
+  *end_time : integer
+}
+entity nodes {
+  *id : bigserial <<PK>>
+  --
+  *event_id : integer <<FK,UK1>>
+  *path_node_id : bigint <<FK>>
+  *trio_id : smallint <<FK>>
+  *point_id : bigint <<FK,UK1>>
+  *d : integer
+  *creation_time : integer
+  *connection_mask : smallint = 0
+  node1..3 : bigint x3 <<FK self>>
+}
+}
+
+connection_details |o--o{ trio_details : conn1..3
+growth_contexts |o--o{ trio_cubes : ctx_id
+trio_details |o--o{ trio_cubes : center/faces/edges (19)
+trio_cubes ||--o| path_builders : id (1:1)
+growth_contexts ||--o{ path_builders : ctx_id
+trio_details ||--o{ path_builders : root/inter/last_inter (10)
+connection_details ||--o{ path_builders : conn/next_* (18)
+growth_contexts ||--o{ path_contexts : growth_ctx_id
+path_builders |o--o{ path_contexts : path_builders_id
+path_contexts ||--o{ path_nodes : path_ctx_id
+path_builders ||--o{ path_nodes : path_builders_id
+trio_details ||--o{ path_nodes : trio_id
+points ||--o{ path_nodes : point_id
+path_nodes |o--o{ path_nodes : path_node1..3
+path_contexts ||--o{ events : path_ctx_id
+events ||--o{ nodes : event_id
+path_nodes ||--o{ nodes : path_node_id
+trio_details ||--o{ nodes : trio_id
+points ||--o{ nodes : point_id
+nodes |o--o{ nodes : node1..3
+@enduml

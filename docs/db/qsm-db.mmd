@@ -1,0 +1,112 @@
+%% Rust Iceberg tables under data/<simulation>/. Static pointdb tables are in memory.
+%% Go Postgres still has a spaces table, events.space_id, path_contexts.max_dist,
+%% and events.max_node_time. Rust dropped all of those.
+%% One simulation folder is one space. Solid lines are the logical references.
+erDiagram
+    %% ---------- backend/pointdb : static reference data (fixed row counts) ----------
+    connection_details {
+        smallint id PK "50 rows"
+        integer x
+        integer y
+        integer z
+        bigint ds "squared length"
+    }
+    trio_details {
+        smallint id PK "200 rows"
+        smallint conn1 FK "nullable"
+        smallint conn2 FK "nullable"
+        smallint conn3 FK "nullable"
+    }
+    growth_contexts {
+        smallint id PK "52 rows"
+        smallint ctx_type UK "UK(ctx_type, ctx_index)"
+        smallint ctx_index UK
+    }
+    trio_cubes {
+        smallint id PK "5192 rows"
+        smallint ctx_id FK "nullable"
+        smallint center FK "nullable"
+        smallint center_faces_PX_MX_PY_MY_PZ_MZ FK "6 cols, nullable"
+        smallint middle_edges_PXPY_to_MYMZ FK "12 cols, nullable"
+    }
+    path_builders {
+        smallint id PK,FK "5192 rows; id = trio_cubes.id"
+        smallint ctx_id FK "NOT NULL"
+        smallint root FK "NOT NULL"
+        smallint inter1_2_3 FK "3 cols, NOT NULL"
+        smallint conn_11_12_21_22_31_32 FK "6 cols, NOT NULL"
+        smallint last_inter_11_to_32 FK "6 cols, NOT NULL"
+        smallint next_main_conn_11_to_32 FK "6 cols, NOT NULL"
+        smallint next_inter_conn_11_to_32 FK "6 cols, NOT NULL"
+    }
+    %% ---------- backend/pathdb : growth paths ----------
+    points {
+        bigserial id PK
+        integer x UK "NOT NULL; UK points_x_y_z_key(x,y,z)"
+        integer y UK "NOT NULL"
+        integer z UK "NOT NULL"
+    }
+    path_contexts {
+        serial id PK "200 rows expected"
+        smallint growth_ctx_id FK,UK "NOT NULL; UK path_ctx_growth_param_key"
+        smallint growth_offset UK "NOT NULL"
+        smallint path_builders_id FK "NULL until built"
+    }
+    path_nodes {
+        bigserial id PK
+        integer path_ctx_id FK,UK "NOT NULL; UK unique_point_per_path_ctx"
+        smallint path_builders_id FK "NOT NULL"
+        smallint path_builder_idx "NOT NULL"
+        smallint trio_id FK "NOT NULL"
+        bigint point_id FK,UK "NOT NULL"
+        integer d "NOT NULL DEFAULT 0; idx path_nodes_d_index (unused)"
+        smallint connection_mask "NOT NULL DEFAULT 0"
+        bigint path_node1 FK "nullable self-ref"
+        bigint path_node2 FK "nullable self-ref"
+        bigint path_node3 FK "nullable self-ref"
+    }
+    %% ---------- backend/spacedb : simulation runs ----------
+    events {
+        serial id PK
+        integer path_ctx_id FK "NOT NULL"
+        integer creation_time "NOT NULL"
+        smallint color "NOT NULL"
+        integer end_time "NOT NULL"
+    }
+    nodes {
+        bigserial id PK
+        integer event_id FK,UK "NOT NULL; UK unique_point_per_event_node"
+        bigint path_node_id FK "NOT NULL"
+        smallint trio_id FK "NOT NULL"
+        bigint point_id FK,UK "NOT NULL"
+        integer d "NOT NULL"
+        integer creation_time "NOT NULL"
+        smallint connection_mask "NOT NULL DEFAULT 0"
+        bigint node1 FK "nullable self-ref"
+        bigint node2 FK "nullable self-ref"
+        bigint node3 FK "nullable self-ref"
+    }
+
+    %% pointdb
+    connection_details |o--o{ trio_details : "conn1, conn2, conn3"
+    growth_contexts |o--o{ trio_cubes : "ctx_id"
+    trio_details |o--o{ trio_cubes : "center + 6 faces + 12 edges (19 FKs)"
+    trio_cubes ||--o| path_builders : "id (PK = FK, 1:1)"
+    growth_contexts ||--o{ path_builders : "ctx_id"
+    trio_details ||--o{ path_builders : "root, inter1-3, last_inter* (10 FKs)"
+    connection_details ||--o{ path_builders : "conn*, next_main_conn*, next_inter_conn* (18 FKs)"
+    %% pathdb
+    growth_contexts ||--o{ path_contexts : "growth_ctx_id"
+    path_builders |o--o{ path_contexts : "path_builders_id"
+    path_contexts ||--o{ path_nodes : "path_ctx_id"
+    path_builders ||--o{ path_nodes : "path_builders_id"
+    trio_details ||--o{ path_nodes : "trio_id"
+    points ||--o{ path_nodes : "point_id"
+    path_nodes |o--o{ path_nodes : "path_node1/2/3"
+    %% spacedb
+    path_contexts ||--o{ events : "path_ctx_id"
+    events ||--o{ nodes : "event_id"
+    path_nodes ||--o{ nodes : "path_node_id"
+    trio_details ||--o{ nodes : "trio_id"
+    points ||--o{ nodes : "point_id"
+    nodes |o--o{ nodes : "node1/2/3"

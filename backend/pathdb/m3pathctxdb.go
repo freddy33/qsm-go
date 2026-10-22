@@ -292,8 +292,11 @@ func (pathCtx *PathContextDb) GetPathNodesBetween(fromDist, toDist int) ([]m3pat
 	return res, nil
 }
 
-// TODO: This should be in path data entry of the env
-var nbParallelProcesses = 8
+// One worker. ConnectionMask and LinkIds on a shared path node are updated
+// without a lock, so several goroutines lose updates and then fail the
+// "linked id" checks in GetLinkIdsForDb.
+// TODO: This should be in path data entry of the env, and the node updates locked.
+var nbParallelProcesses = 1
 
 func (pathCtx *PathContextDb) RequestNewMaxDist(requestDist int) error {
 	if requestDist <= pathCtx.GetMaxDist() {

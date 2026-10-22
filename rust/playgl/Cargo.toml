@@ -1,0 +1,10 @@
+[package]
+name = "playgl"
+version = "0.1.0"
+edition = "2021"
+description = "Prints the static QSM pack counts. The window is qsm-view."
+license = "Apache-2.0"
+
+[dependencies]
+m3gl = { path = "../m3gl" }
+m3point = { path = "../m3point" }
