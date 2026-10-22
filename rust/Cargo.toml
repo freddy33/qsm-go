@@ -5,7 +5,8 @@ members = [
     "m3point",
     "m3path",
     "m3space",
-    "m3db",
+    "m3data",
+    "qsm",
     "m3gl",
     "playgl",
 ]

@@ -1,6 +1,8 @@
 # QSM database tables (from `m3db.TableDefinition` usages)
 
-Source: freddy33/qsm-go, branch `prod` @ e2be02a (the `rust` branch has the same definitions). Registry: [backend/m3db/m3table.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3table.go). Each env creates the tables in its own Postgres schema `qsm<envId>` (see [m3db.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3db.go)).
+The column lists below are the reference for the Rust Iceberg tables in `m3data`. Static reference tables are built in memory and are not written. `points`, `path_contexts`, `path_nodes`, `spaces`, `events`, and `nodes` are Parquet files with an Iceberg metadata index under `data/<simulation name>/`. See [Iceberg layout](#iceberg-layout).
+
+Source of the column list: freddy33/qsm-go, branch `prod` @ e2be02a (the `rust` branch has the same definitions). Registry: [backend/m3db/m3table.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3table.go). The Go code still creates those tables in a Postgres schema `qsm<envId>` (see [m3db.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3db.go)). The Rust workspace does not.
 
 | Table | Go package / file | Rows | Purpose |
 |---|---|---|---|
@@ -160,3 +162,61 @@ Grouped rows in `trio_cubes` and `path_builders` (e.g. "6 cols") stand for repea
 3. Uneven nullability: FKs in `trio_details`/`trio_cubes` (and `connection_details` x/y/z/ds) are nullable while the matching `path_builders` columns are NOT NULL.
 4. Mixed-case column names like `center_faces_PX` are unquoted, so Postgres stores them lowercase.
 5. Typo: Go function `creatPathNodesTableDef`.
+
+## Iceberg layout
+
+Rust storage uses the `iceberg` crate 0.10 (apache/iceberg-rust) for table metadata and the `arrow` and `parquet` crates 58.4 (arrow-rs) for the data files. There is no catalog service, no Postgres, and no network. Each simulation is a local warehouse at `data/<simulation name>/`.
+
+iceberg-rust 0.10 has no filesystem catalog. The process opens a memory catalog whose warehouse is `file://<absolute data/<simulation name>>` and whose storage is the local filesystem. Creating a table writes `qsm/<table>/metadata/00000-<uuid>.metadata.json`. A later process does not trust the in-memory index: it scans that metadata directory, picks the highest zero-padded version, and registers that file. The latest `*.metadata.json` is the durable commit pointer.
+
+Namespace: `qsm`. Format version: 2. Ids are assigned in Rust (`max(id) + 1`, starting at 1). Iceberg does not enforce primary keys, foreign keys, or unique constraints. Before each append, Rust rejects a non-positive id and any repeat of:
+
+- `points` `(x, y, z)` and `id`
+- `path_contexts` `(growth_ctx_id, growth_offset)` and `id`
+- `path_nodes` `(path_ctx_id, point_id)` and `id`
+- `spaces` `name` and `id`
+- `events` `id`
+- `nodes` `(event_id, point_id)` and `id`
+
+Postgres `smallint`, `integer`, and `serial` columns are Iceberg `int` (32-bit). `bigserial` / `bigint` are `long`. `varchar` is `string`. Nullable columns stay optional. The `id` column is field id 1 and is the Iceberg identifier field. Other field ids follow the column order in the diagram above.
+
+### Tables
+
+| Table | Stored | Partition spec | Why |
+| --- | --- | --- | --- |
+| `connection_details`, `trio_details`, `growth_contexts`, `trio_cubes`, `path_builders` | no | — | Derived. `PointPackData::shared()` rebuilds the 50 / 200 / 52 / 5192 / 5192 rows at startup. |
+| `points` | yes | unpartitioned | Resume loads the whole point map to enforce `(x, y, z)`. The table is the dimension table for every node. |
+| `path_contexts` | yes | unpartitioned | One row per growth context and offset. A run keeps a handful, and resume needs all of them. |
+| `path_nodes` | yes | `identity(path_ctx_id)`, `truncate(d, 8)` as `d_bucket` | A step writes one distance. Identity on `d` would add a partition per distance. Width 8 matches growth type 8, the widest permutation, so one band is one permutation cycle. |
+| `spaces` | yes | unpartitioned | One named space per simulation folder. |
+| `events` | yes | `identity(space_id)` | Events belong to a space. A folder that later holds more than one space can skip the others. |
+| `nodes` | yes | `identity(event_id)`, `truncate(creation_time, 8)` as `creation_time_bucket` | Same band width as `d`. A step appends the nodes for one creation time into the current band. |
+
+`truncate` uses the Iceberg rule `v - (v % W)` with a positive remainder. Distances 0..7 share `d_bucket=0`; 8..15 share `d_bucket=8`; `-1` lands in `-8`.
+
+An append builds one Arrow `RecordBatch` per partition value and commits those files as one snapshot. A simulation step therefore commits one snapshot per table it changes, not one file per row. Iceberg has no cross-table transaction, so the step's tables are committed one after another.
+
+`path_contexts.max_dist`, `spaces.max_node_time`, and `events.max_node_time` are written once, when the row is created. They are not rewritten on later steps. The resume cursor is `max(path_nodes.d)` and `max(nodes.creation_time)`.
+
+### Folder tree
+
+```text
+data/<simulation name>/
+└── qsm/
+    ├── points/
+    │   ├── data/part-<n>-<pid>-<seq>.parquet
+    │   └── metadata/
+    │       ├── 00000-<uuid>.metadata.json
+    │       ├── 00001-<uuid>.metadata.json    # one new file per commit
+    │       └── snap-<id>-<m>.avro            # manifest list, plus the manifest
+    ├── path_contexts/
+    ├── path_nodes/
+    │   └── data/path_ctx_id=<id>/d_bucket=<n>/part-<n>-<pid>-<seq>.parquet
+    ├── spaces/
+    ├── events/
+    │   └── data/space_id=<id>/part-<n>-<pid>-<seq>.parquet
+    └── nodes/
+        └── data/event_id=<id>/creation_time_bucket=<n>/part-<n>-<pid>-<seq>.parquet
+```
+
+`00000-*.metadata.json` is the empty table. Each batch append writes the next version and its Avro manifest list. Opening the folder registers the highest version. `data/` at the repository root is gitignored, and so is `rust/data/` when the CLI is run from `rust/`.

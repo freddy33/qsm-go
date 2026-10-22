@@ -1,0 +1,13 @@
+[package]
+name = "qsm"
+version = "0.1.0"
+edition = "2021"
+description = "Run one step of a named QSM simulation against a local data folder"
+license = "Apache-2.0"
+
+[[bin]]
+name = "qsm"
+path = "src/main.rs"
+
+[dependencies]
+m3data = { path = "../m3data" }

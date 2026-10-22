@@ -1,0 +1,15 @@
+[package]
+name = "m3data"
+version = "0.1.0"
+edition = "2021"
+description = "Load and save QSM simulation data as local Iceberg tables of Parquet files"
+license = "Apache-2.0"
+
+[dependencies]
+m3point = { path = "../m3point" }
+m3space = { path = "../m3space" }
+arrow = "58.4"
+futures = "0.3"
+iceberg = "0.10"
+parquet = "58.4"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
