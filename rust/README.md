@@ -14,6 +14,8 @@ Derived counts match the Go tests:
 | trio cubes | 5192 |
 | path builders | 5192 |
 
+Database schema: [docs/db/README.md](../docs/db/README.md)
+
 ## Crates
 
 | crate | Go source | what it does |
