@@ -1,4 +1,7 @@
-//! Row types for the six tables stored under a simulation folder.
+//! Row types for the five tables stored under a simulation folder.
+//!
+//! One simulation folder is one space. Space parameters live in `inputs.json`,
+//! not in a table.
 //!
 //! Column names and nullability follow `docs/db/README.md`. Postgres `smallint`
 //! and `integer` are `i32`. `bigserial` / `bigint` ids are `i64`. Iceberg has
@@ -49,20 +52,8 @@ pub struct PathNodeRow {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SpaceRow {
-    pub id: i32,
-    pub name: String,
-    pub active_path_node_threshold: i32,
-    pub max_trios_per_point: i32,
-    pub max_path_nodes_per_point: i32,
-    pub max_coord: i32,
-    pub max_node_time: i32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventRow {
     pub id: i32,
-    pub space_id: i32,
     pub path_ctx_id: i32,
     pub creation_time: i32,
     pub color: i32,

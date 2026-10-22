@@ -4,8 +4,9 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::engine::{run_simulation, RunStats};
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::inputs::{default_inputs, load_inputs, save_inputs};
+use crate::runfile::{ensure_compatible, latest_run, write_run};
 use crate::store::SimulationStore;
 
 /// What the last saved step was after this invocation.
@@ -68,19 +69,32 @@ pub fn run_named(data_root: impl AsRef<Path>, simulation: &str) -> Result<StepRe
 pub async fn run_named_async(data_root: &Path, simulation: &str) -> Result<StepReport> {
     let mut store = SimulationStore::open(data_root, simulation).await?;
     let inputs_path = store.root().join("inputs.json");
-    let inputs = if inputs_path.is_file() {
-        load_inputs(&inputs_path)?
-    } else if store.nodes().is_empty() && store.events().is_empty() && store.points().is_empty() {
+    // Empty table metadata from `open` is not saved data. Rows without a run
+    // file mean a previous execution did not finish cleanly.
+    if store.has_rows() && latest_run(store.root())?.is_none() {
+        return Err(Error::new(format!(
+            "simulation {simulation} has saved rows but no qsm/run-*.json; refusing to continue an inconsistent folder"
+        )));
+    }
+    let (inputs, raw) = if inputs_path.is_file() {
+        let raw = std::fs::read(&inputs_path)?;
+        (load_inputs(&inputs_path)?, raw)
+    } else if !store.has_rows() {
         let inputs = default_inputs();
         save_inputs(&inputs_path, &inputs)?;
-        inputs
+        let raw = std::fs::read(&inputs_path)?;
+        (inputs, raw)
     } else {
-        return Err(crate::error::Error::new(format!(
+        return Err(Error::new(format!(
             "simulation {simulation} has saved rows but {} is missing",
             inputs_path.display()
         )));
     };
+    if let Some((path, record)) = latest_run(store.root())? {
+        ensure_compatible(&path, &record, &inputs)?;
+    }
     let stats = run_simulation(&mut store, &inputs).await?;
+    write_run(store.root(), &inputs, &raw, stats.time)?;
     let mut report = StepReport::from(stats);
     report.simulation = simulation.to_string();
     report.folder = store.root().to_path_buf();

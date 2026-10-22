@@ -1,6 +1,6 @@
 # QSM database tables (from `m3db.TableDefinition` usages)
 
-The column lists below are the reference for the Rust Iceberg tables in `m3data`. Static reference tables are built in memory and are not written. `points`, `path_contexts`, `path_nodes`, `spaces`, `events`, and `nodes` are Parquet files with an Iceberg metadata index under `data/<simulation name>/`. See [Iceberg layout](#iceberg-layout).
+The column lists below are the reference for the Rust Iceberg tables in `m3data`. Static reference tables are built in memory and are not written. `points`, `path_contexts`, `path_nodes`, `events`, and `nodes` are Parquet files with an Iceberg metadata index under `data/<simulation name>/`. One simulation folder is one space: space parameters live in `inputs.json`, not in a table. See [Iceberg layout](#iceberg-layout).
 
 Source of the column list: freddy33/qsm-go, branch `prod` @ e2be02a (the `rust` branch has the same definitions). Registry: [backend/m3db/m3table.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3table.go). The Go code still creates those tables in a Postgres schema `qsm<envId>` (see [m3db.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3db.go)). The Rust workspace does not.
 
@@ -14,18 +14,19 @@ Source of the column list: freddy33/qsm-go, branch `prod` @ e2be02a (the `rust` 
 | points | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | open | Unique 3D integer lattice points. |
 | path_contexts | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | 200 | A growth context + offset, bound to its path builder, with max distance reached. |
 | path_nodes | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | open | Nodes of a growth path: point, trio, distance d, links to up to 3 neighbour path nodes. |
-| spaces | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | A named simulation space and its limits/thresholds. |
-| events | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | An event in a space, at a creation time, with a color, growing along one path context. |
+| events | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | An event at a creation time, with a color, growing along one path context. |
 | nodes | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | Event nodes in space-time: a path node placed at a creation time, linked to up to 3 other nodes. |
+
+Go Postgres still has a `spaces` table and `events.space_id` (see `backend/spacedb/spacedb.go`). Rust does not. A folder is the space, and its limits live in `inputs.json`.
 
 ## Diagram
 
 ![QSM DB schema](qsm-db.svg)
 
 ```mermaid
-%% QSM PostgreSQL schema, from every m3db.TableDefinition in freddy33/qsm-go (branch prod @ e2be02a)
-%% Each env gets its own schema "qsm<envId>" (e.g. qsm1); all tables + FKs live inside that schema.
-%% Solid lines = declared REFERENCES. Grouped edges list every FK column they stand for.
+%% Rust Iceberg tables under data/<simulation>/. Static pointdb tables are in memory.
+%% Go Postgres still has a spaces table and events.space_id; Rust dropped both.
+%% One simulation folder is one space. Solid lines are the logical references.
 erDiagram
     %% ---------- backend/pointdb : static reference data (fixed row counts) ----------
     connection_details {
@@ -91,18 +92,8 @@ erDiagram
         bigint path_node3 FK "nullable self-ref"
     }
     %% ---------- backend/spacedb : simulation runs ----------
-    spaces {
-        serial id PK
-        varchar_175 name UK "NOT NULL UNIQUE"
-        smallint active_path_node_threshold "NOT NULL"
-        smallint max_trios_per_point "NOT NULL"
-        smallint max_path_nodes_per_point "NOT NULL"
-        integer max_coord "NOT NULL"
-        integer max_node_time "NOT NULL"
-    }
     events {
         serial id PK
-        integer space_id FK "NOT NULL"
         integer path_ctx_id FK "NOT NULL"
         integer creation_time "NOT NULL"
         smallint color "NOT NULL"
@@ -140,7 +131,6 @@ erDiagram
     points ||--o{ path_nodes : "point_id"
     path_nodes |o--o{ path_nodes : "path_node1/2/3"
     %% spacedb
-    spaces ||--o{ events : "space_id"
     path_contexts ||--o{ events : "path_ctx_id"
     events ||--o{ nodes : "event_id"
     path_nodes ||--o{ nodes : "path_node_id"
@@ -174,11 +164,10 @@ Namespace: `qsm`. Format version: 2. Ids are assigned in Rust (`max(id) + 1`, st
 - `points` `(x, y, z)` and `id`
 - `path_contexts` `(growth_ctx_id, growth_offset)` and `id`
 - `path_nodes` `(path_ctx_id, point_id)` and `id`
-- `spaces` `name` and `id`
 - `events` `id`
 - `nodes` `(event_id, point_id)` and `id`
 
-A growth step has to change connection masks and cursors on rows that already exist. iceberg-rust 0.10 transactions only offer fast append, so Rust appends a new copy of that path node, path context, event, or space with the **same id** and the same natural key. Load keeps one row per id: for a path node, the copy with fewer `NotSet` connections (then more assigned links); for a path context, the higher `max_dist`; for an event or space, the higher `max_node_time` (and, for a space, the higher `max_coord`). A different id that collides on the natural key is still rejected. Points and event nodes are insert-only.
+A growth step has to change connection masks and cursors on rows that already exist. iceberg-rust 0.10 transactions only offer fast append, so Rust appends a new copy of that path node, path context, or event with the **same id** and the same natural key. Load keeps one row per id: for a path node, the copy with fewer `NotSet` connections (then more assigned links); for a path context, the higher `max_dist`; for an event, the higher `max_node_time`. A different id that collides on the natural key is still rejected. Points and event nodes are insert-only.
 
 Postgres `smallint`, `integer`, and `serial` columns are Iceberg `int` (32-bit). `bigserial` / `bigint` are `long`. `varchar` is `string`. Nullable columns stay optional. The `id` column is field id 1 and is the Iceberg identifier field. Other field ids follow the column order in the diagram above.
 
@@ -190,17 +179,18 @@ Postgres `smallint`, `integer`, and `serial` columns are Iceberg `int` (32-bit).
 | `points` | yes | unpartitioned | Resume loads the whole point map to enforce `(x, y, z)`. The table is the dimension table for every node. |
 | `path_contexts` | yes | unpartitioned | One row per growth context and offset. A run keeps a handful, and resume needs all of them. |
 | `path_nodes` | yes | `identity(path_ctx_id)`, `truncate(d, 8)` as `d_bucket` | A step writes one distance. Identity on `d` would add a partition per distance. Width 8 matches growth type 8, the widest permutation, so one band is one permutation cycle. |
-| `spaces` | yes | unpartitioned | One named space per simulation folder. |
-| `events` | yes | `identity(space_id)` | Events belong to a space. A folder that later holds more than one space can skip the others. |
+| `events` | yes | unpartitioned | A run keeps a handful of events. One folder is one space, so there is no `space_id` to partition on. |
 | `nodes` | yes | `identity(event_id)`, `truncate(creation_time, 8)` as `creation_time_bucket` | Same band width as `d`. A step appends the nodes for one creation time into the current band. |
 
 `truncate` uses the Iceberg rule `v - (v % W)` with a positive remainder. Distances 0..7 share `d_bucket=0`; 8..15 share `d_bucket=8`; `-1` lands in `-8`.
 
-An append builds one Arrow `RecordBatch` per partition value and commits those files as one snapshot. A simulation step therefore commits one snapshot per table it changes, not one file per row. Iceberg has no cross-table transaction, so the step's tables are committed one after another: points, path contexts, path nodes, event nodes, events, then the space.
+An append builds one Arrow `RecordBatch` per partition value and commits those files as one snapshot. A simulation step therefore commits one snapshot per table it changes, not one file per row. Iceberg has no cross-table transaction, so the step's tables are committed one after another: points, path contexts, path nodes, event nodes, then events.
 
 Nullable link columns follow `GetLinkIdsForDb`. `NotSet`, `Blocked`, and a `Next` that is not assigned yet are NULL. `From`, and a `Next` that already has an id, store that positive id. The connection state itself lives in `connection_mask`, so a NULL link is not ambiguous on read. Event nodes copy the path-node mask at the time they are created. Go's `getNodeLinkIds` does not point an event `Next` at the following node, and a new shell has no `Next` yet, so event `node1/2/3` are either NULL or the earlier event node on a `From` link.
 
 `inputs.json` sits next to `qsm/` and is not a table. It holds `max_time_steps`, the space parameters, explicit events, and shortcuts such as `pyramid`. The run grows until every event's max creation time reaches `max_time_steps`. Resume uses the nodes already stored and the max from that file.
+
+After a successful `qsm <name>`, Rust writes `qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC). The file records the sha256 of the raw `inputs.json`, the parsed inputs, the resolved space parameters, the event list after shortcut expansion, the `max_time_steps` used, and the last saved creation time. The next run of that name loads the latest `run-*.json` (lexical order; a same-second file is `run-<stamp>_01.json`, which sorts after the unsuffixed name). Space parameters and expanded events must match. Only `max_time_steps` may change. Any other difference is an error and writes nothing. Saved rows with no `run-*.json` are an error too. The `doc` string is not part of that check.
 
 ### Folder tree
 
@@ -208,6 +198,7 @@ Nullable link columns follow `GetLinkIdsForDb`. `NotSet`, `Blocked`, and a `Next
 data/<simulation name>/
 ├── inputs.json
 └── qsm/
+    ├── run-20261022T121800Z.json
     ├── points/
     │   ├── data/part-<n>-<pid>-<seq>.parquet
     │   └── metadata/
@@ -217,9 +208,8 @@ data/<simulation name>/
     ├── path_contexts/
     ├── path_nodes/
     │   └── data/path_ctx_id=<id>/d_bucket=<n>/part-<n>-<pid>-<seq>.parquet
-    ├── spaces/
     ├── events/
-    │   └── data/space_id=<id>/part-<n>-<pid>-<seq>.parquet
+    │   └── data/part-<n>-<pid>-<seq>.parquet
     └── nodes/
         └── data/event_id=<id>/creation_time_bucket=<n>/part-<n>-<pid>-<seq>.parquet
 ```

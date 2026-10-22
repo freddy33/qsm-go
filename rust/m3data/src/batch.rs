@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use arrow::array::{Array, ArrayRef, Int32Array, Int64Array, RecordBatch, StringArray};
+use arrow::array::{Array, ArrayRef, Int32Array, Int64Array, RecordBatch};
 
 use crate::error::{Error, Result};
-use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow, SpaceRow};
+use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
 use crate::schema::{arrow_schema, TableKind};
 
 pub fn encode_points(rows: &[PointRow]) -> Result<RecordBatch> {
@@ -131,54 +131,12 @@ pub fn decode_path_nodes(batches: &[RecordBatch]) -> Result<Vec<PathNodeRow>> {
     Ok(rows)
 }
 
-pub fn encode_spaces(rows: &[SpaceRow]) -> Result<RecordBatch> {
-    let schema = arrow_schema(TableKind::Spaces)?;
-    batch(
-        schema,
-        vec![
-            i32_col(rows.iter().map(|r| r.id)),
-            string_col(rows.iter().map(|r| r.name.as_str())),
-            i32_col(rows.iter().map(|r| r.active_path_node_threshold)),
-            i32_col(rows.iter().map(|r| r.max_trios_per_point)),
-            i32_col(rows.iter().map(|r| r.max_path_nodes_per_point)),
-            i32_col(rows.iter().map(|r| r.max_coord)),
-            i32_col(rows.iter().map(|r| r.max_node_time)),
-        ],
-    )
-}
-
-pub fn decode_spaces(batches: &[RecordBatch]) -> Result<Vec<SpaceRow>> {
-    let mut rows = Vec::new();
-    for batch in batches {
-        let id = i32s(batch, "id")?;
-        let name = strings(batch, "name")?;
-        let active_path_node_threshold = i32s(batch, "active_path_node_threshold")?;
-        let max_trios_per_point = i32s(batch, "max_trios_per_point")?;
-        let max_path_nodes_per_point = i32s(batch, "max_path_nodes_per_point")?;
-        let max_coord = i32s(batch, "max_coord")?;
-        let max_node_time = i32s(batch, "max_node_time")?;
-        for i in 0..batch.num_rows() {
-            rows.push(SpaceRow {
-                id: id.value(i),
-                name: name.value(i).to_string(),
-                active_path_node_threshold: active_path_node_threshold.value(i),
-                max_trios_per_point: max_trios_per_point.value(i),
-                max_path_nodes_per_point: max_path_nodes_per_point.value(i),
-                max_coord: max_coord.value(i),
-                max_node_time: max_node_time.value(i),
-            });
-        }
-    }
-    Ok(rows)
-}
-
 pub fn encode_events(rows: &[EventRow]) -> Result<RecordBatch> {
     let schema = arrow_schema(TableKind::Events)?;
     batch(
         schema,
         vec![
             i32_col(rows.iter().map(|r| r.id)),
-            i32_col(rows.iter().map(|r| r.space_id)),
             i32_col(rows.iter().map(|r| r.path_ctx_id)),
             i32_col(rows.iter().map(|r| r.creation_time)),
             i32_col(rows.iter().map(|r| r.color)),
@@ -192,7 +150,6 @@ pub fn decode_events(batches: &[RecordBatch]) -> Result<Vec<EventRow>> {
     let mut rows = Vec::new();
     for batch in batches {
         let id = i32s(batch, "id")?;
-        let space_id = i32s(batch, "space_id")?;
         let path_ctx_id = i32s(batch, "path_ctx_id")?;
         let creation_time = i32s(batch, "creation_time")?;
         let color = i32s(batch, "color")?;
@@ -201,7 +158,6 @@ pub fn decode_events(batches: &[RecordBatch]) -> Result<Vec<EventRow>> {
         for i in 0..batch.num_rows() {
             rows.push(EventRow {
                 id: id.value(i),
-                space_id: space_id.value(i),
                 path_ctx_id: path_ctx_id.value(i),
                 creation_time: creation_time.value(i),
                 color: color.value(i),
@@ -286,10 +242,6 @@ fn opt_i64_col(values: impl Iterator<Item = Option<i64>>) -> ArrayRef {
     Arc::new(Int64Array::from(values.collect::<Vec<_>>()))
 }
 
-fn string_col<'a>(values: impl Iterator<Item = &'a str>) -> ArrayRef {
-    Arc::new(StringArray::from(values.collect::<Vec<_>>()))
-}
-
 fn column<'a, T: Array + 'static>(batch: &'a RecordBatch, name: &str) -> Result<&'a T> {
     let array = batch
         .column_by_name(name)
@@ -308,10 +260,6 @@ fn i32s<'a>(batch: &'a RecordBatch, name: &str) -> Result<&'a Int32Array> {
 }
 
 fn i64s<'a>(batch: &'a RecordBatch, name: &str) -> Result<&'a Int64Array> {
-    column(batch, name)
-}
-
-fn strings<'a>(batch: &'a RecordBatch, name: &str) -> Result<&'a StringArray> {
     column(batch, name)
 }
 

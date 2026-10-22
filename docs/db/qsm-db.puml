@@ -1,6 +1,7 @@
 @startuml qsm-db
-' QSM PostgreSQL schema from m3db.TableDefinition usages in freddy33/qsm-go (prod @ e2be02a)
-' Each environment uses its own schema "qsm<envId>".
+' Rust Iceberg tables under data/<simulation>/.
+' Go Postgres still has a spaces table and events.space_id; Rust dropped both.
+' One simulation folder is one space.
 hide circle
 skinparam linetype ortho
 left to right direction
@@ -77,20 +78,9 @@ entity path_nodes {
 }
 }
 package "backend/spacedb" {
-entity spaces {
-  *id : serial <<PK>>
-  --
-  *name : varchar(175) <<UK>>
-  *active_path_node_threshold : smallint
-  *max_trios_per_point : smallint
-  *max_path_nodes_per_point : smallint
-  *max_coord : integer
-  *max_node_time : integer
-}
 entity events {
   *id : serial <<PK>>
   --
-  *space_id : integer <<FK>>
   *path_ctx_id : integer <<FK>>
   *creation_time : integer
   *color : smallint
@@ -125,7 +115,6 @@ path_builders ||--o{ path_nodes : path_builders_id
 trio_details ||--o{ path_nodes : trio_id
 points ||--o{ path_nodes : point_id
 path_nodes |o--o{ path_nodes : path_node1..3
-spaces ||--o{ events : space_id
 path_contexts ||--o{ events : path_ctx_id
 events ||--o{ nodes : event_id
 path_nodes ||--o{ nodes : path_node_id

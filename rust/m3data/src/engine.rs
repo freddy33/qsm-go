@@ -16,7 +16,7 @@ use m3point::{NodeHandle, Point, PointPackData, ORIGIN};
 
 use crate::error::{Error, Result};
 use crate::inputs::{resolve_events, validate_inputs, ResolvedEvent, SimulationInputs};
-use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow, SpaceRow};
+use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
 use crate::store::SimulationStore;
 
 pub struct RunStats {
@@ -46,8 +46,6 @@ struct EventState {
 struct World {
     contexts: Vec<CtxState>,
     events: Vec<EventState>,
-    space: SpaceRow,
-    space_dirty: bool,
     point_ids: HashMap<(i32, i32, i32), i64>,
     next_point_id: i64,
     next_path_node_id: i64,
@@ -88,7 +86,7 @@ pub async fn run_simulation(
         if specs.is_empty() {
             return Err(Error::new("inputs.json does not create any events"));
         }
-        let mut world = seed(store.name(), inputs, &specs)?;
+        let mut world = seed(&specs)?;
         world.persist(store).await?;
     }
     let mut world = load(store)?;
@@ -116,21 +114,11 @@ pub async fn run_simulation(
     })
 }
 
-fn seed(name: &str, inputs: &SimulationInputs, specs: &[ResolvedEvent]) -> Result<World> {
+fn seed(specs: &[ResolvedEvent]) -> Result<World> {
     let pack = PointPackData::shared();
     let mut world = World {
         contexts: Vec::new(),
         events: Vec::new(),
-        space: SpaceRow {
-            id: 1,
-            name: name.to_string(),
-            active_path_node_threshold: inputs.space.active_path_node_threshold,
-            max_trios_per_point: inputs.space.max_trios_per_point,
-            max_path_nodes_per_point: inputs.space.max_path_nodes_per_point,
-            max_coord: inputs.space.max_coord,
-            max_node_time: 0,
-        },
-        space_dirty: true,
         point_ids: HashMap::new(),
         next_point_id: 1,
         next_path_node_id: 1,
@@ -183,7 +171,6 @@ fn seed(name: &str, inputs: &SimulationInputs, specs: &[ResolvedEvent]) -> Resul
         let node_id = world.next_node_id;
         world.next_node_id += 1;
         world.event_node_ids.insert((event_id, root_id), node_id);
-        world.observe(spec.point, spec.creation_time);
         world.fresh_nodes.push(NodeRow {
             id: node_id,
             event_id,
@@ -313,36 +300,6 @@ fn load(store: &SimulationStore) -> Result<World> {
         });
     }
 
-    let original = store
-        .spaces()
-        .iter()
-        .find(|space| space.name == store.name())
-        .cloned()
-        .ok_or_else(|| Error::new("simulation has nodes but no space"))?;
-    let mut space = original.clone();
-    let max_time = store
-        .nodes()
-        .iter()
-        .map(|node| node.creation_time)
-        .max()
-        .unwrap_or(space.max_node_time);
-    let mut max_coord = space.max_coord;
-    for node in store.nodes() {
-        let point = id_to_point.get(&node.point_id).copied().ok_or_else(|| {
-            Error::new(format!(
-                "node {} points at missing point {}",
-                node.id, node.point_id
-            ))
-        })?;
-        for coord in point.0 {
-            max_coord = max_coord.max(coord.abs());
-        }
-    }
-    space.max_node_time = space.max_node_time.max(max_time);
-    space.max_coord = space.max_coord.max(max_coord);
-    let space_dirty =
-        space.max_node_time != original.max_node_time || space.max_coord != original.max_coord;
-
     let next_point_id = store.points().iter().map(|row| row.id).max().unwrap_or(0) + 1;
     let next_path_node_id = store
         .path_nodes()
@@ -356,8 +313,6 @@ fn load(store: &SimulationStore) -> Result<World> {
     Ok(World {
         contexts,
         events,
-        space,
-        space_dirty,
         point_ids,
         next_point_id,
         next_path_node_id,
@@ -471,7 +426,6 @@ impl World {
             self.event_node_ids
                 .insert((draft.event_id, draft.path_node_id), id);
             let point_id = self.point_id(draft.abs);
-            self.observe(draft.abs, next_time);
             self.fresh_nodes.push(NodeRow {
                 id,
                 event_id: draft.event_id,
@@ -493,7 +447,7 @@ impl World {
     }
 
     fn needs_persist(&self) -> bool {
-        if self.space_dirty || !self.fresh_points.is_empty() || !self.fresh_nodes.is_empty() {
+        if !self.fresh_points.is_empty() || !self.fresh_nodes.is_empty() {
             return true;
         }
         if self.contexts.iter().any(|ctx| {
@@ -596,7 +550,6 @@ impl World {
             .filter(|event| event.max_node_time != event.persisted_max_node_time)
             .map(|event| EventRow {
                 id: event.id,
-                space_id: self.space.id,
                 path_ctx_id: event.path_ctx_id,
                 creation_time: event.creation_time,
                 color: event.color,
@@ -608,26 +561,7 @@ impl World {
         for event in &mut self.events {
             event.persisted_max_node_time = event.max_node_time;
         }
-
-        if self.space_dirty {
-            store.append_spaces(&[self.space.clone()]).await?;
-            self.space_dirty = false;
-        }
         Ok(())
-    }
-
-    fn observe(&mut self, point: Point, time: i32) {
-        for coord in point.0 {
-            let abs = coord.abs();
-            if abs > self.space.max_coord {
-                self.space.max_coord = abs;
-                self.space_dirty = true;
-            }
-        }
-        if time > self.space.max_node_time {
-            self.space.max_node_time = time;
-            self.space_dirty = true;
-        }
     }
 
     fn intern_new_sorted(&mut self, points: &[Point]) {

@@ -1,6 +1,6 @@
-%% QSM PostgreSQL schema, from every m3db.TableDefinition in freddy33/qsm-go (branch prod @ e2be02a)
-%% Each env gets its own schema "qsm<envId>" (e.g. qsm1); all tables + FKs live inside that schema.
-%% Solid lines = declared REFERENCES. Grouped edges list every FK column they stand for.
+%% Rust Iceberg tables under data/<simulation>/. Static pointdb tables are in memory.
+%% Go Postgres still has a spaces table and events.space_id; Rust dropped both.
+%% One simulation folder is one space. Solid lines are the logical references.
 erDiagram
     %% ---------- backend/pointdb : static reference data (fixed row counts) ----------
     connection_details {
@@ -66,18 +66,8 @@ erDiagram
         bigint path_node3 FK "nullable self-ref"
     }
     %% ---------- backend/spacedb : simulation runs ----------
-    spaces {
-        serial id PK
-        varchar_175 name UK "NOT NULL UNIQUE"
-        smallint active_path_node_threshold "NOT NULL"
-        smallint max_trios_per_point "NOT NULL"
-        smallint max_path_nodes_per_point "NOT NULL"
-        integer max_coord "NOT NULL"
-        integer max_node_time "NOT NULL"
-    }
     events {
         serial id PK
-        integer space_id FK "NOT NULL"
         integer path_ctx_id FK "NOT NULL"
         integer creation_time "NOT NULL"
         smallint color "NOT NULL"
@@ -115,7 +105,6 @@ erDiagram
     points ||--o{ path_nodes : "point_id"
     path_nodes |o--o{ path_nodes : "path_node1/2/3"
     %% spacedb
-    spaces ||--o{ events : "space_id"
     path_contexts ||--o{ events : "path_ctx_id"
     events ||--o{ nodes : "event_id"
     path_nodes ||--o{ nodes : "path_node_id"

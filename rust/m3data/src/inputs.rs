@@ -32,7 +32,7 @@ pub struct SimulationInputs {
     pub shortcuts: Vec<Shortcut>,
 }
 
-/// Columns of a `spaces` row that are chosen up front, plus the coord limit.
+/// Space parameters for the one space this simulation folder is.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpaceParams {
@@ -170,8 +170,12 @@ pub fn default_inputs() -> SimulationInputs {
 }
 
 pub fn load_inputs(path: &Path) -> Result<SimulationInputs> {
-    let text = std::fs::read_to_string(path)?;
-    Ok(serde_json::from_str(&text)?)
+    let raw = std::fs::read(path)?;
+    parse_inputs(&raw)
+}
+
+pub fn parse_inputs(raw: &[u8]) -> Result<SimulationInputs> {
+    Ok(serde_json::from_slice(raw)?)
 }
 
 pub fn save_inputs(path: &Path, inputs: &SimulationInputs) -> Result<()> {
@@ -204,21 +208,23 @@ pub fn validate_inputs(inputs: &SimulationInputs) -> Result<()> {
     Ok(())
 }
 
+/// Explicit events, then each shortcut, in the order they are created.
+pub fn expand_events(inputs: &SimulationInputs) -> Result<Vec<EventInput>> {
+    let mut events = inputs.events.clone();
+    for shortcut in &inputs.shortcuts {
+        match shortcut {
+            Shortcut::Pyramid(spec) => events.extend(expand_pyramid(spec)?),
+        }
+    }
+    Ok(events)
+}
+
 pub fn resolve_events(inputs: &SimulationInputs) -> Result<Vec<ResolvedEvent>> {
     validate_inputs(inputs)?;
     let pack = PointPackData::shared();
     let mut resolved = Vec::new();
-    for event in &inputs.events {
-        resolved.push(resolve_one(pack, event)?);
-    }
-    for shortcut in &inputs.shortcuts {
-        match shortcut {
-            Shortcut::Pyramid(spec) => {
-                for event in expand_pyramid(spec)? {
-                    resolved.push(resolve_one(pack, &event)?);
-                }
-            }
-        }
+    for event in expand_events(inputs)? {
+        resolved.push(resolve_one(pack, &event)?);
     }
     Ok(resolved)
 }

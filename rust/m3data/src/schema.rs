@@ -29,18 +29,16 @@ pub enum TableKind {
     Points,
     PathContexts,
     PathNodes,
-    Spaces,
     Events,
     Nodes,
 }
 
 impl TableKind {
-    pub fn all() -> [TableKind; 6] {
+    pub fn all() -> [TableKind; 5] {
         [
             TableKind::Points,
             TableKind::PathContexts,
             TableKind::PathNodes,
-            TableKind::Spaces,
             TableKind::Events,
             TableKind::Nodes,
         ]
@@ -51,17 +49,13 @@ impl TableKind {
             TableKind::Points => "points",
             TableKind::PathContexts => "path_contexts",
             TableKind::PathNodes => "path_nodes",
-            TableKind::Spaces => "spaces",
             TableKind::Events => "events",
             TableKind::Nodes => "nodes",
         }
     }
 
     pub fn partitioned(self) -> bool {
-        matches!(
-            self,
-            TableKind::PathNodes | TableKind::Events | TableKind::Nodes
-        )
+        matches!(self, TableKind::PathNodes | TableKind::Nodes)
     }
 
     pub fn iceberg_schema(self) -> Result<IcebergSchema> {
@@ -92,23 +86,13 @@ impl TableKind {
                 opt(10, "path_node2", PrimitiveType::Long),
                 opt(11, "path_node3", PrimitiveType::Long),
             ],
-            TableKind::Spaces => vec![
-                req(1, "id", PrimitiveType::Int),
-                req(2, "name", PrimitiveType::String),
-                req(3, "active_path_node_threshold", PrimitiveType::Int),
-                req(4, "max_trios_per_point", PrimitiveType::Int),
-                req(5, "max_path_nodes_per_point", PrimitiveType::Int),
-                req(6, "max_coord", PrimitiveType::Int),
-                req(7, "max_node_time", PrimitiveType::Int),
-            ],
             TableKind::Events => vec![
                 req(1, "id", PrimitiveType::Int),
-                req(2, "space_id", PrimitiveType::Int),
-                req(3, "path_ctx_id", PrimitiveType::Int),
-                req(4, "creation_time", PrimitiveType::Int),
-                req(5, "color", PrimitiveType::Int),
-                req(6, "end_time", PrimitiveType::Int),
-                req(7, "max_node_time", PrimitiveType::Int),
+                req(2, "path_ctx_id", PrimitiveType::Int),
+                req(3, "creation_time", PrimitiveType::Int),
+                req(4, "color", PrimitiveType::Int),
+                req(5, "end_time", PrimitiveType::Int),
+                req(6, "max_node_time", PrimitiveType::Int),
             ],
             TableKind::Nodes => vec![
                 req(1, "id", PrimitiveType::Long),
@@ -132,12 +116,10 @@ impl TableKind {
 
     /// Partition spec, when this table is partitioned.
     ///
-    /// - `points`, `path_contexts`, `spaces` are unpartitioned. Resume loads
-    ///   each of them in full to rebuild id and uniqueness indexes, and they
-    ///   stay small relative to the node tables.
+    /// - `points`, `path_contexts`, and `events` are unpartitioned. Resume loads
+    ///   each of them in full. One simulation folder is one space, so `events`
+    ///   stays a handful of rows and does not need a partition.
     /// - `path_nodes` is `identity(path_ctx_id)` plus `truncate(d, 8)`.
-    /// - `events` is `identity(space_id)`, so a warehouse that holds more than
-    ///   one space can skip the others. One simulation folder normally has one.
     /// - `nodes` is `identity(event_id)` plus `truncate(creation_time, 8)`.
     pub fn partition_spec(self) -> Result<Option<UnboundPartitionSpec>> {
         let spec = match self {
@@ -145,11 +127,6 @@ impl TableKind {
                 UnboundPartitionSpec::builder()
                     .add_partition_field(2, "path_ctx_id", Transform::Identity)?
                     .add_partition_field(7, "d_bucket", Transform::Truncate(BUCKET_WIDTH as u32))?
-                    .build(),
-            ),
-            TableKind::Events => Some(
-                UnboundPartitionSpec::builder()
-                    .add_partition_field(2, "space_id", Transform::Identity)?
                     .build(),
             ),
             TableKind::Nodes => Some(
@@ -162,7 +139,7 @@ impl TableKind {
                     )?
                     .build(),
             ),
-            TableKind::Points | TableKind::PathContexts | TableKind::Spaces => None,
+            TableKind::Points | TableKind::PathContexts | TableKind::Events => None,
         };
         Ok(spec)
     }

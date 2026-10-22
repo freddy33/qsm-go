@@ -12,7 +12,8 @@ use m3point::{
 use m3space::{pyramid_centers, EventColor};
 
 use crate::inputs::{default_inputs, load_inputs, save_inputs};
-use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow, SpaceRow};
+use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
+use crate::runfile::{self, RunRecord};
 use crate::schema::{bucket_of, BUCKET_WIDTH};
 use crate::sim::run_named;
 use crate::static_pack;
@@ -181,21 +182,9 @@ async fn round_trip_each_table() {
     assert!(has_partition(&root, "path_nodes", "d_bucket=0"));
     assert!(has_partition(&root, "path_nodes", "d_bucket=8"));
 
-    let spaces = vec![SpaceRow {
-        id: 1,
-        name: "round".to_string(),
-        active_path_node_threshold: 0,
-        max_trios_per_point: 1,
-        max_path_nodes_per_point: 1,
-        max_coord: 18,
-        max_node_time: 0,
-    }];
-    store.append_spaces(&spaces).await.unwrap();
-
     let events = vec![
         EventRow {
             id: 1,
-            space_id: 1,
             path_ctx_id: 1,
             creation_time: 0,
             color: 1,
@@ -204,7 +193,6 @@ async fn round_trip_each_table() {
         },
         EventRow {
             id: 2,
-            space_id: 2,
             path_ctx_id: 1,
             creation_time: 4,
             color: 2,
@@ -213,8 +201,7 @@ async fn round_trip_each_table() {
         },
     ];
     store.append_events(&events).await.unwrap();
-    assert!(has_partition(&root, "events", "space_id=1"));
-    assert!(has_partition(&root, "events", "space_id=2"));
+    assert!(!has_partition(&root, "events", "space_id=1"));
 
     let nodes = vec![
         NodeRow {
@@ -265,7 +252,6 @@ async fn round_trip_each_table() {
     let mut loaded_path_nodes = loaded.path_nodes().to_vec();
     loaded_path_nodes.sort_by_key(|row| row.id);
     assert_eq!(loaded_path_nodes, path_nodes);
-    assert_eq!(loaded.spaces(), spaces.as_slice());
     let mut loaded_events = loaded.events().to_vec();
     loaded_events.sort_by_key(|row| row.id);
     assert_eq!(loaded_events, events);
@@ -276,14 +262,7 @@ async fn round_trip_each_table() {
     let names = table_names(&loaded.root().to_path_buf());
     assert_eq!(
         names,
-        vec![
-            "events",
-            "nodes",
-            "path_contexts",
-            "path_nodes",
-            "points",
-            "spaces"
-        ]
+        vec!["events", "nodes", "path_contexts", "path_nodes", "points"]
     );
 }
 
@@ -459,11 +438,13 @@ fn pyramid_three_steps_matches_a_resumed_run() {
     let reloaded = open_store(&straight.root, "pyramid");
     assert_eq!(snapshot(&reloaded), snapshot(&straight.store));
 
+    assert_eq!(sorted_runs(straight.store.root()).len(), 1);
     let again = run_named(&straight.root, "pyramid").unwrap();
     assert!(again.resumed);
     assert_eq!(again.steps_computed, 0);
     assert_eq!(again.time, 3);
     assert_eq!(again.nodes, 88);
+    assert_eq!(sorted_runs(straight.store.root()).len(), 2);
 
     for stop in [1, 2] {
         let partial = TempRoot::new();
@@ -530,13 +511,18 @@ fn open_store(root: &std::path::Path, name: &str) -> SimulationStore {
 fn assert_pyramid(store: &SimulationStore) {
     let inputs = load_inputs(&store.root().join("inputs.json")).unwrap();
     assert_eq!(inputs.max_time_steps, 3);
-    assert_eq!(store.spaces().len(), 1);
-    assert_eq!(store.spaces()[0].name, "pyramid");
-    assert_eq!(store.spaces()[0].active_path_node_threshold, 3);
-    assert_eq!(store.spaces()[0].max_trios_per_point, 2);
-    assert_eq!(store.spaces()[0].max_path_nodes_per_point, 4);
-    assert_eq!(store.spaces()[0].max_node_time, 3);
-    assert!(store.spaces()[0].max_coord >= 18);
+    let runs = sorted_runs(store.root());
+    assert_eq!(runs.len(), 1);
+    let record = load_run(&runs[0]);
+    assert_eq!(record.max_time_steps, 3);
+    assert_eq!(record.creation_time, 3);
+    assert_eq!(record.space.active_path_node_threshold, 3);
+    assert_eq!(record.space.max_trios_per_point, 2);
+    assert_eq!(record.space.max_path_nodes_per_point, 4);
+    assert_eq!(record.space.max_coord, 18);
+    assert_eq!(record.events.len(), 4);
+    let raw = fs::read(store.root().join("inputs.json")).unwrap();
+    assert_eq!(record.inputs_sha256, runfile::sha256_hex(&raw));
 
     let centers = pyramid_centers(4);
     let colors = [
@@ -707,7 +693,6 @@ struct Snapshot {
     points: Vec<PointRow>,
     path_contexts: Vec<PathContextRow>,
     path_nodes: Vec<PathNodeRow>,
-    spaces: Vec<SpaceRow>,
     events: Vec<EventRow>,
     nodes: Vec<NodeRow>,
 }
@@ -719,8 +704,6 @@ fn snapshot(store: &SimulationStore) -> Snapshot {
     path_contexts.sort_by_key(|row| row.id);
     let mut path_nodes = store.path_nodes().to_vec();
     path_nodes.sort_by_key(|row| row.id);
-    let mut spaces = store.spaces().to_vec();
-    spaces.sort_by_key(|row| row.id);
     let mut events = store.events().to_vec();
     events.sort_by_key(|row| row.id);
     let mut nodes = store.nodes().to_vec();
@@ -729,8 +712,133 @@ fn snapshot(store: &SimulationStore) -> Snapshot {
         points,
         path_contexts,
         path_nodes,
-        spaces,
         events,
         nodes,
     }
+}
+
+fn sorted_runs(root: &std::path::Path) -> Vec<PathBuf> {
+    let mut runs = runfile::run_files(root).unwrap();
+    runs.sort();
+    runs
+}
+
+fn load_run(path: &std::path::Path) -> RunRecord {
+    serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap()
+}
+
+/// A finished run records its space. Raising only `max_time_steps` resumes.
+/// Any other input change, or rows without a run file, is a hard error and writes nothing.
+#[test]
+fn run_file_locks_space_and_events() {
+    let tmp = TempRoot::new();
+    write_pyramid(&tmp.0, "pyramid", 0);
+    let first = run_named(&tmp.0, "pyramid").unwrap();
+    assert!(!first.resumed);
+    assert_eq!(first.time, 0);
+    assert_eq!(first.nodes, 4);
+    assert_eq!(first.steps_computed, 0);
+    let runs = sorted_runs(&tmp.0.join("pyramid"));
+    assert_eq!(runs.len(), 1);
+    let name = runs[0].file_name().unwrap().to_str().unwrap();
+    assert!(
+        name.starts_with("run-") && name.ends_with("Z.json"),
+        "{name}"
+    );
+    let record = load_run(&runs[0]);
+    assert_eq!(record.creation_time, 0);
+    assert_eq!(record.max_time_steps, 0);
+    assert_eq!(record.events.len(), 4);
+    assert_eq!(record.events[0].growth_offset, 0);
+    assert_eq!(record.events[0].x, 12);
+
+    write_pyramid(&tmp.0, "pyramid", 1);
+    let second = run_named(&tmp.0, "pyramid").unwrap();
+    assert!(second.resumed);
+    assert_eq!(second.time, 1);
+    assert_eq!(second.steps_computed, 1);
+    assert_eq!(second.nodes, 4 + 12);
+    assert_eq!(sorted_runs(&tmp.0.join("pyramid")).len(), 2);
+    let saved_nodes = open_store(&tmp.0, "pyramid").nodes().len();
+
+    let space_err = rewrite_and_fail(&tmp.0, |inputs| inputs.space.max_coord = 21);
+    assert!(
+        space_err.contains("space.max_coord: last run 18, inputs 21"),
+        "{space_err}"
+    );
+    assert!(
+        space_err.contains("only max_time_steps may change"),
+        "{space_err}"
+    );
+    assert_eq!(sorted_runs(&tmp.0.join("pyramid")).len(), 2);
+    assert_eq!(open_store(&tmp.0, "pyramid").nodes().len(), saved_nodes);
+
+    write_pyramid(&tmp.0, "pyramid", 1);
+    let pyramid_err = rewrite_and_fail(&tmp.0, |inputs| match &mut inputs.shortcuts[0] {
+        crate::inputs::Shortcut::Pyramid(spec) => spec.size = 5,
+    });
+    assert!(
+        pyramid_err.contains("events[0].x: last run 12, inputs 15"),
+        "{pyramid_err}"
+    );
+    assert_eq!(sorted_runs(&tmp.0.join("pyramid")).len(), 2);
+
+    write_pyramid(&tmp.0, "pyramid", 1);
+    let added = rewrite_and_fail(&tmp.0, |inputs| {
+        inputs.events.push(crate::inputs::EventInput {
+            x: 0,
+            y: 0,
+            z: 0,
+            creation_time: 0,
+            color: 1,
+            growth_type: 8,
+            growth_index: 0,
+            growth_offset: 1,
+        });
+    });
+    assert!(
+        added.contains("events: last run has 4 events, inputs expand to 5"),
+        "{added}"
+    );
+
+    write_pyramid(&tmp.0, "pyramid", 1);
+    let removed = rewrite_and_fail(&tmp.0, |inputs| inputs.shortcuts.clear());
+    assert!(
+        removed.contains("events: last run has 4 events, inputs expand to 0"),
+        "{removed}"
+    );
+
+    write_pyramid(&tmp.0, "pyramid", 1);
+    let offset = rewrite_and_fail(&tmp.0, |inputs| match &mut inputs.shortcuts[0] {
+        crate::inputs::Shortcut::Pyramid(spec) => spec.offsets[0] = 1,
+    });
+    assert!(
+        offset.contains("events[0].growth_offset: last run 0, inputs 1"),
+        "{offset}"
+    );
+    assert_eq!(open_store(&tmp.0, "pyramid").nodes().len(), saved_nodes);
+    assert_eq!(sorted_runs(&tmp.0.join("pyramid")).len(), 2);
+
+    for path in sorted_runs(&tmp.0.join("pyramid")) {
+        fs::remove_file(path).unwrap();
+    }
+    let missing = run_named(&tmp.0, "pyramid").unwrap_err();
+    let missing = missing.to_string();
+    assert!(
+        missing.contains("has saved rows but no qsm/run-*.json"),
+        "{missing}"
+    );
+    assert!(sorted_runs(&tmp.0.join("pyramid")).is_empty());
+    assert_eq!(open_store(&tmp.0, "pyramid").nodes().len(), saved_nodes);
+}
+
+fn rewrite_and_fail(
+    root: &std::path::Path,
+    edit: impl FnOnce(&mut crate::inputs::SimulationInputs),
+) -> String {
+    let path = root.join("pyramid").join("inputs.json");
+    let mut inputs = load_inputs(&path).unwrap();
+    edit(&mut inputs);
+    save_inputs(&path, &inputs).unwrap();
+    run_named(root, "pyramid").unwrap_err().to_string()
 }

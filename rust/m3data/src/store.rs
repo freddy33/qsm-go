@@ -34,11 +34,10 @@ use m3path::{get_connection_state, ConnectionState};
 
 use crate::batch::{
     decode_events, decode_nodes, decode_path_contexts, decode_path_nodes, decode_points,
-    decode_spaces, encode_events, encode_nodes, encode_path_contexts, encode_path_nodes,
-    encode_points, encode_spaces,
+    encode_events, encode_nodes, encode_path_contexts, encode_path_nodes, encode_points,
 };
 use crate::error::{Error, Result};
-use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow, SpaceRow};
+use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
 use crate::schema::{bucket_of, TableKind, NAMESPACE};
 
 const MAX_NAME_LEN: usize = 175;
@@ -56,7 +55,6 @@ pub struct SimulationStore {
     points: Vec<PointRow>,
     path_contexts: Vec<PathContextRow>,
     path_nodes: Vec<PathNodeRow>,
-    spaces: Vec<SpaceRow>,
     events: Vec<EventRow>,
     nodes: Vec<NodeRow>,
     point_ids: HashSet<i64>,
@@ -65,8 +63,6 @@ pub struct SimulationStore {
     path_ctx_key: HashSet<(i32, i32)>,
     path_node_ids: HashSet<i64>,
     path_node_key: HashSet<(i32, i64)>,
-    space_ids: HashSet<i32>,
-    space_names: HashSet<String>,
     event_ids: HashSet<i32>,
     node_ids: HashSet<i64>,
     node_key: HashSet<(i32, i64)>,
@@ -104,15 +100,14 @@ impl SimulationStore {
         }
 
         let points = read_points(&tables[&TableKind::Points]).await?;
-        // Iceberg 0.10 can only append. A changed path node, path context, event,
-        // or space is appended again with the same id. The latest logical row is
+        // Iceberg 0.10 can only append. A changed path node, path context, or
+        // event is appended again with the same id. The latest logical row is
         // the one whose growth cursor moved forward (fewer open connections, or a
         // higher max distance / time). That pick does not depend on scan order.
         let path_contexts =
             collapse_path_contexts(read_path_contexts(&tables[&TableKind::PathContexts]).await?)?;
         let path_nodes =
             collapse_path_nodes(read_path_nodes(&tables[&TableKind::PathNodes]).await?)?;
-        let spaces = collapse_spaces(read_spaces(&tables[&TableKind::Spaces]).await?)?;
         let events = collapse_events(read_events(&tables[&TableKind::Events]).await?)?;
         let nodes = read_nodes(&tables[&TableKind::Nodes]).await?;
 
@@ -124,7 +119,6 @@ impl SimulationStore {
             points: Vec::new(),
             path_contexts: Vec::new(),
             path_nodes: Vec::new(),
-            spaces: Vec::new(),
             events: Vec::new(),
             nodes: Vec::new(),
             point_ids: HashSet::new(),
@@ -133,8 +127,6 @@ impl SimulationStore {
             path_ctx_key: HashSet::new(),
             path_node_ids: HashSet::new(),
             path_node_key: HashSet::new(),
-            space_ids: HashSet::new(),
-            space_names: HashSet::new(),
             event_ids: HashSet::new(),
             node_ids: HashSet::new(),
             node_key: HashSet::new(),
@@ -142,7 +134,6 @@ impl SimulationStore {
         store.absorb_points(&points)?;
         store.absorb_path_contexts(&path_contexts)?;
         store.absorb_path_nodes(&path_nodes)?;
-        store.absorb_spaces(&spaces)?;
         store.absorb_events(&events)?;
         store.absorb_nodes(&nodes)?;
         Ok(store)
@@ -169,16 +160,21 @@ impl SimulationStore {
         &self.path_nodes
     }
 
-    pub fn spaces(&self) -> &[SpaceRow] {
-        &self.spaces
-    }
-
     pub fn events(&self) -> &[EventRow] {
         &self.events
     }
 
     pub fn nodes(&self) -> &[NodeRow] {
         &self.nodes
+    }
+
+    /// True when any stored table has a row. Empty Iceberg metadata from `open` does not count.
+    pub fn has_rows(&self) -> bool {
+        !self.points.is_empty()
+            || !self.path_contexts.is_empty()
+            || !self.path_nodes.is_empty()
+            || !self.events.is_empty()
+            || !self.nodes.is_empty()
     }
 
     pub async fn append_points(&mut self, rows: &[PointRow]) -> Result<()> {
@@ -230,32 +226,13 @@ impl SimulationStore {
         self.absorb_path_nodes(rows)
     }
 
-    pub async fn append_spaces(&mut self, rows: &[SpaceRow]) -> Result<()> {
-        if rows.is_empty() {
-            return Ok(());
-        }
-        self.check_space_rows(rows)?;
-        let batch = encode_spaces(rows)?;
-        self.write(TableKind::Spaces, vec![(None, batch)]).await?;
-        self.absorb_spaces(rows)
-    }
-
     pub async fn append_events(&mut self, rows: &[EventRow]) -> Result<()> {
         if rows.is_empty() {
             return Ok(());
         }
         self.check_event_rows(rows)?;
-        let mut groups: HashMap<i32, Vec<EventRow>> = HashMap::new();
-        for row in rows {
-            groups.entry(row.space_id).or_default().push(row.clone());
-        }
-        let table = self.tables[&TableKind::Events].clone();
-        let mut batches = Vec::new();
-        for (space_id, group) in groups {
-            let key = partition_key(&table, vec![Some(Literal::int(space_id))]);
-            batches.push((Some(key), encode_events(&group)?));
-        }
-        self.write(TableKind::Events, batches).await?;
+        let batch = encode_events(rows)?;
+        self.write(TableKind::Events, vec![(None, batch)]).await?;
         self.absorb_events(rows)
     }
 
@@ -384,37 +361,6 @@ impl SimulationStore {
         Ok(())
     }
 
-    fn check_space_rows(&self, rows: &[SpaceRow]) -> Result<()> {
-        let mut new_ids = HashSet::new();
-        let mut new_names = HashSet::new();
-        for row in rows {
-            if row.id <= 0 {
-                return Err(Error::new(format!(
-                    "spaces id must be positive, got {}",
-                    row.id
-                )));
-            }
-            if row.name.is_empty() || row.name.len() > MAX_NAME_LEN {
-                return Err(Error::new(
-                    "space name must be 1..=175 characters".to_string(),
-                ));
-            }
-            if let Some(existing) = self.spaces.iter().find(|space| space.id == row.id) {
-                if existing.name != row.name {
-                    return Err(Error::new(format!("space {} changed name", row.id)));
-                }
-                continue;
-            }
-            if self.space_ids.contains(&row.id) || !new_ids.insert(row.id) {
-                return Err(Error::new(format!("duplicate spaces id {}", row.id)));
-            }
-            if self.space_names.contains(&row.name) || !new_names.insert(row.name.clone()) {
-                return Err(Error::new(format!("duplicate space name {}", row.name)));
-            }
-        }
-        Ok(())
-    }
-
     fn check_event_rows(&self, rows: &[EventRow]) -> Result<()> {
         let mut new_ids = HashSet::new();
         for row in rows {
@@ -483,20 +429,6 @@ impl SimulationStore {
                 self.path_node_ids.insert(row.id);
                 self.path_node_key.insert((row.path_ctx_id, row.point_id));
                 self.path_nodes.push(row.clone());
-            }
-        }
-        Ok(())
-    }
-
-    fn absorb_spaces(&mut self, rows: &[SpaceRow]) -> Result<()> {
-        self.check_space_rows(rows)?;
-        for row in rows {
-            if let Some(pos) = self.spaces.iter().position(|space| space.id == row.id) {
-                self.spaces[pos] = row.clone();
-            } else {
-                self.space_ids.insert(row.id);
-                self.space_names.insert(row.name.clone());
-                self.spaces.push(row.clone());
             }
         }
         Ok(())
@@ -695,31 +627,13 @@ fn path_node_rank(row: &PathNodeRow) -> i32 {
     -open * 10 + links
 }
 
-fn collapse_spaces(rows: Vec<SpaceRow>) -> Result<Vec<SpaceRow>> {
-    collapse(
-        rows,
-        |row| row.id as i64,
-        |row| row.max_node_time * 1_000_000 + row.max_coord,
-        |prev, row| {
-            if prev.name != row.name {
-                return Err(Error::new(format!(
-                    "space {} was appended with a different name",
-                    row.id
-                )));
-            }
-            Ok(())
-        },
-    )
-}
-
 fn collapse_events(rows: Vec<EventRow>) -> Result<Vec<EventRow>> {
     collapse(
         rows,
         |row| row.id as i64,
         |row| row.max_node_time,
         |prev, row| {
-            if prev.space_id != row.space_id
-                || prev.path_ctx_id != row.path_ctx_id
+            if prev.path_ctx_id != row.path_ctx_id
                 || prev.creation_time != row.creation_time
                 || prev.color != row.color
             {
@@ -780,10 +694,6 @@ async fn read_path_contexts(table: &Table) -> Result<Vec<PathContextRow>> {
 
 async fn read_path_nodes(table: &Table) -> Result<Vec<PathNodeRow>> {
     decode_path_nodes(&read_batches(table).await?)
-}
-
-async fn read_spaces(table: &Table) -> Result<Vec<SpaceRow>> {
-    decode_spaces(&read_batches(table).await?)
 }
 
 async fn read_events(table: &Table) -> Result<Vec<EventRow>> {

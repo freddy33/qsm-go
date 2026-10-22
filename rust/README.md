@@ -43,6 +43,8 @@ QSM_DATA_ROOT=/tmp/qsm cargo run -p qsm -- my-sim
 
 The initial state is `data/<simulation name>/inputs.json`. A new folder with no file and no saved rows gets the default below, then the run starts. A later invocation reads the same file and grows from the last saved creation time until `max_time_steps`. It does not rewrite `inputs.json`.
 
+One simulation name is one space. There is no `spaces` table. After a successful run, `qsm` writes `data/<name>/qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC, so the names sort in time order). The next run of that name loads the latest `run-*.json` and compares it with the current `inputs.json`. Resolved space parameters and the event list (shortcuts and explicit events, compared after expansion) must be identical. Only `max_time_steps` may change. Any other difference is an error, nothing is appended, and no new run file is written. Saved rows with no `run-*.json` are an error as well. A same-second collision is `run-<stamp>_01.json`, which sorts after the unsuffixed name and before the next second. The `doc` field is a note and is not part of the check. Lowering `max_time_steps` below the saved creation time is allowed: the run computes nothing new and still writes a run file.
+
 `max_time_steps` is the last creation time to store. Events created at time 0 contribute their root nodes at time 0, then one shell per later time. `3` therefore stores times 0, 1, 2, and 3.
 
 ```json
@@ -87,9 +89,60 @@ An explicit event uses the Go `CreateEvent` fields. `color` is 1 red, 2 green, 4
 
 `events` are created as written, then each shortcut is expanded. The only shortcut today is `pyramid`, matching `CreatePyramidWithParams` in `ui/m3gl/m3gl.go` (and the same four calls in `backend/spacedb/pyramid.go`). playgl calls it with size 4, growth type 8, index 0, and offsets 0, 2, 4, 6 when the world has no events. The four centers are `{3,0,3}`, `{-3,3,3}`, `{-3,-3,3}`, `{0,0,-3}` multiplied by `size`, in the order red, green, blue, yellow. A new shortcut is another variant on that enum, serialized as its own key.
 
-The default file omits the sample `events` entry and keeps only the pyramid. Space defaults are playgl `MakeWorld`: active threshold 3, max trios per point 2, max path nodes per point 4, max coord 18. Those limits are stored on the space row. Growth does not consult them, matching the Go TODO in `m3spacetimenode.go`.
+The default file omits the sample `events` entry and keeps only the pyramid. Space defaults are playgl `MakeWorld`: active threshold 3, max trios per point 2, max path nodes per point 4, max coord 18. Growth does not consult them, matching the Go TODO in `m3spacetimenode.go`.
 
-Each time step appends the new points, path nodes, and event nodes, and appends a newer copy of any path node, path context, event, or space whose connection mask or cursor changed. Iceberg 0.10 only has fast append, so the newer copy reuses the same id. Load keeps the copy that has grown further. Uniqueness of `(x, y, z)`, `(path_ctx_id, point_id)`, and `(event_id, point_id)` still applies to that latest row.
+A finished default run writes `qsm/run-20261022T121800Z.json`. `inputs_sha256` is the SHA-256 of the raw `inputs.json` bytes. `events` is the pyramid after expansion. `creation_time` is the highest saved node time:
+
+```json
+{
+  "inputs_sha256": "3adb4bb7fb389c14f853f3ed72280b0495149c46dd2220207e54a2b6e7d867af",
+  "inputs": {
+    "doc": "Default is the playgl pyramid: CreatePyramidWithParams(space, 4, growth types 8, indexes 0, offsets 0,2,4,6). max_time_steps is the last creation time stored. Time 0 is the four root nodes.",
+    "max_time_steps": 3,
+    "space": {
+      "active_path_node_threshold": 3,
+      "max_trios_per_point": 2,
+      "max_path_nodes_per_point": 4,
+      "max_coord": 18
+    },
+    "events": [],
+    "shortcuts": [
+      {
+        "pyramid": {
+          "size": 4,
+          "growth_type": 8,
+          "growth_index": 0,
+          "offsets": [0, 2, 4, 6],
+          "creation_time": 0
+        }
+      }
+    ]
+  },
+  "space": {
+    "active_path_node_threshold": 3,
+    "max_trios_per_point": 2,
+    "max_path_nodes_per_point": 4,
+    "max_coord": 18
+  },
+  "events": [
+    { "x": 12, "y": 0, "z": 12, "creation_time": 0, "color": 1, "growth_type": 8, "growth_index": 0, "growth_offset": 0 },
+    { "x": -12, "y": 12, "z": 12, "creation_time": 0, "color": 2, "growth_type": 8, "growth_index": 0, "growth_offset": 2 },
+    { "x": -12, "y": -12, "z": 12, "creation_time": 0, "color": 4, "growth_type": 8, "growth_index": 0, "growth_offset": 4 },
+    { "x": 0, "y": 0, "z": -12, "creation_time": 0, "color": 8, "growth_type": 8, "growth_index": 0, "growth_offset": 6 }
+  ],
+  "max_time_steps": 3,
+  "creation_time": 3
+}
+```
+
+Changing `space.max_coord` from 18 to 21 and running again fails before any write:
+
+```text
+qsm: inputs.json does not match the last run (run-20261022T121800Z.json); only max_time_steps may change:
+  space.max_coord: last run 18, inputs 21
+```
+
+Each time step appends the new points, path nodes, and event nodes, and appends a newer copy of any path node, path context, or event whose connection mask or cursor changed. Iceberg 0.10 only has fast append, so the newer copy reuses the same id. Load keeps the copy that has grown further. Uniqueness of `(x, y, z)`, `(path_ctx_id, point_id)`, and `(event_id, point_id)` still applies to that latest row.
 
 `SimulationStore::open` loads every stored table into memory. A later viewer can call that with the simulation name and read `points()`, `path_nodes()`, `events()`, and `nodes()`. There is no API server.
 
@@ -116,7 +169,7 @@ cargo run -p qsm -- test-sim
 - Connection-state nibbles, event link ids, and the predicted-size formula.
 - Path-context growth (`calculateNextMaxDist` / `makeNewNodes`) and event growth (`increaseMaxNodeTime`), including neighbour links.
 - Event color masks, active links, three-id grouping, index generation, and pyramid size.
-- Local Iceberg/Parquet load and save for points, path contexts, path nodes, spaces, events, and nodes. `qsm` grows from `inputs.json` and resumes until `max_time_steps`.
+- Local Iceberg/Parquet load and save for points, path contexts, path nodes, events, and nodes. `qsm` grows from `inputs.json`, writes `qsm/run-<utc>.json` after a successful run, and resumes until `max_time_steps`.
 - Viewer filter, color, and dimmer rules, covered by unit tests.
 
 ## Not ported
