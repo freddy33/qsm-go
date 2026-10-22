@@ -1,14 +1,8 @@
-//! Drawing elements for the QSM viewer.
+//! Drawing filters, colors, and object types for the QSM viewer.
 //!
-//! # TODO: OpenGL viewer
-//!
-//! The Go packages `m3gl` and `playgl` open a GLFW window and draw nodes with
-//! `github.com/go-gl/gl` and `github.com/go-gl/glfw`. That window, its shaders,
-//! VAOs, and the keyboard camera are **not** ported.
-//!
-//! A later port should use a maintained stack (`glow` + `glutin`, or `wgpu`)
-//! and feed it the [`SpaceDrawingElement`] values defined here. The color,
-//! dimmer, and display-filter rules below match `ui/m3gl/m3drawing.go`.
+//! The window is the Bevy app `qsm-view`. These types keep the color, dimmer,
+//! and display-filter rules from `ui/m3gl/m3drawing.go`. The Go packages still
+//! open a GLFW window; the Rust viewer does not.
 
 use m3point::{ConnectionId, Point, ORIGIN};
 use m3space::{DistAndTime, EventColor};

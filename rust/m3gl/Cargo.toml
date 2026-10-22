@@ -2,7 +2,7 @@
 name = "m3gl"
 version = "0.1.0"
 edition = "2021"
-description = "QSM drawing elements. The OpenGL window is not ported yet."
+description = "QSM drawing filters and colors. The window is the Bevy app qsm-view."
 license = "Apache-2.0"
 
 [dependencies]

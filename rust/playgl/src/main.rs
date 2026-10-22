@@ -1,12 +1,10 @@
-//! Text stand-in for the Go `playgl` OpenGL viewer.
+//! Pack summary for the static reference tables.
 //!
-//! TODO: replace this process with a `glow`+`glutin` or `wgpu` window that
-//! draws [`m3gl`] elements. The Go viewer lives in `ui/playgl` and `ui/m3gl`
-//! and is left unchanged.
+//! The interactive window is `qsm-view <simulation name>`.
 
 fn main() {
     let pack = m3point::PointPackData::shared();
-    println!("QSM playgl (Rust stub)");
+    println!("QSM pack");
     println!("connections: {}", pack.connections.len());
     println!("trios: {}", pack.trios.len());
     println!("growth contexts: {}", pack.growth_contexts.len());
@@ -16,9 +14,6 @@ fn main() {
         pack.path_builders.iter().filter(|b| b.is_some()).count()
     );
     println!();
-    println!("TODO: the OpenGL viewer is not ported.");
-    println!("The Go UI uses GLFW and OpenGL (ui/playgl, ui/m3gl).");
-    println!("A Rust window should use glow+glutin or wgpu and the drawing");
-    println!("types in the m3gl crate (filters, colors, axes, nodes).");
+    println!("viewer: qsm-view <simulation name>");
     let _ = m3gl::ObjectType::NodeActive;
 }

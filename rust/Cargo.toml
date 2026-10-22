@@ -9,4 +9,5 @@ members = [
     "qsm",
     "m3gl",
     "playgl",
+    "qsm-view",
 ]

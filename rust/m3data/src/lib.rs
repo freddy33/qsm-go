@@ -18,9 +18,10 @@ mod sim;
 mod store;
 
 pub use error::{Error, Result};
+pub use inputs::{load_inputs, SimulationInputs};
 pub use m3point::PointPackData;
 pub use rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
-pub use runfile::RunRecord;
+pub use runfile::{latest_run, RunRecord};
 pub use schema::{TableKind, NAMESPACE};
 pub use sim::{default_data_root, run_named, run_named_async, StepReport};
 pub use store::SimulationStore;

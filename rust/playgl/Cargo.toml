@@ -2,7 +2,7 @@
 name = "playgl"
 version = "0.1.0"
 edition = "2021"
-description = "QSM viewer entry point. The OpenGL window is not ported yet."
+description = "Prints the static QSM pack counts. The window is qsm-view."
 license = "Apache-2.0"
 
 [dependencies]
