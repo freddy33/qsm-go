@@ -30,6 +30,8 @@ use iceberg::writer::{IcebergWriter, IcebergWriterBuilder};
 use iceberg::{Catalog, CatalogBuilder, NamespaceIdent, TableCreation, TableIdent};
 use parquet::file::properties::WriterProperties;
 
+use m3path::{get_connection_state, ConnectionState};
+
 use crate::batch::{
     decode_events, decode_nodes, decode_path_contexts, decode_path_nodes, decode_points,
     decode_spaces, encode_events, encode_nodes, encode_path_contexts, encode_path_nodes,
@@ -102,10 +104,16 @@ impl SimulationStore {
         }
 
         let points = read_points(&tables[&TableKind::Points]).await?;
-        let path_contexts = read_path_contexts(&tables[&TableKind::PathContexts]).await?;
-        let path_nodes = read_path_nodes(&tables[&TableKind::PathNodes]).await?;
-        let spaces = read_spaces(&tables[&TableKind::Spaces]).await?;
-        let events = read_events(&tables[&TableKind::Events]).await?;
+        // Iceberg 0.10 can only append. A changed path node, path context, event,
+        // or space is appended again with the same id. The latest logical row is
+        // the one whose growth cursor moved forward (fewer open connections, or a
+        // higher max distance / time). That pick does not depend on scan order.
+        let path_contexts =
+            collapse_path_contexts(read_path_contexts(&tables[&TableKind::PathContexts]).await?)?;
+        let path_nodes =
+            collapse_path_nodes(read_path_nodes(&tables[&TableKind::PathNodes]).await?)?;
+        let spaces = collapse_spaces(read_spaces(&tables[&TableKind::Spaces]).await?)?;
+        let events = collapse_events(read_events(&tables[&TableKind::Events]).await?)?;
         let nodes = read_nodes(&tables[&TableKind::Nodes]).await?;
 
         let mut store = Self {
@@ -309,11 +317,31 @@ impl SimulationStore {
     }
 
     fn check_path_context_rows(&self, rows: &[PathContextRow]) -> Result<()> {
-        let mut ids = self.path_ctx_ids.clone();
-        let mut keys = self.path_ctx_key.clone();
+        let mut new_ids = HashSet::new();
+        let mut new_keys = HashSet::new();
         for row in rows {
-            insert_i32(&mut ids, row.id, "path_contexts")?;
-            if !keys.insert((row.growth_ctx_id, row.growth_offset)) {
+            if row.id <= 0 {
+                return Err(Error::new(format!(
+                    "path_contexts id must be positive, got {}",
+                    row.id
+                )));
+            }
+            if let Some(existing) = self.path_contexts.iter().find(|ctx| ctx.id == row.id) {
+                if existing.growth_ctx_id != row.growth_ctx_id
+                    || existing.growth_offset != row.growth_offset
+                {
+                    return Err(Error::new(format!(
+                        "path context {} changed (growth_ctx_id, growth_offset)",
+                        row.id
+                    )));
+                }
+                continue;
+            }
+            if self.path_ctx_ids.contains(&row.id) || !new_ids.insert(row.id) {
+                return Err(Error::new(format!("duplicate path_contexts id {}", row.id)));
+            }
+            let key = (row.growth_ctx_id, row.growth_offset);
+            if self.path_ctx_key.contains(&key) || !new_keys.insert(key) {
                 return Err(Error::new(format!(
                     "duplicate path context ({}, {})",
                     row.growth_ctx_id, row.growth_offset
@@ -324,11 +352,29 @@ impl SimulationStore {
     }
 
     fn check_path_node_rows(&self, rows: &[PathNodeRow]) -> Result<()> {
-        let mut ids = self.path_node_ids.clone();
-        let mut keys = self.path_node_key.clone();
+        let mut new_ids = HashSet::new();
+        let mut new_keys = HashSet::new();
         for row in rows {
-            insert_id(&mut ids, row.id, "path_nodes")?;
-            if !keys.insert((row.path_ctx_id, row.point_id)) {
+            if row.id <= 0 {
+                return Err(Error::new(format!(
+                    "path_nodes id must be positive, got {}",
+                    row.id
+                )));
+            }
+            if let Some(existing) = self.path_nodes.iter().find(|node| node.id == row.id) {
+                if existing.path_ctx_id != row.path_ctx_id || existing.point_id != row.point_id {
+                    return Err(Error::new(format!(
+                        "path node {} changed (path_ctx_id, point_id)",
+                        row.id
+                    )));
+                }
+                continue;
+            }
+            if self.path_node_ids.contains(&row.id) || !new_ids.insert(row.id) {
+                return Err(Error::new(format!("duplicate path_nodes id {}", row.id)));
+            }
+            let key = (row.path_ctx_id, row.point_id);
+            if self.path_node_key.contains(&key) || !new_keys.insert(key) {
                 return Err(Error::new(format!(
                     "duplicate path node ({}, {})",
                     row.path_ctx_id, row.point_id
@@ -339,16 +385,30 @@ impl SimulationStore {
     }
 
     fn check_space_rows(&self, rows: &[SpaceRow]) -> Result<()> {
-        let mut ids = self.space_ids.clone();
-        let mut names = self.space_names.clone();
+        let mut new_ids = HashSet::new();
+        let mut new_names = HashSet::new();
         for row in rows {
-            insert_i32(&mut ids, row.id, "spaces")?;
+            if row.id <= 0 {
+                return Err(Error::new(format!(
+                    "spaces id must be positive, got {}",
+                    row.id
+                )));
+            }
             if row.name.is_empty() || row.name.len() > MAX_NAME_LEN {
                 return Err(Error::new(
                     "space name must be 1..=175 characters".to_string(),
                 ));
             }
-            if !names.insert(row.name.clone()) {
+            if let Some(existing) = self.spaces.iter().find(|space| space.id == row.id) {
+                if existing.name != row.name {
+                    return Err(Error::new(format!("space {} changed name", row.id)));
+                }
+                continue;
+            }
+            if self.space_ids.contains(&row.id) || !new_ids.insert(row.id) {
+                return Err(Error::new(format!("duplicate spaces id {}", row.id)));
+            }
+            if self.space_names.contains(&row.name) || !new_names.insert(row.name.clone()) {
                 return Err(Error::new(format!("duplicate space name {}", row.name)));
             }
         }
@@ -356,9 +416,20 @@ impl SimulationStore {
     }
 
     fn check_event_rows(&self, rows: &[EventRow]) -> Result<()> {
-        let mut ids = self.event_ids.clone();
+        let mut new_ids = HashSet::new();
         for row in rows {
-            insert_i32(&mut ids, row.id, "events")?;
+            if row.id <= 0 {
+                return Err(Error::new(format!(
+                    "events id must be positive, got {}",
+                    row.id
+                )));
+            }
+            if self.events.iter().any(|event| event.id == row.id) {
+                continue;
+            }
+            if self.event_ids.contains(&row.id) || !new_ids.insert(row.id) {
+                return Err(Error::new(format!("duplicate events id {}", row.id)));
+            }
         }
         Ok(())
     }
@@ -391,10 +462,14 @@ impl SimulationStore {
     fn absorb_path_contexts(&mut self, rows: &[PathContextRow]) -> Result<()> {
         self.check_path_context_rows(rows)?;
         for row in rows {
-            self.path_ctx_ids.insert(row.id);
-            self.path_ctx_key
-                .insert((row.growth_ctx_id, row.growth_offset));
-            self.path_contexts.push(row.clone());
+            if let Some(pos) = self.path_contexts.iter().position(|ctx| ctx.id == row.id) {
+                self.path_contexts[pos] = row.clone();
+            } else {
+                self.path_ctx_ids.insert(row.id);
+                self.path_ctx_key
+                    .insert((row.growth_ctx_id, row.growth_offset));
+                self.path_contexts.push(row.clone());
+            }
         }
         Ok(())
     }
@@ -402,9 +477,13 @@ impl SimulationStore {
     fn absorb_path_nodes(&mut self, rows: &[PathNodeRow]) -> Result<()> {
         self.check_path_node_rows(rows)?;
         for row in rows {
-            self.path_node_ids.insert(row.id);
-            self.path_node_key.insert((row.path_ctx_id, row.point_id));
-            self.path_nodes.push(row.clone());
+            if let Some(pos) = self.path_nodes.iter().position(|node| node.id == row.id) {
+                self.path_nodes[pos] = row.clone();
+            } else {
+                self.path_node_ids.insert(row.id);
+                self.path_node_key.insert((row.path_ctx_id, row.point_id));
+                self.path_nodes.push(row.clone());
+            }
         }
         Ok(())
     }
@@ -412,9 +491,13 @@ impl SimulationStore {
     fn absorb_spaces(&mut self, rows: &[SpaceRow]) -> Result<()> {
         self.check_space_rows(rows)?;
         for row in rows {
-            self.space_ids.insert(row.id);
-            self.space_names.insert(row.name.clone());
-            self.spaces.push(row.clone());
+            if let Some(pos) = self.spaces.iter().position(|space| space.id == row.id) {
+                self.spaces[pos] = row.clone();
+            } else {
+                self.space_ids.insert(row.id);
+                self.space_names.insert(row.name.clone());
+                self.spaces.push(row.clone());
+            }
         }
         Ok(())
     }
@@ -422,8 +505,12 @@ impl SimulationStore {
     fn absorb_events(&mut self, rows: &[EventRow]) -> Result<()> {
         self.check_event_rows(rows)?;
         for row in rows {
-            self.event_ids.insert(row.id);
-            self.events.push(row.clone());
+            if let Some(pos) = self.events.iter().position(|event| event.id == row.id) {
+                self.events[pos] = row.clone();
+            } else {
+                self.event_ids.insert(row.id);
+                self.events.push(row.clone());
+            }
         }
         Ok(())
     }
@@ -440,16 +527,6 @@ impl SimulationStore {
 }
 
 fn insert_id(ids: &mut HashSet<i64>, id: i64, table: &str) -> Result<()> {
-    if id <= 0 {
-        return Err(Error::new(format!("{table} id must be positive, got {id}")));
-    }
-    if !ids.insert(id) {
-        return Err(Error::new(format!("duplicate {table} id {id}")));
-    }
-    Ok(())
-}
-
-fn insert_i32(ids: &mut HashSet<i32>, id: i32, table: &str) -> Result<()> {
     if id <= 0 {
         return Err(Error::new(format!("{table} id must be positive, got {id}")));
     }
@@ -568,6 +645,121 @@ async fn write_batches(
         }
         Ok(writer.close().await?)
     }
+}
+
+fn collapse_path_contexts(rows: Vec<PathContextRow>) -> Result<Vec<PathContextRow>> {
+    collapse(
+        rows,
+        |row| row.id as i64,
+        |row| row.max_dist,
+        |prev, row| {
+            if prev.growth_ctx_id != row.growth_ctx_id || prev.growth_offset != row.growth_offset {
+                return Err(Error::new(format!(
+                    "path context {} was appended with a different growth key",
+                    row.id
+                )));
+            }
+            Ok(())
+        },
+    )
+}
+
+fn collapse_path_nodes(rows: Vec<PathNodeRow>) -> Result<Vec<PathNodeRow>> {
+    collapse(
+        rows,
+        |row| row.id,
+        path_node_rank,
+        |prev, row| {
+            if prev.path_ctx_id != row.path_ctx_id || prev.point_id != row.point_id {
+                return Err(Error::new(format!(
+                    "path node {} was appended with a different (path_ctx_id, point_id)",
+                    row.id
+                )));
+            }
+            Ok(())
+        },
+    )
+}
+
+fn path_node_rank(row: &PathNodeRow) -> i32 {
+    let open = (0..3)
+        .filter(|&conn| {
+            get_connection_state(row.connection_mask as u16, conn) == ConnectionState::NotSet
+        })
+        .count() as i32;
+    let links = [row.path_node1, row.path_node2, row.path_node3]
+        .iter()
+        .filter(|link| link.is_some())
+        .count() as i32;
+    // Fewer open connections, then more assigned neighbour ids.
+    -open * 10 + links
+}
+
+fn collapse_spaces(rows: Vec<SpaceRow>) -> Result<Vec<SpaceRow>> {
+    collapse(
+        rows,
+        |row| row.id as i64,
+        |row| row.max_node_time * 1_000_000 + row.max_coord,
+        |prev, row| {
+            if prev.name != row.name {
+                return Err(Error::new(format!(
+                    "space {} was appended with a different name",
+                    row.id
+                )));
+            }
+            Ok(())
+        },
+    )
+}
+
+fn collapse_events(rows: Vec<EventRow>) -> Result<Vec<EventRow>> {
+    collapse(
+        rows,
+        |row| row.id as i64,
+        |row| row.max_node_time,
+        |prev, row| {
+            if prev.space_id != row.space_id
+                || prev.path_ctx_id != row.path_ctx_id
+                || prev.creation_time != row.creation_time
+                || prev.color != row.color
+            {
+                return Err(Error::new(format!(
+                    "event {} was appended with different identity columns",
+                    row.id
+                )));
+            }
+            Ok(())
+        },
+    )
+}
+
+fn collapse<T>(
+    rows: Vec<T>,
+    id_of: impl Fn(&T) -> i64,
+    rank: impl Fn(&T) -> i32,
+    same: impl Fn(&T, &T) -> Result<()>,
+) -> Result<Vec<T>> {
+    let mut order = Vec::new();
+    let mut best: HashMap<i64, T> = HashMap::new();
+    let mut best_rank: HashMap<i64, i32> = HashMap::new();
+    for row in rows {
+        let id = id_of(&row);
+        if let Some(prev) = best.get(&id) {
+            same(prev, &row)?;
+            if rank(&row) > best_rank[&id] {
+                best_rank.insert(id, rank(&row));
+                best.insert(id, row);
+            }
+        } else {
+            order.push(id);
+            best_rank.insert(id, rank(&row));
+            best.insert(id, row);
+        }
+    }
+    Ok(order
+        .into_iter()
+        .map(|id| best.remove(&id).expect("id was inserted"))
+        .collect())
 }
 
 async fn read_batches(table: &Table) -> Result<Vec<RecordBatch>> {

@@ -22,10 +22,10 @@ Storage layout: [docs/db/README.md](../docs/db/README.md).
 | --- | --- | --- |
 | `m3util` | `m3util` | environment ids `0..16`, positive moduli, bit count, errors |
 | `m3point` | `model/m3point`, `backend/pointdb` | points, connections, base trios, valid-next and mod-4/mod-8 permutations, growth contexts, trio cubes, path builders, murmur point map |
-| `m3path` | `model/m3path`, `backend/pathdb` | 4-bit connection state packed in a `u16`, event link ids, predicted size |
+| `m3path` | `model/m3path`, `backend/pathdb` | 4-bit connection state, path-context growth, event link ids, predicted size |
 | `m3space` | `model/m3space`, `backend/spacedb` | event colors, active-link threshold, three-id groups, index rows, pyramids |
-| `m3data` | `backend/m3db`, `backend/pathdb`, `backend/spacedb` | load and save simulation rows as local Iceberg tables of Parquet files |
-| `qsm` | `backend` entry point | `qsm <simulation name>` seeds a folder or resumes it by one step |
+| `m3data` | `backend/m3db`, `backend/pathdb`, `backend/spacedb` | `inputs.json`, event growth, and local Iceberg tables of Parquet files |
+| `qsm` | `backend` entry point | `qsm <simulation name>` reads `inputs.json` and grows up to its max time |
 | `m3gl` | `ui/m3gl` | drawing filters, colors, dimmers, and object types |
 | `playgl` | `ui/playgl` | process entry point |
 
@@ -33,7 +33,7 @@ Storage layout: [docs/db/README.md](../docs/db/README.md).
 
 ## Simulation data
 
-`qsm <simulation name>` creates `data/<simulation name>/` under the current directory, or resumes that folder when it already has rows. `QSM_DATA_ROOT` overrides the `data` directory, which is how tests use a temp dir.
+`qsm <simulation name>` creates `data/<simulation name>/` under the current directory, or resumes that folder. `QSM_DATA_ROOT` overrides the `data` directory.
 
 ```bash
 cd rust
@@ -41,11 +41,57 @@ cargo run -p qsm -- my-sim
 QSM_DATA_ROOT=/tmp/qsm cargo run -p qsm -- my-sim
 ```
 
-A new name seeds one space, one growth-type-1 path context, the origin point, one red event, and the root path node and space node at distance 0. The same name again advances one main point by +3 on x and appends the matching path node and node. The printed distance and point are the last saved step.
+The initial state is `data/<simulation name>/inputs.json`. A new folder with no file and no saved rows gets the default below, then the run starts. A later invocation reads the same file and grows from the last saved creation time until `max_time_steps`. It does not rewrite `inputs.json`.
+
+`max_time_steps` is the last creation time to store. Events created at time 0 contribute their root nodes at time 0, then one shell per later time. `3` therefore stores times 0, 1, 2, and 3.
+
+```json
+{
+  "doc": "Default is the playgl pyramid.",
+  "max_time_steps": 3,
+  "space": {
+    "active_path_node_threshold": 3,
+    "max_trios_per_point": 2,
+    "max_path_nodes_per_point": 4,
+    "max_coord": 18
+  },
+  "events": [],
+  "shortcuts": [
+    {
+      "pyramid": {
+        "size": 4,
+        "growth_type": 8,
+        "growth_index": 0,
+        "offsets": [0, 2, 4, 6],
+        "creation_time": 0
+      }
+    }
+  ]
+}
+```
+
+An explicit event uses the Go `CreateEvent` fields. `color` is 1 red, 2 green, 4 blue, 8 yellow:
+
+```json
+{
+  "x": 0,
+  "y": 0,
+  "z": 0,
+  "creation_time": 0,
+  "color": 1,
+  "growth_type": 8,
+  "growth_index": 0,
+  "growth_offset": 0
+}
+```
+
+`events` are created as written, then each shortcut is expanded. The only shortcut today is `pyramid`, matching `CreatePyramidWithParams` in `ui/m3gl/m3gl.go` (and the same four calls in `backend/spacedb/pyramid.go`). playgl calls it with size 4, growth type 8, index 0, and offsets 0, 2, 4, 6 when the world has no events. The four centers are `{3,0,3}`, `{-3,3,3}`, `{-3,-3,3}`, `{0,0,-3}` multiplied by `size`, in the order red, green, blue, yellow. A new shortcut is another variant on that enum, serialized as its own key.
+
+The default file omits the sample `events` entry and keeps only the pyramid. Space defaults are playgl `MakeWorld`: active threshold 3, max trios per point 2, max path nodes per point 4, max coord 18. Those limits are stored on the space row. Growth does not consult them, matching the Go TODO in `m3spacetimenode.go`.
+
+Each time step appends the new points, path nodes, and event nodes, and appends a newer copy of any path node, path context, event, or space whose connection mask or cursor changed. Iceberg 0.10 only has fast append, so the newer copy reuses the same id. Load keeps the copy that has grown further. Uniqueness of `(x, y, z)`, `(path_ctx_id, point_id)`, and `(event_id, point_id)` still applies to that latest row.
 
 `SimulationStore::open` loads every stored table into memory. A later viewer can call that with the simulation name and read `points()`, `path_nodes()`, `events()`, and `nodes()`. There is no API server.
-
-Each append is one Iceberg snapshot for that table (one batch, not one row). Iceberg does not enforce primary keys, so ids are assigned in Rust and uniqueness of `(x, y, z)`, `(path_ctx_id, point_id)`, and `(event_id, point_id)` is checked before the commit.
 
 ## Build and run
 
@@ -59,7 +105,7 @@ cargo run -p playgl
 cargo run -p qsm -- test-sim
 ```
 
-`cargo test` does not need PostgreSQL or a network. The `qsm` integration test runs `qsm test-sim` twice in a temp directory and checks that the second run resumes at distance 1.
+`cargo test` does not need PostgreSQL or a network. The `qsm` integration test runs `qsm test-sim` twice in a temp directory: the first run writes the default pyramid and grows to time 3, and the second run finds that max already reached.
 
 ## Ported
 
@@ -68,13 +114,14 @@ cargo run -p qsm -- test-sim
 - All 52 growth contexts and the trio index selected from a main point.
 - The 5192 trio cubes and 5192 path builders, including the forward and back walk used by the Go path-builder test.
 - Connection-state nibbles, event link ids, and the predicted-size formula.
+- Path-context growth (`calculateNextMaxDist` / `makeNewNodes`) and event growth (`increaseMaxNodeTime`), including neighbour links.
 - Event color masks, active links, three-id grouping, index generation, and pyramid size.
-- Local Iceberg/Parquet load and save for points, path contexts, path nodes, spaces, events, and nodes, plus a one-step resume.
+- Local Iceberg/Parquet load and save for points, path contexts, path nodes, spaces, events, and nodes. `qsm` grows from `inputs.json` and resumes until `max_time_steps`.
 - Viewer filter, color, and dimmer rules, covered by unit tests.
 
 ## Not ported
 
 - **OpenGL window.** `ui/m3gl` and `ui/playgl` open a GLFW window with `go-gl`. `m3gl` has the drawing rules only. `playgl` prints the pack counts and exits. A window should use `glow` + `glutin` or `wgpu`, load a simulation by name through `m3data`, and consume `m3gl::SpaceDrawingElement`.
 - **HTTP server** (`backend/m3server`) and the **protobuf API** (`model/m3api`) plus the Go client. The Rust entry point is the `qsm` CLI.
-- **Full space-time stepper.** `qsm` stores one root node per step. The Go path-growth and `spacedb` populate loops are not ported.
+- **Space-time populate map.** Growth writes one row per event node. It does not build the deduped `SpaceTimeNode` map `Populate` uses for drawing, and the active-threshold window does not filter what is saved.
 - The Go packages still contain their PostgreSQL code. The Rust workspace does not link it.

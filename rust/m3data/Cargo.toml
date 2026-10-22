@@ -6,10 +6,14 @@ description = "Load and save QSM simulation data as local Iceberg tables of Parq
 license = "Apache-2.0"
 
 [dependencies]
+m3path = { path = "../m3path" }
 m3point = { path = "../m3point" }
 m3space = { path = "../m3space" }
+m3util = { path = "../m3util" }
 arrow = "58.4"
 futures = "0.3"
 iceberg = "0.10"
 parquet = "58.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

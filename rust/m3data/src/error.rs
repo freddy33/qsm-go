@@ -40,4 +40,16 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Self::new(err.to_string())
+    }
+}
+
+impl From<m3util::QsmError> for Error {
+    fn from(err: m3util::QsmError) -> Self {
+        Self::new(err.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;

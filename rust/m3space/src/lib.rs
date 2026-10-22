@@ -1,8 +1,7 @@
 //! Space events on the integer lattice.
 //!
-//! The database-backed time stepper from Go `spacedb` is not ported. The rules
-//! that decide which events meet, how colors combine, and how a pyramid is
-//! extracted from those meetings are.
+//! Color masks, active links, and pyramid geometry live here. The time stepper
+//! that grows events is in `m3data`, on top of `m3path` path growth.
 
 use m3path::ConnectionState;
 use m3point::{CInt, DInt, Point};

@@ -2,9 +2,16 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use m3point::Point;
-use m3point::{EXPECTED_CONNECTIONS, EXPECTED_CUBES, EXPECTED_GROWTH_CONTEXTS, EXPECTED_TRIOS};
+use std::collections::{HashMap, HashSet};
 
+use m3path::{get_connection_state, ConnectionState, NB_CONNECTIONS};
+use m3point::{
+    Point, PointPackData, TrioIndex, EXPECTED_CONNECTIONS, EXPECTED_CUBES,
+    EXPECTED_GROWTH_CONTEXTS, EXPECTED_TRIOS,
+};
+use m3space::{pyramid_centers, EventColor};
+
+use crate::inputs::{default_inputs, load_inputs, save_inputs};
 use crate::rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow, SpaceRow};
 use crate::schema::{bucket_of, BUCKET_WIDTH};
 use crate::sim::run_named;
@@ -398,40 +405,332 @@ async fn uniqueness_is_enforced_in_rust() {
     assert_eq!(loaded.nodes().len(), 1);
 }
 
-#[test]
-fn resume_from_previous_run() {
+#[tokio::test(flavor = "multi_thread")]
+async fn path_node_update_reloads_the_closed_connection() {
     let tmp = TempRoot::new();
-    let first = run_named(&tmp.0, "resume-sim").unwrap();
-    assert!(!first.resumed);
-    assert_eq!(first.distance, 0);
-    assert_eq!(first.creation_time, 0);
-    assert_eq!(first.point, Point([0, 0, 0]));
+    let mut store = SimulationStore::open(&tmp.0, "mask").await.unwrap();
+    let original = PathNodeRow {
+        id: 5,
+        path_ctx_id: 7,
+        path_builders_id: 1,
+        path_builder_idx: 0,
+        trio_id: 1,
+        point_id: 1,
+        d: 0,
+        connection_mask: 0,
+        path_node1: None,
+        path_node2: None,
+        path_node3: None,
+    };
+    store.append_path_nodes(&[original.clone()]).await.unwrap();
+    let updated = PathNodeRow {
+        connection_mask: ConnectionState::From as i32,
+        path_node1: Some(9),
+        ..original
+    };
+    store.append_path_nodes(&[updated.clone()]).await.unwrap();
+    assert_eq!(store.path_nodes().len(), 1);
+    assert_eq!(
+        store.path_nodes()[0].connection_mask,
+        updated.connection_mask
+    );
+    drop(store);
+    let loaded = SimulationStore::open(&tmp.0, "mask").await.unwrap();
+    assert_eq!(loaded.path_nodes(), &[updated]);
+}
 
-    let second = run_named(&tmp.0, "resume-sim").unwrap();
-    assert!(second.resumed);
-    assert_eq!(second.distance, 1);
-    assert_eq!(second.creation_time, 1);
-    assert_eq!(second.point, Point([3, 0, 0]));
+/// playgl pyramid, three growth steps after the time-0 roots.
+///
+/// Per path context the shell sizes are 1, 3, 6, 12. That is
+/// `TestMakeNewPathCtx` at distances 0 and 1 (type 8, index 0, offset 0) and the
+/// same 6 / 12 counts `server_path_test.go` records for type 8 at distances 2 and 3.
+/// Four events, so each time step stores 4, 12, 24, 48 event nodes.
+#[test]
+fn pyramid_three_steps_matches_a_resumed_run() {
+    let straight = run_pyramid(3);
+    assert!(!straight.report.resumed);
+    assert_eq!(straight.report.max_time_steps, 3);
+    assert_eq!(straight.report.time, 3);
+    assert_eq!(straight.report.events, 4);
+    assert_eq!(straight.report.nodes, 88);
+    assert_eq!(straight.report.steps_computed, 3);
+    assert_pyramid(&straight.store);
 
-    let third = run_named(&tmp.0, "resume-sim").unwrap();
-    assert!(third.resumed);
-    assert_eq!(third.distance, 2);
-    assert_eq!(third.point, Point([6, 0, 0]));
-    assert_eq!(third.folder, first.folder);
+    let reloaded = open_store(&straight.root, "pyramid");
+    assert_eq!(snapshot(&reloaded), snapshot(&straight.store));
 
+    let again = run_named(&straight.root, "pyramid").unwrap();
+    assert!(again.resumed);
+    assert_eq!(again.steps_computed, 0);
+    assert_eq!(again.time, 3);
+    assert_eq!(again.nodes, 88);
+
+    for stop in [1, 2] {
+        let partial = TempRoot::new();
+        write_pyramid(&partial.0, "pyramid", stop);
+        let mid = run_named(&partial.0, "pyramid").unwrap();
+        assert!(!mid.resumed);
+        assert_eq!(mid.time, stop);
+        assert_eq!(mid.steps_computed, stop);
+        let per_step = [4, 12, 24, 48];
+        let expected_nodes: usize = per_step.iter().take(stop as usize + 1).sum();
+        assert_eq!(mid.nodes, expected_nodes);
+
+        write_pyramid(&partial.0, "pyramid", 3);
+        let finished = run_named(&partial.0, "pyramid").unwrap();
+        assert!(finished.resumed);
+        assert_eq!(finished.time, 3);
+        assert_eq!(finished.steps_computed, 3 - stop);
+        assert_eq!(finished.nodes, 88);
+        let loaded = open_store(&partial.0, "pyramid");
+        assert_eq!(snapshot(&loaded), snapshot(&straight.store));
+    }
+}
+
+struct PyramidRun {
+    root: std::path::PathBuf,
+    report: crate::sim::StepReport,
+    store: SimulationStore,
+}
+
+impl Drop for PyramidRun {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
+fn run_pyramid(max_time_steps: i32) -> PyramidRun {
+    let tmp = TempRoot::new();
+    write_pyramid(&tmp.0, "pyramid", max_time_steps);
+    let report = run_named(&tmp.0, "pyramid").unwrap();
+    let store = open_store(&tmp.0, "pyramid");
+    let root = tmp.0.clone();
+    std::mem::forget(tmp);
+    PyramidRun {
+        root,
+        report,
+        store,
+    }
+}
+
+fn write_pyramid(root: &std::path::Path, name: &str, max_time_steps: i32) {
+    let mut inputs = default_inputs();
+    inputs.max_time_steps = max_time_steps;
+    save_inputs(&root.join(name).join("inputs.json"), &inputs).unwrap();
+}
+
+fn open_store(root: &std::path::Path, name: &str) -> SimulationStore {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap();
-    let loaded = runtime
-        .block_on(SimulationStore::open(&tmp.0, "resume-sim"))
-        .unwrap();
-    assert_eq!(loaded.spaces().len(), 1);
-    assert_eq!(loaded.path_contexts().len(), 1);
-    assert_eq!(loaded.events().len(), 1);
-    assert_eq!(loaded.points().len(), 3);
-    assert_eq!(loaded.path_nodes().len(), 3);
-    assert_eq!(loaded.nodes().len(), 3);
-    assert_eq!(loaded.spaces()[0].name, "resume-sim");
-    assert_eq!(loaded.path_nodes().iter().map(|row| row.d).max(), Some(2));
+    runtime.block_on(SimulationStore::open(root, name)).unwrap()
+}
+
+fn assert_pyramid(store: &SimulationStore) {
+    let inputs = load_inputs(&store.root().join("inputs.json")).unwrap();
+    assert_eq!(inputs.max_time_steps, 3);
+    assert_eq!(store.spaces().len(), 1);
+    assert_eq!(store.spaces()[0].name, "pyramid");
+    assert_eq!(store.spaces()[0].active_path_node_threshold, 3);
+    assert_eq!(store.spaces()[0].max_trios_per_point, 2);
+    assert_eq!(store.spaces()[0].max_path_nodes_per_point, 4);
+    assert_eq!(store.spaces()[0].max_node_time, 3);
+    assert!(store.spaces()[0].max_coord >= 18);
+
+    let centers = pyramid_centers(4);
+    let colors = [
+        EventColor::Red as i32,
+        EventColor::Green as i32,
+        EventColor::Blue as i32,
+        EventColor::Yellow as i32,
+    ];
+    let offsets = [0, 2, 4, 6];
+    assert_eq!(store.events().len(), 4);
+    assert_eq!(store.path_contexts().len(), 4);
+    let points = point_map(store);
+    let mut events = store.events().to_vec();
+    events.sort_by_key(|event| event.id);
+    for (index, event) in events.iter().enumerate() {
+        assert_eq!(event.color, colors[index]);
+        assert_eq!(event.creation_time, 0);
+        assert_eq!(event.max_node_time, 3);
+        let ctx = store
+            .path_contexts()
+            .iter()
+            .find(|ctx| ctx.id == event.path_ctx_id)
+            .unwrap();
+        assert_eq!(ctx.growth_ctx_id, 40);
+        assert_eq!(ctx.growth_offset, offsets[index]);
+        assert_eq!(ctx.max_dist, 3);
+        let root = store
+            .nodes()
+            .iter()
+            .find(|node| node.event_id == event.id && node.d == 0)
+            .unwrap();
+        assert_eq!(points[&root.point_id], centers[index]);
+    }
+
+    let shells = [1, 3, 6, 12];
+    for ctx in store.path_contexts() {
+        for (distance, expect) in shells.iter().enumerate() {
+            let count = store
+                .path_nodes()
+                .iter()
+                .filter(|node| node.path_ctx_id == ctx.id && node.d == distance as i32)
+                .count();
+            assert_eq!(count, *expect, "context {} distance {distance}", ctx.id);
+        }
+    }
+    assert_eq!(store.path_nodes().len(), 88);
+    let created = [4, 12, 24, 48];
+    for (time, expect) in created.iter().enumerate() {
+        let count = store
+            .nodes()
+            .iter()
+            .filter(|node| node.creation_time == time as i32)
+            .count();
+        assert_eq!(count, *expect, "creation time {time}");
+    }
+    assert_eq!(store.nodes().len(), 88);
+    assert_unique(store);
+    assert_links(store);
+}
+
+fn point_map(store: &SimulationStore) -> HashMap<i64, Point> {
+    store
+        .points()
+        .iter()
+        .map(|row| (row.id, row.point()))
+        .collect()
+}
+
+fn assert_unique(store: &SimulationStore) {
+    let mut ids = HashSet::new();
+    let mut xyz = HashSet::new();
+    for row in store.points() {
+        assert!(ids.insert(row.id));
+        assert!(xyz.insert(row.xyz()), "duplicate point {:?}", row.xyz());
+    }
+    let mut ids = HashSet::new();
+    let mut keys = HashSet::new();
+    for row in store.path_contexts() {
+        assert!(ids.insert(row.id));
+        assert!(keys.insert((row.growth_ctx_id, row.growth_offset)));
+    }
+    let mut ids = HashSet::new();
+    let mut keys = HashSet::new();
+    for row in store.path_nodes() {
+        assert!(ids.insert(row.id), "duplicate path node id {}", row.id);
+        assert!(
+            keys.insert((row.path_ctx_id, row.point_id)),
+            "duplicate path node ({}, {})",
+            row.path_ctx_id,
+            row.point_id
+        );
+    }
+    let mut ids = HashSet::new();
+    let mut keys = HashSet::new();
+    for row in store.nodes() {
+        assert!(ids.insert(row.id), "duplicate node id {}", row.id);
+        assert!(
+            keys.insert((row.event_id, row.point_id)),
+            "duplicate node ({}, {})",
+            row.event_id,
+            row.point_id
+        );
+    }
+}
+
+fn assert_links(store: &SimulationStore) {
+    let pack = PointPackData::shared();
+    let points = point_map(store);
+    let path_by_id: HashMap<i64, &PathNodeRow> = store
+        .path_nodes()
+        .iter()
+        .map(|node| (node.id, node))
+        .collect();
+    for node in store.path_nodes() {
+        let trio = *pack.trio(TrioIndex(node.trio_id as u8));
+        let here = points[&node.point_id];
+        let links = [node.path_node1, node.path_node2, node.path_node3];
+        for conn in 0..NB_CONNECTIONS {
+            let state = get_connection_state(node.connection_mask as u16, conn as i32);
+            match state {
+                ConnectionState::NotSet | ConnectionState::Blocked => {
+                    assert!(links[conn].is_none(), "path {} conn {conn}", node.id);
+                }
+                ConnectionState::Next => {
+                    let next = path_by_id[&links[conn].unwrap()];
+                    assert_eq!(next.path_ctx_id, node.path_ctx_id);
+                    assert_eq!(next.d, node.d + 1);
+                    assert_eq!(points[&next.point_id], here.add(trio.conns[conn].vector));
+                }
+                ConnectionState::From => {
+                    let prev = path_by_id[&links[conn].unwrap()];
+                    assert_eq!(prev.path_ctx_id, node.path_ctx_id);
+                    assert_eq!(prev.d + 1, node.d);
+                    // The from-slot vector points back at the parent.
+                    assert_eq!(points[&prev.point_id], here.add(trio.conns[conn].vector));
+                }
+            }
+        }
+    }
+    let node_by_id: HashMap<i64, &NodeRow> =
+        store.nodes().iter().map(|node| (node.id, node)).collect();
+    for node in store.nodes() {
+        let trio = *pack.trio(TrioIndex(node.trio_id as u8));
+        let here = points[&node.point_id];
+        let links = [node.node1, node.node2, node.node3];
+        let path = path_by_id[&node.path_node_id];
+        let path_links = [path.path_node1, path.path_node2, path.path_node3];
+        for conn in 0..NB_CONNECTIONS {
+            let state = get_connection_state(node.connection_mask as u16, conn as i32);
+            match state {
+                ConnectionState::NotSet | ConnectionState::Blocked | ConnectionState::Next => {
+                    assert!(links[conn].is_none(), "node {} conn {conn}", node.id);
+                }
+                ConnectionState::From => {
+                    let prev = node_by_id[&links[conn].unwrap()];
+                    assert_eq!(prev.event_id, node.event_id);
+                    assert!(prev.creation_time < node.creation_time);
+                    assert_eq!(points[&prev.point_id], here.add(trio.conns[conn].vector));
+                    assert_eq!(path_links[conn], Some(prev.path_node_id));
+                }
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+struct Snapshot {
+    points: Vec<PointRow>,
+    path_contexts: Vec<PathContextRow>,
+    path_nodes: Vec<PathNodeRow>,
+    spaces: Vec<SpaceRow>,
+    events: Vec<EventRow>,
+    nodes: Vec<NodeRow>,
+}
+
+fn snapshot(store: &SimulationStore) -> Snapshot {
+    let mut points = store.points().to_vec();
+    points.sort_by_key(|row| row.id);
+    let mut path_contexts = store.path_contexts().to_vec();
+    path_contexts.sort_by_key(|row| row.id);
+    let mut path_nodes = store.path_nodes().to_vec();
+    path_nodes.sort_by_key(|row| row.id);
+    let mut spaces = store.spaces().to_vec();
+    spaces.sort_by_key(|row| row.id);
+    let mut events = store.events().to_vec();
+    events.sort_by_key(|row| row.id);
+    let mut nodes = store.nodes().to_vec();
+    nodes.sort_by_key(|row| row.id);
+    Snapshot {
+        points,
+        path_contexts,
+        path_nodes,
+        spaces,
+        events,
+        nodes,
+    }
 }

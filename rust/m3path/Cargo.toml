@@ -2,7 +2,7 @@
 name = "m3path"
 version = "0.1.0"
 edition = "2021"
-description = "QSM path nodes: connection-state masks and growth-size estimates"
+description = "QSM path nodes: connection-state masks, path growth, and growth-size estimates"
 license = "Apache-2.0"
 
 [dependencies]

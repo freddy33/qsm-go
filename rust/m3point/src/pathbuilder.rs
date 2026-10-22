@@ -56,6 +56,48 @@ pub enum NodeHandle {
 }
 
 impl NodeHandle {
+    /// Cube id stored as `path_builders_id`. Intermediate and last nodes keep the root cube.
+    pub fn cube_id(self) -> i32 {
+        match self {
+            NodeHandle::Root(cube)
+            | NodeHandle::Intermediate { cube, .. }
+            | NodeHandle::Last { cube, .. } => cube,
+        }
+    }
+
+    /// Index inside one cube, matching `pointdb` `RootPathBuilder` .. `LastPathBuilder32`.
+    ///
+    /// Root is 0, intermediate slot `s` is `1 + s`, and last `(slot, sub)` is `4 + slot*2 + sub`.
+    pub fn path_builder_index(self) -> i32 {
+        match self {
+            NodeHandle::Root(_) => 0,
+            NodeHandle::Intermediate { slot, .. } => 1 + i32::from(slot),
+            NodeHandle::Last { slot, sub, .. } => 4 + i32::from(slot) * 2 + i32::from(sub),
+        }
+    }
+
+    /// Inverse of [`path_builder_index`]. `cube` is the root cube id.
+    pub fn from_path_builder_index(cube: i32, index: i32) -> Result<Self, QsmError> {
+        match index {
+            0 => Ok(NodeHandle::Root(cube)),
+            1..=3 => Ok(NodeHandle::Intermediate {
+                cube,
+                slot: (index - 1) as u8,
+            }),
+            4..=9 => {
+                let rel = index - 4;
+                Ok(NodeHandle::Last {
+                    cube,
+                    slot: (rel / 2) as u8,
+                    sub: (rel % 2) as u8,
+                })
+            }
+            _ => Err(QsmError::new(format!(
+                "path builder index {index} is outside 0..{NB_PATH_BUILDERS_PER_CONTEXT}"
+            ))),
+        }
+    }
+
     pub fn trio_index(self, pack: &PointPackData) -> TrioIndex {
         match self {
             NodeHandle::Root(cube) => pack.root(cube).tr_idx,

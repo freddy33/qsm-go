@@ -7,7 +7,9 @@
 //! partition layout.
 
 mod batch;
+mod engine;
 mod error;
+mod inputs;
 mod rows;
 mod schema;
 mod sim;

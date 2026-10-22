@@ -178,6 +178,8 @@ Namespace: `qsm`. Format version: 2. Ids are assigned in Rust (`max(id) + 1`, st
 - `events` `id`
 - `nodes` `(event_id, point_id)` and `id`
 
+A growth step has to change connection masks and cursors on rows that already exist. iceberg-rust 0.10 transactions only offer fast append, so Rust appends a new copy of that path node, path context, event, or space with the **same id** and the same natural key. Load keeps one row per id: for a path node, the copy with fewer `NotSet` connections (then more assigned links); for a path context, the higher `max_dist`; for an event or space, the higher `max_node_time` (and, for a space, the higher `max_coord`). A different id that collides on the natural key is still rejected. Points and event nodes are insert-only.
+
 Postgres `smallint`, `integer`, and `serial` columns are Iceberg `int` (32-bit). `bigserial` / `bigint` are `long`. `varchar` is `string`. Nullable columns stay optional. The `id` column is field id 1 and is the Iceberg identifier field. Other field ids follow the column order in the diagram above.
 
 ### Tables
@@ -194,14 +196,17 @@ Postgres `smallint`, `integer`, and `serial` columns are Iceberg `int` (32-bit).
 
 `truncate` uses the Iceberg rule `v - (v % W)` with a positive remainder. Distances 0..7 share `d_bucket=0`; 8..15 share `d_bucket=8`; `-1` lands in `-8`.
 
-An append builds one Arrow `RecordBatch` per partition value and commits those files as one snapshot. A simulation step therefore commits one snapshot per table it changes, not one file per row. Iceberg has no cross-table transaction, so the step's tables are committed one after another.
+An append builds one Arrow `RecordBatch` per partition value and commits those files as one snapshot. A simulation step therefore commits one snapshot per table it changes, not one file per row. Iceberg has no cross-table transaction, so the step's tables are committed one after another: points, path contexts, path nodes, event nodes, events, then the space.
 
-`path_contexts.max_dist`, `spaces.max_node_time`, and `events.max_node_time` are written once, when the row is created. They are not rewritten on later steps. The resume cursor is `max(path_nodes.d)` and `max(nodes.creation_time)`.
+Nullable link columns follow `GetLinkIdsForDb`. `NotSet`, `Blocked`, and a `Next` that is not assigned yet are NULL. `From`, and a `Next` that already has an id, store that positive id. The connection state itself lives in `connection_mask`, so a NULL link is not ambiguous on read. Event nodes copy the path-node mask at the time they are created. Go's `getNodeLinkIds` does not point an event `Next` at the following node, and a new shell has no `Next` yet, so event `node1/2/3` are either NULL or the earlier event node on a `From` link.
+
+`inputs.json` sits next to `qsm/` and is not a table. It holds `max_time_steps`, the space parameters, explicit events, and shortcuts such as `pyramid`. The run grows until every event's max creation time reaches `max_time_steps`. Resume uses the nodes already stored and the max from that file.
 
 ### Folder tree
 
 ```text
 data/<simulation name>/
+├── inputs.json
 └── qsm/
     ├── points/
     │   ├── data/part-<n>-<pid>-<seq>.parquet

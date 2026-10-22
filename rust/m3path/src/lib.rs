@@ -2,7 +2,8 @@
 //!
 //! Three connections share one mask. Each connection uses 4 bits; the low 2
 //! bits are the [`ConnectionState`]. The bit operations match `m3path` and
-//! `ConnectionsStateDb.SetConnectionState`.
+//! `ConnectionsStateDb.SetConnectionState`. [`PathGrowth`] is the in-memory
+//! port of `PathContextDb.calculateNextMaxDist`.
 
 use m3point::{GrowthType, Point, ORIGIN};
 use std::fmt;
@@ -147,6 +148,33 @@ pub fn event_link_for_state(state: ConnectionState) -> EventLinkId {
     }
 }
 
+/// Value written to a nullable link column. Go stores NULL for an unset, blocked,
+/// or not-yet-assigned next link, and a positive id for `From` and an assigned `Next`.
+pub fn stored_link(state: ConnectionState, link_id: i64) -> Option<i64> {
+    match state {
+        ConnectionState::NotSet | ConnectionState::Blocked => None,
+        ConnectionState::Next | ConnectionState::From => {
+            if link_id > 0 {
+                Some(link_id)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+/// In-memory link id restored from a nullable column and the connection state.
+pub fn restored_link(state: ConnectionState, stored: Option<i64>) -> i64 {
+    match state {
+        ConnectionState::NotSet => LINK_ID_NOT_SET,
+        ConnectionState::Blocked => DEAD_END_ID,
+        ConnectionState::Next => stored
+            .filter(|id| *id > 0)
+            .unwrap_or(NEXT_LINK_ID_NOT_ASSIGNED),
+        ConnectionState::From => stored.filter(|id| *id > 0).unwrap_or(LINK_ID_NOT_SET),
+    }
+}
+
 pub fn event_link_value(kind: EventLinkId, from_node_id: Option<i64>) -> i64 {
     match kind {
         EventLinkId::NotSet => LINK_ID_NOT_SET,
@@ -176,6 +204,9 @@ pub fn calculate_predicted_size(growth_type: GrowthType, d: i32) -> i32 {
     };
     (raw * buffer) as i32
 }
+
+mod grow;
+pub use grow::{LivePathNode, PathGrowth};
 
 #[cfg(test)]
 mod tests {

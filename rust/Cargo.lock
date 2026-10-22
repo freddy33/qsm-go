@@ -1702,9 +1702,13 @@ dependencies = [
  "arrow",
  "futures",
  "iceberg",
+ "m3path",
  "m3point",
  "m3space",
+ "m3util",
  "parquet",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
