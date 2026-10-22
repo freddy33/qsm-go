@@ -1,6 +1,6 @@
 # QSM in Rust
 
-Rust port of the Quantum State Machine: a 3D integer-lattice cellular automaton. The Go tree stays, except the okteto launch scripts. This directory is a Cargo workspace with one crate per Go area.
+Rust implementation of the Quantum State Machine: a 3D integer-lattice cellular automaton. This directory is the Cargo workspace. The algorithms follow the original Go code, which is no longer in the tree.
 
 Lattice coordinates, connection ids, trio indexes, growth contexts, cube keys, and path steps stay integers, as in the Go code. The one formula that uses `float32` in Go, the predicted path size, is kept as `f32` and truncated toward zero the same way.
 
@@ -181,7 +181,7 @@ QSM_DATA_ROOT=/tmp/qsm cargo run -p qsm-view --features view -- pyramid-demo
 
 The window opens at the last saved creation time. A node is drawn when `creation_time <= t`. Event colors are 1 red, 2 green, 4 blue, 8 yellow. Roots (`d == 0`) are larger spheres (radius 0.7; other nodes use the Go default 0.4). A `From` link is a line from the earlier node to the later one, drawn once, and only when both ends are visible. `Next`, `Blocked`, and unset links are not drawn. Axes match `ui/m3gl`: X red, Y green, Z blue, length `max_coord + 3`. Lattice lines sit on the three planes through the origin, every 3 units, out to `max_coord`.
 
-Turning a color off hides every node of that color, including roots. The Go viewer still draws roots while that color is masked.
+Turning a color off hides every node of that color, including roots. The old Go viewer drew roots while that color was masked.
 
 Spheres share one mesh per size and one unlit material per color, so Bevy instances them.
 
@@ -214,6 +214,5 @@ The egui panel shows the simulation name, the latest run file, the time slider, 
 
 ## Not ported
 
-- **HTTP server** (`backend/m3server`) and the **protobuf API** (`model/m3api`) plus the Go client. The Rust entry points are `qsm` and `qsm-view`.
-- **Space-time populate map.** Growth writes one row per event node. It does not build the deduped `SpaceTimeNode` map `Populate` uses for drawing, and the active-threshold window does not filter what is saved. The viewer draws the stored event nodes.
-- The Go packages still open a GLFW window and still contain their PostgreSQL code. The Rust viewer does not, and the Rust workspace does not link Postgres.
+- **HTTP server** and the **protobuf API**. The entry points are `qsm` and `qsm-view`.
+- **Space-time populate map.** Growth writes one row per event node. It does not build the deduped `SpaceTimeNode` map the old viewer used for drawing, and the active-threshold window does not filter what is saved. The viewer draws the stored event nodes.

@@ -1,7 +1,7 @@
 @startuml qsm-db
 ' Rust Iceberg tables under data/<simulation>/.
-' Go Postgres still has a spaces table, events.space_id, path_contexts.max_dist,
-' and events.max_node_time. Rust dropped all of those.
+' The Go-era Postgres schema had a spaces table, events.space_id,
+' path_contexts.max_dist, and events.max_node_time. Rust does not store those.
 ' One simulation folder is one space.
 hide circle
 skinparam linetype ortho

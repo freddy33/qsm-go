@@ -1,38 +1,35 @@
-# Quantum State Machine in Golang
+# Quantum State Machine
 
-# What is QSM?
-Also called Quantum Cellular Automaton
-[Here](https://docs.google.com/presentation/d/1obaWWSiWTeHr3bYDxal9hmJ3GWxsTIpDBZtQgdUjxIk/edit?usp=sharing) is a presentation about the project.
+A 3D integer-lattice cellular automaton. Space is a graph whose nodes each connect to three others. Time is an integer. Events grow along that graph.
 
-# Principles
-- No floating points. Quantum is the name, so *integers* should be able to express the Universe!
-- *Space* is a graph with each *Node* being connected to *three* and only three other nodes. This is since: "Three shall be the number thou shalt count, and the number of the counting shall be three."
-- Each space node is located in 3D space using a `Point(X,Y,Z int64)` for display purposes.
-- *Time* is ticking... As an unsigned integer of course.
-- Space *events* are identified and are happening on a node at a time.
-- Event *outgrowth* are developing through the graph of nodes.
+The implementation is a Cargo workspace in [`rust/`](rust/README.md). Saved simulations are local Iceberg tables of Parquet files. The column reference is [docs/db/README.md](docs/db/README.md).
 
-# Windows Installation
-- Install WSL (Windows Subsystem for Linux) with Ubuntu ( info from https://www.howtogeek.com/249966/how-to-install-and-use-the-linux-bash-shell-on-windows-10/ ):
-  - In PowerShell as Administrator run: `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux`
-  - Restart and in Microsoft Store add Ubuntu
-- Run bash and test you have the needed applications:
-  - sudo apt install jq
-  - sudo apt install git
-- Download and install golang: https://golang.org/dl/ NOTE: By default it's installed under `C:\Go` good for this
-- Download and Install MinGW-W64: https://sourceforge.net/projects/mingw-w64/ IMPORTANT: Make sure to choose x86_64 architecture, and install under `C:\tools` it\'ll be easier.
-  - Add the `mingw64/bin` folder in the global PATH windows env variable.
+## Build, test, run, view
 
+[Rustup](https://rustup.rs/) is required. `rust/rust-toolchain.toml` selects the pinned toolchain. These commands work from any directory. `QSM_DATA_ROOT` overrides the data directory; when it is unset the scripts use `data/` at the repository root.
 
-# Type Definitions
+```bash
+./qsm build
+./qsm test
+./qsm run pyramid-demo
+./qsm view pyramid-demo
+```
 
-- *Point*: a location in integer cartesian space
-- *Node*: is in a certain point connected to 3 other nodes
-- *DistTime*: the unsigned int telling time
-- *Event*: An ID at a node at a time
-- *EventOutgrowth*: The collection of nodes affected by a certain event at a certain distance (Distance = Current Time - Event Tick Time)
+The same cargo commands, run from `rust/`:
 
-# Demo
+```bash
+cargo build --workspace
+cargo test --workspace
+cargo run -p qsm -- pyramid-demo
+cargo run -p qsm-view --features view -- pyramid-demo
+```
 
-Here is the OpenGL output for 4 events in pyramid shape after 26 steps:
-![](https://github.com/freddy33/qsm-go/raw/master/docs/screenshot1.png)
+`qsm <name>` creates or resumes `data/<name>/` and grows it to `max_time_steps` from `inputs.json`. `qsm-view <name>` draws that folder. Bevy is the `view` feature, so `cargo test --workspace` does not compile the window. `./qsm view <name> --screenshot out.png` saves one frame.
+
+![Default pyramid at creation time 12](docs/qsm-view-pyramid.png)
+
+Details, controls, and the inputs format: [rust/README.md](rust/README.md).
+
+## History
+
+Originally written in Go (freddy33/qsm-go, 2018); the project started in 2014 in [freddy33/qsm](https://github.com/freddy33/qsm) (Java).

@@ -7,21 +7,10 @@
 *.iml
 .vscode
 
-# Executable
-/model/model
-/ui/ui
-/backend/backend
-*.test
-*.exe
-
-# gen build folders
+# Build output
 build/
 *.out
 
-backend/conf/dbconn*.json
-.env
-!web/.env
-postgres-data
-
-# data folders
+# Local simulation data and secrets
 /data
+.env

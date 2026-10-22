@@ -1,23 +1,23 @@
-# QSM database tables (from `m3db.TableDefinition` usages)
+# QSM database tables
 
 The column lists below are the reference for the Rust Iceberg tables in `m3data`. Static reference tables are built in memory and are not written. `points`, `path_contexts`, `path_nodes`, `events`, and `nodes` are Parquet files with an Iceberg metadata index under `data/<simulation name>/`. One simulation folder is one space: space parameters live in `inputs.json`, not in a table. See [Iceberg layout](#iceberg-layout).
 
-Source of the column list: freddy33/qsm-go, branch `prod` @ e2be02a (the `rust` branch has the same definitions). Registry: [backend/m3db/m3table.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3table.go). The Go code still creates those tables in a Postgres schema `qsm<envId>` (see [m3db.go](https://github.com/freddy33/qsm-go/blob/prod/backend/m3db/m3db.go)). The Rust workspace does not.
+The diagram and the Postgres column types are the historical Go-era schema. Go stored those tables in a Postgres schema `qsm<envId>`. That code is no longer in this tree; it remains in git history at [83f3e19](https://github.com/freddy33/qsm-go/commit/83f3e19) (`backend/m3db/m3table.go`, `backend/m3db/m3db.go`). The Rust workspace does not use Postgres.
 
-| Table | Go package / file | Rows | Purpose |
+| Table | Go-era source (historical) | Rows | Purpose |
 |---|---|---|---|
-| connection_details | pointdb · [m3conndb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pointdb/m3conndb.go) | 50 | The 50 unit connection vectors (x,y,z) with squared length ds. |
-| trio_details | pointdb · [m3conndb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pointdb/m3conndb.go) | 200 | The 200 trios, each made of 3 connections. |
-| growth_contexts | pointdb · [m3growthctxdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pointdb/m3growthctxdb.go) | 52 | Growth contexts identified by (ctx_type, ctx_index). |
-| trio_cubes | pointdb · [m3triocubedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pointdb/m3triocubedb.go) | 5192 | Per-context cube of trios: center, 6 face centers, 12 edge middles. |
-| path_builders | pointdb · [m3pathbuilderdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pointdb/m3pathbuilderdb.go) | 5192 | Path-builder rules for each trio cube (1:1 with trio_cubes): root trio, intermediate trios, connections. |
-| points | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | open | Unique 3D integer lattice points. |
-| path_contexts | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | 200 | A growth context + offset, bound to its path builder. |
-| path_nodes | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/pathdb/pathdb.go) | open | Nodes of a growth path: point, trio, distance d, links to up to 3 neighbour path nodes. |
-| events | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | An event at a creation time, with a color, growing along one path context. |
-| nodes | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/prod/backend/spacedb/spacedb.go) | open | Event nodes in space-time: a path node placed at a creation time, linked to up to 3 other nodes. |
+| connection_details | pointdb · [m3conndb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pointdb/m3conndb.go) | 50 | The 50 unit connection vectors (x,y,z) with squared length ds. |
+| trio_details | pointdb · [m3conndb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pointdb/m3conndb.go) | 200 | The 200 trios, each made of 3 connections. |
+| growth_contexts | pointdb · [m3growthctxdb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pointdb/m3growthctxdb.go) | 52 | Growth contexts identified by (ctx_type, ctx_index). |
+| trio_cubes | pointdb · [m3triocubedb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pointdb/m3triocubedb.go) | 5192 | Per-context cube of trios: center, 6 face centers, 12 edge middles. |
+| path_builders | pointdb · [m3pathbuilderdb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pointdb/m3pathbuilderdb.go) | 5192 | Path-builder rules for each trio cube (1:1 with trio_cubes): root trio, intermediate trios, connections. |
+| points | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pathdb/pathdb.go) | open | Unique 3D integer lattice points. |
+| path_contexts | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pathdb/pathdb.go) | 200 | A growth context + offset, bound to its path builder. |
+| path_nodes | pathdb · [pathdb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/pathdb/pathdb.go) | open | Nodes of a growth path: point, trio, distance d, links to up to 3 neighbour path nodes. |
+| events | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/spacedb/spacedb.go) | open | An event at a creation time, with a color, growing along one path context. |
+| nodes | spacedb · [spacedb.go](https://github.com/freddy33/qsm-go/blob/83f3e19/backend/spacedb/spacedb.go) | open | Event nodes in space-time: a path node placed at a creation time, linked to up to 3 other nodes. |
 
-Go Postgres still has a `spaces` table, `events.space_id`, `path_contexts.max_dist`, and `events.max_node_time` (see `backend/spacedb/spacedb.go` and `backend/pathdb/pathdb.go`). Rust does not. A folder is the space, and its limits live in `inputs.json`. The distance a path has reached, and the latest creation time of an event, are the max `d` and `creation_time` of the stored nodes.
+The Go-era Postgres schema also had a `spaces` table, `events.space_id`, `path_contexts.max_dist`, and `events.max_node_time` (`backend/spacedb/spacedb.go` and `backend/pathdb/pathdb.go` at 83f3e19). Rust does not. A folder is the space, and its limits live in `inputs.json`. The distance a path has reached, and the latest creation time of an event, are the max `d` and `creation_time` of the stored nodes.
 
 ## Diagram
 
@@ -25,8 +25,8 @@ Go Postgres still has a `spaces` table, `events.space_id`, `path_contexts.max_di
 
 ```mermaid
 %% Rust Iceberg tables under data/<simulation>/. Static pointdb tables are in memory.
-%% Go Postgres still has a spaces table, events.space_id, path_contexts.max_dist,
-%% and events.max_node_time. Rust dropped all of those.
+%% The Go-era Postgres schema had a spaces table, events.space_id,
+%% path_contexts.max_dist, and events.max_node_time. Rust does not store those.
 %% One simulation folder is one space. Solid lines are the logical references.
 erDiagram
     %% ---------- backend/pointdb : static reference data (fixed row counts) ----------
@@ -144,7 +144,7 @@ erDiagram
 
 Grouped rows in `trio_cubes` and `path_builders` (e.g. "6 cols") stand for repeated FK columns; edge labels list them.
 
-## Notes for the Rust migration
+## Notes on the historical Postgres schema
 
 1. `TableDefinition.Indexes` is declared for `events` (3), `nodes` (3) and `path_nodes` (1, on `d`) but `m3table.go` never executes it, so those indexes are never created.
 2. Denormalized data with no DB consistency check: `nodes.trio_id`/`nodes.point_id` duplicate what `nodes.path_node_id -> path_nodes` gives; `path_builders.ctx_id` duplicates `trio_cubes.ctx_id`; nothing checks a node's path node belongs to its event's `path_ctx_id`.
@@ -168,7 +168,7 @@ Namespace: `qsm`. Format version: 2. No table is partitioned. Ids are assigned i
 
 Load reads the current snapshot as the whole table. A repeated id in that file is an error. There is no "keep the newest copy of an id" pass.
 
-Rows are immutable except one case. `points`, `path_contexts`, `events`, and event `nodes` are written once. `path_contexts` has no `max_dist` column and `events` has no `max_node_time` column; Go Postgres still has both. A path node is created with its `From` link set and its other slots `NotSet`. The next shell, which may be a later `qsm` invocation, fills those slots with `Next` or `Blocked`. That final mask is not known at the first write, and the open frontier has to be on disk so a crash can resume, so a later step replaces the link columns of that same id. The natural key `(path_ctx_id, point_id)` does not change, and the rewritten file still contains the id once. Event nodes copy the path-node mask at creation and are not revised.
+Rows are immutable except one case. `points`, `path_contexts`, `events`, and event `nodes` are written once. `path_contexts` has no `max_dist` column and `events` has no `max_node_time` column; the Go-era Postgres schema had both. A path node is created with its `From` link set and its other slots `NotSet`. The next shell, which may be a later `qsm` invocation, fills those slots with `Next` or `Blocked`. That final mask is not known at the first write, and the open frontier has to be on disk so a crash can resume, so a later step replaces the link columns of that same id. The natural key `(path_ctx_id, point_id)` does not change, and the rewritten file still contains the id once. Event nodes copy the path-node mask at creation and are not revised.
 
 ### One data file per table
 

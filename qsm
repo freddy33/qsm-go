@@ -1,36 +1,43 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Launch the Rust workspace from any working directory.
+set -euo pipefail
 
-export LC_ALL="en_US.UTF-8"
-export LC_CTYPE="en_US.UTF-8"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-QSM_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -e "$QSM_HOME/.git" ]; then
-  echo "INFO: Using root repo dir $QSM_HOME"
-else
-  echo "ERROR: Did not find root git repo dir at $QSM_HOME"
+usage() {
+  cat <<EOF
+usage: qsm <command> [args]
+
+  build                 cargo build --workspace
+  test                  cargo test --workspace
+  run <name>            cargo run -p qsm -- <name>
+  view <name> [args]    cargo run -p qsm-view --features view -- <name> [args]
+
+QSM_DATA_ROOT selects the data directory. When unset, these commands use
+${root}/data.
+EOF
   exit 2
-fi
-export QSM_HOME
+}
 
-if [ -z "$1" ]; then
-  echo "INFO: Usage $0 [-env number] (db run test bench)"
-  exit 0
+if [[ $# -lt 1 ]]; then
+  usage
 fi
 
-if [ "$1" == "-env" ]; then
-  if [ -z "$2" ]; then
-    echo "ERROR: after -env need a number"
-    exit 4
-  fi
-  export QSM_ENV_NUMBER=$2
-  shift
-  shift
-fi
-
-script=$1
+command_name="$1"
 shift
 
-export GOPROXY="https://fredsimon.jfrog.io/artifactory/api/go/go"
-#export GOPROXY="https://gocenter.io"
+case "$command_name" in
+build | test | run | view) ;;
+*)
+  echo "qsm: unknown command $command_name" >&2
+  usage
+  ;;
+esac
 
-cd "$QSM_HOME" && ./scripts/${script}.sh "$@"
+script="$root/scripts/${command_name}.sh"
+if [[ ! -f "$script" ]]; then
+  echo "qsm: missing $script" >&2
+  exit 2
+fi
+
+exec "$script" "$@"

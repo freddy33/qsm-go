@@ -1,0 +1,34 @@
+name: QSM
+
+on: [push]
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain
+        run: rustup show && rustc --version
+
+      - name: Install viewer system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev libasound2-dev libudev-dev \
+            libvulkan-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            mesa-vulkan-drivers pkg-config libx11-dev
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Test workspace
+        run: cargo test --workspace
+
+      - name: Build viewer
+        run: cargo build -p qsm-view --features view
