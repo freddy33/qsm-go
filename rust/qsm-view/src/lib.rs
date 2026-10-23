@@ -13,10 +13,15 @@ use m3path::{get_connection_state, ConnectionState, NB_CONNECTIONS};
 pub const AXE_EXTRA: i32 = 3;
 /// Lattice lines are drawn on multiples of this, through the origin planes.
 pub const GRID_STEP: i32 = 3;
-/// Go `SphereRadius` default (`SizeVar{0.1, 0.8, 0.4}`).
-pub const NODE_RADIUS: f32 = 0.4;
-/// Event roots (`d == 0`) use a larger sphere so the origin reads as a root.
-pub const ORIGIN_RADIUS: f32 = 0.7;
+/// Sphere radius for a node that is not an event root.
+pub const NODE_RADIUS: f32 = 0.2;
+/// Event roots (`d == 0`) are larger than the nodes that grow from them.
+pub const ORIGIN_RADIUS: f32 = 0.5;
+/// Selected spheres are drawn at this multiple of their radius.
+pub const SELECTED_SCALE: f32 = 1.45;
+/// Shade for a node that was not created at the time currently shown.
+/// Matches `m3gl::DEFAULT_OLD_EVENT_DIMMER`.
+pub const INACTIVE_DIMMER: f32 = 0.3;
 /// Red, green, blue, and yellow. A bit set in the mask is drawn.
 pub const ALL_EVENT_COLORS: u8 = 1 | 2 | 4 | 8;
 
@@ -29,6 +34,12 @@ pub struct SceneNode {
     pub creation_time: i32,
     /// True for the root of an event (`nodes.d == 0`).
     pub origin: bool,
+    /// Path distance from the event root. Roots are `0`.
+    pub d: i32,
+    /// `events.id` of the event this node belongs to.
+    pub event_id: i32,
+    /// `events.path_ctx_id`, the path this event grows on.
+    pub path_ctx_id: i32,
     /// Earlier event-node ids stored in a `From` link on this node.
     pub from: Vec<i64>,
 }
@@ -40,6 +51,10 @@ pub struct ViewFilter {
     pub color_mask: u8,
     pub show_lines: bool,
     pub show_axes: bool,
+    /// Draw only nodes created at `time`, plus the selected node's from-chain.
+    pub latest_only: bool,
+    /// Event-node id chosen by a click, if any.
+    pub selected: Option<i64>,
     /// Bumped whenever a field above changes, so the window can rebuild.
     pub revision: u64,
 }
@@ -51,6 +66,8 @@ impl ViewFilter {
             color_mask: ALL_EVENT_COLORS,
             show_lines: true,
             show_axes: true,
+            latest_only: false,
+            selected: None,
             revision: 1,
         }
     }
@@ -62,6 +79,9 @@ pub struct Marker {
     pub position: [f32; 3],
     pub color: u8,
     pub origin: bool,
+    /// `creation_time` equals the filter time. Inactive nodes are drawn darker.
+    pub active: bool,
+    pub selected: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -105,6 +125,62 @@ pub fn color_rgb(color: u8) -> [f32; 3] {
     }
 }
 
+/// Event color, dimmed when the node was not created at the displayed time.
+pub fn display_rgb(color: u8, active: bool) -> [f32; 3] {
+    let [r, g, b] = color_rgb(color);
+    if active {
+        [r, g, b]
+    } else {
+        [
+            r * INACTIVE_DIMMER,
+            g * INACTIVE_DIMMER,
+            b * INACTIVE_DIMMER,
+        ]
+    }
+}
+
+/// [`display_rgb`], pulled toward white when the node is selected.
+pub fn shade_rgb(color: u8, active: bool, selected: bool) -> [f32; 3] {
+    let [r, g, b] = display_rgb(color, active);
+    if selected {
+        const MIX: f32 = 0.45;
+        [
+            r + (1.0 - r) * MIX,
+            g + (1.0 - g) * MIX,
+            b + (1.0 - b) * MIX,
+        ]
+    } else {
+        [r, g, b]
+    }
+}
+
+/// Grayscale latitude bands for event-root spheres. The material's base color
+/// tints this, so roots read as a different surface from the flat node spheres.
+pub fn event_texture_rgba(size: u32) -> Vec<u8> {
+    let size = size.max(1);
+    let mut rgba = vec![0u8; (size * size * 4) as usize];
+    for y in 0..size {
+        let v = y as f32 / size as f32;
+        let pole = v < 0.12 || v > 0.88;
+        let band = ((v * 8.0) as u32).is_multiple_of(2);
+        let value = if pole {
+            255
+        } else if band {
+            230
+        } else {
+            40
+        };
+        for x in 0..size {
+            let i = ((y * size + x) * 4) as usize;
+            rgba[i] = value;
+            rgba[i + 1] = value;
+            rgba[i + 2] = value;
+            rgba[i + 3] = 255;
+        }
+    }
+    rgba
+}
+
 /// Join stored rows into drawable nodes.
 ///
 /// A node with no point or no event is skipped. Only `From` links are kept;
@@ -116,13 +192,13 @@ pub fn scene_from_rows(
     nodes: &[NodeRow],
 ) -> Vec<SceneNode> {
     let points: HashMap<i64, [i32; 3]> = points.iter().map(|p| (p.id, [p.x, p.y, p.z])).collect();
-    let colors: HashMap<i32, u8> = events.iter().map(|e| (e.id, e.color as u8)).collect();
+    let events: HashMap<i32, &EventRow> = events.iter().map(|e| (e.id, e)).collect();
     let mut scene = Vec::with_capacity(nodes.len());
     for node in nodes {
         let Some(&position) = points.get(&node.point_id) else {
             continue;
         };
-        let Some(&color) = colors.get(&node.event_id) else {
+        let Some(event) = events.get(&node.event_id) else {
             continue;
         };
         let links = [node.node1, node.node2, node.node3];
@@ -140,26 +216,73 @@ pub fn scene_from_rows(
         scene.push(SceneNode {
             id: node.id,
             position,
-            color,
+            color: event.color as u8,
             creation_time: node.creation_time,
             origin: node.d == 0,
+            d: node.d,
+            event_id: node.event_id,
+            path_ctx_id: event.path_ctx_id,
             from,
         });
     }
     scene
 }
 
-/// Markers with `creation_time <= filter.time` whose color bit is enabled.
+/// The selected node, then every node reached by following `From` links.
 ///
-/// A connection is drawn once, and only when both ends are visible. Turning a
-/// color off hides every node of that color, including event roots. Axes run
+/// Order is breadth-first. Each id is recorded once. A missing id is still the
+/// first entry, so a stale selection does not panic.
+pub fn path_back_to_event(nodes: &[SceneNode], selected: i64) -> Vec<i64> {
+    let by_id: HashMap<i64, &SceneNode> = nodes.iter().map(|n| (n.id, n)).collect();
+    let mut ordered = Vec::new();
+    let mut seen = HashSet::new();
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back(selected);
+    while let Some(id) = queue.pop_front() {
+        if !seen.insert(id) {
+            continue;
+        }
+        ordered.push(id);
+        if let Some(node) = by_id.get(&id) {
+            for &earlier in &node.from {
+                queue.push_back(earlier);
+            }
+        }
+    }
+    ordered
+}
+
+/// Markers whose color bit is enabled and whose time passes the filter.
+///
+/// Normally that is `creation_time <= filter.time`. With `latest_only`, it is
+/// `creation_time == filter.time`, plus every node on the selected node's
+/// from-chain back to its event root. A connection is drawn once, and only
+/// when both ends are visible. Turning a color off hides every node of that
+/// color, including event roots and a selected path of that color. Axes run
 /// from `-(max_coord + 3)` to `+(max_coord + 3)`. Lattice lines sit on the
 /// three planes through the origin, every [`GRID_STEP`] units, out to
 /// `max_coord`.
 pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> Frame {
     let by_id: HashMap<i64, &SceneNode> = nodes.iter().map(|n| (n.id, n)).collect();
-    let visible =
-        |node: &SceneNode| node.creation_time <= filter.time && node.color & filter.color_mask != 0;
+    let chain: HashSet<i64> = if filter.latest_only {
+        filter
+            .selected
+            .map(|id| path_back_to_event(nodes, id).into_iter().collect())
+            .unwrap_or_default()
+    } else {
+        HashSet::new()
+    };
+    let visible = |node: &SceneNode| {
+        if node.color & filter.color_mask == 0 {
+            return false;
+        }
+        let in_time = if filter.latest_only {
+            node.creation_time == filter.time
+        } else {
+            node.creation_time <= filter.time
+        };
+        in_time || chain.contains(&node.id)
+    };
     let mut markers = Vec::new();
     let mut segments = Vec::new();
     let mut seen = HashSet::new();
@@ -172,6 +295,8 @@ pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> 
             position: pos(node.position),
             color: node.color,
             origin: node.origin,
+            active: node.creation_time == filter.time,
+            selected: filter.selected == Some(node.id),
         });
         if !filter.show_lines {
             continue;
@@ -375,6 +500,64 @@ pub fn load_simulation(data_root: &Path, name: &str) -> Result<LoadedSim, String
         nodes,
         run_name,
     })
+}
+
+/// Closest sphere hit by a ray, or nothing when the ray misses every marker.
+///
+/// `direction` does not need to be a unit vector. Event roots use
+/// [`ORIGIN_RADIUS`]; other nodes use [`NODE_RADIUS`]. A selected marker uses
+/// [`SELECTED_SCALE`].
+pub fn pick_marker(markers: &[Marker], origin: [f32; 3], direction: [f32; 3]) -> Option<i64> {
+    let dir = normalize(direction)?;
+    let mut best: Option<(f32, i64)> = None;
+    for marker in markers {
+        let mut radius = if marker.origin {
+            ORIGIN_RADIUS
+        } else {
+            NODE_RADIUS
+        };
+        if marker.selected {
+            radius *= SELECTED_SCALE;
+        }
+        let Some(t) = ray_sphere(origin, dir, marker.position, radius) else {
+            continue;
+        };
+        if best.is_none_or(|(best_t, _)| t < best_t) {
+            best = Some((t, marker.node_id));
+        }
+    }
+    best.map(|(_, id)| id)
+}
+
+fn normalize(v: [f32; 3]) -> Option<[f32; 3]> {
+    let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    if len < 1.0e-8 {
+        None
+    } else {
+        Some([v[0] / len, v[1] / len, v[2] / len])
+    }
+}
+
+fn ray_sphere(origin: [f32; 3], dir: [f32; 3], center: [f32; 3], radius: f32) -> Option<f32> {
+    let oc = [
+        origin[0] - center[0],
+        origin[1] - center[1],
+        origin[2] - center[2],
+    ];
+    let b = oc[0] * dir[0] + oc[1] * dir[1] + oc[2] * dir[2];
+    let c = oc[0] * oc[0] + oc[1] * oc[1] + oc[2] * oc[2] - radius * radius;
+    let disc = b * b - c;
+    if disc < 0.0 {
+        return None;
+    }
+    let root = disc.sqrt();
+    let near = -b - root;
+    if near > 0.0 {
+        Some(near)
+    } else {
+        let far = -b + root;
+        (far > 0.0).then_some(far)
+    }
 }
 
 fn valid_name(name: &str) -> bool {

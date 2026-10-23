@@ -1,0 +1,11 @@
+{
+  "doc": "Playgl pyramid at size 2, grown through creation time 4.",
+  "max_time_steps": 4,
+  "shortcuts": [
+    {
+      "pyramid": {
+        "size": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "doc": "One red event at the origin, growth type 8, through creation time 3.",
+  "max_time_steps": 3,
+  "events": [
+    {
+      "color": 1
+    }
+  ],
+  "shortcuts": []
+}

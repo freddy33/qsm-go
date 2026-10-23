@@ -16,6 +16,11 @@ jobs:
       - name: Install pinned Rust toolchain
         run: rustup show && rustc --version
 
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
       - name: Install viewer system libraries
         run: |
           sudo apt-get update

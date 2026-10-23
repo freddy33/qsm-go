@@ -592,7 +592,7 @@ fn insert_i32(ids: &mut HashSet<i32>, id: i32, table: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_name(name: &str) -> Result<()> {
+pub(crate) fn validate_name(name: &str) -> Result<()> {
     if name.is_empty() || name.len() > MAX_NAME_LEN {
         return Err(Error::new(
             "simulation name must be 1..=175 characters".to_string(),

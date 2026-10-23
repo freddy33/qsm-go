@@ -1,20 +1,24 @@
 //! `qsm-view <simulation name>` draws a saved simulation.
 //!
-//! Nodes share one sphere mesh and one material per event color, so Bevy
-//! instances them. Connections, axes, and the lattice are gizmos. This file
+//! Nodes share one sphere mesh per size and one material per color, shade,
+//! root texture, and selection, so Bevy instances them. Event roots sample a
+//! band texture. Connections, axes, and the lattice are gizmos. This file
 //! is built only with `--features view`.
 
 use std::num::NonZero;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use bevy::asset::RenderAssetUsages;
 use bevy::input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{save_to_disk, Capturing, Screenshot};
 use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 use qsm_view::{
-    build_frame, camera_fit, color_rgb, load_simulation, Frame, LoadedSim, ViewFilter, NODE_RADIUS,
-    ORIGIN_RADIUS,
+    build_frame, camera_fit, color_rgb, event_texture_rgba, load_simulation, path_back_to_event,
+    pick_marker, shade_rgb, Frame, LoadedSim, SceneNode, ViewFilter, NODE_RADIUS, ORIGIN_RADIUS,
+    SELECTED_SCALE,
 };
 
 fn main() {
@@ -76,6 +80,7 @@ fn main() {
             focus: Vec3::new(focus[0], focus[1], focus[2]),
         })
         .insert_resource(UiBlocks::default())
+        .insert_resource(LeftDrag::default())
         .insert_resource(Shot {
             path: args.screenshot,
             started: Instant::now(),
@@ -85,7 +90,15 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             Update,
-            (keys, sync_scene, draw_gizmos, apply_camera, grab_screenshot).chain(),
+            (
+                keys,
+                select_node,
+                sync_scene,
+                draw_gizmos,
+                apply_camera,
+                grab_screenshot,
+            )
+                .chain(),
         )
         .add_systems(EguiPrimaryContextPass, panel)
         .run();
@@ -157,6 +170,12 @@ struct UiBlocks {
     keyboard: bool,
 }
 
+#[derive(Resource, Default)]
+struct LeftDrag {
+    from: Option<Vec2>,
+    travel: f32,
+}
+
 #[derive(Resource)]
 struct Shot {
     path: Option<PathBuf>,
@@ -169,19 +188,24 @@ struct Shot {
 struct Palette {
     node: Handle<Mesh>,
     origin: Handle<Mesh>,
-    materials: [Handle<StandardMaterial>; 4],
+    materials: Vec<Handle<StandardMaterial>>,
 }
 
 impl Palette {
-    fn material(&self, color: u8) -> Handle<StandardMaterial> {
-        let index = match color {
-            1 => 0,
-            2 => 1,
-            4 => 2,
-            _ => 3,
-        };
+    fn material(&self, marker: &qsm_view::Marker) -> Handle<StandardMaterial> {
+        let index = material_index(marker.color, marker.active, marker.origin, marker.selected);
         self.materials[index].clone()
     }
+}
+
+fn material_index(color: u8, active: bool, origin: bool, selected: bool) -> usize {
+    let color = match color {
+        1 => 0,
+        2 => 1,
+        4 => 2,
+        _ => 3,
+    };
+    color | ((active as usize) << 2) | ((origin as usize) << 3) | ((selected as usize) << 4)
 }
 
 #[derive(Component)]
@@ -193,22 +217,30 @@ struct OrbitCam;
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let node = meshes.add(Sphere::new(NODE_RADIUS).mesh().uv(16, 12));
-    let origin = meshes.add(Sphere::new(ORIGIN_RADIUS).mesh().uv(20, 16));
-    let materials = [1u8, 2, 4, 8].map(|color| {
-        let [r, g, b] = color_rgb(color);
-        materials.add(StandardMaterial {
+    let origin = meshes.add(Sphere::new(ORIGIN_RADIUS).mesh().uv(24, 18));
+    let texture = images.add(event_image());
+    let mut stored = Vec::with_capacity(32);
+    for index in 0..32 {
+        let (color, active, root, selected) = decode_slot(index);
+        let [r, g, b] = shade_rgb(color, active, selected);
+        let mut material = StandardMaterial {
             base_color: Color::srgb(r, g, b),
             unlit: true,
             ..default()
-        })
-    });
+        };
+        if root {
+            material.base_color_texture = Some(texture.clone());
+        }
+        stored.push(materials.add(material));
+    }
     commands.insert_resource(Palette {
         node,
         origin,
-        materials,
+        materials: stored,
     });
     commands.spawn((
         Camera3d::default(),
@@ -219,6 +251,31 @@ fn setup(
         Orbit::default_transform(),
         OrbitCam,
     ));
+}
+
+fn event_image() -> Image {
+    let size = 64;
+    Image::new(
+        Extent3d {
+            width: size,
+            height: size,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        event_texture_rgba(size),
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    )
+}
+
+fn decode_slot(index: usize) -> (u8, bool, bool, bool) {
+    let color = match index & 3 {
+        0 => 1,
+        1 => 2,
+        2 => 4,
+        _ => 8,
+    };
+    (color, index & 4 != 0, index & 8 != 0, index & 16 != 0)
 }
 
 impl Orbit {
@@ -253,6 +310,7 @@ fn keys(
         let mut mask = session.filter.color_mask;
         let mut lines = session.filter.show_lines;
         let mut axes = session.filter.show_axes;
+        let mut latest = session.filter.latest_only;
         if keys.just_pressed(KeyCode::ArrowLeft) {
             time = (time - 1).max(0);
         }
@@ -281,15 +339,20 @@ fn keys(
         if keys.just_pressed(KeyCode::KeyX) {
             axes = !axes;
         }
+        if keys.just_pressed(KeyCode::KeyK) {
+            latest = !latest;
+        }
         if time != session.filter.time
             || mask != session.filter.color_mask
             || lines != session.filter.show_lines
             || axes != session.filter.show_axes
+            || latest != session.filter.latest_only
         {
             session.filter.time = time;
             session.filter.color_mask = mask;
             session.filter.show_lines = lines;
             session.filter.show_axes = axes;
+            session.filter.latest_only = latest;
             session.filter.revision = session.filter.revision.wrapping_add(1);
         }
     }
@@ -343,10 +406,15 @@ fn sync_scene(
         } else {
             palette.node.clone()
         };
+        let mut transform =
+            Transform::from_xyz(marker.position[0], marker.position[1], marker.position[2]);
+        if marker.selected {
+            transform.scale = Vec3::splat(SELECTED_SCALE);
+        }
         commands.spawn((
             Mesh3d(mesh),
-            MeshMaterial3d(palette.material(marker.color)),
-            Transform::from_xyz(marker.position[0], marker.position[1], marker.position[2]),
+            MeshMaterial3d(palette.material(marker)),
+            transform,
             SceneMarker,
         ));
     }
@@ -382,6 +450,61 @@ fn line_color(color: u8, axis: bool) -> Color {
     }
 }
 
+fn select_node(
+    mut session: ResMut<Session>,
+    mut drag: ResMut<LeftDrag>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut motion: MessageReader<MouseMotion>,
+    windows: Query<&Window>,
+    cameras: Query<(&Camera, &GlobalTransform), With<OrbitCam>>,
+    drawn: Res<Drawn>,
+    blocks: Res<UiBlocks>,
+) {
+    let motions: Vec<Vec2> = motion.read().map(|ev| ev.delta).collect();
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    if mouse.just_pressed(MouseButton::Left) && !blocks.pointer {
+        drag.from = window.cursor_position();
+        drag.travel = 0.0;
+    }
+    if mouse.pressed(MouseButton::Left) {
+        for delta in &motions {
+            drag.travel += delta.length();
+        }
+    }
+    if !mouse.just_released(MouseButton::Left) {
+        return;
+    }
+    if drag.from.take().is_none() {
+        return;
+    }
+    let travel = drag.travel;
+    drag.travel = 0.0;
+    if travel > 5.0 || blocks.pointer {
+        return;
+    }
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let Ok((camera, transform)) = cameras.single() else {
+        return;
+    };
+    let Ok(ray) = camera.viewport_to_world(transform, cursor) else {
+        return;
+    };
+    let dir = ray.direction.as_vec3();
+    let hit = pick_marker(
+        &drawn.0.markers,
+        [ray.origin.x, ray.origin.y, ray.origin.z],
+        [dir.x, dir.y, dir.z],
+    );
+    if hit != session.filter.selected {
+        session.filter.selected = hit;
+        session.filter.revision = session.filter.revision.wrapping_add(1);
+    }
+}
+
 fn panel(
     mut contexts: EguiContexts,
     mut session: ResMut<Session>,
@@ -392,6 +515,14 @@ fn panel(
     let max_time = session.sim.max_time;
     let name = session.sim.name.clone();
     let run_name = session.sim.run_name.clone();
+    let selected = session
+        .filter
+        .selected
+        .and_then(|id| session.sim.nodes.iter().find(|node| node.id == id).cloned());
+    let path_len = selected
+        .as_ref()
+        .filter(|_| session.filter.latest_only)
+        .map(|node| path_back_to_event(&session.sim.nodes, node.id).len());
     let mut changed = false;
     egui::Window::new("Simulation")
         .default_pos([12.0, 12.0])
@@ -425,7 +556,12 @@ fn panel(
             changed |= ui
                 .checkbox(&mut session.filter.show_axes, "axes (X)")
                 .changed();
+            changed |= ui
+                .checkbox(&mut session.filter.latest_only, "latest time only (K)")
+                .changed();
+            selection_lines(ui, selected.as_ref(), path_len);
             ui.label("orbit: left drag    pan: right drag    zoom: scroll");
+            ui.label("click a node to inspect it");
             ui.label("time: left / right, Home / End    colors: 1 2 3 4");
         });
     if changed {
@@ -434,6 +570,23 @@ fn panel(
     blocks.pointer = ctx.egui_wants_pointer_input();
     blocks.keyboard = ctx.egui_wants_keyboard_input();
     Ok(())
+}
+
+fn selection_lines(ui: &mut egui::Ui, node: Option<&SceneNode>, path_len: Option<usize>) {
+    let Some(node) = node else {
+        return;
+    };
+    ui.separator();
+    ui.label(format!(
+        "x {}    y {}    z {}",
+        node.position[0], node.position[1], node.position[2]
+    ));
+    ui.label(format!("d {}", node.d));
+    ui.label(format!("path {}", node.path_ctx_id));
+    ui.label(format!("event {}", node.event_id));
+    if let Some(len) = path_len {
+        ui.label(format!("path back {len} nodes"));
+    }
 }
 
 fn color_box(ui: &mut egui::Ui, mask: &mut u8, bit: u8, label: &str) -> bool {

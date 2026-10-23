@@ -1,0 +1,8 @@
+{
+  "max_time_steps": 3,
+  "shortcuts": [
+    {
+      "pyramid": {}
+    }
+  ]
+}

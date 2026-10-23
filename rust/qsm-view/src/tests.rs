@@ -1,8 +1,9 @@
 use m3data::{EventRow, NodeRow, PointRow};
 
 use crate::{
-    build_frame, camera_fit, color_rgb, scene_from_rows, SceneNode, ViewFilter, AXE_EXTRA,
-    GRID_STEP, NODE_RADIUS, ORIGIN_RADIUS,
+    build_frame, camera_fit, color_rgb, display_rgb, event_texture_rgba, path_back_to_event,
+    pick_marker, scene_from_rows, shade_rgb, Marker, SceneNode, ViewFilter, AXE_EXTRA, GRID_STEP,
+    INACTIVE_DIMMER, NODE_RADIUS, ORIGIN_RADIUS,
 };
 
 fn point(id: i64, x: i32, y: i32, z: i32) -> PointRow {
@@ -81,6 +82,10 @@ fn from_links_and_origins_come_from_rows() {
     assert_eq!(by_id[&10].color, 1);
     assert_eq!(by_id[&20].color, 2);
     assert_eq!(by_id[&11].position, [3, 0, 0]);
+    assert_eq!(by_id[&10].d, 0);
+    assert_eq!(by_id[&12].d, 2);
+    assert_eq!(by_id[&11].event_id, 1);
+    assert_eq!(by_id[&11].path_ctx_id, 1);
 }
 
 #[test]
@@ -146,6 +151,9 @@ fn a_mutual_from_link_is_one_segment() {
             color: 1,
             creation_time: 0,
             origin: true,
+            d: 0,
+            event_id: 1,
+            path_ctx_id: 7,
             from: vec![2],
         },
         SceneNode {
@@ -154,6 +162,9 @@ fn a_mutual_from_link_is_one_segment() {
             color: 2,
             creation_time: 1,
             origin: false,
+            d: 1,
+            event_id: 2,
+            path_ctx_id: 8,
             from: vec![1],
         },
     ];
@@ -200,9 +211,93 @@ fn event_colors_keep_their_channel() {
     assert!(green[1] > green[0] && green[1] > green[2]);
     assert!(blue[2] > blue[0] && blue[2] > blue[1]);
     assert!(yellow[0] > 0.5 && yellow[1] > 0.5 && yellow[2] < 0.4);
-    assert!(NODE_RADIUS < ORIGIN_RADIUS);
-    assert!((0.1..=0.8).contains(&NODE_RADIUS));
-    assert!((0.1..=0.8).contains(&ORIGIN_RADIUS));
+    assert_eq!(NODE_RADIUS, 0.2);
+    assert_eq!(ORIGIN_RADIUS, 0.5);
+    let active = display_rgb(1, true);
+    let inactive = display_rgb(1, false);
+    assert_eq!(inactive[0], active[0] * INACTIVE_DIMMER);
+    assert!(inactive[0] < active[0]);
+    let selected = shade_rgb(1, true, true);
+    assert!(selected[0] > active[0]);
+    let bands = event_texture_rgba(32);
+    assert_eq!(bands.len(), 32 * 32 * 4);
+    let samples: std::collections::HashSet<u8> = bands.iter().step_by(4).copied().collect();
+    assert!(samples.contains(&255));
+    assert!(samples.contains(&40));
+}
+
+#[test]
+fn latest_only_keeps_the_current_time_and_the_selected_path() {
+    let scene = sample();
+    let mut filter = ViewFilter::at_time(2);
+    filter.latest_only = true;
+    let only = build_frame(&scene, &filter, 18);
+    assert_eq!(
+        only.markers.iter().map(|m| m.node_id).collect::<Vec<_>>(),
+        vec![12]
+    );
+    assert!(only.markers[0].active);
+    assert_eq!(only.line_count(), 0);
+
+    filter.selected = Some(12);
+    let with_path = build_frame(&scene, &filter, 18);
+    let mut ids: Vec<_> = with_path.markers.iter().map(|m| m.node_id).collect();
+    ids.sort();
+    assert_eq!(ids, vec![10, 11, 12]);
+    assert_eq!(path_back_to_event(&scene, 12), vec![12, 11, 10]);
+    assert_eq!(with_path.line_count(), 2);
+    let active: Vec<_> = with_path
+        .markers
+        .iter()
+        .filter(|m| m.active)
+        .map(|m| m.node_id)
+        .collect();
+    assert_eq!(active, vec![12]);
+    assert!(with_path
+        .markers
+        .iter()
+        .any(|m| m.selected && m.node_id == 12));
+
+    filter.color_mask = 2;
+    let hidden = build_frame(&scene, &filter, 18);
+    assert!(
+        hidden.markers.is_empty(),
+        "a red path stays hidden when red is off"
+    );
+}
+
+#[test]
+fn a_ray_hits_the_nearest_sphere() {
+    let markers = vec![
+        Marker {
+            node_id: 1,
+            position: [0.0, 0.0, 0.0],
+            color: 1,
+            origin: true,
+            active: true,
+            selected: false,
+        },
+        Marker {
+            node_id: 2,
+            position: [3.0, 0.0, 0.0],
+            color: 1,
+            origin: false,
+            active: true,
+            selected: false,
+        },
+    ];
+    assert_eq!(
+        pick_marker(&markers, [0.0, 0.0, 5.0], [0.0, 0.0, -1.0]),
+        Some(1)
+    );
+    assert_eq!(
+        pick_marker(&markers, [-5.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
+        Some(1)
+    );
+    assert_eq!(
+        pick_marker(&markers, [0.0, 2.0, 5.0], [0.0, 0.0, -1.0]),
+        None
+    );
 }
 
 #[test]

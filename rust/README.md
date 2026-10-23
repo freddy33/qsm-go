@@ -25,7 +25,7 @@ Storage layout: [docs/db/README.md](../docs/db/README.md).
 | `m3path` | `model/m3path`, `backend/pathdb` | 4-bit connection state, path-context growth, event link ids, predicted size |
 | `m3space` | `model/m3space`, `backend/spacedb` | event colors, active-link threshold, three-id groups, index rows, pyramids |
 | `m3data` | `backend/m3db`, `backend/pathdb`, `backend/spacedb` | `inputs.json`, event growth, and local Iceberg tables of Parquet files |
-| `qsm` | `backend` entry point | `qsm <simulation name>` reads `inputs.json` and grows up to its max time |
+| `qsm` | `backend` entry point | `qsm <simulation name>` reads `inputs.json` and grows up to its max time. `qsm <name> --new` writes that file from `simulation-configs/<name>-config.json` |
 | `m3gl` | `ui/m3gl` | drawing filters, colors, dimmers, and object types |
 | `playgl` | `ui/playgl` | prints the static pack counts |
 | `qsm-view` | `ui/m3gl`, `ui/playgl` | Bevy window: `qsm-view <simulation name>` |
@@ -43,6 +43,13 @@ QSM_DATA_ROOT=/tmp/qsm cargo run -p qsm -- my-sim
 ```
 
 The initial state is `data/<simulation name>/inputs.json`. A new folder with no file and no saved rows gets the default below, then the run starts. A later invocation reads the same file and grows from the last saved creation time until `max_time_steps`. It does not rewrite `inputs.json`.
+
+`qsm <name> --new` does not resume. It reads [`simulation-configs/<name>-config.json`](../simulation-configs/README.md), fills the defaults below, and writes that complete `inputs.json`. If `data/<name>/` already exists, it is renamed to `data/<name>-<YYYYMMDDTHHMMSSZ>/` (UTC; a same-second collision is `_01`) and left untouched. A missing config is an error, and the existing folder stays where it is. `QSM_CONFIG_ROOT` selects the config directory. `./run run <name> --new` sets it to the repository `simulation-configs/`.
+
+```bash
+cargo run -p qsm -- pyramid --new
+QSM_CONFIG_ROOT=../simulation-configs cargo run -p qsm -- pyramid-size2 --new
+```
 
 One simulation name is one space. There is no `spaces` table. After a successful run, `qsm` writes `data/<name>/qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC, so the names sort in time order). The next run of that name loads the latest `run-*.json` and compares it with the current `inputs.json`. Resolved space parameters and the event list (shortcuts and explicit events, compared after expansion) must be identical. Only `max_time_steps` may change, and a value below the saved creation time is an error: nothing is written and no new run file is created. Any other difference is an error and writes nothing. Saved rows with no `run-*.json` are an error as well. A same-second collision is `run-<stamp>_01.json`, which sorts after the unsuffixed name and before the next second. The `doc` field is a note and is not part of the check. Raising `max_time_steps` resumes from the last saved creation time.
 
@@ -91,6 +98,8 @@ An explicit event uses the Go `CreateEvent` fields. `color` is 1 red, 2 green, 4
 `events` are created as written, then each shortcut is expanded. The only shortcut today is `pyramid`, matching `CreatePyramidWithParams` in `ui/m3gl/m3gl.go` (and the same four calls in `backend/spacedb/pyramid.go`). playgl calls it with size 4, growth type 8, index 0, and offsets 0, 2, 4, 6 when the world has no events. The four centers are `{3,0,3}`, `{-3,3,3}`, `{-3,-3,3}`, `{0,0,-3}` multiplied by `size`, in the order red, green, blue, yellow. A new shortcut is another variant on that enum, serialized as its own key.
 
 The default file omits the sample `events` entry and keeps only the pyramid. Space defaults are playgl `MakeWorld`: active threshold 3, max trios per point 2, max path nodes per point 4, max coord 18. Growth does not consult them, matching the Go TODO in `m3spacetimenode.go`.
+
+A config file may omit any of those fields. The three checked-in configs are the default pyramid (`pyramid`), the same pyramid at size 2 (`pyramid-size2`), and one red event at the origin (`single-event`). Absent `shortcuts` means the default pyramid. `"shortcuts": []` means none. An omitted event field is the origin, time 0, red, growth type 8, index 0, offset 0. The written `inputs.json` still contains the shortcut; it is not replaced by the four expanded events. The field table is [simulation-configs/README.md](../simulation-configs/README.md).
 
 A finished default run writes `qsm/run-20261022T121800Z.json`. `inputs_sha256` is the SHA-256 of the raw `inputs.json` bytes. `events` is the pyramid after expansion. `creation_time` is the highest saved node time:
 
@@ -177,13 +186,15 @@ cargo run -p qsm-view --features view -- pyramid-demo
 QSM_DATA_ROOT=/tmp/qsm cargo run -p qsm-view --features view -- pyramid-demo
 ```
 
-`qsm-view <name> --screenshot out.png` saves one frame and exits. The binary needs the usual Linux window libraries (`libxkbcommon`, `libxkbcommon-x11`, Wayland, ALSA, udev, Vulkan, and the XCB render/shape/xfixes packages). CI installs those and builds `--features view`. The workspace tests do not. The picture below is the default pyramid at creation time 12 (3984 event nodes, 4 roots).
+`qsm-view <name> --screenshot out.png` saves one frame and exits. The binary needs the usual Linux window libraries (`libxkbcommon`, `libxkbcommon-x11`, Wayland, ALSA, udev, Vulkan, and the XCB render/shape/xfixes packages). CI installs those and builds `--features view`. The workspace tests do not. The picture below is the default pyramid at creation time 6 (508 event nodes, 4 roots). Nodes created before that time are the darker shade of their event color. The four roots are the larger banded spheres.
 
-The window opens at the last saved creation time. A node is drawn when `creation_time <= t`. Event colors are 1 red, 2 green, 4 blue, 8 yellow. Roots (`d == 0`) are larger spheres (radius 0.7; other nodes use the Go default 0.4). A `From` link is a line from the earlier node to the later one, drawn once, and only when both ends are visible. `Next`, `Blocked`, and unset links are not drawn. Axes match `ui/m3gl`: X red, Y green, Z blue, length `max_coord + 3`. Lattice lines sit on the three planes through the origin, every 3 units, out to `max_coord`.
+The window opens at the last saved creation time. A node is drawn when `creation_time <= t`, unless **latest time only** is on. Then only nodes created at `t` are drawn. Event colors are 1 red, 2 green, 4 blue, 8 yellow. A node created at `t` uses the full color. An earlier node uses 0.3 of that color, the old-event dimmer from `m3gl`. Roots (`d == 0`) are spheres of radius 0.5 with a banded texture tinted by the event color. Other nodes are flat spheres of radius 0.2. A `From` link is a line from the earlier node to the later one, drawn once, and only when both ends are visible. `Next`, `Blocked`, and unset links are not drawn. Axes match `ui/m3gl`: X red, Y green, Z blue, length `max_coord + 3`. Lattice lines sit on the three planes through the origin, every 3 units, out to `max_coord`.
+
+A click (a left press that does not drag) selects the nearest sphere under the cursor. The panel then shows `x`, `y`, `z`, `d`, the path context id (`path`), and the event id (`event`). The selected sphere is larger and lighter. A click on empty space clears the selection. While **latest time only** is on, the selected node's `From` chain back to its event root is drawn as well, including the links along that chain. Those earlier nodes stay in the darker shade. A color that is switched off stays hidden, including a selected path of that color.
 
 Turning a color off hides every node of that color, including roots. The old Go viewer drew roots while that color was masked.
 
-Spheres share one mesh per size and one unlit material per color, so Bevy instances them.
+Spheres share one mesh per size. Each combination of color, active shade, root texture, and selection has one unlit material, so Bevy instances them. Root materials sample the band texture.
 
 | control | action |
 | --- | --- |
@@ -195,10 +206,12 @@ Spheres share one mesh per size and one unlit material per color, so Bevy instan
 | 1 2 3 4 | toggle red, green, blue, yellow |
 | L | toggle links |
 | X | toggle axes and the lattice |
+| K | toggle latest time only |
+| click | select a node, or clear the selection |
 
-The egui panel shows the simulation name, the latest run file, the time slider, and the node, root, and line counts.
+The egui panel shows the simulation name, the latest run file, the time slider, the node, root, and line counts, the latest-time checkbox, and the selected node's `x`, `y`, `z`, `d`, path context id, and event id.
 
-![Default pyramid at creation time 12](../docs/qsm-view-pyramid.png)
+![Default pyramid at creation time 6](../docs/qsm-view-pyramid.png)
 
 ## Ported
 
