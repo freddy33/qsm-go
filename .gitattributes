@@ -3,11 +3,10 @@
 
 # Explicitly declare text files you want to always be normalized and converted
 # to native line endings on checkout.
-*.go text
 *.txt text
 
 # Always have LF line endings on bash files checkout.
-qsm text eol=lf
+run text eol=lf
 *.sh text eol=lf
 
 # Denote all files that are truly binary and should not be modified.

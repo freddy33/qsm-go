@@ -1,111 +1,31 @@
 #!/usr/bin/env bash
+# Shared paths for the QSM scripts. Source this file; do not execute it.
 
-if [ -z "$QSM_HOME" ]; then
-    echo "ERROR: QSM scripts not be called out of the qsm launcher"
-    exit 12
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  echo "source scripts/functions.sh from the other scripts" >&2
+  exit 2
 fi
 
-rootDir=$QSM_HOME
-if [ ! -e "$rootDir/.git" ]; then
-    echo "ERROR: Did not find root git repo dir under $rootDir"
-    exit 13
-fi
+# Repo root. This file lives in scripts/.
+qsm_root() {
+  local here
+  here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  (cd "$here/.." && pwd)
+}
 
-confDir="$rootDir/backend/conf"
-if [ ! -e "$confDir" ]; then
-    echo "ERROR: Did not find conf dir $confDir"
-    exit 14
-fi
-
-exe_ext=""
-go_exe="$(which go)"
-if [ $? -eq 0 ]; then
-  # May be in MINGW mode
-  if [[ $OS == Windows* ]]; then
-    echo "INFO: Using Windows on MINGW"
-    is_windows="mingw"
-    exe_ext=".exe"
-  else
-    echo "INFO: Using Unix"
-    is_windows="no"
+# Move to the Cargo workspace and pin the data directory.
+# An unset QSM_DATA_ROOT becomes <repo>/data. A relative value is resolved
+# from the caller's working directory before the cd.
+qsm_prepare() {
+  local root caller
+  caller="$(pwd)"
+  root="$(qsm_root)"
+  export QSM_HOME="$root"
+  if [[ -z "${QSM_DATA_ROOT:-}" ]]; then
+    export QSM_DATA_ROOT="$root/data"
+  elif [[ "$QSM_DATA_ROOT" != /* ]]; then
+    QSM_DATA_ROOT="$caller/$QSM_DATA_ROOT"
+    export QSM_DATA_ROOT
   fi
-else
-  go_exe="$(which go.exe)"
-  if [ $? -eq 0 ]; then
-    echo "INFO: Using Windows"
-    is_windows="yes"
-    exe_ext=".exe"
-  else
-    echo "ERROR: did not find go or go.exe"
-    exit 14
-  fi
-fi
-
-buildDir="$rootDir/build"
-logDir="$buildDir/log"
-
-if [ ! -d "$logDir" ]; then
-    echo "INFO: Creating log out dir $logDir"
-    mkdir -p "$logDir"
-    RES=$?
-    if [ $RES -ne 0 ]; then
-        echo "ERROR: could not create log dir $logDir"
-        exit 13
-    fi
-fi
-
-dumpDir="$buildDir/dump"
-
-if [ ! -d "$dumpDir" ]; then
-    echo "INFO: Creating dump dir $dumpDir"
-    mkdir -p "$dumpDir"
-    RES=$?
-    if [ $RES -ne 0 ]; then
-        echo "ERROR: could not create dump dir $dumpDir"
-        exit 13
-    fi
-fi
-
-dbLoc="$buildDir/postgres"
-
-if [ ! -d "$dbLoc" ]; then
-    echo "INFO: Creating database dir $dbLoc"
-    mkdir -p "$dbLoc"
-    RES=$?
-    if [ $RES -ne 0 ]; then
-        echo "ERROR: could not create database dir $dbLoc"
-        exit 13
-    fi
-fi
-
-QSM_ENV_NUMBER=${QSM_ENV_NUMBER:=1}
-dbConfFile="$confDir/dbconn${QSM_ENV_NUMBER}.json"
-
-checkDbConf() {
-    if [ -e "$dbConfFile" ]; then
-        echo "INFO: $dbConfFile already exists"
-    else
-        echo "INFO: Creating conf file for test number ${QSM_ENV_NUMBER} at $dbConfFile"
-        genUser="qsmu${QSM_ENV_NUMBER}"
-        genPassword="qsm$RANDOM"
-        genName="qsmdb${QSM_ENV_NUMBER}"
-        cat "$confDir/db-template.json" | jq --arg pass "$genPassword" --arg user "$genUser" --arg db "$genName" '.password=$pass | .user=$user | .dbName=$db' > "$dbConfFile"
-        RES=$?
-        if [ $RES -ne 0 ]; then
-            echo "ERROR: Could create conf file $dbConfFile"
-            exit $RES
-        fi
-    fi
-
-    echo "INFO: Reading existing conf file for test number ${QSM_ENV_NUMBER} at $dbConfFile"
-    dbPort="$( cat "$dbConfFile" | jq -r .port )"
-    dbHost="$( cat "$dbConfFile" | jq -r .host )"
-    dbUser="$( cat "$dbConfFile" | jq -r .user )"
-    dbPassword="$( cat "$dbConfFile" | jq -r .password )"
-    dbName="$( cat "$dbConfFile" | jq -r .dbName )"
-    if [ -z "$dbUser" ] || [ -z "$dbPassword" ] || [ -z "$dbName" ]; then
-        echo "ERROR: Reading conf file $dbConfFile failed since one of '$dbUser' '$dbPassword' '$dbName' is empty"
-        exit 15
-    fi
-    echo "INFO: Using user $dbUser on $dbHost:$dbPort/$dbName"
+  cd "$root/rust" || exit 1
 }

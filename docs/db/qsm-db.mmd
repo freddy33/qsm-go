@@ -1,6 +1,6 @@
 %% Rust Iceberg tables under data/<simulation>/. Static pointdb tables are in memory.
-%% Go Postgres still has a spaces table, events.space_id, path_contexts.max_dist,
-%% and events.max_node_time. Rust dropped all of those.
+%% The Go-era Postgres schema had a spaces table, events.space_id,
+%% path_contexts.max_dist, and events.max_node_time. Rust does not store those.
 %% One simulation folder is one space. Solid lines are the logical references.
 erDiagram
     %% ---------- backend/pointdb : static reference data (fixed row counts) ----------

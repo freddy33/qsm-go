@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Launch the Rust workspace from any working directory.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  cat <<EOF
+usage: run <command> [args]
+
+  build                 cargo build --workspace
+  test                  cargo test --workspace
+  run <name>            cargo run -p qsm -- <name>
+  view <name> [args]    cargo run -p qsm-view --features view -- <name> [args]
+
+QSM_DATA_ROOT selects the data directory. When unset, these commands use
+${root}/data.
+EOF
+  exit 2
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
+fi
+
+command_name="$1"
+shift
+
+case "$command_name" in
+build | test | run | view) ;;
+*)
+  echo "run: unknown command $command_name" >&2
+  usage
+  ;;
+esac
+
+script="$root/scripts/${command_name}.sh"
+if [[ ! -f "$script" ]]; then
+  echo "run: missing $script" >&2
+  exit 2
+fi
+
+exec "$script" "$@"
