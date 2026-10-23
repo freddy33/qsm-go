@@ -16,6 +16,7 @@ jobs:
       - name: Install pinned Rust toolchain
         run: rustup show && rustc --version
 
+      # Keyed on Cargo.lock and the pinned toolchain in rust/rust-toolchain.toml.
       - name: Cache cargo registry and target
         uses: Swatinem/rust-cache@v2
         with:
