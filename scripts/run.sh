@@ -7,7 +7,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$here/functions.sh"
 
 if [[ $# -lt 1 ]]; then
-  echo "usage: qsm run <simulation name>" >&2
+  echo "usage: run run <simulation name>" >&2
   exit 2
 fi
 

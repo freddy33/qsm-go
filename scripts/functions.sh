@@ -2,7 +2,7 @@
 # Shared paths for the QSM scripts. Source this file; do not execute it.
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  echo "source scripts/functions.sh from the other qsm scripts" >&2
+  echo "source scripts/functions.sh from the other scripts" >&2
   exit 2
 fi
 

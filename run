@@ -6,7 +6,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<EOF
-usage: qsm <command> [args]
+usage: run <command> [args]
 
   build                 cargo build --workspace
   test                  cargo test --workspace
@@ -29,14 +29,14 @@ shift
 case "$command_name" in
 build | test | run | view) ;;
 *)
-  echo "qsm: unknown command $command_name" >&2
+  echo "run: unknown command $command_name" >&2
   usage
   ;;
 esac
 
 script="$root/scripts/${command_name}.sh"
 if [[ ! -f "$script" ]]; then
-  echo "qsm: missing $script" >&2
+  echo "run: missing $script" >&2
   exit 2
 fi
 
