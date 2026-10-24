@@ -4966,6 +4966,7 @@ dependencies = [
  "arrow",
  "futures",
  "iceberg",
+ "libc",
  "m3path",
  "m3point",
  "m3space",

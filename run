@@ -10,7 +10,7 @@ usage: run <command> [args]
 
   build                 cargo build --workspace
   test                  cargo test --workspace
-  run <name>            cargo run -p qsm -- <name>
+  run <name> [--new]    cargo run -p qsm -- <name> [--new]
   view <name> [args]    cargo run -p qsm-view --features view -- <name> [args]
 
 QSM_DATA_ROOT selects the data directory. When unset, these commands use

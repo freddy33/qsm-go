@@ -18,12 +18,14 @@ mod sim;
 mod store;
 
 pub use error::{Error, Result};
-pub use inputs::{load_inputs, SimulationInputs};
+pub use inputs::{expand_config, load_config, load_inputs, SimulationInputs};
 pub use m3point::PointPackData;
 pub use rows::{EventRow, NodeRow, PathContextRow, PathNodeRow, PointRow};
 pub use runfile::{latest_run, RunRecord};
 pub use schema::{TableKind, NAMESPACE};
-pub use sim::{default_data_root, run_named, run_named_async, StepReport};
+pub use sim::{
+    config_root, default_data_root, run_named, run_named_async, run_new, run_new_async, StepReport,
+};
 pub use store::SimulationStore;
 
 /// Static reference tables, built once in memory. They are not stored.
