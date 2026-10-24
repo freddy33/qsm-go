@@ -19,7 +19,7 @@ pub const NODE_RADIUS: f32 = 0.2;
 pub const ORIGIN_RADIUS: f32 = 0.5;
 /// Selected spheres are drawn at this multiple of their radius.
 pub const SELECTED_SCALE: f32 = 1.45;
-/// Shade for a node that was not created at the time currently shown.
+/// Shade for a node that is not active.
 /// Matches `m3gl::DEFAULT_OLD_EVENT_DIMMER`.
 pub const INACTIVE_DIMMER: f32 = 0.3;
 /// Red, green, blue, and yellow. A bit set in the mask is drawn.
@@ -51,8 +51,15 @@ pub struct ViewFilter {
     pub color_mask: u8,
     pub show_lines: bool,
     pub show_axes: bool,
-    /// Draw only nodes created at `time`, plus the selected node's from-chain.
-    pub latest_only: bool,
+    /// Draw only active nodes, plus the selected node's from-chain.
+    /// Event roots are drawn either way.
+    pub active_only: bool,
+    /// `space.active_path_node_threshold` from the run. A node is active when
+    /// its age at `time` is strictly below this.
+    pub active_threshold: i32,
+    /// `0` is off. `2`, `3`, or `4` draws only active nodes whose point is
+    /// shared by at least that many event colors. Event roots stay visible.
+    pub min_colors: u8,
     /// Event-node id chosen by a click, if any.
     pub selected: Option<i64>,
     /// Bumped whenever a field above changes, so the window can rebuild.
@@ -60,16 +67,64 @@ pub struct ViewFilter {
 }
 
 impl ViewFilter {
+    /// Every node with `creation_time <= time`. The window does not open on this:
+    /// [`opening`](Self::opening) turns the active-node filter on.
     pub fn at_time(time: i32) -> Self {
         Self {
             time,
             color_mask: ALL_EVENT_COLORS,
             show_lines: true,
             show_axes: true,
-            latest_only: false,
+            active_only: false,
+            active_threshold: 3,
+            min_colors: 0,
             selected: None,
             revision: 1,
         }
+    }
+
+    /// Filter the Bevy window starts with. Active nodes are on.
+    pub fn opening(time: i32, active_threshold: i32) -> Self {
+        Self {
+            active_only: true,
+            active_threshold,
+            ..Self::at_time(time)
+        }
+    }
+}
+
+/// A node is active when it already exists at `time` and
+/// `time - creation_time < threshold`.
+///
+/// This is the same age test as `m3space::link_is_active`. Threshold `0` makes
+/// nothing active. A node created after `time` is not active.
+pub fn node_is_active(creation_time: i32, time: i32, threshold: i32) -> bool {
+    creation_time <= time && time.saturating_sub(creation_time) < threshold
+}
+
+/// How many of the four event colors are set in `mask`.
+pub fn color_count(mask: u8) -> u8 {
+    (mask & ALL_EVENT_COLORS).count_ones() as u8
+}
+
+/// `off → 2+ → 3+ → 4 → off`. Key `M` in the window.
+pub fn cycle_min_colors(current: u8) -> u8 {
+    match current {
+        0 => 2,
+        2 => 3,
+        3 => 4,
+        _ => 0,
+    }
+}
+
+/// Name of an event color bit, for the inspector.
+pub fn color_name(color: u8) -> &'static str {
+    match color {
+        1 => "red",
+        2 => "green",
+        4 => "blue",
+        8 => "yellow",
+        _ => "other",
     }
 }
 
@@ -79,7 +134,7 @@ pub struct Marker {
     pub position: [f32; 3],
     pub color: u8,
     pub origin: bool,
-    /// `creation_time` equals the filter time. Inactive nodes are drawn darker.
+    /// Age at the filter time is below `active_threshold`. Inactive nodes are darker.
     pub active: bool,
     pub selected: bool,
 }
@@ -252,19 +307,25 @@ pub fn path_back_to_event(nodes: &[SceneNode], selected: i64) -> Vec<i64> {
     ordered
 }
 
-/// Markers whose color bit is enabled and whose time passes the filter.
+/// Markers that pass the time slider and the display filters.
 ///
-/// Normally that is `creation_time <= filter.time`. With `latest_only`, it is
-/// `creation_time == filter.time`, plus every node on the selected node's
-/// from-chain back to its event root. A connection is drawn once, and only
-/// when both ends are visible. Turning a color off hides every node of that
-/// color, including event roots and a selected path of that color. Axes run
-/// from `-(max_coord + 3)` to `+(max_coord + 3)`. Lattice lines sit on the
-/// three planes through the origin, every [`GRID_STEP`] units, out to
-/// `max_coord`.
+/// A node with `creation_time > filter.time` is hidden, including an event
+/// root that has not been created yet. Event roots that do exist are drawn
+/// whatever the color mask, the active-node checkbox, and the multi-color
+/// filter say. Other nodes of a hidden color stay hidden, including a selected
+/// path. With **Display active nodes** on, a non-root is drawn when it is
+/// active, and the selected node's `From` chain is drawn as well. With the
+/// multi-color filter on, a non-root is drawn only when it is active and its
+/// point is shared by at least `min_colors` distinct event colors. Colors are
+/// counted from every node already created at this time, including inactive
+/// ones. Two nodes of the same color count as one. A connection is drawn once,
+/// and only when both ends are visible. Axes run from `-(max_coord + 3)` to
+/// `+(max_coord + 3)`. Lattice lines sit on the three planes through the
+/// origin, every [`GRID_STEP`] units, out to `max_coord`.
 pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> Frame {
     let by_id: HashMap<i64, &SceneNode> = nodes.iter().map(|n| (n.id, n)).collect();
-    let chain: HashSet<i64> = if filter.latest_only {
+    let colors = colors_present(nodes, filter.time);
+    let chain: HashSet<i64> = if filter.active_only {
         filter
             .selected
             .map(|id| path_back_to_event(nodes, id).into_iter().collect())
@@ -273,15 +334,27 @@ pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> 
         HashSet::new()
     };
     let visible = |node: &SceneNode| {
+        if node.creation_time > filter.time {
+            return false;
+        }
+        if node.origin {
+            return true;
+        }
         if node.color & filter.color_mask == 0 {
             return false;
         }
-        let in_time = if filter.latest_only {
-            node.creation_time == filter.time
-        } else {
-            node.creation_time <= filter.time
-        };
-        in_time || chain.contains(&node.id)
+        if chain.contains(&node.id) {
+            return true;
+        }
+        let active = node_is_active(node.creation_time, filter.time, filter.active_threshold);
+        if filter.min_colors > 0 {
+            let shared = color_count(colors.get(&node.position).copied().unwrap_or(0));
+            return active && shared >= filter.min_colors;
+        }
+        if filter.active_only {
+            return active;
+        }
+        true
     };
     let mut markers = Vec::new();
     let mut segments = Vec::new();
@@ -295,7 +368,7 @@ pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> 
             position: pos(node.position),
             color: node.color,
             origin: node.origin,
-            active: node.creation_time == filter.time,
+            active: node_is_active(node.creation_time, filter.time, filter.active_threshold),
             selected: filter.selected == Some(node.id),
         });
         if !filter.show_lines {
@@ -337,6 +410,56 @@ pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> 
 
 fn pos(p: [i32; 3]) -> [f32; 3] {
     [p[0] as f32, p[1] as f32, p[2] as f32]
+}
+
+/// Distinct event-color bits at each point, from nodes that exist at `time`.
+fn colors_present(nodes: &[SceneNode], time: i32) -> HashMap<[i32; 3], u8> {
+    let mut colors = HashMap::new();
+    for node in nodes {
+        if node.creation_time <= time {
+            *colors.entry(node.position).or_insert(0) |= node.color;
+        }
+    }
+    colors
+}
+
+/// One event node sitting on a point the inspector is describing.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PointOccupant {
+    pub node_id: i64,
+    pub color: u8,
+    pub event_id: i32,
+    pub path_ctx_id: i32,
+    pub d: i32,
+    pub origin: bool,
+    pub active: bool,
+    pub creation_time: i32,
+}
+
+/// Every node at `position` with `creation_time <= time`, in scene order.
+///
+/// Inactive nodes are included: they still occupy the point and contribute a
+/// color. The threshold is only the active flag.
+pub fn occupants_at(
+    nodes: &[SceneNode],
+    position: [i32; 3],
+    time: i32,
+    threshold: i32,
+) -> Vec<PointOccupant> {
+    nodes
+        .iter()
+        .filter(|node| node.position == position && node.creation_time <= time)
+        .map(|node| PointOccupant {
+            node_id: node.id,
+            color: node.color,
+            event_id: node.event_id,
+            path_ctx_id: node.path_ctx_id,
+            d: node.d,
+            origin: node.origin,
+            active: node_is_active(node.creation_time, time, threshold),
+            creation_time: node.creation_time,
+        })
+        .collect()
 }
 
 fn lattice(max_coord: i32) -> Vec<Segment> {
@@ -430,6 +553,8 @@ pub fn camera_fit(nodes: &[SceneNode]) -> ([f32; 3], f32) {
 pub struct LoadedSim {
     pub name: String,
     pub max_coord: i32,
+    /// `space.active_path_node_threshold` from `inputs.json`, else the run file.
+    pub active_threshold: i32,
     pub max_time: i32,
     pub nodes: Vec<SceneNode>,
     /// File name of the newest `run-*.json`, when one exists.
@@ -470,6 +595,14 @@ pub fn load_simulation(data_root: &Path, name: &str) -> Result<LoadedSim, String
         .map(|doc| doc.space.max_coord)
         .or_else(|| run.as_ref().map(|(_, record)| record.space.max_coord))
         .unwrap_or(18);
+    let active_threshold = inputs
+        .as_ref()
+        .map(|doc| doc.space.active_path_node_threshold)
+        .or_else(|| {
+            run.as_ref()
+                .map(|(_, record)| record.space.active_path_node_threshold)
+        })
+        .unwrap_or(3);
     let run_name = run
         .as_ref()
         .and_then(|(path, _)| path.file_name().map(|n| n.to_string_lossy().into_owned()));
@@ -496,6 +629,7 @@ pub fn load_simulation(data_root: &Path, name: &str) -> Result<LoadedSim, String
     Ok(LoadedSim {
         name: name.to_string(),
         max_coord,
+        active_threshold,
         max_time,
         nodes,
         run_name,

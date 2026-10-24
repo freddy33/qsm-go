@@ -53,6 +53,8 @@ QSM_CONFIG_ROOT=../simulation-configs cargo run -p qsm -- pyramid-size2 --new
 
 One simulation name is one space. There is no `spaces` table. After a successful run, `qsm` writes `data/<name>/qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC, so the names sort in time order). The next run of that name loads the latest `run-*.json` and compares it with the current `inputs.json`. Resolved space parameters and the event list (shortcuts and explicit events, compared after expansion) must be identical. Only `max_time_steps` may change, and a value below the saved creation time is an error: nothing is written and no new run file is created. Any other difference is an error and writes nothing. Saved rows with no `run-*.json` are an error as well. A same-second collision is `run-<stamp>_01.json`, which sorts after the unsuffixed name and before the next second. The `doc` field is a note and is not part of the check. Raising `max_time_steps` resumes from the last saved creation time.
 
+The same run file also stores a `recap`: elapsed milliseconds, per-step milliseconds, peak resident memory when the OS reports it, and the node and point totals plus how many were created on that invocation. The CLI prints the same numbers. `recap` is not compared on the next run. A run file written before this field still loads.
+
 `max_time_steps` is the last creation time to store. Events created at time 0 contribute their root nodes at time 0, then one shell per later time. `3` therefore stores times 0, 1, 2, and 3.
 
 ```json
@@ -186,15 +188,19 @@ cargo run -p qsm-view --features view -- pyramid-demo
 QSM_DATA_ROOT=/tmp/qsm cargo run -p qsm-view --features view -- pyramid-demo
 ```
 
-`qsm-view <name> --screenshot out.png` saves one frame and exits. The binary needs the usual Linux window libraries (`libxkbcommon`, `libxkbcommon-x11`, Wayland, ALSA, udev, Vulkan, and the XCB render/shape/xfixes packages). CI installs those and builds `--features view`. The workspace tests do not. The picture below is the default pyramid at creation time 6 (508 event nodes, 4 roots). Nodes created before that time are the darker shade of their event color. The four roots are the larger banded spheres.
+`qsm-view <name> --screenshot out.png` saves one frame and exits. The binary needs the usual Linux window libraries (`libxkbcommon`, `libxkbcommon-x11`, Wayland, ALSA, udev, Vulkan, and the XCB render/shape/xfixes packages). CI installs those and builds `--features view`. The workspace tests do not.
 
-The window opens at the last saved creation time. A node is drawn when `creation_time <= t`, unless **latest time only** is on. Then only nodes created at `t` are drawn. Event colors are 1 red, 2 green, 4 blue, 8 yellow. A node created at `t` uses the full color. An earlier node uses 0.3 of that color, the old-event dimmer from `m3gl`. Roots (`d == 0`) are spheres of radius 0.5 with a banded texture tinted by the event color. Other nodes are flat spheres of radius 0.2. A `From` link is a line from the earlier node to the later one, drawn once, and only when both ends are visible. `Next`, `Blocked`, and unset links are not drawn. Axes match `ui/m3gl`: X red, Y green, Z blue, length `max_coord + 3`. Lattice lines sit on the three planes through the origin, every 3 units, out to `max_coord`.
+The window opens at the last saved creation time with **Display active nodes** on. A node with `creation_time > t` is hidden, including an event root that does not exist yet. Every other event root (`d == 0`) is drawn, whatever the color checkboxes, the active-node checkbox, and the shared-color selector say. Other nodes of a hidden color stay hidden.
 
-A click (a left press that does not drag) selects the nearest sphere under the cursor. The panel then shows `x`, `y`, `z`, `d`, the path context id (`path`), and the event id (`event`). The selected sphere is larger and lighter. A click on empty space clears the selection. While **latest time only** is on, the selected node's `From` chain back to its event root is drawn as well, including the links along that chain. Those earlier nodes stay in the darker shade. A color that is switched off stays hidden, including a selected path of that color.
+A node is active when it already exists at `t` and `t - creation_time < active_path_node_threshold`. The threshold is the space setting in `inputs.json`, or in the run file when `inputs.json` is missing. The default is 3, so at time 6 the bright nodes are creation times 4, 5, and 6. Inactive nodes use 0.3 of their event color, the old-event dimmer from `m3gl`. Threshold 0 makes nothing active. The same test drives the checkbox and the dimming. With the checkbox on, only active non-roots are drawn, and selecting a node still draws its `From` chain back to the event. Those earlier nodes stay darker. With the checkbox off, every node up to `t` is drawn, still dimmed when it is inactive.
 
-Turning a color off hides every node of that color, including roots. The old Go viewer drew roots while that color was masked.
+**Shared colors** is off, 2+, 3+, or 4. When it is on, a non-root is drawn only when it is active and its point is shared by at least that many distinct event colors. Colors are counted from every node already created at `t`, including inactive ones. Two nodes of the same color count as one. Event roots stay visible. There are four colors, so 4 means all of them.
 
-Spheres share one mesh per size. Each combination of color, active shade, root texture, and selection has one unlit material, so Bevy instances them. Root materials sample the band texture.
+Event colors are 1 red, 2 green, 4 blue, 8 yellow. Roots are spheres of radius 0.5 with a banded texture tinted by the event color. Other nodes are flat spheres of radius 0.2. A `From` link is a line from the earlier node to the later one, drawn once, and only when both ends are visible. `Next`, `Blocked`, and unset links are not drawn. Axes match `ui/m3gl`: X red, Y green, Z blue, length `max_coord + 3`. Lattice lines sit on the three planes through the origin, every 3 units, out to `max_coord`.
+
+A click (a left press that does not drag) selects the nearest sphere under the cursor. The panel then shows `x`, `y`, `z`, `d`, the path context id (`path`), and the event id (`event`). When several nodes share that point, the panel lists each one: color, event id, `d`, path, and whether it is active. The selected sphere is larger and lighter. A click on empty space clears the selection.
+
+Spheres share one mesh per size. Each combination of color, active shade, root texture, and selection has one unlit material, so Bevy instances them. Root materials sample the band texture. The picture below is that default for the pyramid at creation time 6 (threshold 3): 424 nodes drawn, the active nodes plus the four roots, out of 508 stored. Older non-roots are hidden. The roots are the larger banded spheres.
 
 | control | action |
 | --- | --- |
@@ -206,12 +212,13 @@ Spheres share one mesh per size. Each combination of color, active shade, root t
 | 1 2 3 4 | toggle red, green, blue, yellow |
 | L | toggle links |
 | X | toggle axes and the lattice |
-| K | toggle latest time only |
+| K | toggle Display active nodes |
+| M | cycle shared colors: off, 2+, 3+, 4 |
 | click | select a node, or clear the selection |
 
-The egui panel shows the simulation name, the latest run file, the time slider, the node, root, and line counts, the latest-time checkbox, and the selected node's `x`, `y`, `z`, `d`, path context id, and event id.
+The egui panel shows the simulation name, the latest run file, the time slider, the node, root, and line counts, the active-node checkbox (`active: age <` the saved threshold), the shared-color selector, and the selected node. A point with more than one node lists each color and event id.
 
-![Default pyramid at creation time 6](../docs/qsm-view-pyramid.png)
+![Default pyramid at creation time 6, active nodes on](../docs/qsm-view-pyramid.png)
 
 ## Ported
 
@@ -223,9 +230,9 @@ The egui panel shows the simulation name, the latest run file, the time slider, 
 - Path-context growth (`calculateNextMaxDist` / `makeNewNodes`) and event growth (`increaseMaxNodeTime`), including neighbour links.
 - Event color masks, active links, three-id grouping, index generation, and pyramid size.
 - Local Iceberg/Parquet load and save for points, path contexts, path nodes, events, and nodes. `qsm` grows from `inputs.json`, writes `qsm/run-<utc>.json` after a successful run, and resumes until `max_time_steps`.
-- Viewer filter, color, and dimmer rules, covered by unit tests. The window is the Bevy app `qsm-view` (Bevy 0.20, `bevy_egui` 0.43). It reads `SimulationStore` directly.
+- Viewer filter, color, active-threshold dimmer, and multi-color rules, covered by unit tests. The window is the Bevy app `qsm-view` (Bevy 0.20, `bevy_egui` 0.43). It reads `SimulationStore` directly.
 
 ## Not ported
 
 - **HTTP server** and the **protobuf API**. The entry points are `qsm` and `qsm-view`.
-- **Space-time populate map.** Growth writes one row per event node. It does not build the deduped `SpaceTimeNode` map the old viewer used for drawing, and the active-threshold window does not filter what is saved. The viewer draws the stored event nodes.
+- **Space-time populate map.** Growth writes one row per event node. It does not build the deduped `SpaceTimeNode` map the old viewer used for drawing, and the active-threshold window does not filter what is saved. The viewer draws those stored event nodes and uses `active_path_node_threshold` only as a display filter.

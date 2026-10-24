@@ -44,6 +44,19 @@ fn qsm_writes_the_default_pyramid_and_resumes() {
     assert!(stdout.contains("time: 3"), "{stdout}");
     assert!(stdout.contains("events: 4"), "{stdout}");
     assert!(stdout.contains("steps_computed: 3"), "{stdout}");
+    assert!(stdout.contains("elapsed:"), "{stdout}");
+    assert!(stdout.contains("steps: 3 ("), "{stdout}");
+    assert!(stdout.contains("memory:"), "{stdout}");
+    assert!(stdout.contains("created: nodes"), "{stdout}");
+    assert!(stdout.contains("points:"), "{stdout}");
+    let runs = fs::read_dir(tmp.0.join("test-sim").join("qsm")).unwrap();
+    let run_json = runs
+        .filter_map(|entry| entry.ok())
+        .find(|entry| entry.file_name().to_string_lossy().starts_with("run-"))
+        .expect("run file");
+    let saved = fs::read_to_string(run_json.path()).unwrap();
+    assert!(saved.contains("\"recap\""), "{saved}");
+    assert!(saved.contains("\"elapsed_ms\""), "{saved}");
     assert!(tmp.0.join("test-sim").join("qsm").join("points").is_dir());
     let inputs = fs::read_to_string(tmp.0.join("test-sim").join("inputs.json")).unwrap();
     assert!(inputs.contains("\"pyramid\""), "{inputs}");
@@ -63,6 +76,8 @@ fn qsm_writes_the_default_pyramid_and_resumes() {
     assert!(stdout.contains("resumed: yes"), "{stdout}");
     assert!(stdout.contains("time: 3"), "{stdout}");
     assert!(stdout.contains("steps_computed: 0"), "{stdout}");
+    assert!(stdout.contains("steps: 0"), "{stdout}");
+    assert!(stdout.contains("created: nodes 0, points 0"), "{stdout}");
 
     let missing = Command::new(bin).output().unwrap();
     assert_eq!(missing.status.code(), Some(2));

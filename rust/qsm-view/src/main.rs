@@ -16,9 +16,9 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::render::view::screenshot::{save_to_disk, Capturing, Screenshot};
 use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 use qsm_view::{
-    build_frame, camera_fit, color_rgb, event_texture_rgba, load_simulation, path_back_to_event,
-    pick_marker, shade_rgb, Frame, LoadedSim, SceneNode, ViewFilter, NODE_RADIUS, ORIGIN_RADIUS,
-    SELECTED_SCALE,
+    build_frame, camera_fit, color_name, color_rgb, cycle_min_colors, event_texture_rgba,
+    load_simulation, occupants_at, path_back_to_event, pick_marker, shade_rgb, Frame, LoadedSim,
+    PointOccupant, SceneNode, ViewFilter, NODE_RADIUS, ORIGIN_RADIUS, SELECTED_SCALE,
 };
 
 fn main() {
@@ -51,7 +51,7 @@ fn main() {
     }
 
     let (focus, distance) = camera_fit(&sim.nodes);
-    let filter = ViewFilter::at_time(sim.max_time);
+    let filter = ViewFilter::opening(sim.max_time, sim.active_threshold);
     App::new()
         .add_plugins(
             DefaultPlugins
@@ -310,7 +310,8 @@ fn keys(
         let mut mask = session.filter.color_mask;
         let mut lines = session.filter.show_lines;
         let mut axes = session.filter.show_axes;
-        let mut latest = session.filter.latest_only;
+        let mut active_only = session.filter.active_only;
+        let mut min_colors = session.filter.min_colors;
         if keys.just_pressed(KeyCode::ArrowLeft) {
             time = (time - 1).max(0);
         }
@@ -340,19 +341,24 @@ fn keys(
             axes = !axes;
         }
         if keys.just_pressed(KeyCode::KeyK) {
-            latest = !latest;
+            active_only = !active_only;
+        }
+        if keys.just_pressed(KeyCode::KeyM) {
+            min_colors = cycle_min_colors(min_colors);
         }
         if time != session.filter.time
             || mask != session.filter.color_mask
             || lines != session.filter.show_lines
             || axes != session.filter.show_axes
-            || latest != session.filter.latest_only
+            || active_only != session.filter.active_only
+            || min_colors != session.filter.min_colors
         {
             session.filter.time = time;
             session.filter.color_mask = mask;
             session.filter.show_lines = lines;
             session.filter.show_axes = axes;
-            session.filter.latest_only = latest;
+            session.filter.active_only = active_only;
+            session.filter.min_colors = min_colors;
             session.filter.revision = session.filter.revision.wrapping_add(1);
         }
     }
@@ -521,8 +527,19 @@ fn panel(
         .and_then(|id| session.sim.nodes.iter().find(|node| node.id == id).cloned());
     let path_len = selected
         .as_ref()
-        .filter(|_| session.filter.latest_only)
+        .filter(|_| session.filter.active_only)
         .map(|node| path_back_to_event(&session.sim.nodes, node.id).len());
+    let occupants = selected
+        .as_ref()
+        .map(|node| {
+            occupants_at(
+                &session.sim.nodes,
+                node.position,
+                session.filter.time,
+                session.filter.active_threshold,
+            )
+        })
+        .unwrap_or_default();
     let mut changed = false;
     egui::Window::new("Simulation")
         .default_pos([12.0, 12.0])
@@ -557,9 +574,22 @@ fn panel(
                 .checkbox(&mut session.filter.show_axes, "axes (X)")
                 .changed();
             changed |= ui
-                .checkbox(&mut session.filter.latest_only, "latest time only (K)")
+                .checkbox(&mut session.filter.active_only, "Display active nodes (K)")
                 .changed();
-            selection_lines(ui, selected.as_ref(), path_len);
+            ui.label(format!("active: age < {}", session.filter.active_threshold));
+            ui.horizontal(|ui| {
+                ui.label("shared colors (M)");
+                for (value, label) in [(0u8, "off"), (2, "2+"), (3, "3+"), (4, "4")] {
+                    if ui
+                        .selectable_label(session.filter.min_colors == value, label)
+                        .clicked()
+                    {
+                        session.filter.min_colors = value;
+                        changed = true;
+                    }
+                }
+            });
+            selection_lines(ui, selected.as_ref(), &occupants, path_len);
             ui.label("orbit: left drag    pan: right drag    zoom: scroll");
             ui.label("click a node to inspect it");
             ui.label("time: left / right, Home / End    colors: 1 2 3 4");
@@ -572,7 +602,12 @@ fn panel(
     Ok(())
 }
 
-fn selection_lines(ui: &mut egui::Ui, node: Option<&SceneNode>, path_len: Option<usize>) {
+fn selection_lines(
+    ui: &mut egui::Ui,
+    node: Option<&SceneNode>,
+    occupants: &[PointOccupant],
+    path_len: Option<usize>,
+) {
     let Some(node) = node else {
         return;
     };
@@ -581,9 +616,23 @@ fn selection_lines(ui: &mut egui::Ui, node: Option<&SceneNode>, path_len: Option
         "x {}    y {}    z {}",
         node.position[0], node.position[1], node.position[2]
     ));
-    ui.label(format!("d {}", node.d));
-    ui.label(format!("path {}", node.path_ctx_id));
-    ui.label(format!("event {}", node.event_id));
+    if occupants.len() <= 1 {
+        ui.label(format!("d {}", node.d));
+        ui.label(format!("path {}", node.path_ctx_id));
+        ui.label(format!("event {}", node.event_id));
+    } else {
+        ui.label(format!("{} nodes at this point", occupants.len()));
+        for occ in occupants {
+            let state = if occ.active { "active" } else { "inactive" };
+            ui.label(format!(
+                "{}  event {}  d {}  path {}  {state}",
+                color_name(occ.color),
+                occ.event_id,
+                occ.d,
+                occ.path_ctx_id
+            ));
+        }
+    }
     if let Some(len) = path_len {
         ui.label(format!("path back {len} nodes"));
     }

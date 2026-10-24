@@ -1,13 +1,14 @@
 //! Run a named simulation from its `inputs.json` up to `max_time_steps`.
 
 use std::fmt;
+use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use crate::engine::{run_simulation, RunStats};
 use crate::error::{Error, Result};
 use crate::inputs::{default_inputs, load_config, load_inputs, resolve_events, save_inputs};
-use crate::runfile::{ensure_compatible, format_utc, latest_run, write_run};
+use crate::runfile::{ensure_compatible, format_utc, latest_run, write_run, RunRecap};
 use crate::store::{validate_name, SimulationStore};
 
 /// What the last saved step was after this invocation.
@@ -20,7 +21,9 @@ pub struct StepReport {
     pub time: i32,
     pub events: usize,
     pub nodes: usize,
+    pub points: usize,
     pub steps_computed: i32,
+    pub recap: RunRecap,
 }
 
 impl fmt::Display for StepReport {
@@ -32,12 +35,34 @@ impl fmt::Display for StepReport {
         writeln!(f, "time: {}", self.time)?;
         writeln!(f, "events: {}", self.events)?;
         writeln!(f, "nodes: {}", self.nodes)?;
-        write!(f, "steps_computed: {}", self.steps_computed)
+        writeln!(f, "points: {}", self.points)?;
+        writeln!(f, "steps_computed: {}", self.steps_computed)?;
+        writeln!(f, "elapsed: {}", format_duration(self.recap.elapsed_ms))?;
+        writeln!(f, "{}", format_steps(&self.recap.step_ms))?;
+        let memory = match self.recap.peak_rss_bytes {
+            Some(bytes) => format_memory(bytes),
+            None => "unavailable".to_string(),
+        };
+        writeln!(f, "memory: {memory}")?;
+        write!(
+            f,
+            "created: nodes {}, points {}",
+            self.recap.nodes_created, self.recap.points_created
+        )
     }
 }
 
 impl From<RunStats> for StepReport {
     fn from(stats: RunStats) -> Self {
+        let recap = RunRecap {
+            elapsed_ms: stats.elapsed_ms,
+            step_ms: stats.step_ms,
+            peak_rss_bytes: stats.peak_rss_bytes,
+            nodes: stats.nodes as u64,
+            nodes_created: stats.nodes_created as u64,
+            points: stats.points as u64,
+            points_created: stats.points_created as u64,
+        };
         Self {
             simulation: String::new(),
             folder: PathBuf::new(),
@@ -46,9 +71,78 @@ impl From<RunStats> for StepReport {
             time: stats.time,
             events: stats.events,
             nodes: stats.nodes,
+            points: stats.points,
             steps_computed: stats.steps_computed,
+            recap,
         }
     }
+}
+
+/// `400ms` below one second, otherwise `1.500s`.
+pub(crate) fn format_duration(ms: u64) -> String {
+    if ms < 1000 {
+        format!("{ms}ms")
+    } else {
+        format!("{:.3}s", ms as f64 / 1000.0)
+    }
+}
+
+/// `512 KiB` below 1 MiB, otherwise `12.0 MiB`.
+pub(crate) fn format_memory(bytes: u64) -> String {
+    const MIB: u64 = 1024 * 1024;
+    if bytes < MIB {
+        let kib = (bytes as f64 / 1024.0).round() as u64;
+        format!("{kib} KiB")
+    } else {
+        format!("{:.1} MiB", bytes as f64 / MIB as f64)
+    }
+}
+
+pub(crate) fn format_steps(step_ms: &[u64]) -> String {
+    if step_ms.is_empty() {
+        "steps: 0".to_string()
+    } else {
+        let parts: Vec<_> = step_ms.iter().copied().map(format_duration).collect();
+        format!("steps: {} ({})", step_ms.len(), parts.join(", "))
+    }
+}
+
+/// Peak resident set size of this process.
+///
+/// Linux `getrusage` reports kilobytes. macOS reports bytes, so that value is
+/// used as-is. If `getrusage` fails, Linux `/proc/self/status` `VmHWM` is the
+/// fallback. `None` means neither source was available.
+pub fn peak_rss_bytes() -> Option<u64> {
+    let mut usage = MaybeUninit::<libc::rusage>::zeroed();
+    let rc = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
+    if rc == 0 {
+        let usage = unsafe { usage.assume_init() };
+        if usage.ru_maxrss > 0 {
+            let raw = usage.ru_maxrss as u64;
+            let bytes = if cfg!(any(target_os = "linux", target_os = "android")) {
+                raw.saturating_mul(1024)
+            } else {
+                raw
+            };
+            return Some(bytes);
+        }
+    }
+    vm_hwm_bytes()
+}
+
+fn vm_hwm_bytes() -> Option<u64> {
+    let text = std::fs::read_to_string("/proc/self/status").ok()?;
+    parse_vm_hwm(&text)
+}
+
+pub(crate) fn parse_vm_hwm(text: &str) -> Option<u64> {
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix("VmHWM:") {
+            let kb: u64 = rest.split_whitespace().next()?.parse().ok()?;
+            return Some(kb.saturating_mul(1024));
+        }
+    }
+    None
 }
 
 /// Data root for the CLI: `QSM_DATA_ROOT` when set, otherwise `data`.
@@ -94,6 +188,7 @@ pub fn run_named(data_root: impl AsRef<Path>, simulation: &str) -> Result<StepRe
 }
 
 pub async fn run_named_async(data_root: &Path, simulation: &str) -> Result<StepReport> {
+    let started = Instant::now();
     let mut store = SimulationStore::open(data_root, simulation).await?;
     let inputs_path = store.root().join("inputs.json");
     // Empty table metadata from `open` is not saved data. Rows without a run
@@ -130,9 +225,17 @@ pub async fn run_named_async(data_root: &Path, simulation: &str) -> Result<StepR
             )));
         }
     }
-    let stats = run_simulation(&mut store, &inputs).await?;
-    write_run(store.root(), &inputs, &raw, stats.time)?;
+    let mut stats = run_simulation(&mut store, &inputs).await?;
+    stats.elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    stats.peak_rss_bytes = peak_rss_bytes();
     let mut report = StepReport::from(stats);
+    write_run(
+        store.root(),
+        &inputs,
+        &raw,
+        report.time,
+        report.recap.clone(),
+    )?;
     report.simulation = simulation.to_string();
     report.folder = store.root().to_path_buf();
     Ok(report)
@@ -211,6 +314,57 @@ fn archive_folder(data_root: &Path, simulation: &str, stamp: &str) -> Result<Pat
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recap_lines_use_stable_units() {
+        assert_eq!(format_duration(0), "0ms");
+        assert_eq!(format_duration(400), "400ms");
+        assert_eq!(format_duration(999), "999ms");
+        assert_eq!(format_duration(1000), "1.000s");
+        assert_eq!(format_duration(1100), "1.100s");
+        assert_eq!(format_duration(1500), "1.500s");
+        assert_eq!(format_memory(100), "0 KiB");
+        assert_eq!(format_memory(512 * 1024), "512 KiB");
+        assert_eq!(format_memory(12 * 1024 * 1024), "12.0 MiB");
+        assert_eq!(format_memory(1536 * 1024), "1.5 MiB");
+        assert_eq!(format_steps(&[]), "steps: 0");
+        assert_eq!(format_steps(&[400, 1100]), "steps: 2 (400ms, 1.100s)");
+        assert_eq!(
+            parse_vm_hwm("Name:\tfoo\nVmHWM:\t  2048 kB\nVmPeak:\t  3000 kB\n"),
+            Some(2048 * 1024)
+        );
+        assert_eq!(parse_vm_hwm("VmPeak:\t  1 kB\n"), None);
+        assert!(peak_rss_bytes().is_some_and(|bytes| bytes > 0));
+
+        let report = StepReport {
+            simulation: "pyramid".to_string(),
+            folder: PathBuf::from("data/pyramid"),
+            resumed: false,
+            max_time_steps: 2,
+            time: 2,
+            events: 4,
+            nodes: 40,
+            points: 20,
+            steps_computed: 2,
+            recap: RunRecap {
+                elapsed_ms: 1500,
+                step_ms: vec![400, 1100],
+                peak_rss_bytes: Some(12 * 1024 * 1024),
+                nodes: 40,
+                nodes_created: 4,
+                points: 20,
+                points_created: 2,
+            },
+        };
+        let text = report.to_string();
+        assert!(text.contains("elapsed: 1.500s\n"), "{text}");
+        assert!(text.contains("steps: 2 (400ms, 1.100s)\n"), "{text}");
+        assert!(text.contains("memory: 12.0 MiB\n"), "{text}");
+        assert!(text.ends_with("created: nodes 4, points 2"), "{text}");
+        assert!(text.contains("steps_computed: 2\n"), "{text}");
+        assert!(text.contains("nodes: 40\n"), "{text}");
+        assert!(text.contains("points: 20\n"), "{text}");
+    }
 
     #[test]
     fn archive_names_use_the_utc_stamp_and_a_suffix() {
