@@ -1,0 +1,16 @@
+{
+  "doc": "Big pyramid with long time.",
+  "max_time_steps": 30,
+  "space": {
+    "active_path_node_threshold": 3,
+    "max_coord": 60
+  },
+  "shortcuts": [
+    {
+      "pyramid": {
+        "size": 4,
+        "creation_time": 0
+      }
+    }
+  ]
+}
