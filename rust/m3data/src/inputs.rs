@@ -521,6 +521,18 @@ mod tests {
                 assert_eq!(spec.offsets, vec![0, 2, 4, 6]);
             }
         }
+        let big = load_config(&root.join("big-pyramid-config.json")).unwrap();
+        assert_eq!(big.max_time_steps, 30);
+        assert_eq!(big.space.active_path_node_threshold, 3);
+        assert_eq!(big.space.max_coord, 60);
+        assert_eq!(big.space.max_trios_per_point, 2);
+        assert_eq!(big.space.max_path_nodes_per_point, 4);
+        match &big.shortcuts[0] {
+            Shortcut::Pyramid(spec) => {
+                assert_eq!(spec.size, 4);
+                assert_eq!(spec.creation_time, 0);
+            }
+        }
         let single = load_config(&root.join("single-event-config.json")).unwrap();
         assert!(single.shortcuts.is_empty());
         assert_eq!(single.events[0].growth_type, 8);

@@ -17,7 +17,7 @@ use bevy::render::view::screenshot::{save_to_disk, Capturing, Screenshot};
 use bevy_egui::{egui, EguiContexts, EguiPlugin, EguiPrimaryContextPass};
 use qsm_view::{
     build_frame, camera_fit, color_name, color_rgb, cycle_min_colors, event_texture_rgba,
-    load_simulation, occupants_at, path_back_to_event, pick_marker, shade_rgb, Frame, LoadedSim,
+    load_simulation, occupants_at, paths_for_selection, pick_marker, shade_rgb, Frame, LoadedSim,
     PointOccupant, SceneNode, ViewFilter, NODE_RADIUS, ORIGIN_RADIUS, SELECTED_SCALE,
 };
 
@@ -525,10 +525,10 @@ fn panel(
         .filter
         .selected
         .and_then(|id| session.sim.nodes.iter().find(|node| node.id == id).cloned());
-    let path_len = selected
+    let paths = selected
         .as_ref()
         .filter(|_| session.filter.active_only)
-        .map(|node| path_back_to_event(&session.sim.nodes, node.id).len());
+        .map(|node| paths_for_selection(&session.sim.nodes, node.id, session.filter.time));
     let occupants = selected
         .as_ref()
         .map(|node| {
@@ -589,7 +589,7 @@ fn panel(
                     }
                 }
             });
-            selection_lines(ui, selected.as_ref(), &occupants, path_len);
+            selection_lines(ui, selected.as_ref(), &occupants, paths.as_deref());
             ui.label("orbit: left drag    pan: right drag    zoom: scroll");
             ui.label("click a node to inspect it");
             ui.label("time: left / right, Home / End    colors: 1 2 3 4");
@@ -606,7 +606,7 @@ fn selection_lines(
     ui: &mut egui::Ui,
     node: Option<&SceneNode>,
     occupants: &[PointOccupant],
-    path_len: Option<usize>,
+    paths: Option<&[Vec<i64>]>,
 ) {
     let Some(node) = node else {
         return;
@@ -633,8 +633,20 @@ fn selection_lines(
             ));
         }
     }
-    if let Some(len) = path_len {
-        ui.label(format!("path back {len} nodes"));
+    if let Some(paths) = paths {
+        if paths.len() <= 1 {
+            if let Some(path) = paths.first() {
+                ui.label(format!("path back {} nodes", path.len()));
+            }
+        } else {
+            for (occ, path) in occupants.iter().zip(paths.iter()) {
+                ui.label(format!(
+                    "{} path back {} nodes",
+                    color_name(occ.color),
+                    path.len()
+                ));
+            }
+        }
     }
 }
 

@@ -192,7 +192,7 @@ QSM_DATA_ROOT=/tmp/qsm cargo run -p qsm-view --features view -- pyramid-demo
 
 The window opens at the last saved creation time with **Display active nodes** on. A node with `creation_time > t` is hidden, including an event root that does not exist yet. Every other event root (`d == 0`) is drawn, whatever the color checkboxes, the active-node checkbox, and the shared-color selector say. Other nodes of a hidden color stay hidden.
 
-A node is active when it already exists at `t` and `t - creation_time < active_path_node_threshold`. The threshold is the space setting in `inputs.json`, or in the run file when `inputs.json` is missing. The default is 3, so at time 6 the bright nodes are creation times 4, 5, and 6. Inactive nodes use 0.3 of their event color, the old-event dimmer from `m3gl`. Threshold 0 makes nothing active. The same test drives the checkbox and the dimming. With the checkbox on, only active non-roots are drawn, and selecting a node still draws its `From` chain back to the event. Those earlier nodes stay darker. With the checkbox off, every node up to `t` is drawn, still dimmed when it is inactive.
+A node is active when it already exists at `t` and `t - creation_time < active_path_node_threshold`. The threshold is the space setting in `inputs.json`, or in the run file when `inputs.json` is missing. The default is 3, so at time 6 the bright non-roots are creation times 4, 5, and 6. An inactive non-root uses 0.3 of its event color, the old-event dimmer from `m3gl`. Event roots are never dimmed: they stay the full event color at every slider time, on a selected path, and when they are older than the threshold. Threshold 0 makes no non-root active. The same age test drives the checkbox and the dimming. With the checkbox on, only active non-roots are drawn, and selecting a node still draws its `From` chain back to the event. Those earlier non-roots stay darker. When the selected point already holds more than one event color, every node there draws its own chain, in that event's color. With the checkbox off, every node up to `t` is drawn, and inactive non-roots stay dimmed.
 
 **Shared colors** is off, 2+, 3+, or 4. When it is on, a non-root is drawn only when it is active and its point is shared by at least that many distinct event colors. Colors are counted from every node already created at `t`, including inactive ones. Two nodes of the same color count as one. Event roots stay visible. There are four colors, so 4 means all of them.
 
@@ -200,7 +200,7 @@ Event colors are 1 red, 2 green, 4 blue, 8 yellow. Roots are spheres of radius 0
 
 A click (a left press that does not drag) selects the nearest sphere under the cursor. The panel then shows `x`, `y`, `z`, `d`, the path context id (`path`), and the event id (`event`). When several nodes share that point, the panel lists each one: color, event id, `d`, path, and whether it is active. The selected sphere is larger and lighter. A click on empty space clears the selection.
 
-Spheres share one mesh per size. Each combination of color, active shade, root texture, and selection has one unlit material, so Bevy instances them. Root materials sample the band texture. The picture below is that default for the pyramid at creation time 6 (threshold 3): 424 nodes drawn, the active nodes plus the four roots, out of 508 stored. Older non-roots are hidden. The roots are the larger banded spheres.
+Spheres share one mesh per size. Each combination of color, active shade, root texture, and selection has one unlit material, so Bevy instances them. Root materials sample the band texture and are tinted with the full event color. The picture below is that default for the pyramid at creation time 6 (threshold 3): 424 nodes drawn, the active nodes plus the four roots, out of 508 stored. Older non-roots are hidden. The roots are the larger banded spheres, at full brightness.
 
 | control | action |
 | --- | --- |
@@ -219,6 +219,8 @@ Spheres share one mesh per size. Each combination of color, active shade, root t
 The egui panel shows the simulation name, the latest run file, the time slider, the node, root, and line counts, the active-node checkbox (`active: age <` the saved threshold), the shared-color selector, and the selected node. A point with more than one node lists each color and event id.
 
 ![Default pyramid at creation time 6, active nodes on](../docs/qsm-view-pyramid.png)
+
+`big-pyramid` is the same pyramid through time 30 with `max_coord` 60. One debug run stored 63,012 event nodes and 77,384 points in about 18 seconds, peaking near 86 MiB. The last growth steps take a few seconds because each step rewrites the tables. The viewer loaded that folder in under a second. With **Display active nodes** on it draws the four roots plus the 17,104 nodes from the last three creation times, and building that frame took about 50 ms. On this machine the window used a software Vulkan driver, which is slow once that many spheres and lines are on screen; a GPU draws the same instanced spheres.
 
 ## Ported
 

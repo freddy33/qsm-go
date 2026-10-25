@@ -40,10 +40,12 @@ Omitted keys use these values. They are the playgl world (`MakeWorld` and `Creat
 | --- | --- | --- |
 | `pyramid-config.json` | `pyramid` | the default pyramid used by the tests: size 4, through time 3 |
 | `pyramid-size2-config.json` | `pyramid-size2` | the same pyramid at size 2, through time 4 |
+| `big-pyramid-config.json` | `big-pyramid` | size 4 through time 30, `max_coord` 60. A debug run stored 63,012 nodes and 77,384 points |
 | `single-event-config.json` | `single-event` | one red event at the origin, through time 3 |
 
 ```bash
 ./run run pyramid --new
 ./run run pyramid-size2 --new
+./run run big-pyramid --new
 ./run run single-event --new
 ```

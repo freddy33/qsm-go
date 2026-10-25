@@ -24,7 +24,7 @@ cargo run -p qsm -- pyramid --new
 cargo run -p qsm-view --features view -- pyramid
 ```
 
-`qsm <name>` creates or resumes `data/<name>/` and grows it to `max_time_steps` from `inputs.json`. When it finishes it prints the elapsed time, the time per step, the peak resident memory, and the nodes and points created. `./run run <name> --new` archives an existing `data/<name>/` and writes a new `inputs.json` from [`simulation-configs/<name>-config.json`](simulation-configs/README.md), with the defaults filled in. `qsm-view <name>` draws that folder. It opens with **Display active nodes** on, using `active_path_node_threshold` from the run, and event roots stay visible under every filter. Bevy is the `view` feature, so `cargo test --workspace` does not compile the window. `./run view <name> --screenshot out.png` saves one frame.
+`qsm <name>` creates or resumes `data/<name>/` and grows it to `max_time_steps` from `inputs.json`. When it finishes it prints the elapsed time, the time per step, the peak resident memory, and the nodes and points created. `./run run <name> --new` archives an existing `data/<name>/` and writes a new `inputs.json` from [`simulation-configs/<name>-config.json`](simulation-configs/README.md), with the defaults filled in. `qsm-view <name>` draws that folder. It opens with **Display active nodes** on, using `active_path_node_threshold` from the run. Event roots stay visible under every filter and are never dimmed. Selecting a point that holds several event colors draws each event's path back to its root. Bevy is the `view` feature, so `cargo test --workspace` does not compile the window. `./run view <name> --screenshot out.png` saves one frame.
 
 ![Default pyramid at creation time 6, active nodes on](docs/qsm-view-pyramid.png)
 

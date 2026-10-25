@@ -307,14 +307,44 @@ pub fn path_back_to_event(nodes: &[SceneNode], selected: i64) -> Vec<i64> {
     ordered
 }
 
+/// `From` chains to draw for a selection.
+///
+/// One chain, the selected node's, when that point has a single event color.
+/// When nodes of more than one color already exist there, one chain per node
+/// at the point, in scene order. Each chain is that node's own color because
+/// its links use the earlier node's event color. A node created after `time`
+/// is left out.
+pub fn paths_for_selection(nodes: &[SceneNode], selected: i64, time: i32) -> Vec<Vec<i64>> {
+    let Some(node) = nodes.iter().find(|candidate| candidate.id == selected) else {
+        return vec![path_back_to_event(nodes, selected)];
+    };
+    let here: Vec<&SceneNode> = nodes
+        .iter()
+        .filter(|candidate| candidate.position == node.position && candidate.creation_time <= time)
+        .collect();
+    let colors = here
+        .iter()
+        .fold(0u8, |acc, candidate| acc | candidate.color);
+    if color_count(colors) >= 2 {
+        here.iter()
+            .map(|candidate| path_back_to_event(nodes, candidate.id))
+            .collect()
+    } else {
+        vec![path_back_to_event(nodes, selected)]
+    }
+}
+
 /// Markers that pass the time slider and the display filters.
 ///
 /// A node with `creation_time > filter.time` is hidden, including an event
 /// root that has not been created yet. Event roots that do exist are drawn
 /// whatever the color mask, the active-node checkbox, and the multi-color
-/// filter say. Other nodes of a hidden color stay hidden, including a selected
-/// path. With **Display active nodes** on, a non-root is drawn when it is
-/// active, and the selected node's `From` chain is drawn as well. With the
+/// filter say, and they are never dimmed: a root stays the full event color
+/// even when it is older than the active threshold or sits on a selected path.
+/// Other nodes of a hidden color stay hidden, including a selected path. With
+/// **Display active nodes** on, a non-root is drawn when it is active, and the
+/// selected node's `From` chain is drawn as well. If that point already holds
+/// more than one event color, every node there gets its own chain. With the
 /// multi-color filter on, a non-root is drawn only when it is active and its
 /// point is shared by at least `min_colors` distinct event colors. Colors are
 /// counted from every node already created at this time, including inactive
@@ -328,7 +358,12 @@ pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> 
     let chain: HashSet<i64> = if filter.active_only {
         filter
             .selected
-            .map(|id| path_back_to_event(nodes, id).into_iter().collect())
+            .map(|id| {
+                paths_for_selection(nodes, id, filter.time)
+                    .into_iter()
+                    .flatten()
+                    .collect()
+            })
             .unwrap_or_default()
     } else {
         HashSet::new()
@@ -368,7 +403,8 @@ pub fn build_frame(nodes: &[SceneNode], filter: &ViewFilter, max_coord: i32) -> 
             position: pos(node.position),
             color: node.color,
             origin: node.origin,
-            active: node_is_active(node.creation_time, filter.time, filter.active_threshold),
+            active: node.origin
+                || node_is_active(node.creation_time, filter.time, filter.active_threshold),
             selected: filter.selected == Some(node.id),
         });
         if !filter.show_lines {

@@ -2,8 +2,8 @@ use m3data::{EventRow, NodeRow, PointRow};
 
 use crate::{
     build_frame, camera_fit, color_name, color_rgb, cycle_min_colors, display_rgb,
-    event_texture_rgba, node_is_active, occupants_at, path_back_to_event, pick_marker,
-    scene_from_rows, shade_rgb, Marker, SceneNode, ViewFilter, AXE_EXTRA, GRID_STEP,
+    event_texture_rgba, node_is_active, occupants_at, path_back_to_event, paths_for_selection,
+    pick_marker, scene_from_rows, shade_rgb, Marker, SceneNode, ViewFilter, AXE_EXTRA, GRID_STEP,
     INACTIVE_DIMMER, NODE_RADIUS, ORIGIN_RADIUS,
 };
 
@@ -265,8 +265,8 @@ fn active_only_keeps_roots_and_the_selected_path() {
         .filter(|m| m.active)
         .map(|m| m.node_id)
         .collect();
-    assert_eq!(active, vec![12]);
-    assert!(only.markers.iter().filter(|m| m.origin).all(|m| !m.active));
+    assert_eq!(active, vec![10, 12, 20]);
+    assert!(only.markers.iter().filter(|m| m.origin).all(|m| m.active));
     assert_eq!(only.line_count(), 0);
 
     filter.selected = Some(12);
@@ -282,7 +282,7 @@ fn active_only_keeps_roots_and_the_selected_path() {
         .filter(|m| m.active)
         .map(|m| m.node_id)
         .collect();
-    assert_eq!(active, vec![12]);
+    assert_eq!(active, vec![10, 12, 20]);
     assert!(with_path
         .markers
         .iter()
@@ -393,6 +393,109 @@ fn multi_color_filter_keeps_active_shared_points_and_roots() {
     assert_eq!(cycle_min_colors(2), 3);
     assert_eq!(cycle_min_colors(3), 4);
     assert_eq!(cycle_min_colors(4), 0);
+}
+
+fn placed(
+    id: i64,
+    position: [i32; 3],
+    color: u8,
+    creation_time: i32,
+    origin: bool,
+    event_id: i32,
+    from: Vec<i64>,
+) -> SceneNode {
+    SceneNode {
+        id,
+        position,
+        color,
+        creation_time,
+        origin,
+        d: if origin { 0 } else { 1 },
+        event_id,
+        path_ctx_id: event_id,
+        from,
+    }
+}
+
+#[test]
+fn a_shared_point_draws_every_color_path_back_to_its_root() {
+    let scene = vec![
+        placed(1, [0, 0, 0], 1, 0, true, 1, vec![]),
+        placed(2, [3, 0, 0], 1, 1, false, 1, vec![1]),
+        placed(5, [6, 0, 0], 1, 2, false, 1, vec![2]),
+        placed(3, [0, 6, 0], 2, 0, true, 2, vec![]),
+        placed(4, [3, 0, 0], 2, 1, false, 2, vec![3]),
+        placed(6, [6, 3, 0], 2, 2, false, 2, vec![4]),
+        placed(7, [9, 0, 0], 2, 1, false, 2, vec![3]),
+    ];
+    let mut filter = ViewFilter::at_time(2);
+    filter.active_only = true;
+    filter.active_threshold = 1;
+    filter.selected = Some(2);
+    let paths = paths_for_selection(&scene, 2, 2);
+    assert_eq!(paths, vec![vec![2, 1], vec![4, 3]]);
+
+    let frame = build_frame(&scene, &filter, 18);
+    let mut ids: Vec<_> = frame.markers.iter().map(|m| m.node_id).collect();
+    ids.sort();
+    assert_eq!(ids, vec![1, 2, 3, 4, 5, 6]);
+    assert!(frame.markers.iter().all(|m| m.node_id != 7));
+    assert!(frame.markers.iter().filter(|m| m.origin).all(|m| m.active));
+    assert!(frame.markers.iter().any(|m| m.node_id == 4 && !m.active));
+    let colors: Vec<_> = frame
+        .segments
+        .iter()
+        .map(|seg| (seg.color, seg.a, seg.b))
+        .collect();
+    assert!(
+        colors.iter().any(|seg| seg.0 == 1),
+        "the red path keeps its color: {colors:?}"
+    );
+    assert!(
+        colors.iter().any(|seg| seg.0 == 2),
+        "the green path keeps its color: {colors:?}"
+    );
+
+    filter.selected = Some(5);
+    let only_red = build_frame(&scene, &filter, 18);
+    assert!(only_red.markers.iter().all(|m| m.node_id != 4));
+    assert_eq!(paths_for_selection(&scene, 5, 2), vec![vec![5, 2, 1]]);
+
+    filter.selected = Some(2);
+    filter.color_mask = 1;
+    let masked = build_frame(&scene, &filter, 18);
+    assert!(masked.markers.iter().all(|m| m.node_id != 4));
+    assert!(masked
+        .markers
+        .iter()
+        .any(|m| m.node_id == 3 && m.origin && m.active));
+
+    filter.selected = Some(2);
+    filter.color_mask = 1 | 2 | 4 | 8;
+    filter.active_only = false;
+    let shown = build_frame(&scene, &filter, 18);
+    assert_eq!(shown.node_count(), scene.len());
+}
+
+#[test]
+fn two_nodes_of_one_color_draw_only_the_selected_path() {
+    let scene = vec![
+        placed(1, [0, 0, 0], 1, 0, true, 1, vec![]),
+        placed(2, [3, 0, 0], 1, 1, false, 1, vec![1]),
+        placed(5, [6, 0, 0], 1, 2, false, 1, vec![2]),
+        placed(8, [0, 3, 0], 1, 0, true, 3, vec![]),
+        placed(9, [3, 0, 0], 1, 1, false, 3, vec![8]),
+    ];
+    assert_eq!(paths_for_selection(&scene, 2, 2), vec![vec![2, 1]]);
+    let mut filter = ViewFilter::at_time(2);
+    filter.active_only = true;
+    filter.active_threshold = 1;
+    filter.selected = Some(2);
+    let frame = build_frame(&scene, &filter, 18);
+    let mut ids: Vec<_> = frame.markers.iter().map(|m| m.node_id).collect();
+    ids.sort();
+    assert_eq!(ids, vec![1, 2, 5, 8]);
+    assert!(frame.markers.iter().all(|m| m.node_id != 9));
 }
 
 #[test]
