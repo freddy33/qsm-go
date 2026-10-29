@@ -776,6 +776,11 @@ fn run_file_locks_space_and_events() {
         name.starts_with("run-") && name.ends_with("Z.json"),
         "{name}"
     );
+    let raw = fs::read(&runs[0]).unwrap();
+    assert!(
+        !raw.contains(&b'\r'),
+        "run JSON is written with LF line endings"
+    );
     let record = load_run(&runs[0]);
     assert_eq!(record.creation_time, 0);
     assert_eq!(record.max_time_steps, 0);

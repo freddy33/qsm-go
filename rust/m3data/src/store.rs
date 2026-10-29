@@ -592,7 +592,7 @@ fn insert_i32(ids: &mut HashSet<i32>, id: i32, table: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn validate_name(name: &str) -> Result<()> {
+pub fn validate_name(name: &str) -> Result<()> {
     if name.is_empty() || name.len() > MAX_NAME_LEN {
         return Err(Error::new(
             "simulation name must be 1..=175 characters".to_string(),
@@ -600,9 +600,8 @@ pub(crate) fn validate_name(name: &str) -> Result<()> {
     }
     if name == "."
         || name == ".."
-        || name.contains('/')
-        || name.contains('\\')
-        || name.contains('\0')
+        || name.chars().any(is_forbidden_in_file_name)
+        || is_windows_reserved(name)
     {
         return Err(Error::new(format!(
             "simulation name {name:?} is not a single folder name"
@@ -611,8 +610,57 @@ pub(crate) fn validate_name(name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Characters Windows rejects in a file name, plus `/` and NUL.
+fn is_forbidden_in_file_name(c: char) -> bool {
+    matches!(
+        c,
+        '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '\0'
+    )
+}
+
+/// `CON`, `NUL`, `COM1`, and the other device names Windows will not create.
+fn is_windows_reserved(name: &str) -> bool {
+    let base = name.split('.').next().unwrap_or(name);
+    matches!(
+        base.to_ascii_uppercase().as_str(),
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
+    )
+}
+
+/// `file://` URI for a local path.
+///
+/// Unix absolute paths stay `file:///tmp/...`. A Windows path, including the
+/// `\\?\` prefix from `canonicalize`, becomes `file:///C:/...` with forward
+/// slashes. The drive-letter colon is the only colon in that URI.
 fn file_uri(path: &Path) -> String {
-    format!("file://{}", path.display())
+    let text = path.to_string_lossy();
+    let text = text.strip_prefix(r"\\?\").unwrap_or(&text);
+    let mut text = text.replace('\\', "/");
+    if !text.starts_with('/') {
+        text.insert(0, '/');
+    }
+    format!("file://{text}")
 }
 
 fn unique_file_suffix() -> String {
@@ -860,10 +908,18 @@ fn walk_parquet(dir: &Path) -> Vec<PathBuf> {
 }
 
 fn uri_to_path(uri: &str) -> PathBuf {
-    match uri.strip_prefix("file://") {
-        Some(rest) => PathBuf::from(rest),
-        None => PathBuf::from(uri),
-    }
+    let Some(rest) = uri.strip_prefix("file://") else {
+        return PathBuf::from(uri);
+    };
+    // `file:///C:/qsm` strips to `/C:/qsm`. Drop that extra slash so Windows
+    // sees a drive path. A Unix path such as `/tmp/qsm` has no drive letter.
+    let bytes = rest.as_bytes();
+    let rest = if bytes.len() >= 3 && bytes[0] == b'/' && bytes[2] == b':' {
+        &rest[1..]
+    } else {
+        rest
+    };
+    PathBuf::from(rest)
 }
 
 fn normalize_path(path: &Path) -> PathBuf {
@@ -896,4 +952,33 @@ async fn read_events(table: &Table) -> Result<Vec<EventRow>> {
 
 async fn read_nodes(table: &Table) -> Result<Vec<NodeRow>> {
     decode_nodes(&read_batches(table).await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+
+    #[test]
+    fn file_uris_use_forward_slashes_and_round_trip() {
+        let unix = file_uri(Path::new("/tmp/qsm/pyramid"));
+        assert_eq!(unix, "file:///tmp/qsm/pyramid");
+        assert_eq!(uri_to_path(&unix), Path::new("/tmp/qsm/pyramid"));
+
+        let drive = file_uri(Path::new(r"\\?\C:\qsm\pyramid"));
+        assert_eq!(drive, "file:///C:/qsm/pyramid");
+        assert!(!drive.contains('\\'));
+        assert_eq!(uri_to_path(&drive), Path::new("C:/qsm/pyramid"));
+    }
+
+    #[test]
+    fn names_reject_windows_reserved_characters_and_devices() {
+        assert!(validate_name("pyramid").is_ok());
+        for bad in [
+            "a:b", "a*b", "a?b", "a\"b", "a<b", "a>b", "a|b", "con", "NUL", "COM1",
+        ] {
+            assert!(validate_name(bad).is_err(), "{bad}");
+        }
+    }
 }

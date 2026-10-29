@@ -6,13 +6,22 @@ The implementation is a Cargo workspace in [`rust/`](rust/README.md). Saved simu
 
 ## Build, test, run, view
 
-[Rustup](https://rustup.rs/) is required. `rust/rust-toolchain.toml` selects the pinned toolchain. These commands work from any directory. `QSM_DATA_ROOT` overrides the data directory; when it is unset the scripts use `data/` at the repository root.
+[Rustup](https://rustup.rs/) is required. `rust/rust-toolchain.toml` selects the pinned toolchain. These commands work from any directory. `QSM_DATA_ROOT` overrides the data directory; when it is unset the scripts use `data/` at the repository root. `./run` is bash. [`run.ps1`](run.ps1) is the Windows launcher and accepts the same commands.
 
 ```bash
 ./run build
 ./run test
 ./run run pyramid --new
 ./run view pyramid
+```
+
+On Windows, `run.ps1` is the same launcher:
+
+```powershell
+powershell -File .\run.ps1 build
+powershell -File .\run.ps1 test
+powershell -File .\run.ps1 run pyramid --new
+powershell -File .\run.ps1 view pyramid
 ```
 
 The same cargo commands, run from `rust/`:

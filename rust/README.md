@@ -51,9 +51,9 @@ cargo run -p qsm -- pyramid --new
 QSM_CONFIG_ROOT=../simulation-configs cargo run -p qsm -- pyramid-size2 --new
 ```
 
-One simulation name is one space. There is no `spaces` table. After a successful run, `qsm` writes `data/<name>/qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC, so the names sort in time order). The next run of that name loads the latest `run-*.json` and compares it with the current `inputs.json`. Resolved space parameters and the event list (shortcuts and explicit events, compared after expansion) must be identical. Only `max_time_steps` may change, and a value below the saved creation time is an error: nothing is written and no new run file is created. Any other difference is an error and writes nothing. Saved rows with no `run-*.json` are an error as well. A same-second collision is `run-<stamp>_01.json`, which sorts after the unsuffixed name and before the next second. The `doc` field is a note and is not part of the check. Raising `max_time_steps` resumes from the last saved creation time.
+One simulation name is one space. There is no `spaces` table. After a successful run, `qsm` writes `data/<name>/qsm/run-<YYYYMMDDTHHMMSSZ>.json` (UTC, so the names sort in time order). The stamp has no colon, so Windows accepts the file name. Archive folders use the same stamp: `data/<name>-<YYYYMMDDTHHMMSSZ>`. JSON files are written with LF line endings. The next run of that name loads the latest `run-*.json` and compares it with the current `inputs.json`. Resolved space parameters and the event list (shortcuts and explicit events, compared after expansion) must be identical. Only `max_time_steps` may change, and a value below the saved creation time is an error: nothing is written and no new run file is created. Any other difference is an error and writes nothing. Saved rows with no `run-*.json` are an error as well. A same-second collision is `run-<stamp>_01.json`, which sorts after the unsuffixed name and before the next second. The `doc` field is a note and is not part of the check. Raising `max_time_steps` resumes from the last saved creation time.
 
-The same run file also stores a `recap`: elapsed milliseconds, per-step milliseconds, peak resident memory when the OS reports it, and the node and point totals plus how many were created on that invocation. The CLI prints the same numbers. `recap` is not compared on the next run. A run file written before this field still loads.
+The same run file also stores a `recap`: elapsed milliseconds, per-step milliseconds, peak resident memory when the OS reports it, and the node and point totals plus how many were created on that invocation. The CLI prints the same numbers. `recap` is not compared on the next run. A run file written before this field still loads. Peak memory is `getrusage` on Unix (Linux reports kilobytes, macOS reports bytes, with `/proc/self/status` `VmHWM` as a fallback) and `GetProcessMemoryInfo` `PeakWorkingSetSize` on Windows.
 
 `max_time_steps` is the last creation time to store. Events created at time 0 contribute their root nodes at time 0, then one shell per later time. `3` therefore stores times 0, 1, 2, and 3.
 
@@ -174,6 +174,8 @@ cargo run -p playgl
 cargo run -p qsm -- test-sim
 cargo run -p qsm-view --features view -- test-sim
 ```
+
+From the repository root, `./run` (bash) and `powershell -File .\run.ps1` (Windows) run those cargo commands and set `QSM_DATA_ROOT` and `QSM_CONFIG_ROOT` when they are unset.
 
 `cargo test` does not need PostgreSQL, a network, or a window. Bevy is behind the `view` feature, so `cargo test --workspace` and `cargo build --workspace` do not compile it. `cargo build -p qsm-view --features view` does. The `qsm` integration test runs `qsm test-sim` twice in a temp directory: the first run writes the default pyramid and grows to time 3, and the second run finds that max already reached.
 

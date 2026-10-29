@@ -26,7 +26,7 @@ pub use schema::{TableKind, NAMESPACE};
 pub use sim::{
     config_root, default_data_root, run_named, run_named_async, run_new, run_new_async, StepReport,
 };
-pub use store::SimulationStore;
+pub use store::{validate_name, SimulationStore};
 
 /// Static reference tables, built once in memory. They are not stored.
 pub fn static_pack() -> &'static PointPackData {

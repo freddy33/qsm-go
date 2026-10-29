@@ -343,5 +343,13 @@ mod tests {
         let later = "run-20261022T121801Z.json";
         assert!(plain < suffix);
         assert!(suffix < later);
+        let stamp = format_utc(1_792_671_480);
+        assert!(
+            !stamp.chars().any(|c| r#"/\:*?"<>|"#.contains(c)),
+            "{stamp}"
+        );
+        let archive = format!("pyramid-{stamp}");
+        assert!(!archive.contains(':'));
+        assert_eq!(format!("run-{stamp}.json"), plain);
     }
 }

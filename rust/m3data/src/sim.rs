@@ -1,7 +1,6 @@
 //! Run a named simulation from its `inputs.json` up to `max_time_steps`.
 
 use std::fmt;
-use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
@@ -107,13 +106,20 @@ pub(crate) fn format_steps(step_ms: &[u64]) -> String {
     }
 }
 
-/// Peak resident set size of this process.
+/// Peak resident set size of this process, in bytes.
 ///
-/// Linux `getrusage` reports kilobytes. macOS reports bytes, so that value is
-/// used as-is. If `getrusage` fails, Linux `/proc/self/status` `VmHWM` is the
-/// fallback. `None` means neither source was available.
+/// Unix uses `getrusage`. Linux and Android report kilobytes; macOS and the
+/// other Unix targets report bytes. If that call fails, Linux
+/// `/proc/self/status` `VmHWM` is the fallback. Windows uses
+/// `GetProcessMemoryInfo` and `PeakWorkingSetSize`, which is already bytes.
+/// `None` means the OS did not report a peak.
 pub fn peak_rss_bytes() -> Option<u64> {
-    let mut usage = MaybeUninit::<libc::rusage>::zeroed();
+    platform_peak_rss()
+}
+
+#[cfg(unix)]
+fn platform_peak_rss() -> Option<u64> {
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
     let rc = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
     if rc == 0 {
         let usage = unsafe { usage.assume_init() };
@@ -130,9 +136,34 @@ pub fn peak_rss_bytes() -> Option<u64> {
     vm_hwm_bytes()
 }
 
+#[cfg(unix)]
 fn vm_hwm_bytes() -> Option<u64> {
     let text = std::fs::read_to_string("/proc/self/status").ok()?;
     parse_vm_hwm(&text)
+}
+
+#[cfg(windows)]
+fn platform_peak_rss() -> Option<u64> {
+    use std::mem::{size_of, MaybeUninit};
+    use windows_sys::Win32::System::ProcessStatus::{
+        GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
+    };
+    use windows_sys::Win32::System::Threading::GetCurrentProcess;
+
+    let mut counters = MaybeUninit::<PROCESS_MEMORY_COUNTERS>::zeroed();
+    let mut counters = unsafe { counters.assume_init() };
+    counters.cb = u32::try_from(size_of::<PROCESS_MEMORY_COUNTERS>()).ok()?;
+    let ok = unsafe { GetProcessMemoryInfo(GetCurrentProcess(), &mut counters, counters.cb) };
+    if ok == 0 {
+        return None;
+    }
+    let peak = counters.PeakWorkingSetSize as u64;
+    (peak > 0).then_some(peak)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn platform_peak_rss() -> Option<u64> {
+    None
 }
 
 pub(crate) fn parse_vm_hwm(text: &str) -> Option<u64> {

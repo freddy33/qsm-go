@@ -38,3 +38,31 @@ jobs:
 
       - name: Build viewer
         run: cargo build -p qsm-view --features view
+
+  rust-windows:
+    name: Rust (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain
+        run: rustup show && rustc --version
+
+      # Keyed on Cargo.lock and the pinned toolchain in rust/rust-toolchain.toml.
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Test workspace
+        run: cargo test --workspace
+
+      - name: Build viewer
+        run: cargo build -p qsm-view --features view

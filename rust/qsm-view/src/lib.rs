@@ -603,8 +603,8 @@ pub struct LoadedSim {
 /// Does not create a folder. An unknown name, or a folder with no event nodes,
 /// is an error: grow the simulation with `qsm <name>` first.
 pub fn load_simulation(data_root: &Path, name: &str) -> Result<LoadedSim, String> {
-    if !valid_name(name) {
-        return Err(format!("invalid simulation name `{name}`"));
+    if let Err(err) = m3data::validate_name(name) {
+        return Err(format!("invalid simulation name `{name}`: {err}"));
     }
     let root = data_root.join(name);
     if !root.is_dir() {
@@ -728,10 +728,6 @@ fn ray_sphere(origin: [f32; 3], dir: [f32; 3], center: [f32; 3], radius: f32) ->
         let far = -b + root;
         (far > 0.0).then_some(far)
     }
-}
-
-fn valid_name(name: &str) -> bool {
-    !name.is_empty() && !name.contains('/') && !name.contains('\\') && name != "." && name != ".."
 }
 
 #[cfg(test)]
