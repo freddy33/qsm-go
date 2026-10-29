@@ -452,6 +452,14 @@ fn pyramid_three_steps_matches_a_resumed_run() {
     assert_eq!(straight.report.events, 4);
     assert_eq!(straight.report.nodes, 88);
     assert_eq!(straight.report.steps_computed, 3);
+    assert_eq!(straight.report.recap.step_ms.len(), 3);
+    assert_eq!(straight.report.recap.nodes, 88);
+    assert_eq!(straight.report.recap.nodes_created, 88);
+    assert_eq!(
+        straight.report.recap.points_created,
+        straight.report.points as u64
+    );
+    assert!(straight.report.recap.peak_rss_bytes.is_some_and(|n| n > 0));
     assert_pyramid(&straight.store);
 
     let reloaded = open_store(&straight.root, "pyramid");
@@ -463,6 +471,9 @@ fn pyramid_three_steps_matches_a_resumed_run() {
     assert_eq!(again.steps_computed, 0);
     assert_eq!(again.time, 3);
     assert_eq!(again.nodes, 88);
+    assert_eq!(again.recap.nodes_created, 0);
+    assert_eq!(again.recap.points_created, 0);
+    assert!(again.recap.step_ms.is_empty());
     assert_eq!(sorted_runs(straight.store.root()).len(), 2);
 
     for stop in [1, 2] {
@@ -765,10 +776,20 @@ fn run_file_locks_space_and_events() {
         name.starts_with("run-") && name.ends_with("Z.json"),
         "{name}"
     );
+    let raw = fs::read(&runs[0]).unwrap();
+    assert!(
+        !raw.contains(&b'\r'),
+        "run JSON is written with LF line endings"
+    );
     let record = load_run(&runs[0]);
     assert_eq!(record.creation_time, 0);
     assert_eq!(record.max_time_steps, 0);
     assert_eq!(record.events.len(), 4);
+    let recap = record.recap.expect("a finished run stores a recap");
+    assert_eq!(recap.nodes, 4);
+    assert_eq!(recap.nodes_created, 4);
+    assert!(recap.step_ms.is_empty(), "time 0 is the seed, not a step");
+    assert!(recap.points_created > 0);
     assert_eq!(record.events[0].growth_offset, 0);
     assert_eq!(record.events[0].x, 12);
 
@@ -778,6 +799,8 @@ fn run_file_locks_space_and_events() {
     assert_eq!(second.time, 1);
     assert_eq!(second.steps_computed, 1);
     assert_eq!(second.nodes, 4 + 12);
+    assert_eq!(second.recap.nodes_created, 12);
+    assert_eq!(second.recap.step_ms.len(), 1);
     assert_eq!(sorted_runs(&tmp.0.join("pyramid")).len(), 2);
     let saved_nodes = open_store(&tmp.0, "pyramid").nodes().len();
 

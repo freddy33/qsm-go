@@ -100,7 +100,7 @@ impl SimulationStore {
             .with_storage_factory(Arc::new(LocalFsStorageFactory))
             .load(
                 "qsm",
-                HashMap::from([(MEMORY_CATALOG_WAREHOUSE.to_string(), file_uri(&root))]),
+                HashMap::from([(MEMORY_CATALOG_WAREHOUSE.to_string(), storage_path(&root))]),
             )
             .await?;
         let namespace = NamespaceIdent::new(NAMESPACE.to_string());
@@ -110,7 +110,9 @@ impl SimulationStore {
         for kind in TableKind::all() {
             let ident = table_ident(kind);
             let table = if let Some(metadata) = latest_metadata(&root, kind.name()) {
-                catalog.register_table(&ident, file_uri(&metadata)).await?
+                catalog
+                    .register_table(&ident, storage_path(&metadata))
+                    .await?
             } else {
                 catalog
                     .create_table(&namespace, table_creation(kind)?)
@@ -592,7 +594,7 @@ fn insert_i32(ids: &mut HashSet<i32>, id: i32, table: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_name(name: &str) -> Result<()> {
+pub fn validate_name(name: &str) -> Result<()> {
     if name.is_empty() || name.len() > MAX_NAME_LEN {
         return Err(Error::new(
             "simulation name must be 1..=175 characters".to_string(),
@@ -600,9 +602,8 @@ fn validate_name(name: &str) -> Result<()> {
     }
     if name == "."
         || name == ".."
-        || name.contains('/')
-        || name.contains('\\')
-        || name.contains('\0')
+        || name.chars().any(is_forbidden_in_file_name)
+        || is_windows_reserved(name)
     {
         return Err(Error::new(format!(
             "simulation name {name:?} is not a single folder name"
@@ -611,8 +612,55 @@ fn validate_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn file_uri(path: &Path) -> String {
-    format!("file://{}", path.display())
+/// Characters Windows rejects in a file name, plus `/` and NUL.
+fn is_forbidden_in_file_name(c: char) -> bool {
+    matches!(
+        c,
+        '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '\0'
+    )
+}
+
+/// `CON`, `NUL`, `COM1`, and the other device names Windows will not create.
+fn is_windows_reserved(name: &str) -> bool {
+    let base = name.split('.').next().unwrap_or(name);
+    matches!(
+        base.to_ascii_uppercase().as_str(),
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
+    )
+}
+
+/// Absolute path string for iceberg's local filesystem.
+///
+/// `LocalFsStorage::normalize_path` rewrites `file:///C:/...` to `/C:/...`,
+/// and Windows rejects that path (os error 123). A plain absolute path is
+/// left as written: `/tmp/...` on Unix, `C:/...` on Windows. The `\\?\`
+/// prefix from `canonicalize` is removed, and backslashes become slashes.
+/// Older metadata that still says `file:///...` is read by [`uri_to_path`].
+fn storage_path(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    let text = text.strip_prefix(r"\\?\").unwrap_or(&text);
+    text.replace('\\', "/")
 }
 
 fn unique_file_suffix() -> String {
@@ -860,10 +908,19 @@ fn walk_parquet(dir: &Path) -> Vec<PathBuf> {
 }
 
 fn uri_to_path(uri: &str) -> PathBuf {
-    match uri.strip_prefix("file://") {
-        Some(rest) => PathBuf::from(rest),
-        None => PathBuf::from(uri),
-    }
+    let Some(rest) = uri.strip_prefix("file://") else {
+        return PathBuf::from(uri);
+    };
+    // Legacy `file:///C:/qsm` strips to `/C:/qsm`. Drop that slash so the
+    // drive path survives. `file:///tmp/qsm` has no drive letter and stays
+    // absolute.
+    let bytes = rest.as_bytes();
+    let rest = if bytes.len() >= 3 && bytes[0] == b'/' && bytes[2] == b':' {
+        &rest[1..]
+    } else {
+        rest
+    };
+    PathBuf::from(rest)
 }
 
 fn normalize_path(path: &Path) -> PathBuf {
@@ -896,4 +953,51 @@ async fn read_events(table: &Table) -> Result<Vec<EventRow>> {
 
 async fn read_nodes(table: &Table) -> Result<Vec<NodeRow>> {
     decode_nodes(&read_batches(table).await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+
+    #[test]
+    fn storage_paths_stay_plain_so_windows_can_create_them() {
+        assert_eq!(
+            storage_path(Path::new("/tmp/qsm/pyramid")),
+            "/tmp/qsm/pyramid"
+        );
+        let drive = storage_path(Path::new(r"\\?\C:\Users\User\AppData\Local\Temp\qsm"));
+        assert_eq!(drive, "C:/Users/User/AppData/Local/Temp/qsm");
+        assert!(!drive.starts_with('/'), "{drive}");
+        assert!(!drive.contains("file:"), "{drive}");
+        assert!(!drive.contains('\\'));
+
+        assert_eq!(
+            uri_to_path("/tmp/qsm/pyramid"),
+            Path::new("/tmp/qsm/pyramid")
+        );
+        assert_eq!(
+            uri_to_path("file:///tmp/qsm/pyramid"),
+            Path::new("/tmp/qsm/pyramid")
+        );
+        assert_eq!(
+            uri_to_path("C:/Users/User/AppData/Local/Temp/qsm"),
+            Path::new("C:/Users/User/AppData/Local/Temp/qsm")
+        );
+        assert_eq!(
+            uri_to_path("file:///C:/Users/User/AppData/Local/Temp/qsm"),
+            Path::new("C:/Users/User/AppData/Local/Temp/qsm")
+        );
+    }
+
+    #[test]
+    fn names_reject_windows_reserved_characters_and_devices() {
+        assert!(validate_name("pyramid").is_ok());
+        for bad in [
+            "a:b", "a*b", "a?b", "a\"b", "a<b", "a>b", "a|b", "con", "NUL", "COM1",
+        ] {
+            assert!(validate_name(bad).is_err(), "{bad}");
+        }
+    }
 }

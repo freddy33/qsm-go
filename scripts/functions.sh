@@ -27,5 +27,11 @@ qsm_prepare() {
     QSM_DATA_ROOT="$caller/$QSM_DATA_ROOT"
     export QSM_DATA_ROOT
   fi
+  if [[ -z "${QSM_CONFIG_ROOT:-}" ]]; then
+    export QSM_CONFIG_ROOT="$root/simulation-configs"
+  elif [[ "$QSM_CONFIG_ROOT" != /* ]]; then
+    QSM_CONFIG_ROOT="$caller/$QSM_CONFIG_ROOT"
+    export QSM_CONFIG_ROOT
+  fi
   cd "$root/rust" || exit 1
 }

@@ -5,9 +5,16 @@
 # to native line endings on checkout.
 *.txt text
 
-# Always have LF line endings on bash files checkout.
+# Always have LF line endings on checkout. Windows accepts LF in Rust,
+# JSON, and PowerShell. Bash does not accept CRLF.
 run text eol=lf
 *.sh text eol=lf
+*.ps1 text eol=lf
+*.rs text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
 
 # Denote all files that are truly binary and should not be modified.
 *.png binary

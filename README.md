@@ -6,13 +6,22 @@ The implementation is a Cargo workspace in [`rust/`](rust/README.md). Saved simu
 
 ## Build, test, run, view
 
-[Rustup](https://rustup.rs/) is required. `rust/rust-toolchain.toml` selects the pinned toolchain. These commands work from any directory. `QSM_DATA_ROOT` overrides the data directory; when it is unset the scripts use `data/` at the repository root.
+[Rustup](https://rustup.rs/) is required. `rust/rust-toolchain.toml` selects the pinned toolchain. These commands work from any directory. `QSM_DATA_ROOT` overrides the data directory; when it is unset the scripts use `data/` at the repository root. `./run` is bash. [`run.ps1`](run.ps1) is the Windows launcher and accepts the same commands.
 
 ```bash
 ./run build
 ./run test
-./run run pyramid-demo
-./run view pyramid-demo
+./run run pyramid --new
+./run view pyramid
+```
+
+On Windows, `run.ps1` is the same launcher:
+
+```powershell
+powershell -File .\run.ps1 build
+powershell -File .\run.ps1 test
+powershell -File .\run.ps1 run pyramid --new
+powershell -File .\run.ps1 view pyramid
 ```
 
 The same cargo commands, run from `rust/`:
@@ -20,13 +29,13 @@ The same cargo commands, run from `rust/`:
 ```bash
 cargo build --workspace
 cargo test --workspace
-cargo run -p qsm -- pyramid-demo
-cargo run -p qsm-view --features view -- pyramid-demo
+cargo run -p qsm -- pyramid --new
+cargo run -p qsm-view --features view -- pyramid
 ```
 
-`qsm <name>` creates or resumes `data/<name>/` and grows it to `max_time_steps` from `inputs.json`. `qsm-view <name>` draws that folder. Bevy is the `view` feature, so `cargo test --workspace` does not compile the window. `./run view <name> --screenshot out.png` saves one frame.
+`qsm <name>` creates or resumes `data/<name>/` and grows it to `max_time_steps` from `inputs.json`. When it finishes it prints the elapsed time, the time per step, the peak resident memory, and the nodes and points created. `./run run <name> --new` archives an existing `data/<name>/` and writes a new `inputs.json` from [`simulation-configs/<name>-config.json`](simulation-configs/README.md), with the defaults filled in. `qsm-view <name>` draws that folder. It opens with **Display active nodes** on, using `active_path_node_threshold` from the run. Event roots stay visible under every filter and are never dimmed. Selecting a point that holds several event colors draws each event's path back to its root. Bevy is the `view` feature, so `cargo test --workspace` does not compile the window. `./run view <name> --screenshot out.png` saves one frame.
 
-![Default pyramid at creation time 12](docs/qsm-view-pyramid.png)
+![Default pyramid at creation time 6, active nodes on](docs/qsm-view-pyramid.png)
 
 Details, controls, and the inputs format: [rust/README.md](rust/README.md).
 

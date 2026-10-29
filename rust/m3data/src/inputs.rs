@@ -178,6 +178,128 @@ pub fn parse_inputs(raw: &[u8]) -> Result<SimulationInputs> {
     Ok(serde_json::from_slice(raw)?)
 }
 
+/// `simulation-configs/<name>-config.json`.
+///
+/// Every field may be omitted. Absent `shortcuts` means the default pyramid.
+/// `"shortcuts": []` means no shortcuts. Event fields that are omitted use the
+/// origin, creation time 0, red, and growth type 8. The result is a complete
+/// [`SimulationInputs`]: the file written to `data/<name>/inputs.json` still
+/// keeps shortcuts, with every default filled in.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfigFile {
+    #[serde(default)]
+    doc: Option<String>,
+    #[serde(default)]
+    max_time_steps: Option<i32>,
+    #[serde(default)]
+    space: Option<ConfigSpace>,
+    #[serde(default)]
+    events: Vec<ConfigEvent>,
+    /// `None` is a missing key (default pyramid). `Some` is the key as written,
+    /// including an empty list.
+    #[serde(default)]
+    shortcuts: Option<Vec<Shortcut>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfigSpace {
+    #[serde(default)]
+    active_path_node_threshold: Option<i32>,
+    #[serde(default)]
+    max_trios_per_point: Option<i32>,
+    #[serde(default)]
+    max_path_nodes_per_point: Option<i32>,
+    #[serde(default)]
+    max_coord: Option<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ConfigEvent {
+    #[serde(default)]
+    x: i32,
+    #[serde(default)]
+    y: i32,
+    #[serde(default)]
+    z: i32,
+    #[serde(default)]
+    creation_time: i32,
+    #[serde(default = "default_event_color")]
+    color: u8,
+    #[serde(default = "default_pyramid_growth_type")]
+    growth_type: u8,
+    #[serde(default)]
+    growth_index: i32,
+    #[serde(default)]
+    growth_offset: i32,
+}
+
+fn default_event_color() -> u8 {
+    EventColor::Red as u8
+}
+
+/// Parse a minimal config and fill the same defaults as [`default_inputs`].
+pub fn expand_config(raw: &[u8]) -> Result<SimulationInputs> {
+    let config: ConfigFile = serde_json::from_slice(raw)?;
+    let defaults = default_inputs();
+    let base = SpaceParams::default();
+    let space = match config.space {
+        None => base.clone(),
+        Some(partial) => SpaceParams {
+            active_path_node_threshold: partial
+                .active_path_node_threshold
+                .unwrap_or(base.active_path_node_threshold),
+            max_trios_per_point: partial
+                .max_trios_per_point
+                .unwrap_or(base.max_trios_per_point),
+            max_path_nodes_per_point: partial
+                .max_path_nodes_per_point
+                .unwrap_or(base.max_path_nodes_per_point),
+            max_coord: partial.max_coord.unwrap_or(base.max_coord),
+        },
+    };
+    let events = config
+        .events
+        .into_iter()
+        .map(|event| EventInput {
+            x: event.x,
+            y: event.y,
+            z: event.z,
+            creation_time: event.creation_time,
+            color: event.color,
+            growth_type: event.growth_type,
+            growth_index: event.growth_index,
+            growth_offset: event.growth_offset,
+        })
+        .collect();
+    let shortcuts = config
+        .shortcuts
+        .unwrap_or_else(|| defaults.shortcuts.clone());
+    let mut inputs = SimulationInputs {
+        doc: config.doc.unwrap_or_default(),
+        max_time_steps: config.max_time_steps.unwrap_or(defaults.max_time_steps),
+        space,
+        events,
+        shortcuts,
+    };
+    if inputs.doc.is_empty() {
+        let mut filled = inputs.clone();
+        filled.doc = defaults.doc.clone();
+        if filled == defaults {
+            inputs.doc = defaults.doc;
+        }
+    }
+    validate_inputs(&inputs)?;
+    Ok(inputs)
+}
+
+pub fn load_config(path: &Path) -> Result<SimulationInputs> {
+    let raw = std::fs::read(path)?;
+    expand_config(&raw)
+}
+
 pub fn save_inputs(path: &Path, inputs: &SimulationInputs) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -301,6 +423,8 @@ fn resolve_one(pack: &PointPackData, event: &EventInput) -> Result<ResolvedEvent
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
     #[test]
@@ -323,5 +447,96 @@ mod tests {
         }
         let resolved = resolve_events(&default_inputs()).unwrap();
         assert!(resolved.iter().all(|event| event.growth_ctx_id == 40));
+    }
+
+    #[test]
+    fn an_empty_config_is_the_default_pyramid() {
+        let inputs = expand_config(b"{}").unwrap();
+        assert_eq!(inputs, default_inputs());
+        let explicit =
+            expand_config(br#"{ "max_time_steps": 3, "shortcuts": [ { "pyramid": {} } ] }"#)
+                .unwrap();
+        assert_eq!(explicit, default_inputs());
+    }
+
+    #[test]
+    fn a_partial_pyramid_and_a_single_event_fill_defaults() {
+        let pyramid = expand_config(
+            br#"{ "max_time_steps": 4, "shortcuts": [ { "pyramid": { "size": 2 } } ] }"#,
+        )
+        .unwrap();
+        assert_eq!(pyramid.max_time_steps, 4);
+        assert_eq!(pyramid.space, SpaceParams::default());
+        match &pyramid.shortcuts[0] {
+            Shortcut::Pyramid(spec) => {
+                assert_eq!(spec.size, 2);
+                assert_eq!(spec.growth_type, 8);
+                assert_eq!(spec.growth_index, 0);
+                assert_eq!(spec.offsets, vec![0, 2, 4, 6]);
+                assert_eq!(spec.creation_time, 0);
+            }
+        }
+        let single = expand_config(
+            br#"{ "max_time_steps": 3, "events": [ { "color": 1 } ], "shortcuts": [] }"#,
+        )
+        .unwrap();
+        assert!(single.shortcuts.is_empty());
+        assert_eq!(single.events.len(), 1);
+        assert_eq!(single.events[0].x, 0);
+        assert_eq!(single.events[0].y, 0);
+        assert_eq!(single.events[0].z, 0);
+        assert_eq!(single.events[0].creation_time, 0);
+        assert_eq!(single.events[0].color, 1);
+        assert_eq!(single.events[0].growth_type, 8);
+        assert_eq!(single.events[0].growth_index, 0);
+        assert_eq!(single.events[0].growth_offset, 0);
+        assert_eq!(single.space.max_coord, SpaceParams::default().max_coord);
+        assert!(resolve_events(&single).unwrap().len() == 1);
+    }
+
+    #[test]
+    fn an_unknown_config_field_is_rejected() {
+        let err = expand_config(br#"{ "nope": 1 }"#).unwrap_err();
+        assert!(err.to_string().contains("nope"), "{err}");
+    }
+
+    #[test]
+    fn the_checked_in_pyramid_config_matches_the_test_default() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../simulation-configs/pyramid-config.json");
+        let inputs = load_config(&path).unwrap();
+        assert_eq!(inputs, default_inputs());
+    }
+
+    #[test]
+    fn checked_in_variant_configs_fill_the_documented_defaults() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../simulation-configs");
+        let small = load_config(&root.join("pyramid-size2-config.json")).unwrap();
+        assert_eq!(small.max_time_steps, 4);
+        assert_eq!(small.space, SpaceParams::default());
+        match &small.shortcuts[0] {
+            Shortcut::Pyramid(spec) => {
+                assert_eq!(spec.size, 2);
+                assert_eq!(spec.growth_type, 8);
+                assert_eq!(spec.offsets, vec![0, 2, 4, 6]);
+            }
+        }
+        let big = load_config(&root.join("big-pyramid-config.json")).unwrap();
+        assert_eq!(big.max_time_steps, 30);
+        assert_eq!(big.space.active_path_node_threshold, 3);
+        assert_eq!(big.space.max_coord, 60);
+        assert_eq!(big.space.max_trios_per_point, 2);
+        assert_eq!(big.space.max_path_nodes_per_point, 4);
+        match &big.shortcuts[0] {
+            Shortcut::Pyramid(spec) => {
+                assert_eq!(spec.size, 4);
+                assert_eq!(spec.creation_time, 0);
+            }
+        }
+        let single = load_config(&root.join("single-event-config.json")).unwrap();
+        assert!(single.shortcuts.is_empty());
+        assert_eq!(single.events[0].growth_type, 8);
+        assert_eq!(single.events[0].color, 1);
+        assert_eq!(resolve_events(&single).unwrap().len(), 1);
     }
 }

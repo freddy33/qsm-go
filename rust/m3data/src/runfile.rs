@@ -30,6 +30,31 @@ pub struct RunRecord {
     pub max_time_steps: i32,
     /// Highest `nodes.creation_time` saved when this run finished.
     pub creation_time: i32,
+    /// How long the run took and how much memory it used.
+    ///
+    /// Absent on run files written before this field existed. It is not part of
+    /// [`ensure_compatible`]: two runs with different recaps still match.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recap: Option<RunRecap>,
+}
+
+/// Timing and memory recorded at the end of a successful `qsm` run.
+///
+/// This is a report of that invocation. It is not an input, and a later run
+/// does not have to match it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RunRecap {
+    pub elapsed_ms: u64,
+    #[serde(default)]
+    pub step_ms: Vec<u64>,
+    /// Peak resident memory. Absent when the OS did not report one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peak_rss_bytes: Option<u64>,
+    pub nodes: u64,
+    pub nodes_created: u64,
+    pub points: u64,
+    pub points_created: u64,
 }
 
 /// Newest `qsm/run-*.json` under the simulation folder, by file name.
@@ -102,6 +127,7 @@ pub fn write_run(
     inputs: &SimulationInputs,
     raw: &[u8],
     creation_time: i32,
+    recap: RunRecap,
 ) -> Result<PathBuf> {
     let record = RunRecord {
         inputs_sha256: sha256_hex(raw),
@@ -110,6 +136,7 @@ pub fn write_run(
         events: expand_events(inputs)?,
         max_time_steps: inputs.max_time_steps,
         creation_time,
+        recap: Some(recap),
     };
     let dir = root.join("qsm");
     std::fs::create_dir_all(&dir)?;
@@ -260,6 +287,54 @@ mod tests {
     use super::*;
 
     #[test]
+    fn recap_is_not_part_of_the_lock_and_old_files_load() {
+        let inputs = crate::inputs::default_inputs();
+        let events = expand_events(&inputs).unwrap();
+        let recap = RunRecap {
+            elapsed_ms: 12,
+            step_ms: vec![4, 8],
+            peak_rss_bytes: Some(4096),
+            nodes: 4,
+            nodes_created: 4,
+            points: 1,
+            points_created: 1,
+        };
+        let previous = RunRecord {
+            inputs_sha256: String::new(),
+            inputs: inputs.clone(),
+            space: inputs.space.clone(),
+            events: events.clone(),
+            max_time_steps: inputs.max_time_steps,
+            creation_time: 0,
+            recap: Some(recap.clone()),
+        };
+        ensure_compatible(Path::new("run-test.json"), &previous, &inputs).unwrap();
+        let changed = RunRecord {
+            recap: Some(RunRecap {
+                elapsed_ms: 9_000,
+                nodes: 100,
+                nodes_created: 0,
+                peak_rss_bytes: None,
+                ..recap
+            }),
+            ..previous
+        };
+        ensure_compatible(Path::new("run-test.json"), &changed, &inputs).unwrap();
+
+        let old = r#"{
+            "inputs_sha256": "ab",
+            "inputs": { "max_time_steps": 0 },
+            "space": {},
+            "events": [],
+            "max_time_steps": 0,
+            "creation_time": 0
+        }"#;
+        let record: RunRecord = serde_json::from_str(old).unwrap();
+        assert!(record.recap.is_none());
+        assert_eq!(record.space.active_path_node_threshold, 3);
+    }
+
+    #[test]
     fn utc_stamp_is_sortable() {
         assert_eq!(format_utc(0), "19700101T000000Z");
         assert_eq!(format_utc(1_792_671_480), "20261022T121800Z");
@@ -268,5 +343,13 @@ mod tests {
         let later = "run-20261022T121801Z.json";
         assert!(plain < suffix);
         assert!(suffix < later);
+        let stamp = format_utc(1_792_671_480);
+        assert!(
+            !stamp.chars().any(|c| r#"/\:*?"<>|"#.contains(c)),
+            "{stamp}"
+        );
+        let archive = format!("pyramid-{stamp}");
+        assert!(!archive.contains(':'));
+        assert_eq!(format!("run-{stamp}.json"), plain);
     }
 }

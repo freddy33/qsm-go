@@ -25,7 +25,16 @@ pub struct RunStats {
     pub time: i32,
     pub events: usize,
     pub nodes: usize,
+    pub points: usize,
+    pub nodes_created: usize,
+    pub points_created: usize,
     pub steps_computed: i32,
+    /// Milliseconds spent in each growth step, not including the time-0 seed.
+    pub step_ms: Vec<u64>,
+    /// Filled by the caller for the whole `qsm` invocation. Not measured here.
+    pub elapsed_ms: u64,
+    /// Filled by the caller. `None` when the process cannot report a peak.
+    pub peak_rss_bytes: Option<u64>,
 }
 
 struct CtxState {
@@ -75,6 +84,8 @@ pub async fn run_simulation(
 ) -> Result<RunStats> {
     validate_inputs(inputs)?;
     let pack = PointPackData::shared();
+    let nodes_before = store.nodes().len();
+    let points_before = store.points().len();
     let resumed = !store.nodes().is_empty();
     if !resumed {
         if !store.points().is_empty()
@@ -95,8 +106,14 @@ pub async fn run_simulation(
     }
     let mut world = load(store)?;
     let mut steps = 0;
-    while world.grow_one(pack, inputs.max_time_steps)? {
+    let mut step_ms = Vec::new();
+    loop {
+        let started = std::time::Instant::now();
+        if !world.grow_one(pack, inputs.max_time_steps)? {
+            break;
+        }
         world.persist(store).await?;
+        step_ms.push(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX));
         steps += 1;
     }
     if world.needs_persist() {
@@ -108,13 +125,21 @@ pub async fn run_simulation(
         .map(|node| node.creation_time)
         .max()
         .unwrap_or(0);
+    let nodes = store.nodes().len();
+    let points = store.points().len();
     Ok(RunStats {
         resumed,
         max_time_steps: inputs.max_time_steps,
         time,
         events: store.events().len(),
-        nodes: store.nodes().len(),
+        nodes,
+        points,
+        nodes_created: nodes.saturating_sub(nodes_before),
+        points_created: points.saturating_sub(points_before),
         steps_computed: steps,
+        step_ms,
+        elapsed_ms: 0,
+        peak_rss_bytes: None,
     })
 }
 

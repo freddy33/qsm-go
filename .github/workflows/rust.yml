@@ -16,6 +16,12 @@ jobs:
       - name: Install pinned Rust toolchain
         run: rustup show && rustc --version
 
+      # Keyed on Cargo.lock and the pinned toolchain in rust/rust-toolchain.toml.
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
       - name: Install viewer system libraries
         run: |
           sudo apt-get update
@@ -27,6 +33,37 @@ jobs:
       - name: Build workspace
         run: cargo build --workspace
 
+      - name: Test workspace
+        run: cargo test --workspace
+
+      - name: Build viewer
+        run: cargo build -p qsm-view --features view
+
+  rust-windows:
+    name: Rust (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain
+        run: rustup show && rustc --version
+
+      # Keyed on Cargo.lock and the pinned toolchain in rust/rust-toolchain.toml.
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      # Includes the m3data Iceberg tests (round trip, uniqueness, pyramid,
+      # run-file lock). They create table directories and fail if a Windows
+      # path is rewritten to /C:/.
       - name: Test workspace
         run: cargo test --workspace
 
