@@ -61,6 +61,9 @@ jobs:
       - name: Build workspace
         run: cargo build --workspace
 
+      # Includes the m3data Iceberg tests (round trip, uniqueness, pyramid,
+      # run-file lock). They create table directories and fail if a Windows
+      # path is rewritten to /C:/.
       - name: Test workspace
         run: cargo test --workspace
 

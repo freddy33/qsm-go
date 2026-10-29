@@ -100,7 +100,7 @@ impl SimulationStore {
             .with_storage_factory(Arc::new(LocalFsStorageFactory))
             .load(
                 "qsm",
-                HashMap::from([(MEMORY_CATALOG_WAREHOUSE.to_string(), file_uri(&root))]),
+                HashMap::from([(MEMORY_CATALOG_WAREHOUSE.to_string(), storage_path(&root))]),
             )
             .await?;
         let namespace = NamespaceIdent::new(NAMESPACE.to_string());
@@ -110,7 +110,9 @@ impl SimulationStore {
         for kind in TableKind::all() {
             let ident = table_ident(kind);
             let table = if let Some(metadata) = latest_metadata(&root, kind.name()) {
-                catalog.register_table(&ident, file_uri(&metadata)).await?
+                catalog
+                    .register_table(&ident, storage_path(&metadata))
+                    .await?
             } else {
                 catalog
                     .create_table(&namespace, table_creation(kind)?)
@@ -648,19 +650,17 @@ fn is_windows_reserved(name: &str) -> bool {
     )
 }
 
-/// `file://` URI for a local path.
+/// Absolute path string for iceberg's local filesystem.
 ///
-/// Unix absolute paths stay `file:///tmp/...`. A Windows path, including the
-/// `\\?\` prefix from `canonicalize`, becomes `file:///C:/...` with forward
-/// slashes. The drive-letter colon is the only colon in that URI.
-fn file_uri(path: &Path) -> String {
+/// `LocalFsStorage::normalize_path` rewrites `file:///C:/...` to `/C:/...`,
+/// and Windows rejects that path (os error 123). A plain absolute path is
+/// left as written: `/tmp/...` on Unix, `C:/...` on Windows. The `\\?\`
+/// prefix from `canonicalize` is removed, and backslashes become slashes.
+/// Older metadata that still says `file:///...` is read by [`uri_to_path`].
+fn storage_path(path: &Path) -> String {
     let text = path.to_string_lossy();
     let text = text.strip_prefix(r"\\?\").unwrap_or(&text);
-    let mut text = text.replace('\\', "/");
-    if !text.starts_with('/') {
-        text.insert(0, '/');
-    }
-    format!("file://{text}")
+    text.replace('\\', "/")
 }
 
 fn unique_file_suffix() -> String {
@@ -911,8 +911,9 @@ fn uri_to_path(uri: &str) -> PathBuf {
     let Some(rest) = uri.strip_prefix("file://") else {
         return PathBuf::from(uri);
     };
-    // `file:///C:/qsm` strips to `/C:/qsm`. Drop that extra slash so Windows
-    // sees a drive path. A Unix path such as `/tmp/qsm` has no drive letter.
+    // Legacy `file:///C:/qsm` strips to `/C:/qsm`. Drop that slash so the
+    // drive path survives. `file:///tmp/qsm` has no drive letter and stays
+    // absolute.
     let bytes = rest.as_bytes();
     let rest = if bytes.len() >= 3 && bytes[0] == b'/' && bytes[2] == b':' {
         &rest[1..]
@@ -961,15 +962,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn file_uris_use_forward_slashes_and_round_trip() {
-        let unix = file_uri(Path::new("/tmp/qsm/pyramid"));
-        assert_eq!(unix, "file:///tmp/qsm/pyramid");
-        assert_eq!(uri_to_path(&unix), Path::new("/tmp/qsm/pyramid"));
-
-        let drive = file_uri(Path::new(r"\\?\C:\qsm\pyramid"));
-        assert_eq!(drive, "file:///C:/qsm/pyramid");
+    fn storage_paths_stay_plain_so_windows_can_create_them() {
+        assert_eq!(
+            storage_path(Path::new("/tmp/qsm/pyramid")),
+            "/tmp/qsm/pyramid"
+        );
+        let drive = storage_path(Path::new(r"\\?\C:\Users\User\AppData\Local\Temp\qsm"));
+        assert_eq!(drive, "C:/Users/User/AppData/Local/Temp/qsm");
+        assert!(!drive.starts_with('/'), "{drive}");
+        assert!(!drive.contains("file:"), "{drive}");
         assert!(!drive.contains('\\'));
-        assert_eq!(uri_to_path(&drive), Path::new("C:/qsm/pyramid"));
+
+        assert_eq!(
+            uri_to_path("/tmp/qsm/pyramid"),
+            Path::new("/tmp/qsm/pyramid")
+        );
+        assert_eq!(
+            uri_to_path("file:///tmp/qsm/pyramid"),
+            Path::new("/tmp/qsm/pyramid")
+        );
+        assert_eq!(
+            uri_to_path("C:/Users/User/AppData/Local/Temp/qsm"),
+            Path::new("C:/Users/User/AppData/Local/Temp/qsm")
+        );
+        assert_eq!(
+            uri_to_path("file:///C:/Users/User/AppData/Local/Temp/qsm"),
+            Path::new("C:/Users/User/AppData/Local/Temp/qsm")
+        );
     }
 
     #[test]
